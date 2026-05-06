@@ -22,26 +22,53 @@ input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
 </head>
 <body>
 <div id="root"></div>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>
 <script>
-(function(){
-var h=React.createElement,useState=React.useState,useEffect=React.useEffect,useRef=React.useRef;
-var FF='system-ui,-apple-system,sans-serif',PC='#14b8a6';
-var inp={background:'#1e1e1e',border:'1px solid #2a2a2a',borderRadius:8,color:'#fff',padding:'10px 12px',fontSize:16,width:'100%',fontFamily:FF};
-function card(x){return Object.assign({background:'#191919',borderRadius:14,padding:16},x||{});}
-var pg={background:'#111',minHeight:'100vh',color:'#fff',padding:'20px 16px',maxWidth:440,margin:'0 auto',fontFamily:FF};
-function pgC(){return Object.assign({},pg,{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',minHeight:'100vh'});}
-function pbtn(c,x){return Object.assign({background:c,border:'none',color:'#fff',borderRadius:12,padding:'13px 20px',fontSize:15,fontWeight:600,cursor:'pointer',width:'100%',fontFamily:FF},x||{});}
-var LS={get:function(k){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}},set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+(function() {
+
+var h = React.createElement;
+var useState = React.useState;
+var useEffect = React.useEffect;
+var useRef = React.useRef;
+var FF = 'system-ui,-apple-system,sans-serif';
+var PC = '#14b8a6';
+var inp = {background:'#1e1e1e',border:'1px solid #2a2a2a',borderRadius:8,color:'#fff',padding:'10px 12px',fontSize:16,width:'100%',fontFamily:FF};
+function card(x) { return Object.assign({background:'#191919',borderRadius:14,padding:16}, x||{}); }
+var pg = {background:'#111',minHeight:'100vh',color:'#fff',padding:'20px 16px',maxWidth:440,margin:'0 auto',fontFamily:FF};
+function pgC() { return Object.assign({},pg,{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',minHeight:'100vh'}); }
+function pbtn(c,x) { return Object.assign({background:c,border:'none',color:'#fff',borderRadius:12,padding:'13px 20px',fontSize:15,fontWeight:600,cursor:'pointer',width:'100%',fontFamily:FF},x||{}); }
+var LS = {
+  get: function(k){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}},
+  set: function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+};
 function fmtDate(d){try{return new Date(d).toLocaleDateString('en-IE',{day:'numeric',month:'short'});}catch(e){return d;}}
-function bpCat(s,d){if(s<120&&d<80)return{label:'Normal',color:'#22c55e'};if(s<130&&d<80)return{label:'Elevated',color:'#f59e0b'};if(s<140||d<90)return{label:'High Stage 1',color:'#f97316'};return{label:'High Stage 2',color:'#ef4444'};}
-function playChime(){try{var ctx=new(window.AudioContext||window.webkitAudioContext)();[523.25,659.25,783.99].forEach(function(f,i){var o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=f;var t=ctx.currentTime+i*0.12;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.25,t+0.04);g.gain.exponentialRampToValueAtTime(0.001,t+1.1);o.start(t);o.stop(t+1.1);});}catch(e){}}
+function bpCat(s,d){
+  if(s<120&&d<80)return{label:'Normal',color:'#22c55e'};
+  if(s<130&&d<80)return{label:'Elevated',color:'#f59e0b'};
+  if(s<140||d<90)return{label:'High Stage 1',color:'#f97316'};
+  return{label:'High Stage 2',color:'#ef4444'};
+}
+function playChime(){
+  try{
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [523.25,659.25,783.99].forEach(function(f,i){
+      var o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=f;
+      var t=ctx.currentTime+i*0.12;
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.25,t+0.04);
+      g.gain.exponentialRampToValueAtTime(0.001,t+1.1);
+      o.start(t);o.stop(t+1.1);
+    });
+  }catch(e){}
+}
 function eKey(ss,r,id){return ss+'_'+r+'_'+id;}
 function exIdFromKey(k){return k.split('_').slice(2).join('_');}
 function valStr(v){if(!v)return'--';if(v.weight)return v.reps+'r x '+v.weight+'kg';if(v.reps)return v.reps+'r';if(v.duration)return v.duration+'s';return'--';}
 
-var WK={
+// ── Data ───────────────────────────────────────────────────────────────────
+
+var WK = {
   pull:{name:'Pull Day',emoji:'\uD83D\uDFE6',color:'#3b82f6',supersets:[
     {id:'A',rounds:3,restSec:50,exercises:[{id:'rows',name:'Rows',type:'weighted'},{id:'bulgarian',name:'Bulgarian Split Squats',type:'weighted'}]},
     {id:'B',rounds:3,restSec:50,exercises:[{id:'pullups',name:'Pull-ups / Inverted Rows',type:'reps'},{id:'glute_bridge',name:'Marching Glute Bridge',type:'reps'}]}
@@ -51,15 +78,19 @@ var WK={
     {id:'B',rounds:3,restSec:50,exercises:[{id:'pushups',name:'Push-ups',type:'reps'},{id:'side_plank',name:'Side Plank',type:'duration'}]}
   ]}
 };
-var COND={rounds:2,exercises:[{id:'step_ups',name:'Step-ups',type:'reps'},{id:'marching',name:'Marching in Place',type:'duration'}]};
-var ALL_EX=[
-  {id:'rows',name:'Rows',type:'weighted',wk:'pull'},{id:'bulgarian',name:'Bulgarian Split Squats',type:'weighted',wk:'pull'},
-  {id:'pullups',name:'Pull-ups / Inverted Rows',type:'reps',wk:'pull'},{id:'glute_bridge',name:'Marching Glute Bridge',type:'reps',wk:'pull'},
-  {id:'dips',name:'Dips',type:'reps',wk:'push'},{id:'sldl',name:'Single-leg Deadlift',type:'weighted',wk:'push'},
-  {id:'pushups',name:'Push-ups',type:'reps',wk:'push'},{id:'side_plank',name:'Side Plank',type:'duration',wk:'push'}
+var COND = {rounds:2,exercises:[{id:'step_ups',name:'Step-ups',type:'reps'},{id:'marching',name:'Marching in Place',type:'duration'}]};
+var ALL_EX = [
+  {id:'rows',name:'Rows',type:'weighted',wk:'pull'},
+  {id:'bulgarian',name:'Bulgarian Split Squats',type:'weighted',wk:'pull'},
+  {id:'pullups',name:'Pull-ups / Inverted Rows',type:'reps',wk:'pull'},
+  {id:'glute_bridge',name:'Marching Glute Bridge',type:'reps',wk:'pull'},
+  {id:'dips',name:'Dips',type:'reps',wk:'push'},
+  {id:'sldl',name:'Single-leg Deadlift',type:'weighted',wk:'push'},
+  {id:'pushups',name:'Push-ups',type:'reps',wk:'push'},
+  {id:'side_plank',name:'Side Plank',type:'duration',wk:'push'}
 ];
 
-var YOGA=[
+var YOGA = [
   {name:'Seated Centering',sanskrit:'Sukhasana',dur:60,cue:'Sit cross-legged. Rest hands on knees, palms up. Slow belly breaths - inhale 4, exhale 6.'},
   {name:'Neck and Shoulder Rolls',sanskrit:'Seated Mobilisation',dur:45,cue:'Drop right ear to shoulder, roll chin to chest, left ear to shoulder. Reverse. Roll shoulders 3x each way.'},
   {name:'Cat-Cow',sanskrit:'Marjaryasana-Bitilasana',dur:60,cue:'Tabletop. Inhale: drop belly, lift chest. Exhale: round spine, tuck chin. Move with breath.'},
@@ -85,10 +116,10 @@ var YOGA=[
   {name:'Savasana',sanskrit:'Savasana',dur:120,cue:'Legs long, feet falling open. Arms by sides, palms up. Eyes closed. Every muscle releases.'}
 ];
 
-var YOGA2=[
+var YOGA2 = [
   {name:'Seated Forward Fold Variation',sanskrit:'Sukhasana variation',dur:120,cue:'Sit with feet on the ground and knees lifted. Slowly drape your heart over the tops of your thighs. Breathe into the back body.'},
   {name:'Core Stability Boat Prep',sanskrit:'Navasana variation',dur:50,cue:'From seated, lean back slightly and lift shins parallel to the floor. Hands behind thighs for support. Core engaged, breathe steadily.'},
-  {name:'Seated Spinal Twist Right',sanskrit:'Ardha Matsyendrasana',dur:55,cue:'Extend left leg. Hug right knee to chest. Inhale tall, exhale twist toward right knee. Left hand to right knee, right hand behind. Spine upright.'},
+  {name:'Seated Spinal Twist Right',sanskrit:'Ardha Matsyendrasana',dur:55,cue:'Extend left leg. Hug right knee to chest. Inhale tall, exhale twist toward right knee. Left hand to right knee, right hand behind.'},
   {name:'Seated Spinal Twist Left',sanskrit:'Ardha Matsyendrasana',dur:55,cue:'Extend right leg. Hug left knee to chest. Inhale tall, exhale twist left. Right hand to left knee, left hand behind.'},
   {name:'Head-to-Knee Pose Right',sanskrit:'Janu Sirsasana',dur:55,cue:'Tuck left foot at inner right thigh. Extend right leg. Hinge from hips with long spine, reach toward right foot or shin.'},
   {name:'Head-to-Knee Pose Left',sanskrit:'Janu Sirsasana',dur:55,cue:'Tuck right foot at inner left thigh. Extend left leg. Hinge from hips, long spine, reach toward left foot.'},
@@ -106,102 +137,16 @@ var YOGA2=[
   {name:'Savasana',sanskrit:'Savasana',dur:120,cue:'Legs long, feet falling open. Arms by sides, palms up. Eyes fully closed. Every muscle releases.'}
 ];
 
-var YOGA_FLOWS=[YOGA,YOGA2];
-var YOGA_NAMES=['Full Body Flow','Hips and Lower Back'];
-var YOGA_DESCS=['23 poses - ~18 min','18 poses - ~22 min'];
-var YOGA_VID=[null,'https://youtu.be/Ho9em79_0qg'];
-var YOGA_TOTALS=[YOGA.reduce(function(s,p){return s+p.dur;},0),YOGA2.reduce(function(s,p){return s+p.dur;},0)];
+var YOGA_FLOWS = [YOGA, YOGA2];
+var YOGA_NAMES = ['Full Body Flow', 'Hips and Lower Back'];
+var YOGA_DESCS = ['23 poses - ~18 min', '18 poses - ~22 min'];
+var YOGA_VID = [null, 'https://youtu.be/Ho9em79_0qg'];
+var YOGA_TOTALS = [
+  YOGA.reduce(function(s,p){return s+p.dur;},0),
+  YOGA2.reduce(function(s,p){return s+p.dur;},0)
+];
 
-var POSE_PHOTOS={
-  seated_fwd_var:'https://i.imgur.com/PQgaetS.png',
-  boat_prep:'https://i.imgur.com/5gbrs9Q.png',
-  seated_twist:'https://i.imgur.com/DuPsRq7.png',
-  head_to_knee:'https://i.imgur.com/UFuh4kl.png',
-  bound_angle:'https://i.imgur.com/0aDxqzj.png',
-  swimming:'https://i.imgur.com/8l9K9p8.png',
-  paschimottanasana:'https://i.imgur.com/cpf1aN6.png',
-  windshield:'https://i.imgur.com/TUdZEV6.png',
-  knees_chest:'https://i.imgur.com/Mz3Kc56.png'
-};
-
-var POSE_IMGS={
-  seated_cross:'<circle cx="80" cy="14" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="22" x2="80" y2="58"/><line x1="72" y1="34" x2="52" y2="50"/><line x1="88" y1="34" x2="108" y2="50"/><line x1="80" y1="58" x2="50" y2="76"/><line x1="50" y1="76" x2="90" y2="72"/><line x1="80" y1="58" x2="110" y2="76"/><line x1="110" y1="76" x2="70" y2="72"/>',
-  cat_cow:'<circle cx="22" cy="44" r="7" fill="#c8a97e" stroke="none"/><line x1="28" y1="46" x2="38" y2="55"/><path d="M38,55 Q80,32 122,55"/><line x1="38" y1="55" x2="26" y2="80"/><line x1="50" y1="58" x2="42" y2="80"/><line x1="122" y1="55" x2="132" y2="80"/><line x1="112" y1="58" x2="118" y2="80"/>',
-  bird_dog:'<circle cx="22" cy="50" r="7" fill="#c8a97e" stroke="none"/><line x1="28" y1="52" x2="40" y2="58"/><path d="M40,58 Q80,56 118,58"/><line x1="40" y1="58" x2="26" y2="82"/><line x1="50" y1="60" x2="48" y2="82"/><line x1="118" y1="58" x2="148" y2="50"/><line x1="40" y1="50" x2="12" y2="42"/>',
-  dead_bug:'<circle cx="20" cy="60" r="8" fill="#c8a97e" stroke="none"/><line x1="28" y1="60" x2="88" y2="62"/><line x1="45" y1="58" x2="38" y2="36"/><line x1="65" y1="58" x2="72" y2="36"/><line x1="88" y1="60" x2="105" y2="42"/><line x1="105" y1="42" x2="120" y2="58"/><line x1="88" y1="64" x2="102" y2="84"/><line x1="102" y1="84" x2="138" y2="84"/>',
-  childs_pose:'<circle cx="25" cy="70" r="7" fill="#c8a97e" stroke="none"/><path d="M31,68 Q65,54 96,60 Q112,63 122,70"/><line x1="122" y1="70" x2="132" y2="88"/><line x1="112" y1="70" x2="118" y2="88"/><line x1="18" y1="84" x2="36" y2="84"/>',
-  low_lunge:'<circle cx="80" cy="20" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="28" x2="80" y2="65"/><line x1="80" y1="65" x2="108" y2="85"/><line x1="108" y1="85" x2="128" y2="85"/><line x1="80" y1="65" x2="58" y2="78"/><line x1="58" y1="78" x2="38" y2="84"/><line x1="72" y1="40" x2="56" y2="54"/><line x1="88" y1="40" x2="104" y2="54"/>',
-  half_splits:'<circle cx="50" cy="32" r="8" fill="#c8a97e" stroke="none"/><line x1="52" y1="40" x2="65" y2="68"/><line x1="65" y1="68" x2="138" y2="70"/><line x1="65" y1="68" x2="50" y2="85"/><line x1="50" y1="85" x2="28" y2="88"/><line x1="52" y1="46" x2="32" y2="52"/><line x1="56" y1="42" x2="80" y2="52"/>',
-  mountain:'<circle cx="80" cy="14" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="22" x2="80" y2="70"/><line x1="72" y1="34" x2="55" y2="14"/><line x1="88" y1="34" x2="105" y2="14"/><line x1="80" y1="70" x2="62" y2="102"/><line x1="80" y1="70" x2="98" y2="102"/>',
-  side_stretch:'<circle cx="76" cy="16" r="8" fill="#c8a97e" stroke="none"/><line x1="76" y1="24" x2="74" y2="70"/><line x1="68" y1="36" x2="48" y2="46"/><line x1="82" y1="32" x2="98" y2="12"/><line x1="98" y1="12" x2="122" y2="44"/><line x1="74" y1="70" x2="60" y2="102"/><line x1="74" y1="70" x2="88" y2="102"/>',
-  warrior1:'<circle cx="80" cy="14" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="22" x2="80" y2="62"/><line x1="72" y1="32" x2="63" y2="10"/><line x1="88" y1="32" x2="97" y2="10"/><line x1="80" y1="62" x2="102" y2="84"/><line x1="102" y1="84" x2="122" y2="84"/><line x1="80" y1="62" x2="55" y2="74"/><line x1="55" y1="74" x2="32" y2="84"/>',
-  warrior2:'<circle cx="80" cy="18" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="26" x2="80" y2="65"/><line x1="68" y1="38" x2="18" y2="38"/><line x1="92" y1="38" x2="142" y2="38"/><line x1="80" y1="65" x2="50" y2="88"/><line x1="50" y1="88" x2="22" y2="88"/><line x1="80" y1="65" x2="110" y2="88"/><line x1="110" y1="88" x2="138" y2="88"/>',
-  reclined_butterfly:'<circle cx="18" cy="55" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="55" x2="88" y2="58"/><line x1="52" y1="56" x2="48" y2="75"/><line x1="68" y1="57" x2="64" y2="75"/><line x1="88" y1="55" x2="112" y2="40"/><line x1="112" y1="40" x2="130" y2="60"/><line x1="88" y1="60" x2="112" y2="76"/><line x1="112" y1="76" x2="130" y2="60"/>',
-  supine_twist:'<circle cx="18" cy="52" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="52" x2="90" y2="55"/><line x1="44" y1="50" x2="36" y2="30"/><line x1="90" y1="55" x2="112" y2="72"/><line x1="112" y1="72" x2="130" y2="88"/><line x1="112" y1="72" x2="130" y2="62"/>',
-  bridge:'<circle cx="18" cy="70" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="68" x2="55" y2="62"/><path d="M55,62 Q80,36 106,62"/><line x1="106" y1="62" x2="120" y2="85"/><line x1="96" y1="62" x2="108" y2="85"/><line x1="44" y1="64" x2="38" y2="84"/><line x1="55" y1="64" x2="48" y2="84"/>',
-  savasana:'<circle cx="18" cy="58" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="58" x2="122" y2="60"/><line x1="54" y1="57" x2="58" y2="78"/><line x1="70" y1="57" x2="68" y2="78"/><line x1="122" y1="58" x2="148" y2="64"/><line x1="122" y1="62" x2="148" y2="55"/>',
-  seated_fwd_var:'<circle cx="62" cy="46" r="8" fill="#c8a97e" stroke="none"/><path d="M60,54 Q58,68 64,80"/><line x1="64" y1="80" x2="106" y2="64"/><line x1="106" y1="64" x2="120" y2="88"/><line x1="120" y1="88" x2="100" y2="96"/><line x1="58" y1="66" x2="88" y2="58"/><line x1="88" y1="58" x2="108" y2="68"/>',
-  boat_prep:'<circle cx="55" cy="50" r="8" fill="#c8a97e" stroke="none"/><line x1="57" y1="58" x2="72" y2="84"/><line x1="72" y1="84" x2="112" y2="66"/><line x1="112" y1="66" x2="150" y2="68"/><line x1="58" y1="66" x2="86" y2="60"/><line x1="86" y1="60" x2="112" y2="66"/>',
-  seated_twist:'<circle cx="80" cy="22" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="30" x2="78" y2="64"/><line x1="78" y1="64" x2="22" y2="76"/><line x1="78" y1="64" x2="108" y2="48"/><line x1="108" y1="48" x2="122" y2="70"/><line x1="122" y1="70" x2="106" y2="82"/><line x1="72" y1="40" x2="108" y2="48"/><line x1="86" y1="38" x2="118" y2="64"/>',
-  head_to_knee:'<circle cx="30" cy="40" r="8" fill="#c8a97e" stroke="none"/><path d="M32,48 Q52,62 76,70"/><line x1="76" y1="72" x2="148" y2="74"/><line x1="76" y1="72" x2="52" y2="86"/><line x1="52" y1="86" x2="45" y2="102"/><line x1="36" y1="56" x2="78" y2="60"/><line x1="78" y1="60" x2="144" y2="68"/>',
-  bound_angle:'<circle cx="52" cy="36" r="8" fill="#c8a97e" stroke="none"/><path d="M50,44 Q56,62 70,76"/><line x1="70" y1="78" x2="32" y2="98"/><line x1="70" y1="78" x2="108" y2="98"/><line x1="32" y1="98" x2="70" y2="110"/><line x1="108" y1="98" x2="70" y2="110"/><line x1="54" y1="56" x2="68" y2="78"/>',
-  swimming:'<circle cx="80" cy="22" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="30" x2="78" y2="62"/><line x1="78" y1="62" x2="12" y2="84"/><line x1="78" y1="62" x2="146" y2="84"/><line x1="74" y1="38" x2="46" y2="10"/><line x1="46" y1="10" x2="14" y2="54"/><line x1="86" y1="40" x2="120" y2="52"/>',
-  paschimottanasana:'<circle cx="16" cy="52" r="8" fill="#c8a97e" stroke="none"/><path d="M22,56 Q60,62 102,66"/><line x1="16" y1="70" x2="148" y2="72"/><line x1="24" y1="62" x2="100" y2="62"/><line x1="100" y1="62" x2="145" y2="66"/>',
-  froggy:'<circle cx="80" cy="62" r="8" fill="#c8a97e" stroke="none"/><path d="M80,70 Q80,80 80,90"/><line x1="80" y1="90" x2="24" y2="100"/><line x1="24" y1="100" x2="18" y2="86"/><line x1="80" y1="90" x2="136" y2="100"/><line x1="136" y1="100" x2="142" y2="86"/><line x1="75" y1="80" x2="44" y2="93"/><line x1="85" y1="80" x2="116" y2="93"/>',
-  yogi_squat:'<circle cx="80" cy="18" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="26" x2="80" y2="56"/><line x1="74" y1="36" x2="66" y2="48"/><line x1="86" y1="36" x2="94" y2="48"/><line x1="66" y1="48" x2="80" y2="53"/><line x1="94" y1="48" x2="80" y2="53"/><line x1="80" y1="56" x2="42" y2="76"/><line x1="42" y1="76" x2="18" y2="98"/><line x1="80" y1="56" x2="118" y2="76"/><line x1="118" y1="76" x2="142" y2="98"/>',
-  standing_fold:'<circle cx="80" cy="96" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="88" x2="80" y2="56"/><line x1="72" y1="68" x2="54" y2="84"/><line x1="88" y1="68" x2="106" y2="84"/><line x1="80" y1="56" x2="16" y2="10"/><line x1="80" y1="56" x2="144" y2="10"/>',
-  knees_chest:'<circle cx="18" cy="62" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="62" x2="76" y2="64"/><line x1="76" y1="62" x2="88" y2="38"/><line x1="88" y1="38" x2="102" y2="58"/><line x1="76" y1="66" x2="88" y2="80"/><line x1="88" y1="80" x2="102" y2="62"/><line x1="34" y1="56" x2="76" y2="46"/><line x1="76" y1="46" x2="96" y2="50"/>',
-  eagle_twist:'<circle cx="16" cy="54" r="8" fill="#c8a97e" stroke="none"/><line x1="24" y1="54" x2="86" y2="56"/><line x1="36" y1="50" x2="10" y2="32"/><line x1="86" y1="54" x2="114" y2="38"/><line x1="114" y1="38" x2="138" y2="60"/><line x1="86" y1="58" x2="112" y2="50"/><line x1="112" y1="50" x2="134" y2="74"/>',
-  happy_baby:'<circle cx="16" cy="68" r="8" fill="#c8a97e" stroke="none"/><line x1="24" y1="68" x2="86" y2="70"/><line x1="50" y1="66" x2="42" y2="38"/><line x1="42" y1="38" x2="46" y2="12"/><line x1="70" y1="68" x2="80" y2="38"/><line x1="80" y1="38" x2="76" y2="12"/><line x1="30" y1="62" x2="38" y2="28"/><line x1="38" y1="28" x2="46" y2="12"/><line x1="60" y1="64" x2="72" y2="28"/><line x1="72" y1="28" x2="76" y2="12"/>',
-  windshield:'<circle cx="14" cy="54" r="8" fill="#c8a97e" stroke="none"/><line x1="22" y1="54" x2="84" y2="56"/><line x1="36" y1="50" x2="8" y2="34"/><line x1="60" y1="50" x2="76" y2="36"/><line x1="84" y1="54" x2="112" y2="42"/><line x1="112" y1="42" x2="136" y2="64"/><line x1="112" y1="44" x2="130" y2="78"/>'
-};
-
-function getPoseKey(name){
-  var n=name.toLowerCase();
-  if(n.includes('savasana'))return'savasana';
-  if(n.includes('cat')||n.includes('cow'))return'cat_cow';
-  if(n.includes('bird'))return'bird_dog';
-  if(n.includes('dead bug'))return'dead_bug';
-  if(n.includes('child'))return'childs_pose';
-  if(n.includes('low lunge'))return'low_lunge';
-  if(n.includes('half split'))return'half_splits';
-  if(n.includes('mountain'))return'mountain';
-  if(n.includes('warrior i')&&!n.includes('ii'))return'warrior1';
-  if(n.includes('warrior ii'))return'warrior2';
-  if(n.includes('reclined butterfly'))return'reclined_butterfly';
-  if(n.includes('supine twist'))return'supine_twist';
-  if(n.includes('bridge'))return'bridge';
-  if(n.includes('knees to chest')||n.includes('apanasana'))return'knees_chest';
-  if(n.includes('boat'))return'boat_prep';
-  if(n.includes('seated spinal')||n.includes('seated twist'))return'seated_twist';
-  if(n.includes('head-to-knee')||n.includes('janu'))return'head_to_knee';
-  if(n.includes('bound angle')||n.includes('diamond'))return'bound_angle';
-  if(n.includes('swimming'))return'swimming';
-  if(n.includes('paschimottanasana')||(n.includes('seated forward fold')&&!n.includes('variation')))return'paschimottanasana';
-  if(n.includes('seated forward fold variation'))return'seated_fwd_var';
-  if(n.includes('froggy'))return'froggy';
-  if(n.includes('yogi squat')||n.includes('malasana'))return'yogi_squat';
-  if(n.includes('standing forward')||n.includes('uttanasana'))return'standing_fold';
-  if(n.includes('happy baby'))return'happy_baby';
-  if(n.includes('windshield'))return'windshield';
-  if(n.includes('eagle legs'))return'eagle_twist';
-  if(n.includes('side stretch'))return'side_stretch';
-  if(n.includes('centering')||n.includes('sukhasana'))return'seated_cross';
-  return null;
-}
-
-function PoseImage(props){
-  var name=props.name;
-  var key=getPoseKey(name);
-  var photo=key?POSE_PHOTOS[key]:null;
-  if(photo)return h('img',{src:photo,alt:name,style:{width:'100%',maxWidth:260,borderRadius:12,margin:'0 auto 12px',display:'block',objectFit:'cover'}});
-  var content=key?POSE_IMGS[key]:null;
-  if(!content)return null;
-  var svg='<svg viewBox="0 0 160 120" width="100%" xmlns="http://www.w3.org/2000/svg"><g stroke="#c8a97e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">'+content+'</g></svg>';
-  return h('div',{style:{background:'#161616',borderRadius:12,padding:'6px 20px 2px',marginBottom:12,maxWidth:220,margin:'0 auto 12px'},dangerouslySetInnerHTML:{__html:svg}});
-}
-
-var PROGRAMMES=[
+var PROGRAMMES = [
   {id:'nerve_hip',name:'Nerve and Hip',note:'Nerve mobility - hip flexor - daily',exercises:[
     {id:'femoral',name:'Femoral Nerve Glide',type:'timed',dur:60,sets:2,note:'Twice a day - 1 min each side',url:'https://www.youtube.com/watch?v=q1ySRKEI0-I'},
     {id:'sciatic',name:'Sciatic Nerve Glide',type:'timed',dur:60,sets:2,note:'Twice a day - 1 min each side',url:'https://www.youtube.com/watch?v=OMbKv94Bu_U'},
@@ -221,9 +166,124 @@ var PROGRAMMES=[
   ]}
 ];
 
-function MiniChart(props){
-  var data=props.data,color=props.color;
-  if(!data||data.length<2)return h('p',{style:{color:'#555',textAlign:'center',padding:'12px 0',fontSize:12}},'Log 2+ entries to show trend.');
+// ── Pose photos (all 15 confirmed) ─────────────────────────────────────────
+// Album order: XkewjmU KC0pJvb 9qlbSsR YC7xez0 jntGvZo Mz3Kc56 TUdZEV6
+//              PQgaetS UFuh4kl 5gbrs9Q DuPsRq7 0aDxqzj cpf1aN6 8l9K9p8 slcsFe7
+// Confirmed from direct sharing: PQgaetS=fwd_var, 5gbrs9Q=boat, DuPsRq7=twist,
+// UFuh4kl=h2k, 0aDxqzj=bound_angle, 8l9K9p8=swimming, cpf1aN6=paschim,
+// TUdZEV6=windshield, Mz3Kc56=knees_chest
+// Remaining 6 assigned by video sequence order:
+// XkewjmU=froggy, KC0pJvb=yogi_squat, 9qlbSsR=standing_fold,
+// YC7xez0=eagle_twist, jntGvZo=happy_baby, slcsFe7=savasana(flow2)
+var POSE_PHOTOS = {
+  seated_fwd_var: 'https://i.imgur.com/PQgaetS.png',
+  boat_prep:      'https://i.imgur.com/5gbrs9Q.png',
+  seated_twist:   'https://i.imgur.com/DuPsRq7.png',
+  head_to_knee:   'https://i.imgur.com/UFuh4kl.png',
+  bound_angle:    'https://i.imgur.com/0aDxqzj.png',
+  swimming:       'https://i.imgur.com/8l9K9p8.png',
+  paschimottanasana: 'https://i.imgur.com/cpf1aN6.png',
+  knees_chest:    'https://i.imgur.com/Mz3Kc56.png',
+  windshield:     'https://i.imgur.com/TUdZEV6.png',
+  froggy:         'https://i.imgur.com/XkewjmU.png',
+  yogi_squat:     'https://i.imgur.com/KC0pJvb.png',
+  standing_fold:  'https://i.imgur.com/9qlbSsR.png',
+  eagle_twist:    'https://i.imgur.com/YC7xez0.png',
+  happy_baby:     'https://i.imgur.com/jntGvZo.png',
+  savasana2:      'https://i.imgur.com/slcsFe7.png'
+};
+
+// ── SVG fallbacks for Flow 1 poses ─────────────────────────────────────────
+var POSE_SVGS = {
+  seated_cross:'<circle cx="80" cy="14" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="22" x2="80" y2="58"/><line x1="72" y1="34" x2="52" y2="50"/><line x1="88" y1="34" x2="108" y2="50"/><line x1="80" y1="58" x2="50" y2="76"/><line x1="50" y1="76" x2="90" y2="72"/><line x1="80" y1="58" x2="110" y2="76"/><line x1="110" y1="76" x2="70" y2="72"/>',
+  cat_cow:'<circle cx="22" cy="44" r="7" fill="#c8a97e" stroke="none"/><line x1="28" y1="46" x2="38" y2="55"/><path d="M38,55 Q80,32 122,55"/><line x1="38" y1="55" x2="26" y2="80"/><line x1="50" y1="58" x2="42" y2="80"/><line x1="122" y1="55" x2="132" y2="80"/><line x1="112" y1="58" x2="118" y2="80"/>',
+  bird_dog:'<circle cx="22" cy="50" r="7" fill="#c8a97e" stroke="none"/><line x1="28" y1="52" x2="40" y2="58"/><path d="M40,58 Q80,56 118,58"/><line x1="40" y1="58" x2="26" y2="82"/><line x1="50" y1="60" x2="48" y2="82"/><line x1="118" y1="58" x2="148" y2="50"/><line x1="40" y1="50" x2="12" y2="42"/>',
+  dead_bug:'<circle cx="20" cy="60" r="8" fill="#c8a97e" stroke="none"/><line x1="28" y1="60" x2="88" y2="62"/><line x1="45" y1="58" x2="38" y2="36"/><line x1="65" y1="58" x2="72" y2="36"/><line x1="88" y1="60" x2="105" y2="42"/><line x1="105" y1="42" x2="120" y2="58"/><line x1="88" y1="64" x2="102" y2="84"/><line x1="102" y1="84" x2="138" y2="84"/>',
+  childs_pose:'<circle cx="25" cy="70" r="7" fill="#c8a97e" stroke="none"/><path d="M31,68 Q65,54 96,60 Q112,63 122,70"/><line x1="122" y1="70" x2="132" y2="88"/><line x1="112" y1="70" x2="118" y2="88"/><line x1="18" y1="84" x2="36" y2="84"/>',
+  low_lunge:'<circle cx="80" cy="20" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="28" x2="80" y2="65"/><line x1="80" y1="65" x2="108" y2="85"/><line x1="108" y1="85" x2="128" y2="85"/><line x1="80" y1="65" x2="58" y2="78"/><line x1="58" y1="78" x2="38" y2="84"/><line x1="72" y1="40" x2="56" y2="54"/><line x1="88" y1="40" x2="104" y2="54"/>',
+  half_splits:'<circle cx="50" cy="32" r="8" fill="#c8a97e" stroke="none"/><line x1="52" y1="40" x2="65" y2="68"/><line x1="65" y1="68" x2="138" y2="70"/><line x1="65" y1="68" x2="50" y2="85"/><line x1="50" y1="85" x2="28" y2="88"/><line x1="52" y1="46" x2="32" y2="52"/><line x1="56" y1="42" x2="80" y2="52"/>',
+  mountain:'<circle cx="80" cy="14" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="22" x2="80" y2="70"/><line x1="72" y1="34" x2="55" y2="14"/><line x1="88" y1="34" x2="105" y2="14"/><line x1="80" y1="70" x2="62" y2="102"/><line x1="80" y1="70" x2="98" y2="102"/>',
+  side_stretch:'<circle cx="76" cy="16" r="8" fill="#c8a97e" stroke="none"/><line x1="76" y1="24" x2="74" y2="70"/><line x1="68" y1="36" x2="48" y2="46"/><line x1="82" y1="32" x2="98" y2="12"/><line x1="98" y1="12" x2="122" y2="44"/><line x1="74" y1="70" x2="60" y2="102"/><line x1="74" y1="70" x2="88" y2="102"/>',
+  warrior1:'<circle cx="80" cy="14" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="22" x2="80" y2="62"/><line x1="72" y1="32" x2="63" y2="10"/><line x1="88" y1="32" x2="97" y2="10"/><line x1="80" y1="62" x2="102" y2="84"/><line x1="102" y1="84" x2="122" y2="84"/><line x1="80" y1="62" x2="55" y2="74"/><line x1="55" y1="74" x2="32" y2="84"/>',
+  warrior2:'<circle cx="80" cy="18" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="26" x2="80" y2="65"/><line x1="68" y1="38" x2="18" y2="38"/><line x1="92" y1="38" x2="142" y2="38"/><line x1="80" y1="65" x2="50" y2="88"/><line x1="50" y1="88" x2="22" y2="88"/><line x1="80" y1="65" x2="110" y2="88"/><line x1="110" y1="88" x2="138" y2="88"/>',
+  reclined_butterfly:'<circle cx="18" cy="55" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="55" x2="88" y2="58"/><line x1="52" y1="56" x2="48" y2="75"/><line x1="68" y1="57" x2="64" y2="75"/><line x1="88" y1="55" x2="112" y2="40"/><line x1="112" y1="40" x2="130" y2="60"/><line x1="88" y1="60" x2="112" y2="76"/><line x1="112" y1="76" x2="130" y2="60"/>',
+  supine_twist:'<circle cx="18" cy="52" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="52" x2="90" y2="55"/><line x1="44" y1="50" x2="36" y2="30"/><line x1="90" y1="55" x2="112" y2="72"/><line x1="112" y1="72" x2="130" y2="88"/><line x1="112" y1="72" x2="130" y2="62"/>',
+  bridge:'<circle cx="18" cy="70" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="68" x2="55" y2="62"/><path d="M55,62 Q80,36 106,62"/><line x1="106" y1="62" x2="120" y2="85"/><line x1="96" y1="62" x2="108" y2="85"/><line x1="44" y1="64" x2="38" y2="84"/><line x1="55" y1="64" x2="48" y2="84"/>',
+  knees_chest_svg:'<circle cx="20" cy="60" r="8" fill="#c8a97e" stroke="none"/><line x1="28" y1="60" x2="75" y2="62"/><line x1="50" y1="58" x2="44" y2="38"/><line x1="65" y1="58" x2="72" y2="38"/><line x1="75" y1="60" x2="96" y2="44"/><line x1="96" y1="44" x2="110" y2="60"/><line x1="75" y1="64" x2="96" y2="78"/><line x1="96" y1="78" x2="110" y2="62"/><line x1="44" y1="38" x2="72" y2="34"/>',
+  savasana:'<circle cx="18" cy="58" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="58" x2="122" y2="60"/><line x1="54" y1="57" x2="58" y2="78"/><line x1="70" y1="57" x2="68" y2="78"/><line x1="122" y1="58" x2="148" y2="64"/><line x1="122" y1="62" x2="148" y2="55"/>'
+};
+
+function getPoseKey(name, flowIdx) {
+  var n = name.toLowerCase();
+  // Flow 2 — photos available
+  if (flowIdx === 1) {
+    if (n.includes('seated forward fold variation')) return {photo:'seated_fwd_var'};
+    if (n.includes('boat prep') || n.includes('core stability')) return {photo:'boat_prep'};
+    if (n.includes('seated spinal twist') || n.includes('seated twist')) return {photo:'seated_twist'};
+    if (n.includes('head-to-knee') || n.includes('janu')) return {photo:'head_to_knee'};
+    if (n.includes('bound angle') || n.includes('diamond')) return {photo:'bound_angle'};
+    if (n.includes('swimming')) return {photo:'swimming'};
+    if (n.includes('paschimottanasana') || (n.includes('seated forward fold') && !n.includes('variation'))) return {photo:'paschimottanasana'};
+    if (n.includes('froggy')) return {photo:'froggy'};
+    if (n.includes('yogi squat') || n.includes('malasana')) return {photo:'yogi_squat'};
+    if (n.includes('standing forward') || n.includes('uttanasana')) return {photo:'standing_fold'};
+    if (n.includes('knees to chest') || n.includes('apanasana')) return {photo:'knees_chest'};
+    if (n.includes('eagle legs')) return {photo:'eagle_twist'};
+    if (n.includes('happy baby')) return {photo:'happy_baby'};
+    if (n.includes('windshield')) return {photo:'windshield'};
+    if (n.includes('savasana')) return {photo:'savasana2'};
+    return null;
+  }
+  // Flow 1 — SVG illustrations
+  if (n.includes('savasana')) return {svg:'savasana'};
+  if (n.includes('cat') || n.includes('cow')) return {svg:'cat_cow'};
+  if (n.includes('bird')) return {svg:'bird_dog'};
+  if (n.includes('dead bug')) return {svg:'dead_bug'};
+  if (n.includes('child')) return {svg:'childs_pose'};
+  if (n.includes('low lunge')) return {svg:'low_lunge'};
+  if (n.includes('half split')) return {svg:'half_splits'};
+  if (n.includes('mountain')) return {svg:'mountain'};
+  if (n.includes('warrior i') && !n.includes('ii')) return {svg:'warrior1'};
+  if (n.includes('warrior ii')) return {svg:'warrior2'};
+  if (n.includes('reclined butterfly')) return {svg:'reclined_butterfly'};
+  if (n.includes('supine twist')) return {svg:'supine_twist'};
+  if (n.includes('bridge')) return {svg:'bridge'};
+  if (n.includes('knees to chest') || n.includes('apanasana')) return {svg:'knees_chest_svg'};
+  if (n.includes('side stretch')) return {svg:'side_stretch'};
+  if (n.includes('centering') || n.includes('neck')) return {svg:'seated_cross'};
+  return null;
+}
+
+function PoseImage(props) {
+  var name = props.name;
+  var flowIdx = props.flowIdx || 0;
+  var key = getPoseKey(name, flowIdx);
+  if (!key) return null;
+  if (key.photo) {
+    var url = POSE_PHOTOS[key.photo];
+    if (!url) return null;
+    return h('img', {
+      src: url, alt: name,
+      style: {width:'100%',maxWidth:260,borderRadius:12,margin:'0 auto 12px',display:'block',objectFit:'cover'}
+    });
+  }
+  if (key.svg) {
+    var content = POSE_SVGS[key.svg];
+    if (!content) return null;
+    var svg = '<svg viewBox="0 0 160 120" width="100%" xmlns="http://www.w3.org/2000/svg"><g stroke="#c8a97e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">' + content + '</g></svg>';
+    return h('div', {
+      style: {background:'#161616',borderRadius:12,padding:'6px 20px 2px',marginBottom:12,maxWidth:220,margin:'0 auto 12px'},
+      dangerouslySetInnerHTML: {__html: svg}
+    });
+  }
+  return null;
+}
+
+// ── Shared Components ──────────────────────────────────────────────────────
+
+function MiniChart(props) {
+  var data = props.data, color = props.color;
+  if (!data || data.length < 2) return h('p',{style:{color:'#555',textAlign:'center',padding:'12px 0',fontSize:12}},'Log 2+ entries to show trend.');
   var W=300,H=110,pl=36,pr=10,pt=8,iW=W-pl-pr,iH=H-pt-18;
   var vals=data.map(function(d){return d.value;}),mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals),rng=mx-mn||1;
   function cx(i){return pl+(i/(data.length-1))*iW;}
@@ -238,58 +298,489 @@ function MiniChart(props){
   );
 }
 
-function ExInput(props){
+function ExInput(props) {
   var ex=props.ex,val=props.val||{},onChange=props.onChange;
   function lbl(t){return h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},t);}
-  if(ex.type==='weighted')return h('div',{style:{display:'flex',gap:8}},h('div',{style:{flex:1}},lbl('Reps'),h('input',{type:'number',inputMode:'numeric',value:val.reps||'',onChange:function(e){onChange(Object.assign({},val,{reps:e.target.value}));},placeholder:'--',style:inp})),h('div',{style:{flex:1}},lbl('kg'),h('input',{type:'number',inputMode:'decimal',value:val.weight||'',onChange:function(e){onChange(Object.assign({},val,{weight:e.target.value}));},placeholder:'--',style:inp})));
+  if(ex.type==='weighted')return h('div',{style:{display:'flex',gap:8}},
+    h('div',{style:{flex:1}},lbl('Reps'),h('input',{type:'number',inputMode:'numeric',value:val.reps||'',onChange:function(e){onChange(Object.assign({},val,{reps:e.target.value}));},placeholder:'--',style:inp})),
+    h('div',{style:{flex:1}},lbl('kg'),h('input',{type:'number',inputMode:'decimal',value:val.weight||'',onChange:function(e){onChange(Object.assign({},val,{weight:e.target.value}));},placeholder:'--',style:inp}))
+  );
   if(ex.type==='duration')return h('div',null,lbl('Seconds'),h('input',{type:'number',inputMode:'numeric',value:val.duration||'',onChange:function(e){onChange(Object.assign({},val,{duration:e.target.value}));},placeholder:'--',style:inp}));
   return h('div',null,lbl('Reps'),h('input',{type:'number',inputMode:'numeric',value:val.reps||'',onChange:function(e){onChange(Object.assign({},val,{reps:e.target.value}));},placeholder:'--',style:inp}));
 }
 
-function App(){
-  var vs=useState('home'),view=vs[0],setView=vs[1];
-  var hs=useState(function(){return LS.get('wlog_v2')||[];}),history=hs[0],setHistory=hs[1];
-  var bl=useState(function(){return LS.get('bp_log')||[];}),bpLog=bl[0],setBpLog=bl[1];
-  var wl=useState(function(){return LS.get('weight_log')||[];}),weightLog=wl[0],setWeightLog=wl[1];
-  var ws=useState(null),wType=ws[0],setWType=ws[1];
-  var si=useState(0),ssIdx=si[0],setSsIdx=si[1];
-  var rs=useState(1),round=rs[0],setRound=rs[1];
-  var ph=useState('log'),phase=ph[0],setPhase=ph[1];
-  var en=useState({}),entries=en[0],setEntries=en[1];
-  var cr=useState(1),condRound=cr[0],setCondRound=cr[1];
-  var rt=useState(50),restTime=rt[0],setRestTime=rt[1];
-  var rd=useState(50),restDur=rd[0],setRestDur=rd[1];
-  var iRef=useRef(null),advRef=useRef(null);
-  var yf=useState(0),yogaFlowIdx=yf[0],setYogaFlowIdx=yf[1];
-  var yi=useState(0),yogaIdx=yi[0],setYogaIdx=yi[1];
-  var yt=useState(0),yogaTime=yt[0],setYogaTime=yt[1];
-  var yg=useState(false),yogaStarted=yg[0],setYogaStarted=yg[1];
-  var yp=useState(false),yogaPaused=yp[0],setYogaPaused=yp[1];
-  var yogaRef=useRef(null);
-  var pp=useState(0),physioProgIdx=pp[0],setPhysioProgIdx=pp[1];
-  var pe=useState(0),physioEx=pe[0],setPhysioEx=pe[1];
-  var ps2=useState(1),physioSet=ps2[0],setPhysioSet=ps2[1];
-  var pt2=useState(0),physioTime=pt2[0],setPhysioTime=pt2[1];
-  var pr2=useState(false),physioRunning=pr2[0],setPhysioRunning=pr2[1];
-  var pp2=useState('select'),physioPhase=pp2[0],setPhysioPhase=pp2[1];
-  var physioRef=useRef(null);
-  var bs=useState(''),bpSys=bs[0],setBpSys=bs[1];
-  var bd=useState(''),bpDia=bd[0],setBpDia=bd[1];
-  var bp3=useState(''),bpPulse=bp3[0],setBpPulse=bp3[1];
-  var wv=useState(''),weightVal=wv[0],setWeightVal=wv[1];
-  var ex2=useState(null),expanded=ex2[0],setExpanded=ex2[1];
-  var se=useState('rows'),selEx=se[0],setSelEx=se[1];
-  var ip=useState(null),installPrompt=ip[0],setInstallPrompt=ip[1];
+// ── View Components ────────────────────────────────────────────────────────
 
-  useEffect(function(){var hh=function(e){e.preventDefault();setInstallPrompt(e);};window.addEventListener('beforeinstallprompt',hh);return function(){window.removeEventListener('beforeinstallprompt',hh);};},[]);
-  useEffect(function(){if(phase!=='rest')return;iRef.current=setInterval(function(){setRestTime(function(t){if(t>1)return t-1;clearInterval(iRef.current);setTimeout(function(){setPhase('log');if(advRef.current)advRef.current();},50);return 0;});},1000);return function(){clearInterval(iRef.current);};},[phase]);
+function HomeView(p) {
+  var lastCard = null;
+  if (p.history[0]) {
+    var s0=p.history[0],isY0=s0.type==='yoga',isP0=s0.type==='physio';
+    var c0=isY0?'#8b5cf6':isP0?PC:((WK[s0.type]&&WK[s0.type].color)||'#555');
+    var l0=isY0?'Yoga - '+((s0.data&&s0.data.flowName)||''):isP0?'Physio - '+((s0.data&&s0.data.programme)||''):((WK[s0.type]&&WK[s0.type].emoji)||'')+' '+((WK[s0.type]&&WK[s0.type].name)||'');
+    lastCard=h('div',{style:card({borderLeft:'4px solid '+c0,marginBottom:20})},h('div',{style:{fontSize:11,color:'#555',marginBottom:2}},'Last session'),h('div',{style:{fontWeight:600}},l0+' - '+s0.date));
+  }
+  return h('div',{style:pg},
+    h('h1',{style:{fontSize:24,fontWeight:800,margin:'0 0 4px'}},'My Health'),
+    h('p',{style:{color:'#555',margin:'0 0 20px',fontSize:13}},'This week: ',h('strong',{style:{color:'#fff'}},p.thisWeek+' workout'+(p.thisWeek!==1?'s':''))),
+    p.installPrompt?h('button',{onClick:function(){p.installPrompt.prompt();p.setInstallPrompt(null);},style:Object.assign(pbtn('#8b5cf6'),{marginBottom:14})},'Install app'):null,
+    lastCard,
+    h('div',{style:{fontSize:11,color:'#555',letterSpacing:1,textTransform:'uppercase',marginBottom:8}},'Workouts'),
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}},
+      ['pull','push'].map(function(t){var w=WK[t];return h('button',{key:t,onClick:function(){p.startWorkout(t);},style:{background:'#191919',border:'2px solid '+w.color,borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},h('div',{style:{fontSize:26}},w.emoji),h('div',{style:{fontWeight:700,marginTop:4,fontSize:13}},w.name));}),null
+    ),
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:20}},
+      h('button',{onClick:p.goYoga,style:{background:'#191919',border:'2px solid #8b5cf6',borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},h('div',{style:{fontSize:26}},'\uD83E\uDDD8'),h('div',{style:{fontWeight:700,fontSize:13,marginTop:4}},'Yoga'),h('div',{style:{fontSize:10,color:'#555',marginTop:2}},'2 flows')),
+      h('button',{onClick:p.goPhysio,style:{background:'#191919',border:'2px solid '+PC,borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},h('div',{style:{fontSize:26}},'\uD83E\uDE7A'),h('div',{style:{fontWeight:700,fontSize:13,marginTop:4}},'Physio'),h('div',{style:{fontSize:10,color:'#555',marginTop:2}},'2 programmes'))
+    ),
+    h('div',{style:{fontSize:11,color:'#555',letterSpacing:1,textTransform:'uppercase',marginBottom:8}},'Health Tracking'),
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:20}},
+      h('button',{onClick:function(){p.setView('bp');},style:{background:'#191919',border:'2px solid #f43f5e',borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},
+        h('div',{style:{fontSize:26}},'\u2764\uFE0F'),h('div',{style:{fontWeight:700,fontSize:13,marginTop:4}},'Blood Pressure'),
+        p.bpLog[0]?h('div',{style:{fontSize:11,color:'#555',marginTop:2}},p.bpLog[0].sys+'/'+p.bpLog[0].dia+' mmHg'):null),
+      h('button',{onClick:function(){p.setView('weight');},style:{background:'#191919',border:'2px solid #f59e0b',borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},
+        h('div',{style:{fontSize:26}},'\u2696\uFE0F'),h('div',{style:{fontWeight:700,fontSize:13,marginTop:4}},'Weight'),
+        p.weightLog[0]?h('div',{style:{fontSize:11,color:'#555',marginTop:2}},p.weightLog[0].kg+' kg'):null)
+    ),
+    h('div',{style:{display:'flex',gap:10}},
+      h('button',{onClick:function(){p.setView('history');},style:{flex:1,background:'#191919',border:'1px solid #2a2a2a',color:'#bbb',borderRadius:12,padding:'12px 0',fontSize:14,cursor:'pointer',fontFamily:FF}},'History'),
+      h('button',{onClick:function(){p.setView('progress');},style:{flex:1,background:'#191919',border:'1px solid #2a2a2a',color:'#bbb',borderRadius:12,padding:'12px 0',fontSize:14,cursor:'pointer',fontFamily:FF}},'Progress')
+    )
+  );
+}
+
+function YogaSelectView(p) {
+  return h('div',{style:pg},
+    h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:24}},
+      h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:'#8b5cf6',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),
+      h('h2',{style:{margin:0,fontSize:18}},'Yoga')
+    ),
+    h('p',{style:{color:'#555',fontSize:13,marginBottom:16}},'Choose your flow:'),
+    YOGA_FLOWS.map(function(flow,i){
+      return h('button',{key:i,onClick:function(){p.startYoga(i);},style:card({cursor:'pointer',width:'100%',textAlign:'left',marginBottom:12,border:'1px solid #2a2a2a',borderLeft:'4px solid #8b5cf6'})},
+        h('div',{style:{fontWeight:700,fontSize:16,marginBottom:4,color:'#fff'}},YOGA_NAMES[i]),
+        h('div',{style:{fontSize:12,color:'#555',marginBottom:4}},YOGA_DESCS[i]),
+        YOGA_VID[i]?h('div',{style:{fontSize:11,color:'#8b5cf6'}},'Based on Yoga With Adriene'):null
+      );
+    })
+  );
+}
+
+function YogaRunView(p) {
+  var flow = YOGA_FLOWS[p.yogaFlowIdx];
+  var flowTotal = YOGA_TOTALS[p.yogaFlowIdx];
+
+  if (p.phase === 'yogaIntro') {
+    return h('div',{style:pgC()},
+      h('div',{style:{fontSize:56}},'\uD83E\uDDD8'),
+      h('h2',{style:{margin:'12px 0 4px'}},YOGA_NAMES[p.yogaFlowIdx]),
+      h('p',{style:{color:'#888',margin:'0 0 6px'}},flow.length+' poses - ~'+Math.round(flowTotal/60)+' min'),
+      h('p',{style:{color:'#555',fontSize:13,margin:'0 0 28px'}},'Digestive-safe sequence.'),
+      h('button',{onClick:function(){p.setYogaStarted(true);p.setPhase('yogaRunning');},style:pbtn('#8b5cf6',{maxWidth:220})},'Begin'),
+      h('button',{onClick:function(){p.setPhase('yogaSelect');},style:{background:'none',border:'none',color:'#555',fontSize:13,cursor:'pointer',marginTop:14,fontFamily:FF}},'Back')
+    );
+  }
+
+  if (p.phase === 'yogaDone') {
+    return h('div',{style:pgC()},
+      h('div',{style:{fontSize:64}},'\uD83D\uDE4F'),
+      h('h2',{style:{fontSize:24,margin:'14px 0 6px'}},'Practice complete'),
+      h('p',{style:{color:'#888',margin:'0 0 8px'}},'Well done. Namaste.'),
+      h('p',{style:{color:'#555',fontSize:12,margin:'0 0 24px',maxWidth:280}},'Before rising, roll to your right side first.'),
+      h('button',{onClick:p.finishYoga,style:pbtn('#8b5cf6',{maxWidth:220})},'Save and finish'),
+      h('button',{onClick:function(){p.setPhase('yogaSelect');},style:{background:'none',border:'none',color:'#555',fontSize:13,cursor:'pointer',marginTop:12,fontFamily:FF}},'Do another flow')
+    );
+  }
+
+  var pose = flow[p.yogaIdx];
+  var pct = pose.dur>0 ? p.yogaTime/pose.dur : 0;
+  var YR = 54, ycirc = 2*Math.PI*YR;
+  var elapsed = flow.slice(0,p.yogaIdx).reduce(function(a,y){return a+y.dur;},0)+(pose.dur-p.yogaTime);
+  var totalPct = Math.min(elapsed/flowTotal,1);
+
+  return h('div',{style:Object.assign({},pg,{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',position:'relative',paddingTop:40})},
+    h('div',{style:{position:'fixed',top:0,left:0,right:0,height:3,background:'#222',zIndex:10}},
+      h('div',{style:{height:3,background:'#8b5cf6',width:(totalPct*100)+'%',transition:'width 1s linear'}})),
+    h('div',{style:{fontSize:11,color:'#555',marginBottom:2}},YOGA_NAMES[p.yogaFlowIdx]),
+    h('div',{style:{fontSize:12,color:'#555',marginBottom:8}},(p.yogaIdx+1)+' / '+flow.length),
+    h('svg',{width:130,height:130,style:{marginBottom:12}},
+      h('circle',{cx:65,cy:65,r:YR,fill:'none',stroke:'#1e1e1e',strokeWidth:8}),
+      h('circle',{cx:65,cy:65,r:YR,fill:'none',stroke:p.yogaPaused?'#444':'#8b5cf6',strokeWidth:8,
+        strokeDasharray:ycirc,strokeDashoffset:ycirc*(1-pct),strokeLinecap:'round',
+        transform:'rotate(-90 65 65)',style:{transition:'stroke-dashoffset 0.95s linear'}}),
+      h('text',{x:65,y:72,textAnchor:'middle',fill:p.yogaPaused?'#555':'#fff',fontSize:34,fontWeight:'bold'},p.yogaTime)
+    ),
+    h('h2',{style:{fontSize:20,fontWeight:800,margin:'0 0 4px',textAlign:'center'}},pose.name),
+    h('p',{style:{fontSize:12,color:'#8b5cf6',margin:'0 0 8px',fontStyle:'italic'}},pose.sanskrit),
+    h(PoseImage,{name:pose.name,flowIdx:p.yogaFlowIdx}),
+    h('p',{style:{fontSize:14,color:'#888',textAlign:'center',maxWidth:300,lineHeight:1.65,margin:'0 0 12px',padding:'0 8px'}},pose.cue),
+    p.yogaIdx<flow.length-1?h('div',{style:{fontSize:11,color:'#333',marginBottom:14}},'Next: '+flow[p.yogaIdx+1].name):null,
+    h('div',{style:{display:'flex',gap:10}},
+      h('button',{onClick:function(){p.setYogaPaused(function(x){return !x;});},style:{background:'#1e1e1e',border:'1px solid #2a2a2a',color:'#ccc',borderRadius:10,padding:'10px 20px',fontSize:13,cursor:'pointer',fontFamily:FF}},p.yogaPaused?'Resume':'Pause'),
+      h('button',{onClick:p.skipYogaPose,style:{background:'#1e1e1e',border:'1px solid #2a2a2a',color:'#ccc',borderRadius:10,padding:'10px 20px',fontSize:13,cursor:'pointer',fontFamily:FF}},'Skip')
+    ),
+    h('button',{onClick:function(){clearInterval(p.yogaRef.current);if(window.confirm('Exit yoga?'))p.setView('home');},style:{background:'none',border:'none',color:'#333',fontSize:12,cursor:'pointer',marginTop:16,fontFamily:FF}},'Exit')
+  );
+}
+
+function PhysioView(p) {
+  var prog = p.prog;
+
+  if (p.physioPhase === 'select') {
+    return h('div',{style:pg},
+      h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:24}},
+        h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:PC,fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),
+        h('h2',{style:{margin:0,fontSize:18}},'Physio')
+      ),
+      h('p',{style:{color:'#555',fontSize:13,marginBottom:16}},'Choose your programme:'),
+      PROGRAMMES.map(function(pr,i){
+        return h('button',{key:pr.id,onClick:function(){p.startPhysio(i);},style:card({cursor:'pointer',width:'100%',textAlign:'left',marginBottom:12,border:'1px solid #2a2a2a',borderLeft:'4px solid '+PC})},
+          h('div',{style:{fontWeight:700,fontSize:16,marginBottom:4,color:'#fff'}},pr.name),
+          h('div',{style:{fontSize:12,color:'#555',marginBottom:8}},pr.note),
+          h('div',{style:{display:'flex',flexWrap:'wrap',gap:4}},pr.exercises.map(function(ex){return h('span',{key:ex.id,style:{background:'#111',borderRadius:6,padding:'2px 8px',fontSize:10,color:'#666'}},ex.name);}))
+        );
+      })
+    );
+  }
+
+  if (p.physioPhase === 'intro') {
+    return h('div',{style:pgC()},
+      h('div',{style:{fontSize:48}},'\uD83E\uDE7A'),
+      h('h2',{style:{margin:'10px 0 4px'}},prog.name),
+      h('p',{style:{color:'#888',fontSize:13,margin:'0 0 20px',maxWidth:300,lineHeight:1.7}},prog.exercises.length+' exercises. Tap video links to check technique.'),
+      h('div',{style:{width:'100%',marginBottom:20}},
+        prog.exercises.map(function(ex,i){
+          return h('div',{key:ex.id,style:card({marginBottom:8,textAlign:'left'})},
+            h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+              h('div',null,h('div',{style:{fontWeight:600,fontSize:14}},(i+1)+'. '+ex.name),h('div',{style:{fontSize:11,color:'#555',marginTop:2}},ex.note)),
+              ex.url?h('a',{href:ex.url,target:'_blank',rel:'noopener noreferrer',style:{background:'#ef4444',color:'#fff',borderRadius:8,padding:'5px 10px',fontSize:11,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap',marginLeft:8}},'Video'):null
+            )
+          );
+        })
+      ),
+      h('button',{onClick:function(){p.setPhysioPhase('exercise');},style:pbtn(PC,{maxWidth:240})},'Begin'),
+      h('button',{onClick:function(){p.setPhysioPhase('select');},style:{background:'none',border:'none',color:'#555',fontSize:13,cursor:'pointer',marginTop:14,fontFamily:FF}},'Back')
+    );
+  }
+
+  if (p.physioPhase === 'done') {
+    return h('div',{style:pgC()},
+      h('div',{style:{fontSize:64}},'\u2705'),
+      h('h2',{style:{fontSize:24,margin:'14px 0 6px'}},'Physio complete!'),
+      h('p',{style:{color:'#888',margin:'0 0 4px'}},prog.name),
+      h('p',{style:{color:'#555',fontSize:13,margin:'0 0 24px'}},'Saved to your log.'),
+      h('button',{onClick:p.finishPhysio,style:pbtn(PC,{maxWidth:220})},'Done'),
+      h('button',{onClick:function(){p.setPhysioPhase('select');},style:{background:'none',border:'none',color:'#555',fontSize:13,cursor:'pointer',marginTop:12,fontFamily:FF}},'Do another programme')
+    );
+  }
+
+  var ex = prog.exercises[p.physioEx];
+  var pct = (ex.type==='timed' && ex.dur>0) ? p.physioTime/ex.dur : 0;
+  var R=54, circ=2*Math.PI*R;
+
+  var timerCtrl;
+  if (p.physioTime === 0) {
+    timerCtrl = h('button',{onClick:p.physioNext,style:pbtn(PC,{padding:'11px 24px',width:'auto'})},p.physioSet<ex.sets?'Next set':'Next exercise');
+  } else {
+    timerCtrl = h('div',{style:{display:'flex',gap:10}},
+      h('button',{onClick:function(){p.setPhysioRunning(function(r){return !r;});},style:{background:PC,border:'none',color:'#fff',borderRadius:10,padding:'10px 22px',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:FF}},p.physioRunning?'Pause':'Start'),
+      h('button',{onClick:p.physioNext,style:{background:'transparent',border:'1px solid '+PC,color:PC,borderRadius:10,padding:'10px 18px',fontSize:14,cursor:'pointer',fontFamily:FF}},'Skip')
+    );
+  }
+
+  return h('div',{style:Object.assign({},pg,{minHeight:'100vh'})},
+    h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}},
+      h('div',{style:{fontWeight:800,fontSize:16,color:PC}},'Physio - '+prog.name),
+      h('div',{style:{fontSize:13,color:'#555'}},(p.physioEx+1)+' / '+prog.exercises.length)
+    ),
+    h('div',{style:{marginBottom:16}},prog.exercises.map(function(_,i){return h('span',{key:i,style:{display:'inline-block',width:8,height:8,borderRadius:'50%',background:i<p.physioEx?PC+'55':i===p.physioEx?PC:'#222',marginRight:4}});})),
+    h('div',{style:card({marginBottom:16,borderLeft:'4px solid '+PC})},
+      h('div',{style:{fontWeight:700,fontSize:17,marginBottom:4}},ex.name),
+      h('div',{style:{fontSize:12,color:'#555',marginBottom:ex.url?10:0}},ex.note),
+      ex.url?h('a',{href:ex.url,target:'_blank',rel:'noopener noreferrer',style:{display:'inline-flex',alignItems:'center',gap:6,background:'#ef4444',color:'#fff',borderRadius:8,padding:'7px 14px',fontSize:13,textDecoration:'none',fontWeight:600}},'Watch video'):null
+    ),
+    h('div',{style:card({marginBottom:16,display:'flex',flexDirection:'column',alignItems:'center',padding:'20px 16px'})},
+      h('div',{style:{fontSize:12,color:'#555',marginBottom:12}},'Set '+p.physioSet+' of '+ex.sets),
+      ex.type==='timed'?[
+        h('svg',{key:'sv',width:130,height:130,style:{marginBottom:12}},
+          h('circle',{cx:65,cy:65,r:R,fill:'none',stroke:'#1e1e1e',strokeWidth:8}),
+          h('circle',{cx:65,cy:65,r:R,fill:'none',stroke:p.physioRunning?PC:'#2a2a2a',strokeWidth:8,strokeDasharray:circ,strokeDashoffset:circ*(1-pct),strokeLinecap:'round',transform:'rotate(-90 65 65)',style:{transition:'stroke-dashoffset 0.95s linear'}}),
+          h('text',{x:65,y:72,textAnchor:'middle',fill:p.physioRunning?'#fff':'#555',fontSize:34,fontWeight:'bold'},p.physioTime)
+        ),
+        timerCtrl
+      ]:[
+        h('div',{key:'r',style:{fontSize:36,fontWeight:800,color:'#fff',marginBottom:4}},ex.reps),
+        h('div',{key:'l',style:{fontSize:13,color:'#555',marginBottom:16}},'reps each side'),
+        h('button',{key:'b',onClick:p.physioNext,style:pbtn(PC,{padding:'12px 28px',width:'auto'})},p.physioSet<ex.sets?'Set '+p.physioSet+' done':'Next exercise')
+      ]
+    ),
+    h('button',{onClick:function(){clearInterval(p.physioRef.current);if(window.confirm('Exit physio?'))p.setView('home');},style:{background:'none',border:'none',color:'#2a2a2a',fontSize:13,cursor:'pointer',width:'100%',textAlign:'center',padding:'16px 0',fontFamily:FF}},'Exit')
+  );
+}
+
+function BPView(p) {
+  var last=p.bpLog[0], cat=last?bpCat(last.sys,last.dia):null;
+  var cSys=p.bpLog.slice().reverse().map(function(e){return{date:fmtDate(e.date),value:e.sys};});
+  var cDia=p.bpLog.slice().reverse().map(function(e){return{date:fmtDate(e.date),value:e.dia};});
+  return h('div',{style:pg},
+    h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},
+      h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:'#f43f5e',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),
+      h('h2',{style:{margin:0,fontSize:18}},'Blood Pressure')
+    ),
+    h('div',{style:card({marginBottom:16,borderLeft:'4px solid #f43f5e'})},
+      h('div',{style:{fontWeight:600,marginBottom:12}},'New Reading'),
+      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}},
+        h('div',null,h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},'Systolic'),h('input',{type:'number',inputMode:'numeric',value:p.bpSys,onChange:function(e){p.setBpSys(e.target.value);},placeholder:'120',style:inp})),
+        h('div',null,h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},'Diastolic'),h('input',{type:'number',inputMode:'numeric',value:p.bpDia,onChange:function(e){p.setBpDia(e.target.value);},placeholder:'80',style:inp})),
+        h('div',null,h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},'Pulse'),h('input',{type:'number',inputMode:'numeric',value:p.bpPulse,onChange:function(e){p.setBpPulse(e.target.value);},placeholder:'70',style:inp}))
+      ),
+      h('button',{onClick:p.logBP,style:pbtn('#f43f5e')},'Save Reading')
+    ),
+    last?h('div',{style:card({marginBottom:16,borderLeft:'4px solid '+cat.color})},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}},
+        h('div',null,h('div',{style:{fontSize:28,fontWeight:800}},last.sys,h('span',{style:{color:'#555',fontSize:18}},'/'+last.dia)),h('div',{style:{fontSize:12,color:'#555'}},'mmHg'+(last.pulse?' - '+last.pulse+' bpm':'')),h('div',{style:{fontSize:13,color:cat.color,marginTop:4,fontWeight:600}},cat.label)),
+        h('div',{style:{fontSize:11,color:'#555',textAlign:'right'}},last.date,h('br'),last.time)
+      )
+    ):null,
+    p.bpLog.length>=2?h('div',{style:card({marginBottom:16})},h('div',{style:{fontSize:12,color:'#555',marginBottom:6}},'Systolic'),h(MiniChart,{data:cSys,color:'#f43f5e'}),h('div',{style:{fontSize:12,color:'#555',margin:'10px 0 6px'}},'Diastolic'),h(MiniChart,{data:cDia,color:'#fb7185'})):null,
+    p.bpLog.map(function(e){
+      var c=bpCat(e.sys,e.dia);
+      return h('div',{key:e.id,style:card({marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'})},
+        h('div',null,h('div',{style:{fontWeight:600}},e.sys+'/'+e.dia+' mmHg'+(e.pulse?' - '+e.pulse+' bpm':'')),h('div',{style:{fontSize:11,color:c.color,marginTop:2}},c.label+' - '+e.date+' '+e.time)),
+        h('button',{onClick:function(){p.saveBp(p.bpLog.filter(function(x){return x.id!==e.id;}));},style:{background:'none',border:'none',color:'#333',fontSize:18,cursor:'pointer',padding:'4px 8px'}},'x')
+      );
+    })
+  );
+}
+
+function WeightView(p) {
+  var wlast=p.weightLog[0], wprev=p.weightLog[1];
+  var wdiff=wlast&&wprev?(wlast.kg-wprev.kg).toFixed(1):null;
+  var wData=p.weightLog.slice().reverse().map(function(e){return{date:fmtDate(e.date),value:e.kg};});
+  return h('div',{style:pg},
+    h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},
+      h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:'#f59e0b',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),
+      h('h2',{style:{margin:0,fontSize:18}},'Weight')
+    ),
+    h('div',{style:card({marginBottom:16,borderLeft:'4px solid #f59e0b'})},
+      h('div',{style:{fontWeight:600,marginBottom:12}},'Log Weight'),
+      h('div',{style:{display:'flex',gap:8,alignItems:'flex-end'}},
+        h('div',{style:{flex:1}},h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},'kg'),h('input',{type:'number',inputMode:'decimal',value:p.weightVal,onChange:function(e){p.setWeightVal(e.target.value);},placeholder:'82.5',style:inp})),
+        h('button',{onClick:p.logWeight,style:pbtn('#f59e0b',{flex:'0 0 auto',width:'auto',padding:'12px 20px'})},'Save')
+      )
+    ),
+    wlast?h('div',{style:card({marginBottom:16,borderLeft:'4px solid #f59e0b'})},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+        h('div',null,h('div',{style:{fontSize:32,fontWeight:800}},wlast.kg,h('span',{style:{fontSize:16,color:'#555'}},' kg')),wdiff!==null?h('div',{style:{fontSize:13,color:parseFloat(wdiff)<=0?'#22c55e':'#f97316',marginTop:4}},(parseFloat(wdiff)>0?'+':'')+wdiff+' kg since last'):null),
+        h('div',{style:{fontSize:11,color:'#555'}},wlast.date)
+      )
+    ):null,
+    p.weightLog.length>=2?h('div',{style:card({marginBottom:16})},h('div',{style:{fontSize:12,color:'#555',marginBottom:6}},'Weight (kg)'),h(MiniChart,{data:wData,color:'#f59e0b'})):null,
+    p.weightLog.map(function(e,i){
+      var nx=p.weightLog[i+1], d=nx?(e.kg-nx.kg).toFixed(1):null;
+      return h('div',{key:e.id,style:card({marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'})},
+        h('div',null,h('div',{style:{fontWeight:600}},e.kg+' kg'),h('div',{style:{fontSize:11,color:'#555',marginTop:2}},e.date,d!==null?h('span',{style:{color:parseFloat(d)<=0?'#22c55e':'#f97316',marginLeft:6}},(parseFloat(d)>0?'+':'')+d+' kg'):null)),
+        h('button',{onClick:function(){p.saveWeight(p.weightLog.filter(function(x){return x.id!==e.id;}));},style:{background:'none',border:'none',color:'#333',fontSize:18,cursor:'pointer',padding:'4px 8px'}},'x')
+      );
+    })
+  );
+}
+
+function HistoryView(p) {
+  if (p.history.length === 0) {
+    return h('div',{style:pg},
+      h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:'#3b82f6',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),h('h2',{style:{margin:0,fontSize:18}},'History')),
+      h('p',{style:{color:'#555',textAlign:'center',marginTop:60}},'No sessions yet')
+    );
+  }
+  var rows = p.history.map(function(s) {
+    var isY=s.type==='yoga', isP=s.type==='physio';
+    var col=isY?'#8b5cf6':isP?PC:((WK[s.type]&&WK[s.type].color)||'#555');
+    var isOpen = p.expanded===s.id;
+    if (isY) {
+      return h('div',{key:s.id,style:card({borderLeft:'4px solid '+col,marginBottom:10})},
+        h('div',{style:{display:'flex',justifyContent:'space-between'}},h('div',{style:{fontWeight:600}},'Yoga - '+((s.data&&s.data.flowName)||'')),h('div',{style:{fontSize:12,color:'#555'}},s.date)),
+        h('div',{style:{fontSize:12,color:'#555',marginTop:4}},(s.data&&s.data.poses)+' poses')
+      );
+    }
+    if (isP) {
+      return h('div',{key:s.id,style:card({borderLeft:'4px solid '+col,marginBottom:10})},
+        h('div',{style:{display:'flex',justifyContent:'space-between'}},h('div',{style:{fontWeight:600}},'Physio - '+((s.data&&s.data.programme)||'')),h('div',{style:{fontSize:12,color:'#555'}},s.date)),
+        h('div',{style:{fontSize:12,color:'#555',marginTop:4}},(s.data&&s.data.exercises)+' exercises')
+      );
+    }
+    var w = WK[s.type];
+    if (!w) return null;
+    var byEx = {};
+    Object.keys(s.data||{}).forEach(function(k){var v=s.data[k],id=exIdFromKey(k),r=parseInt(k.split('_')[1]);if(!byEx[id])byEx[id]={rounds:{}};byEx[id].rounds[r]=v;});
+    var exOrder = w.supersets.reduce(function(a,ss){return a.concat(ss.exercises);},[]);
+    var ordEx = exOrder.filter(function(e){return byEx[e.id];});
+    function getSs(id){for(var i=0;i<w.supersets.length;i++){if(w.supersets[i].exercises.find(function(e){return e.id===id;}))return w.supersets[i].id;}return null;}
+    var preview = !isOpen ? h('div',{style:{display:'flex',flexWrap:'wrap',gap:'3px 14px',marginTop:7}},
+      ordEx.slice(0,4).map(function(ex){var v=byEx[ex.id]&&byEx[ex.id].rounds[1];if(!v)return null;return h('span',{key:ex.id,style:{fontSize:12,color:'#888'}},h('span',{style:{color:'#555'}},ex.name.split(/[\s/]/)[0]+' '),valStr(v));})) : null;
+    var detail = isOpen ? h('div',{style:{marginTop:14},onClick:function(e){e.stopPropagation();}},
+      ordEx.map(function(ex,i){
+        var ssId=getSs(ex.id), prevSs=i>0?getSs(ordEx[i-1].id):null;
+        var rounds=(byEx[ex.id]&&byEx[ex.id].rounds)||{}, maxR=Math.max.apply(null,Object.keys(rounds).map(Number));
+        return h('div',{key:ex.id},
+          ssId!==prevSs?h('div',{style:{fontSize:11,color:col,fontWeight:600,letterSpacing:1,textTransform:'uppercase',marginTop:i===0?0:12,marginBottom:8}},'Superset '+ssId):null,
+          h('div',{style:{marginBottom:10}},
+            h('div',{style:{fontSize:13,fontWeight:600,color:'#ccc',marginBottom:6}},ex.name),
+            h('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
+              Array.from({length:maxR},function(_,j){var r=j+1,v=rounds[r];if(!v)return null;return h('div',{key:r,style:{background:'#111',borderRadius:8,padding:'5px 10px',fontSize:12,color:'#aaa',border:'1px solid #222'}},h('span',{style:{color:'#555',fontSize:10,marginRight:3}},'R'+r),valStr(v));})
+            )
+          )
+        );
+      })) : null;
+    return h('div',{key:s.id,style:card({borderLeft:'4px solid '+col,marginBottom:10,cursor:'pointer'}),onClick:function(){p.setExpanded(isOpen?null:s.id);}},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+        h('div',{style:{fontWeight:600}},w.emoji+' '+w.name),
+        h('div',{style:{display:'flex',alignItems:'center',gap:8}},h('div',{style:{fontSize:12,color:'#555'}},s.date+(s.cond?' cond':'')),h('div',{style:{color:'#444',fontSize:11}},isOpen?'\u25B2':'\u25BC'))
+      ),
+      preview, detail
+    );
+  });
+  return h('div',{style:pg},
+    h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:'#3b82f6',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),h('h2',{style:{margin:0,fontSize:18}},'History')),
+    rows
+  );
+}
+
+function ProgressView(p) {
+  var ex=ALL_EX.find(function(e){return e.id===p.selEx;});
+  var exColor=(ex&&ex.wk==='push')?'#ef4444':'#3b82f6';
+  var pData=p.history.slice().reverse().reduce(function(acc,s){
+    if(s.type==='yoga'||s.type==='physio')return acc;
+    var vals=Object.keys(s.data||{}).filter(function(k){return exIdFromKey(k)===p.selEx;}).map(function(k){return s.data[k];});
+    if(!vals.length)return acc;
+    var m=ex&&ex.type==='weighted'?Math.max.apply(null,vals.map(function(v){return+v.weight||0;})):ex&&ex.type==='duration'?Math.max.apply(null,vals.map(function(v){return+v.duration||0;})):Math.max.apply(null,vals.map(function(v){return+v.reps||0;}));
+    if(m>0)acc.push({date:s.date.slice(5),value:m});
+    return acc;
+  },[]);
+  var yLabel=(ex&&ex.type==='weighted')?'Max kg':(ex&&ex.type==='duration')?'Max sec':'Max reps';
+  return h('div',{style:pg},
+    h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:'#3b82f6',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),h('h2',{style:{margin:0,fontSize:18}},'Progress')),
+    h('select',{value:p.selEx,onChange:function(e){p.setSelEx(e.target.value);},style:Object.assign({},inp,{marginBottom:20})},ALL_EX.map(function(e){return h('option',{key:e.id,value:e.id},e.name);})),
+    h('div',{style:card()},h('div',{style:{fontSize:12,color:'#555',marginBottom:8}},yLabel),h(MiniChart,{data:pData,color:exColor}))
+  );
+}
+
+function WorkoutView(p) {
+  var w = WK[p.wType];
+  if (!w) return null;
+
+  if (p.phase==='complete') return h('div',{style:pgC()},h('div',{style:{fontSize:72}},'\uD83C\uDF89'),h('h2',{style:{fontSize:24,margin:'12px 0 4px'}},'Session complete!'),h('p',{style:{color:'#555',margin:'0 0 20px'}},'Saved to your log.'),h('button',{onClick:function(){p.setView('home');},style:pbtn(w.color,{maxWidth:180})},'Done'));
+
+  if (p.phase==='condOption') return h('div',{style:Object.assign({},pgC(),{gap:10})},h('div',{style:{fontSize:56}},'\uD83D\uDD25'),h('h2',{style:{margin:0}},'Main workout done!'),h('p',{style:{color:'#888',margin:'4px 0 16px'}},'Add optional conditioning?'),h('button',{onClick:function(){p.setPhase('inCond');p.setCondRound(1);},style:pbtn('#f59e0b')},'Yes - add conditioning'),h('button',{onClick:function(){p.finish(false);},style:Object.assign(pbtn('#333'),{border:'1px solid #2a2a2a'})},'Skip - finish now'));
+
+  if (p.phase==='inCond') return h('div',{style:pg},
+    h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}},h('div',{style:{fontWeight:700,color:'#f59e0b',fontSize:16}},'Conditioning'),h('div',{style:{fontSize:13,color:'#555'}},'Round '+p.condRound+' / '+COND.rounds)),
+    COND.exercises.map(function(ex){return h('div',{key:ex.id,style:card({marginBottom:12})},h('div',{style:{fontWeight:600,marginBottom:10}},ex.name),h(ExInput,{ex:ex,val:p.entries[eKey('cond',p.condRound,ex.id)],onChange:function(v){p.upd('cond',p.condRound,ex.id,v);}}));}),
+    h('button',{onClick:p.completeCondRound,style:Object.assign(pbtn('#f59e0b'),{marginTop:8})},p.condRound<COND.rounds?'Round '+p.condRound+' done':'Finish Workout')
+  );
+
+  if (p.phase==='rest') {
+    var RR=48,cc=2*Math.PI*RR,rp=p.restDur>0?p.restTime/p.restDur:0;
+    return h('div',{style:pgC()},
+      h('div',{style:{fontSize:13,color:'#444',marginBottom:20,letterSpacing:2,textTransform:'uppercase'}},'Rest'),
+      h('svg',{width:120,height:120,style:{marginBottom:28}},
+        h('circle',{cx:60,cy:60,r:RR,fill:'none',stroke:'#1e1e1e',strokeWidth:8}),
+        h('circle',{cx:60,cy:60,r:RR,fill:'none',stroke:w.color,strokeWidth:8,strokeDasharray:cc,strokeDashoffset:cc*(1-rp),strokeLinecap:'round',transform:'rotate(-90 60 60)',style:{transition:'stroke-dashoffset 0.95s linear'}}),
+        h('text',{x:60,y:68,textAnchor:'middle',fill:'#fff',fontSize:32,fontWeight:'bold'},p.restTime)
+      ),
+      h('button',{onClick:p.skipRest,style:{background:'transparent',border:'1px solid #2a2a2a',color:'#666',borderRadius:12,padding:'11px 32px',fontSize:14,cursor:'pointer',fontFamily:FF}},'Skip')
+    );
+  }
+
+  var ss = w.supersets[p.ssIdx];
+  return h('div',{style:pg},
+    h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}},
+      h('div',null,h('div',{style:{fontSize:11,color:'#555'}},w.emoji+' '+w.name),h('div',{style:{fontWeight:800,fontSize:22}},'Superset '+ss.id)),
+      h('div',{style:{background:w.color+'18',color:w.color,borderRadius:20,padding:'5px 16px',fontWeight:700,fontSize:15}},p.round+'/'+ss.rounds)
+    ),
+    h('div',{style:{fontSize:12,color:'#333',marginBottom:20}},'Back-to-back - rest '+ss.restSec+'s between rounds'),
+    ss.exercises.map(function(ex){return h('div',{key:ex.id,style:card({marginBottom:12})},h('div',{style:{fontWeight:600,marginBottom:10}},ex.name),h(ExInput,{ex:ex,val:p.entries[eKey(ss.id,p.round,ex.id)],onChange:function(v){p.upd(ss.id,p.round,ex.id,v);}}));}),
+    h('button',{onClick:p.completeRound,style:Object.assign(pbtn(w.color),{marginTop:8})},p.round<ss.rounds?'Done - rest '+ss.restSec+'s':p.ssIdx<w.supersets.length-1?'Superset '+ss.id+' done':'All supersets done'),
+    h('div',{style:{display:'flex',justifyContent:'center',gap:8,marginTop:20}},w.supersets.map(function(s,i){return h('div',{key:s.id,style:{width:8,height:8,borderRadius:'50%',background:i<p.ssIdx?w.color+'55':i===p.ssIdx?w.color:'#222'}});})),
+    h('button',{onClick:function(){if(window.confirm('Abandon workout?'))p.setView('home');},style:{background:'none',border:'none',color:'#2a2a2a',fontSize:13,cursor:'pointer',width:'100%',textAlign:'center',padding:'12px 0',marginTop:4,fontFamily:FF}},'Abandon')
+  );
+}
+
+// ── Main App ───────────────────────────────────────────────────────────────
+
+function App() {
+  var vs=useState('home'); var view=vs[0]; var setView=vs[1];
+  var hs=useState(function(){return LS.get('wlog_v2')||[];}); var history=hs[0]; var setHistory=hs[1];
+  var bl=useState(function(){return LS.get('bp_log')||[];}); var bpLog=bl[0]; var setBpLog=bl[1];
+  var wl=useState(function(){return LS.get('weight_log')||[];}); var weightLog=wl[0]; var setWeightLog=wl[1];
+  var ws=useState(null); var wType=ws[0]; var setWType=ws[1];
+  var si=useState(0); var ssIdx=si[0]; var setSsIdx=si[1];
+  var rs=useState(1); var round=rs[0]; var setRound=rs[1];
+  var ph=useState('log'); var phase=ph[0]; var setPhase=ph[1];
+  var en=useState({}); var entries=en[0]; var setEntries=en[1];
+  var cr=useState(1); var condRound=cr[0]; var setCondRound=cr[1];
+  var rt=useState(50); var restTime=rt[0]; var setRestTime=rt[1];
+  var rd=useState(50); var restDur=rd[0]; var setRestDur=rd[1];
+  var iRef=useRef(null); var advRef=useRef(null);
+  var yf=useState(0); var yogaFlowIdx=yf[0]; var setYogaFlowIdx=yf[1];
+  var yi=useState(0); var yogaIdx=yi[0]; var setYogaIdx=yi[1];
+  var yt=useState(0); var yogaTime=yt[0]; var setYogaTime=yt[1];
+  var yg=useState(false); var yogaStarted=yg[0]; var setYogaStarted=yg[1];
+  var yp=useState(false); var yogaPaused=yp[0]; var setYogaPaused=yp[1];
+  var yogaRef=useRef(null);
+  var pp=useState(0); var physioProgIdx=pp[0]; var setPhysioProgIdx=pp[1];
+  var pe=useState(0); var physioEx=pe[0]; var setPhysioEx=pe[1];
+  var ps2=useState(1); var physioSet=ps2[0]; var setPhysioSet=ps2[1];
+  var pt=useState(0); var physioTime=pt[0]; var setPhysioTime=pt[1];
+  var pr=useState(false); var physioRunning=pr[0]; var setPhysioRunning=pr[1];
+  var pp2=useState('select'); var physioPhase=pp2[0]; var setPhysioPhase=pp2[1];
+  var physioRef=useRef(null);
+  var bs=useState(''); var bpSys=bs[0]; var setBpSys=bs[1];
+  var bd=useState(''); var bpDia=bd[0]; var setBpDia=bd[1];
+  var bp3=useState(''); var bpPulse=bp3[0]; var setBpPulse=bp3[1];
+  var wv=useState(''); var weightVal=wv[0]; var setWeightVal=wv[1];
+  var ex2=useState(null); var expanded=ex2[0]; var setExpanded=ex2[1];
+  var se=useState('rows'); var selEx=se[0]; var setSelEx=se[1];
+  var ip=useState(null); var installPrompt=ip[0]; var setInstallPrompt=ip[1];
+
+  useEffect(function(){
+    var hh=function(e){e.preventDefault();setInstallPrompt(e);};
+    window.addEventListener('beforeinstallprompt',hh);
+    return function(){window.removeEventListener('beforeinstallprompt',hh);};
+  },[]);
+
+  useEffect(function(){
+    if(phase!=='rest')return;
+    iRef.current=setInterval(function(){
+      setRestTime(function(t){if(t>1)return t-1;clearInterval(iRef.current);setTimeout(function(){setPhase('log');if(advRef.current)advRef.current();},50);return 0;});
+    },1000);
+    return function(){clearInterval(iRef.current);};
+  },[phase]);
+
   useEffect(function(){
     if(!yogaStarted||yogaPaused||view!=='yoga')return;
     var flow=YOGA_FLOWS[yogaFlowIdx];
-    yogaRef.current=setInterval(function(){setYogaTime(function(t){if(t>1)return t-1;clearInterval(yogaRef.current);playChime();var next=yogaIdx+1;setTimeout(function(){if(next>=flow.length){setYogaStarted(false);setPhase('yogaDone');}else{setYogaIdx(next);setYogaTime(flow[next].dur);}},150);return 0;});},1000);
+    yogaRef.current=setInterval(function(){
+      setYogaTime(function(t){
+        if(t>1)return t-1;
+        clearInterval(yogaRef.current);playChime();
+        var next=yogaIdx+1;
+        setTimeout(function(){
+          if(next>=flow.length){setYogaStarted(false);setPhase('yogaDone');}
+          else{setYogaIdx(next);setYogaTime(flow[next].dur);}
+        },150);
+        return 0;
+      });
+    },1000);
     return function(){clearInterval(yogaRef.current);};
   },[yogaStarted,yogaPaused,yogaIdx,view,yogaFlowIdx]);
-  useEffect(function(){if(!physioRunning||view!=='physio')return;physioRef.current=setInterval(function(){setPhysioTime(function(t){if(t>1)return t-1;clearInterval(physioRef.current);setPhysioRunning(false);playChime();return 0;});},1000);return function(){clearInterval(physioRef.current);};},[physioRunning,view]);
+
+  useEffect(function(){
+    if(!physioRunning||view!=='physio')return;
+    physioRef.current=setInterval(function(){
+      setPhysioTime(function(t){if(t>1)return t-1;clearInterval(physioRef.current);setPhysioRunning(false);playChime();return 0;});
+    },1000);
+    return function(){clearInterval(physioRef.current);};
+  },[physioRunning,view]);
 
   function saveHistory(hh){setHistory(hh);LS.set('wlog_v2',hh);}
   function saveBp(ll){setBpLog(ll);LS.set('bp_log',ll);}
@@ -298,7 +789,12 @@ function App(){
   function startRest(fn){var dur=WK[wType].supersets[ssIdx].restSec;advRef.current=fn;setRestDur(dur);setRestTime(dur);setPhase('rest');}
   function skipRest(){clearInterval(iRef.current);setPhase('log');if(advRef.current)advRef.current();}
   function upd(ss,r,id,v){setEntries(function(prev){var n=Object.assign({},prev);n[eKey(ss,r,id)]=v;return n;});}
-  function completeRound(){var ss=WK[wType].supersets[ssIdx];if(round<ss.rounds)startRest(function(){setRound(function(r){return r+1;});});else if(ssIdx<WK[wType].supersets.length-1)startRest(function(){setSsIdx(function(i){return i+1;});setRound(1);});else setPhase('condOption');}
+  function completeRound(){
+    var ss=WK[wType].supersets[ssIdx];
+    if(round<ss.rounds){startRest(function(){setRound(function(r){return r+1;});});}
+    else if(ssIdx<WK[wType].supersets.length-1){startRest(function(){setSsIdx(function(i){return i+1;});setRound(1);});}
+    else{setPhase('condOption');}
+  }
   function completeCondRound(){if(condRound<COND.rounds)setCondRound(function(c){return c+1;});else finish(true);}
   function finish(cond){var s={id:Date.now(),date:new Date().toISOString().slice(0,10),type:wType,cond:!!cond,data:Object.assign({},entries)};saveHistory([s].concat(history));setPhase('complete');}
   function goYoga(){setPhase('yogaSelect');setView('yoga');}
@@ -315,130 +811,28 @@ function App(){
 
   var thisWeek=(function(){var t=new Date(),d={};history.forEach(function(s){if((t-new Date(s.date))/86400000<7)d[s.date]=1;});return Object.keys(d).length;})();
 
-  if(view==='home'){
-    var lastCard=null;
-    if(history[0]){var s0=history[0],isY0=s0.type==='yoga',isP0=s0.type==='physio';var c0=isY0?'#8b5cf6':isP0?PC:((WK[s0.type]&&WK[s0.type].color)||'#555');var l0=isY0?'Yoga - '+((s0.data&&s0.data.flowName)||''):isP0?'Physio - '+((s0.data&&s0.data.programme)||''):((WK[s0.type]&&WK[s0.type].emoji)||'')+' '+((WK[s0.type]&&WK[s0.type].name)||'');lastCard=h('div',{style:card({borderLeft:'4px solid '+c0,marginBottom:20})},h('div',{style:{fontSize:11,color:'#555',marginBottom:2}},'Last session'),h('div',{style:{fontWeight:600}},l0+' - '+s0.date));}
-    return h('div',{style:pg},
-      h('h1',{style:{fontSize:24,fontWeight:800,margin:'0 0 4px'}},'My Health'),
-      h('p',{style:{color:'#555',margin:'0 0 20px',fontSize:13}},'This week: ',h('strong',{style:{color:'#fff'}},thisWeek+' workout'+(thisWeek!==1?'s':''))),
-      installPrompt?h('button',{onClick:function(){installPrompt.prompt();setInstallPrompt(null);},style:Object.assign(pbtn('#8b5cf6'),{marginBottom:14})},'Install app'):null,
-      lastCard,
-      h('div',{style:{fontSize:11,color:'#555',letterSpacing:1,textTransform:'uppercase',marginBottom:8}},'Workouts'),
-      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}},['pull','push'].map(function(t){var w=WK[t];return h('button',{key:t,onClick:function(){startWorkout(t);},style:{background:'#191919',border:'2px solid '+w.color,borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},h('div',{style:{fontSize:26}},w.emoji),h('div',{style:{fontWeight:700,marginTop:4,fontSize:13}},w.name));}),null),
-      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:20}},
-        h('button',{onClick:goYoga,style:{background:'#191919',border:'2px solid #8b5cf6',borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},h('div',{style:{fontSize:26}},'\uD83E\uDDD8'),h('div',{style:{fontWeight:700,fontSize:13,marginTop:4}},'Yoga'),h('div',{style:{fontSize:10,color:'#555',marginTop:2}},'2 flows')),
-        h('button',{onClick:goPhysio,style:{background:'#191919',border:'2px solid '+PC,borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},h('div',{style:{fontSize:26}},'\uD83E\uDE7A'),h('div',{style:{fontWeight:700,fontSize:13,marginTop:4}},'Physio'),h('div',{style:{fontSize:10,color:'#555',marginTop:2}},'2 programmes'))
-      ),
-      h('div',{style:{fontSize:11,color:'#555',letterSpacing:1,textTransform:'uppercase',marginBottom:8}},'Health Tracking'),
-      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:20}},
-        h('button',{onClick:function(){setView('bp');},style:{background:'#191919',border:'2px solid #f43f5e',borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},h('div',{style:{fontSize:26}},'\u2764\uFE0F'),h('div',{style:{fontWeight:700,fontSize:13,marginTop:4}},'Blood Pressure'),bpLog[0]?h('div',{style:{fontSize:11,color:'#555',marginTop:2}},bpLog[0].sys+'/'+bpLog[0].dia+' mmHg'):null),
-        h('button',{onClick:function(){setView('weight');},style:{background:'#191919',border:'2px solid #f59e0b',borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},h('div',{style:{fontSize:26}},'\u2696\uFE0F'),h('div',{style:{fontWeight:700,fontSize:13,marginTop:4}},'Weight'),weightLog[0]?h('div',{style:{fontSize:11,color:'#555',marginTop:2}},weightLog[0].kg+' kg'):null)
-      ),
-      h('div',{style:{display:'flex',gap:10}},
-        h('button',{onClick:function(){setView('history');},style:{flex:1,background:'#191919',border:'1px solid #2a2a2a',color:'#bbb',borderRadius:12,padding:'12px 0',fontSize:14,cursor:'pointer',fontFamily:FF}},'History'),
-        h('button',{onClick:function(){setView('progress');},style:{flex:1,background:'#191919',border:'1px solid #2a2a2a',color:'#bbb',borderRadius:12,padding:'12px 0',fontSize:14,cursor:'pointer',fontFamily:FF}},'Progress')
-      )
-    );
-  }
+  if(view==='home') return h(HomeView,{history:history,bpLog:bpLog,weightLog:weightLog,thisWeek:thisWeek,installPrompt:installPrompt,setInstallPrompt:setInstallPrompt,setView:setView,startWorkout:startWorkout,goYoga:goYoga,goPhysio:goPhysio});
+  if(view==='bp') return h(BPView,{bpLog:bpLog,bpSys:bpSys,setBpSys:setBpSys,bpDia:bpDia,setBpDia:setBpDia,bpPulse:bpPulse,setBpPulse:setBpPulse,logBP:logBP,saveBp:saveBp,setView:setView});
+  if(view==='weight') return h(WeightView,{weightLog:weightLog,weightVal:weightVal,setWeightVal:setWeightVal,logWeight:logWeight,saveWeight:saveWeight,setView:setView});
+  if(view==='history') return h(HistoryView,{history:history,expanded:expanded,setExpanded:setExpanded,setView:setView});
+  if(view==='progress') return h(ProgressView,{history:history,selEx:selEx,setSelEx:setSelEx,setView:setView});
 
   if(view==='yoga'){
-    if(phase==='yogaSelect')return h('div',{style:pg},
-      h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:24}},h('button',{onClick:function(){setView('home');},style:{background:'none',border:'none',color:'#8b5cf6',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),h('h2',{style:{margin:0,fontSize:18}},'Yoga')),
-      h('p',{style:{color:'#555',fontSize:13,marginBottom:16}},'Choose your flow:'),
-      YOGA_FLOWS.map(function(flow,i){return h('button',{key:i,onClick:function(){startYoga(i);},style:card({cursor:'pointer',width:'100%',textAlign:'left',marginBottom:12,border:'1px solid #2a2a2a',borderLeft:'4px solid #8b5cf6'})},h('div',{style:{fontWeight:700,fontSize:16,marginBottom:4,color:'#fff'}},YOGA_NAMES[i]),h('div',{style:{fontSize:12,color:'#555',marginBottom:6}},YOGA_DESCS[i]),YOGA_VID[i]?h('div',{style:{fontSize:11,color:'#8b5cf6'}},'Based on Yoga With Adriene'):null);}),null
-    );
-    var flow=YOGA_FLOWS[yogaFlowIdx],flowTotal=YOGA_TOTALS[yogaFlowIdx];
-    if(phase==='yogaIntro')return h('div',{style:pgC()},h('div',{style:{fontSize:56}},'\uD83E\uDDD8'),h('h2',{style:{margin:'12px 0 4px'}},YOGA_NAMES[yogaFlowIdx]),h('p',{style:{color:'#888',margin:'0 0 6px'}},flow.length+' poses - ~'+Math.round(flowTotal/60)+' min'),h('p',{style:{color:'#555',fontSize:13,margin:'0 0 28px'}},'Digestive-safe sequence.'),h('button',{onClick:function(){setYogaStarted(true);setPhase('yogaRunning');},style:pbtn('#8b5cf6',{maxWidth:220})},'Begin'),h('button',{onClick:function(){setPhase('yogaSelect');},style:{background:'none',border:'none',color:'#555',fontSize:13,cursor:'pointer',marginTop:14,fontFamily:FF}},'Back'));
-    if(phase==='yogaDone')return h('div',{style:pgC()},h('div',{style:{fontSize:64}},'\uD83D\uDE4F'),h('h2',{style:{fontSize:24,margin:'14px 0 6px'}},'Practice complete'),h('p',{style:{color:'#888',margin:'0 0 8px'}},'Well done. Namaste.'),h('p',{style:{color:'#555',fontSize:12,margin:'0 0 24px',maxWidth:280}},'Before rising, roll to your right side first.'),h('button',{onClick:finishYoga,style:pbtn('#8b5cf6',{maxWidth:220})},'Save and finish'),h('button',{onClick:function(){setPhase('yogaSelect');},style:{background:'none',border:'none',color:'#555',fontSize:13,cursor:'pointer',marginTop:12,fontFamily:FF}},'Do another flow'));
-    var pose=flow[yogaIdx],pct=pose.dur>0?yogaTime/pose.dur:0,YR=54,ycirc=2*Math.PI*YR;
-    var yelap=flow.slice(0,yogaIdx).reduce(function(a,p){return a+p.dur;},0)+(pose.dur-yogaTime),ytPct=Math.min(yelap/flowTotal,1);
-    return h('div',{style:Object.assign({},pg,{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',position:'relative',paddingTop:40})},
-      h('div',{style:{position:'fixed',top:0,left:0,right:0,height:3,background:'#222',zIndex:10}},h('div',{style:{height:3,background:'#8b5cf6',width:(ytPct*100)+'%',transition:'width 1s linear'}})),
-      h('div',{style:{fontSize:11,color:'#555',marginBottom:2}},YOGA_NAMES[yogaFlowIdx]),
-      h('div',{style:{fontSize:12,color:'#555',marginBottom:8}},(yogaIdx+1)+' / '+flow.length),
-      h('svg',{width:130,height:130,style:{marginBottom:12}},
-        h('circle',{cx:65,cy:65,r:YR,fill:'none',stroke:'#1e1e1e',strokeWidth:8}),
-        h('circle',{cx:65,cy:65,r:YR,fill:'none',stroke:yogaPaused?'#444':'#8b5cf6',strokeWidth:8,strokeDasharray:ycirc,strokeDashoffset:ycirc*(1-pct),strokeLinecap:'round',transform:'rotate(-90 65 65)',style:{transition:'stroke-dashoffset 0.95s linear'}}),
-        h('text',{x:65,y:72,textAnchor:'middle',fill:yogaPaused?'#555':'#fff',fontSize:34,fontWeight:'bold'},yogaTime)
-      ),
-      h('h2',{style:{fontSize:20,fontWeight:800,margin:'0 0 4px',textAlign:'center'}},pose.name),
-      h('p',{style:{fontSize:12,color:'#8b5cf6',margin:'0 0 8px',fontStyle:'italic'}},pose.sanskrit),
-      h(PoseImage,{name:pose.name}),
-      h('p',{style:{fontSize:14,color:'#888',textAlign:'center',maxWidth:300,lineHeight:1.65,margin:'0 0 16px',padding:'0 8px'}},pose.cue),
-      yogaIdx<flow.length-1?h('div',{style:{fontSize:11,color:'#333',marginBottom:16}},'Next: '+flow[yogaIdx+1].name):null,
-      h('div',{style:{display:'flex',gap:10}},
-        h('button',{onClick:function(){setYogaPaused(function(p){return !p;});},style:{background:'#1e1e1e',border:'1px solid #2a2a2a',color:'#ccc',borderRadius:10,padding:'10px 20px',fontSize:13,cursor:'pointer',fontFamily:FF}},yogaPaused?'Resume':'Pause'),
-        h('button',{onClick:skipYogaPose,style:{background:'#1e1e1e',border:'1px solid #2a2a2a',color:'#ccc',borderRadius:10,padding:'10px 20px',fontSize:13,cursor:'pointer',fontFamily:FF}},'Skip')
-      ),
-      h('button',{onClick:function(){clearInterval(yogaRef.current);if(window.confirm('Exit yoga?'))setView('home');},style:{background:'none',border:'none',color:'#333',fontSize:12,cursor:'pointer',marginTop:16,fontFamily:FF}},'Exit')
-    );
+    if(phase==='yogaSelect') return h(YogaSelectView,{setView:setView,startYoga:startYoga});
+    return h(YogaRunView,{phase:phase,setPhase:setPhase,yogaFlowIdx:yogaFlowIdx,yogaIdx:yogaIdx,yogaTime:yogaTime,yogaStarted:yogaStarted,yogaPaused:yogaPaused,setYogaStarted:setYogaStarted,setYogaPaused:setYogaPaused,skipYogaPose:skipYogaPose,finishYoga:finishYoga,yogaRef:yogaRef,setView:setView});
   }
 
-  if(view==='physio'){
-    if(physioPhase==='select')return h('div',{style:pg},h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:24}},h('button',{onClick:function(){setView('home');},style:{background:'none',border:'none',color:PC,fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),h('h2',{style:{margin:0,fontSize:18}},'Physio')),h('p',{style:{color:'#555',fontSize:13,marginBottom:16}},'Choose your programme:'),PROGRAMMES.map(function(p2,i){return h('button',{key:p2.id,onClick:function(){startPhysio(i);},style:card({cursor:'pointer',width:'100%',textAlign:'left',marginBottom:12,border:'1px solid #2a2a2a',borderLeft:'4px solid '+PC})},h('div',{style:{fontWeight:700,fontSize:16,marginBottom:4,color:'#fff'}},p2.name),h('div',{style:{fontSize:12,color:'#555',marginBottom:8}},p2.note),h('div',{style:{display:'flex',flexWrap:'wrap',gap:4}},p2.exercises.map(function(ex){return h('span',{key:ex.id,style:{background:'#111',borderRadius:6,padding:'2px 8px',fontSize:10,color:'#666'}},ex.name);})));},this),null);
-    if(physioPhase==='intro')return h('div',{style:pgC()},h('div',{style:{fontSize:48}},'\uD83E\uDE7A'),h('h2',{style:{margin:'10px 0 4px'}},prog.name),h('p',{style:{color:'#888',fontSize:13,margin:'0 0 20px',maxWidth:300,lineHeight:1.7}},prog.exercises.length+' exercises.'),h('div',{style:{width:'100%',marginBottom:20}},prog.exercises.map(function(ex,i){return h('div',{key:ex.id,style:card({marginBottom:8,textAlign:'left'})},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},h('div',null,h('div',{style:{fontWeight:600,fontSize:14}},(i+1)+'. '+ex.name),h('div',{style:{fontSize:11,color:'#555',marginTop:2}},ex.note)),ex.url?h('a',{href:ex.url,target:'_blank',rel:'noopener noreferrer',style:{background:'#ef4444',color:'#fff',borderRadius:8,padding:'5px 10px',fontSize:11,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap',marginLeft:8}},'Video'):null));})),h('button',{onClick:function(){setPhysioPhase('exercise');},style:pbtn(PC,{maxWidth:240})},'Begin'),h('button',{onClick:function(){setPhysioPhase('select');},style:{background:'none',border:'none',color:'#555',fontSize:13,cursor:'pointer',marginTop:14,fontFamily:FF}},'Back'));
-    if(physioPhase==='done')return h('div',{style:pgC()},h('div',{style:{fontSize:64}},'\u2705'),h('h2',{style:{fontSize:24,margin:'14px 0 6px'}},'Physio complete!'),h('p',{style:{color:'#888',margin:'0 0 4px'}},prog.name),h('p',{style:{color:'#555',fontSize:13,margin:'0 0 24px'}},'Saved to your log.'),h('button',{onClick:finishPhysio,style:pbtn(PC,{maxWidth:220})},'Done'),h('button',{onClick:function(){setPhysioPhase('select');},style:{background:'none',border:'none',color:'#555',fontSize:13,cursor:'pointer',marginTop:12,fontFamily:FF}},'Do another programme'));
-    var pex=prog.exercises[physioEx],ppct=pex.type==='timed'&&pex.dur>0?physioTime/pex.dur:0,PR=54,pcirc=2*Math.PI*PR;
-    var timerCtrl;
-    if(physioTime===0){timerCtrl=h('button',{onClick:physioNext,style:pbtn(PC,{padding:'11px 24px',width:'auto'})},physioSet<pex.sets?'Next set':'Next exercise');}
-    else{timerCtrl=h('div',{style:{display:'flex',gap:10}},h('button',{onClick:function(){setPhysioRunning(function(r){return !r;});},style:{background:PC,border:'none',color:'#fff',borderRadius:10,padding:'10px 22px',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:FF}},physioRunning?'Pause':'Start'),h('button',{onClick:physioNext,style:{background:'transparent',border:'1px solid '+PC,color:PC,borderRadius:10,padding:'10px 18px',fontSize:14,cursor:'pointer',fontFamily:FF}},'Skip'));}
-    var exBody=pex.type==='timed'?[h('svg',{key:'sv',width:130,height:130,style:{marginBottom:12}},h('circle',{cx:65,cy:65,r:PR,fill:'none',stroke:'#1e1e1e',strokeWidth:8}),h('circle',{cx:65,cy:65,r:PR,fill:'none',stroke:physioRunning?PC:'#2a2a2a',strokeWidth:8,strokeDasharray:pcirc,strokeDashoffset:pcirc*(1-ppct),strokeLinecap:'round',transform:'rotate(-90 65 65)',style:{transition:'stroke-dashoffset 0.95s linear'}}),h('text',{x:65,y:72,textAnchor:'middle',fill:physioRunning?'#fff':'#555',fontSize:34,fontWeight:'bold'},physioTime)),timerCtrl]:[h('div',{key:'r',style:{fontSize:36,fontWeight:800,color:'#fff',marginBottom:4}},pex.reps),h('div',{key:'l',style:{fontSize:13,color:'#555',marginBottom:16}},'reps each side'),h('button',{key:'b',onClick:physioNext,style:pbtn(PC,{padding:'12px 28px',width:'auto'})},physioSet<pex.sets?'Set '+physioSet+' done':'Next exercise')];
-    return h('div',{style:Object.assign({},pg,{minHeight:'100vh'})},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}},h('div',{style:{fontWeight:800,fontSize:16,color:PC}},'Physio - '+prog.name),h('div',{style:{fontSize:13,color:'#555'}},(physioEx+1)+' / '+prog.exercises.length)),h('div',{style:{marginBottom:16}},prog.exercises.map(function(_,i){return h('span',{key:i,style:{display:'inline-block',width:8,height:8,borderRadius:'50%',background:i<physioEx?PC+'55':i===physioEx?PC:'#222',marginRight:4}});})),h('div',{style:card({marginBottom:16,borderLeft:'4px solid '+PC})},h('div',{style:{fontWeight:700,fontSize:17,marginBottom:4}},pex.name),h('div',{style:{fontSize:12,color:'#555',marginBottom:pex.url?10:0}},pex.note),pex.url?h('a',{href:pex.url,target:'_blank',rel:'noopener noreferrer',style:{display:'inline-flex',alignItems:'center',gap:6,background:'#ef4444',color:'#fff',borderRadius:8,padding:'7px 14px',fontSize:13,textDecoration:'none',fontWeight:600}},'Watch video'):null),h('div',{style:card({marginBottom:16,display:'flex',flexDirection:'column',alignItems:'center',padding:'20px 16px'})},h('div',{style:{fontSize:12,color:'#555',marginBottom:12}},'Set '+physioSet+' of '+pex.sets),exBody),h('button',{onClick:function(){clearInterval(physioRef.current);if(window.confirm('Exit physio?'))setView('home');},style:{background:'none',border:'none',color:'#2a2a2a',fontSize:13,cursor:'pointer',width:'100%',textAlign:'center',padding:'16px 0',fontFamily:FF}},'Exit'));
-  }
+  if(view==='physio') return h(PhysioView,{physioPhase:physioPhase,setPhysioPhase:setPhysioPhase,prog:prog,physioEx:physioEx,physioSet:physioSet,physioTime:physioTime,physioRunning:physioRunning,setPhysioRunning:setPhysioRunning,startPhysio:startPhysio,physioNext:physioNext,finishPhysio:finishPhysio,physioRef:physioRef,setView:setView});
 
-  if(view==='bp'){
-    var last=bpLog[0],cat=last?bpCat(last.sys,last.dia):null;
-    var cSys=bpLog.slice().reverse().map(function(e){return{date:fmtDate(e.date),value:e.sys};});
-    var cDia=bpLog.slice().reverse().map(function(e){return{date:fmtDate(e.date),value:e.dia};});
-    return h('div',{style:pg},h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},h('button',{onClick:function(){setView('home');},style:{background:'none',border:'none',color:'#f43f5e',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),h('h2',{style:{margin:0,fontSize:18}},'Blood Pressure')),h('div',{style:card({marginBottom:16,borderLeft:'4px solid #f43f5e'})},h('div',{style:{fontWeight:600,marginBottom:12}},'New Reading'),h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}},h('div',null,h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},'Systolic'),h('input',{type:'number',inputMode:'numeric',value:bpSys,onChange:function(e){setBpSys(e.target.value);},placeholder:'120',style:inp})),h('div',null,h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},'Diastolic'),h('input',{type:'number',inputMode:'numeric',value:bpDia,onChange:function(e){setBpDia(e.target.value);},placeholder:'80',style:inp})),h('div',null,h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},'Pulse'),h('input',{type:'number',inputMode:'numeric',value:bpPulse,onChange:function(e){setBpPulse(e.target.value);},placeholder:'70',style:inp}))),h('button',{onClick:logBP,style:pbtn('#f43f5e')},'Save Reading')),last?h('div',{style:card({marginBottom:16,borderLeft:'4px solid '+cat.color})},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}},h('div',null,h('div',{style:{fontSize:28,fontWeight:800}},last.sys,h('span',{style:{color:'#555',fontSize:18}},'/'+last.dia)),h('div',{style:{fontSize:12,color:'#555'}},'mmHg'+(last.pulse?' - '+last.pulse+' bpm':'')),h('div',{style:{fontSize:13,color:cat.color,marginTop:4,fontWeight:600}},cat.label)),h('div',{style:{fontSize:11,color:'#555',textAlign:'right'}},last.date,h('br'),last.time))):null,bpLog.length>=2?h('div',{style:card({marginBottom:16})},h('div',{style:{fontSize:12,color:'#555',marginBottom:6}},'Systolic'),h(MiniChart,{data:cSys,color:'#f43f5e'}),h('div',{style:{fontSize:12,color:'#555',margin:'10px 0 6px'}},'Diastolic'),h(MiniChart,{data:cDia,color:'#fb7185'})):null,bpLog.map(function(e){var c=bpCat(e.sys,e.dia);return h('div',{key:e.id,style:card({marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'})},h('div',null,h('div',{style:{fontWeight:600}},e.sys+'/'+e.dia+' mmHg'+(e.pulse?' - '+e.pulse+' bpm':'')),h('div',{style:{fontSize:11,color:c.color,marginTop:2}},c.label+' - '+e.date+' '+e.time)),h('button',{onClick:function(){saveBp(bpLog.filter(function(x){return x.id!==e.id;}));},style:{background:'none',border:'none',color:'#333',fontSize:18,cursor:'pointer',padding:'4px 8px'}},'x'));}));
-  }
+  if(view==='workout') return h(WorkoutView,{phase:phase,setPhase:setPhase,wType:wType,ssIdx:ssIdx,round:round,restTime:restTime,restDur:restDur,condRound:condRound,setCondRound:setCondRound,entries:entries,completeRound:completeRound,completeCondRound:completeCondRound,finish:finish,skipRest:skipRest,upd:upd,setView:setView});
 
-  if(view==='weight'){
-    var wlast=weightLog[0],wprev=weightLog[1],wdiff=wlast&&wprev?(wlast.kg-wprev.kg).toFixed(1):null;
-    var wData=weightLog.slice().reverse().map(function(e){return{date:fmtDate(e.date),value:e.kg};});
-    return h('div',{style:pg},h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},h('button',{onClick:function(){setView('home');},style:{background:'none',border:'none',color:'#f59e0b',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),h('h2',{style:{margin:0,fontSize:18}},'Weight')),h('div',{style:card({marginBottom:16,borderLeft:'4px solid #f59e0b'})},h('div',{style:{fontWeight:600,marginBottom:12}},'Log Weight'),h('div',{style:{display:'flex',gap:8,alignItems:'flex-end'}},h('div',{style:{flex:1}},h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},'kg'),h('input',{type:'number',inputMode:'decimal',value:weightVal,onChange:function(e){setWeightVal(e.target.value);},placeholder:'82.5',style:inp})),h('button',{onClick:logWeight,style:pbtn('#f59e0b',{flex:'0 0 auto',width:'auto',padding:'12px 20px'})},'Save'))),wlast?h('div',{style:card({marginBottom:16,borderLeft:'4px solid #f59e0b'})},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},h('div',null,h('div',{style:{fontSize:32,fontWeight:800}},wlast.kg,h('span',{style:{fontSize:16,color:'#555'}},' kg')),wdiff!==null?h('div',{style:{fontSize:13,color:parseFloat(wdiff)<=0?'#22c55e':'#f97316',marginTop:4}},(parseFloat(wdiff)>0?'+':'')+wdiff+' kg since last'):null),h('div',{style:{fontSize:11,color:'#555'}},wlast.date))):null,weightLog.length>=2?h('div',{style:card({marginBottom:16})},h('div',{style:{fontSize:12,color:'#555',marginBottom:6}},'Weight (kg)'),h(MiniChart,{data:wData,color:'#f59e0b'})):null,weightLog.map(function(e,i){var nx=weightLog[i+1],d=nx?(e.kg-nx.kg).toFixed(1):null;return h('div',{key:e.id,style:card({marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'})},h('div',null,h('div',{style:{fontWeight:600}},e.kg+' kg'),h('div',{style:{fontSize:11,color:'#555',marginTop:2}},e.date,d!==null?h('span',{style:{color:parseFloat(d)<=0?'#22c55e':'#f97316',marginLeft:6}},(parseFloat(d)>0?'+':'')+d+' kg'):null)),h('button',{onClick:function(){saveWeight(weightLog.filter(function(x){return x.id!==e.id;}));},style:{background:'none',border:'none',color:'#333',fontSize:18,cursor:'pointer',padding:'4px 8px'}},'x'));}));
-  }
-
-  if(view==='history'){
-    return h('div',{style:pg},h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},h('button',{onClick:function(){setView('home');},style:{background:'none',border:'none',color:'#3b82f6',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),h('h2',{style:{margin:0,fontSize:18}},'History')),
-    history.length===0?h('p',{style:{color:'#555',textAlign:'center',marginTop:60}},'No sessions yet'):
-    history.map(function(s){
-      var isY=s.type==='yoga',isP=s.type==='physio',col=isY?'#8b5cf6':isP?PC:((WK[s.type]&&WK[s.type].color)||'#555'),isOpen=expanded===s.id;
-      if(isY)return h('div',{key:s.id,style:card({borderLeft:'4px solid '+col,marginBottom:10})},h('div',{style:{display:'flex',justifyContent:'space-between'}},h('div',{style:{fontWeight:600}},'Yoga - '+((s.data&&s.data.flowName)||'')),h('div',{style:{fontSize:12,color:'#555'}},s.date)),h('div',{style:{fontSize:12,color:'#555',marginTop:4}},(s.data&&s.data.poses)+' poses'));
-      if(isP)return h('div',{key:s.id,style:card({borderLeft:'4px solid '+col,marginBottom:10})},h('div',{style:{display:'flex',justifyContent:'space-between'}},h('div',{style:{fontWeight:600}},'Physio - '+((s.data&&s.data.programme)||'')),h('div',{style:{fontSize:12,color:'#555'}},s.date)),h('div',{style:{fontSize:12,color:'#555',marginTop:4}},(s.data&&s.data.exercises)+' exercises'));
-      var w=WK[s.type];if(!w)return null;
-      var byEx={};Object.keys(s.data||{}).forEach(function(k){var v=s.data[k],id=exIdFromKey(k),r=parseInt(k.split('_')[1]);if(!byEx[id])byEx[id]={rounds:{}};byEx[id].rounds[r]=v;});
-      var exOrder=w.supersets.reduce(function(a,ss){return a.concat(ss.exercises);},[]);
-      var ordEx=exOrder.filter(function(e){return byEx[e.id];});
-      function getSs(id){for(var i=0;i<w.supersets.length;i++){if(w.supersets[i].exercises.find(function(e){return e.id===id;}))return w.supersets[i].id;}return null;}
-      return h('div',{key:s.id,style:card({borderLeft:'4px solid '+col,marginBottom:10,cursor:'pointer'}),onClick:function(){setExpanded(isOpen?null:s.id);}},
-        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},h('div',{style:{fontWeight:600}},w.emoji+' '+w.name),h('div',{style:{display:'flex',alignItems:'center',gap:8}},h('div',{style:{fontSize:12,color:'#555'}},s.date+(s.cond?' cond':'')),h('div',{style:{color:'#444',fontSize:11}},isOpen?'\u25B2':'\u25BC'))),
-        !isOpen?h('div',{style:{display:'flex',flexWrap:'wrap',gap:'3px 14px',marginTop:7}},ordEx.slice(0,4).map(function(ex){var v=byEx[ex.id]&&byEx[ex.id].rounds[1];if(!v)return null;return h('span',{key:ex.id,style:{fontSize:12,color:'#888'}},h('span',{style:{color:'#555'}},ex.name.split(/[\s/]/)[0]+' '),valStr(v));})):null,
-        isOpen?h('div',{style:{marginTop:14},onClick:function(e){e.stopPropagation();}},ordEx.map(function(ex,i){var ssId=getSs(ex.id),prevSs=i>0?getSs(ordEx[i-1].id):null;var rounds=(byEx[ex.id]&&byEx[ex.id].rounds)||{},maxR=Math.max.apply(null,Object.keys(rounds).map(Number));return h('div',{key:ex.id},ssId!==prevSs?h('div',{style:{fontSize:11,color:col,fontWeight:600,letterSpacing:1,textTransform:'uppercase',marginTop:i===0?0:12,marginBottom:8}},'Superset '+ssId):null,h('div',{style:{marginBottom:10}},h('div',{style:{fontSize:13,fontWeight:600,color:'#ccc',marginBottom:6}},ex.name),h('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},Array.from({length:maxR},function(_,j){var r=j+1,v=rounds[r];if(!v)return null;return h('div',{key:r,style:{background:'#111',borderRadius:8,padding:'5px 10px',fontSize:12,color:'#aaa',border:'1px solid #222'}},h('span',{style:{color:'#555',fontSize:10,marginRight:3}},'R'+r),valStr(v));}))));}))):null
-      );
-    }));
-  }
-
-  if(view==='progress'){
-    var pex2=ALL_EX.find(function(e){return e.id===selEx;});
-    var pColor=pex2&&pex2.wk==='push'?'#ef4444':'#3b82f6';
-    var pData=history.slice().reverse().reduce(function(acc,s){if(s.type==='yoga'||s.type==='physio')return acc;var vals=Object.keys(s.data||{}).filter(function(k){return exIdFromKey(k)===selEx;}).map(function(k){return s.data[k];});if(!vals.length)return acc;var m=pex2&&pex2.type==='weighted'?Math.max.apply(null,vals.map(function(v){return+v.weight||0;})):pex2&&pex2.type==='duration'?Math.max.apply(null,vals.map(function(v){return+v.duration||0;})):Math.max.apply(null,vals.map(function(v){return+v.reps||0;}));if(m>0)acc.push({date:s.date.slice(5),value:m});return acc;},[]);
-    var yLabel2=pex2&&pex2.type==='weighted'?'Max kg':pex2&&pex2.type==='duration'?'Max sec':'Max reps';
-    return h('div',{style:pg},h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},h('button',{onClick:function(){setView('home');},style:{background:'none',border:'none',color:'#3b82f6',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),h('h2',{style:{margin:0,fontSize:18}},'Progress')),h('select',{value:selEx,onChange:function(e){setSelEx(e.target.value);},style:Object.assign({},inp,{marginBottom:20})},ALL_EX.map(function(e){return h('option',{key:e.id,value:e.id},e.name);})),h('div',{style:card()},h('div',{style:{fontSize:12,color:'#555',marginBottom:8}},yLabel2),h(MiniChart,{data:pData,color:pColor})));
-  }
-
-  var w=WK[wType];if(!w)return null;
-  if(phase==='complete')return h('div',{style:pgC()},h('div',{style:{fontSize:72}},'\uD83C\uDF89'),h('h2',{style:{fontSize:24,margin:'12px 0 4px'}},'Session complete!'),h('p',{style:{color:'#555',margin:'0 0 20px'}},'Saved to your log.'),h('button',{onClick:function(){setView('home');},style:pbtn(w.color,{maxWidth:180})},'Done'));
-  if(phase==='condOption')return h('div',{style:Object.assign({},pgC(),{gap:10})},h('div',{style:{fontSize:56}},'\uD83D\uDD25'),h('h2',{style:{margin:0}},'Main workout done!'),h('p',{style:{color:'#888',margin:'4px 0 16px'}},'Add optional conditioning?'),h('button',{onClick:function(){setPhase('inCond');setCondRound(1);},style:pbtn('#f59e0b')},'Yes - add conditioning'),h('button',{onClick:function(){finish(false);},style:Object.assign(pbtn('#333'),{border:'1px solid #2a2a2a'})},'Skip - finish now'));
-  if(phase==='inCond')return h('div',{style:pg},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}},h('div',{style:{fontWeight:700,color:'#f59e0b',fontSize:16}},'Conditioning'),h('div',{style:{fontSize:13,color:'#555'}},'Round '+condRound+' / '+COND.rounds)),COND.exercises.map(function(ex){return h('div',{key:ex.id,style:card({marginBottom:12})},h('div',{style:{fontWeight:600,marginBottom:10}},ex.name),h(ExInput,{ex:ex,val:entries[eKey('cond',condRound,ex.id)],onChange:function(v){upd('cond',condRound,ex.id,v);}}));}),h('button',{onClick:completeCondRound,style:Object.assign(pbtn('#f59e0b'),{marginTop:8})},condRound<COND.rounds?'Round '+condRound+' done':'Finish Workout'));
-  if(phase==='rest'){var RR=48,cc=2*Math.PI*RR,rp=restDur>0?restTime/restDur:0;return h('div',{style:pgC()},h('div',{style:{fontSize:13,color:'#444',marginBottom:20,letterSpacing:2,textTransform:'uppercase'}},'Rest'),h('svg',{width:120,height:120,style:{marginBottom:28}},h('circle',{cx:60,cy:60,r:RR,fill:'none',stroke:'#1e1e1e',strokeWidth:8}),h('circle',{cx:60,cy:60,r:RR,fill:'none',stroke:w.color,strokeWidth:8,strokeDasharray:cc,strokeDashoffset:cc*(1-rp),strokeLinecap:'round',transform:'rotate(-90 60 60)',style:{transition:'stroke-dashoffset 0.95s linear'}}),h('text',{x:60,y:68,textAnchor:'middle',fill:'#fff',fontSize:32,fontWeight:'bold'},restTime)),h('button',{onClick:skipRest,style:{background:'transparent',border:'1px solid #2a2a2a',color:'#666',borderRadius:12,padding:'11px 32px',fontSize:14,cursor:'pointer',fontFamily:FF}},'Skip'));}
-  var ss=w.supersets[ssIdx];
-  return h('div',{style:pg},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}},h('div',null,h('div',{style:{fontSize:11,color:'#555'}},w.emoji+' '+w.name),h('div',{style:{fontWeight:800,fontSize:22}},'Superset '+ss.id)),h('div',{style:{background:w.color+'18',color:w.color,borderRadius:20,padding:'5px 16px',fontWeight:700,fontSize:15}},round+'/'+ss.rounds)),h('div',{style:{fontSize:12,color:'#333',marginBottom:20}},'Back-to-back - rest '+ss.restSec+'s between rounds'),ss.exercises.map(function(ex){return h('div',{key:ex.id,style:card({marginBottom:12})},h('div',{style:{fontWeight:600,marginBottom:10}},ex.name),h(ExInput,{ex:ex,val:entries[eKey(ss.id,round,ex.id)],onChange:function(v){upd(ss.id,round,ex.id,v);}}));}),h('button',{onClick:completeRound,style:Object.assign(pbtn(w.color),{marginTop:8})},round<ss.rounds?'Done - rest '+ss.restSec+'s':ssIdx<w.supersets.length-1?'Superset '+ss.id+' done':'All supersets done'),h('div',{style:{display:'flex',justifyContent:'center',gap:8,marginTop:20}},w.supersets.map(function(s,i){return h('div',{key:s.id,style:{width:8,height:8,borderRadius:'50%',background:i<ssIdx?w.color+'55':i===ssIdx?w.color:'#222'}});})),h('button',{onClick:function(){if(window.confirm('Abandon workout?'))setView('home');},style:{background:'none',border:'none',color:'#2a2a2a',fontSize:13,cursor:'pointer',width:'100%',textAlign:'center',padding:'12px 0',marginTop:4,fontFamily:FF}},'Abandon'));
+  return null;
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App,null));
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null));
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});}
+
 })();
-</script>
+<\/script>
 </body>
 </html>
