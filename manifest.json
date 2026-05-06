@@ -1,7 +1,7 @@
 {
-  "name": "Workout Log",
-  "short_name": "Workout",
-  "description": "Pull/Push strength training and yoga flow tracker",
+  "name": "My Health",
+  "short_name": "Health",
+  "description": "Workout, Yoga, Physio, BP and Weight tracker",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",

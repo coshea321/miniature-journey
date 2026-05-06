@@ -2,1371 +2,837 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<meta name="theme-color" content="#1A3D1E" id="themeColor">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#111">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="FreshList">
-<link rel="manifest" href="manifest.json">
-<title>FreshList</title>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Health">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>My Health</title>
 <style>
-:root{--accent:#2D6B35;}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#F4EEE4;color:#1C2018;min-height:100dvh;max-width:480px;margin:0 auto}
-header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;transition:background .25s}
-.app-title{font-family:Georgia,serif;font-size:20px;font-weight:600;color:#F4EEE4;flex:1}
-.hdr-badge{background:rgba(255,255,255,.25);color:#fff;border-radius:20px;padding:2px 9px;font-size:12px;font-weight:700;display:none}
-.hdr-btn{width:34px;height:34px;border:none;background:rgba(255,255,255,.18);color:#fff;border-radius:8px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.type-bar{display:flex;gap:4px;padding:4px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08)}
-.type-btn{flex:1;padding:8px 4px;border:none;border-radius:6px;font-family:inherit;font-size:13px;font-weight:700;color:#7A8772;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:all .2s}
-.type-btn.active{color:#fff;background:var(--accent)}
-.content{padding:14px 14px 90px}
-.input-card{background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(20,50,20,.09);padding:13px;margin-bottom:16px;position:relative}
-.input-row{display:flex;gap:9px;align-items:center}
-#itemInput{flex:1;border:2px solid #D8D0C0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:16px;color:#1C2018;background:#FDFAF3;outline:none;transition:border-color .15s}
-#itemInput:focus{border-color:var(--accent)}
-#itemInput::placeholder{color:#7A8772}
-.add-btn{width:44px;height:44px;flex-shrink:0;border:none;background:var(--accent);color:#fff;border-radius:9px;font-size:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
-.add-btn:active{opacity:.85}
-.cat-row{display:none;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap}
-.cat-label{font-size:12px;color:#7A8772;font-weight:600}
-.cat-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid rgba(0,0,0,.12)}
-.cat-hint{font-size:11px;color:#7A8772}
-.ac{position:absolute;top:calc(100% + 5px);left:0;right:0;background:#fff;border-radius:9px;box-shadow:0 8px 32px rgba(20,50,20,.15);z-index:200;overflow:hidden;max-height:250px;overflow-y:auto;display:none}
-.ac-item{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;border-bottom:1px solid #D8D0C0}
-.ac-item:last-child{border-bottom:none}
-.ac-item:active{background:#F4EEE4}
-.ac-name{flex:1;font-size:15px}
-.ac-name b{color:var(--accent)}
-.ac-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap}
-.ac-times{font-size:11px;color:#7A8772}
-.tabs{display:flex;background:#fff;border-radius:9px;padding:4px;margin-bottom:14px;box-shadow:0 2px 12px rgba(20,50,20,.09);gap:4px}
-.tab{flex:1;padding:9px 8px;border:none;border-radius:6px;font-family:inherit;font-size:14px;font-weight:600;color:#7A8772;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .2s}
-.tab.active{background:var(--accent);color:#fff}
-.tab-badge{background:rgba(255,255,255,.25);border-radius:10px;padding:1px 7px;font-size:12px}
-#historyPanel{display:none}
-.sec-hdr{display:flex;align-items:center;gap:8px;margin:18px 0 7px}
-.sec-hdr:first-child{margin-top:0}
-.sec-name{font-family:Georgia,serif;font-size:15px;font-weight:500;white-space:nowrap}
-.sec-line{flex:1;height:1px;background:#D8D0C0}
-.sec-count{font-size:11px;font-weight:700;color:#7A8772;background:#F4EEE4;padding:1px 7px;border-radius:10px}
-.item-card{background:#fff;border-radius:9px;padding:12px 12px 12px 13px;margin-bottom:5px;display:flex;align-items:center;gap:11px;box-shadow:0 1px 4px rgba(20,50,20,.07);cursor:pointer;border-left:3px solid transparent}
-.item-card.done{opacity:.65;background:#F8FAF8}
-.chk{width:26px;height:26px;flex-shrink:0;border:2.5px solid #D8D0C0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;transition:all .18s}
-.item-card.done .chk{background:var(--accent);border-color:var(--accent);color:#fff}
-.item-name{flex:1;font-size:15px;font-weight:500}
-.item-card.done .item-name{text-decoration:line-through;color:#7A8772}
-.item-pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;white-space:nowrap;flex-shrink:0;cursor:pointer;border:1.5px solid transparent;transition:border-color .15s}
-.item-pill:hover{border-color:rgba(0,0,0,.2)}
-.del-btn{width:28px;height:28px;flex-shrink:0;border:none;background:none;color:#C03030;font-size:18px;cursor:pointer;border-radius:6px;opacity:.25}
-.clear-btn{display:block;width:100%;margin-top:14px;padding:12px;border:2px dashed #D8D0C0;border-radius:9px;background:none;color:#7A8772;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
-.empty{text-align:center;padding:56px 24px 32px;color:#7A8772}
-.empty-ico{font-size:52px;margin-bottom:12px}
-.empty-title{font-family:Georgia,serif;font-size:20px;color:#1C2018;margin-bottom:6px}
-.empty-sub{font-size:14px;line-height:1.5}
-.hist-search{margin-bottom:12px}
-.hist-search input{width:100%;border:2px solid #D8D0C0;border-radius:9px;padding:9px 12px;font-family:inherit;font-size:15px;color:#1C2018;background:#FDFAF3;outline:none}
-.hist-search input:focus{border-color:var(--accent)}
-.hist-item{background:#fff;border-radius:9px;padding:11px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(20,50,20,.07);cursor:pointer}
-.hist-emoji{font-size:20px;flex-shrink:0}
-.hist-body{flex:1;min-width:0}
-.hist-name{font-size:15px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hist-meta{display:flex;align-items:center;gap:6px;margin-top:3px}
-.hist-cat{font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px}
-.hist-count{font-size:11px;color:#7A8772}
-.hist-add{width:32px;height:32px;flex-shrink:0;border:none;background:#D6EDDA;color:#1A3D1E;font-size:22px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
-.hist-add.in-list{background:#E8E8E8;color:#999;font-size:14px}
-/* MODAL BASE */
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;align-items:flex-end}
-.overlay.open{display:flex}
-.modal-box{background:#fff;width:100%;border-radius:14px 14px 0 0;padding:18px 14px 32px;max-height:82vh;overflow-y:auto}
-.modal-title{font-family:Georgia,serif;font-size:18px;text-align:center;margin-bottom:14px}
-.modal-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border:none;background:#F0EDE8;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.picker-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.picker-opt{padding:12px;border-radius:9px;border:2.5px solid transparent;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
-.picker-opt.sel{border-color:var(--accent)}
-.picker-opt:active{opacity:.8}
-.picker-add-cat{padding:12px;border-radius:9px;border:2px dashed #D8D0C0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:600;color:#7A8772;background:none;width:100%;font-family:inherit;margin-top:8px}
-/* ADD CATEGORY FORM */
-.add-cat-form{padding:4px 0}
-.add-cat-form label{font-size:12px;font-weight:700;color:#7A8772;display:block;margin-bottom:4px;margin-top:12px}
-.add-cat-form input{width:100%;border:2px solid #D8D0C0;border-radius:9px;padding:10px 12px;font-family:inherit;font-size:15px;color:#1C2018;outline:none}
-.add-cat-form input:focus{border-color:var(--accent)}
-.emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:6px}
-.emoji-opt{padding:6px;border:2px solid transparent;border-radius:8px;font-size:20px;cursor:pointer;text-align:center}
-.emoji-opt.sel{border-color:var(--accent);background:#F0F8F0}
-.color-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px}
-.color-opt{height:32px;border-radius:8px;border:2.5px solid transparent;cursor:pointer}
-.color-opt.sel{border-color:#333}
-.form-btn{width:100%;margin-top:16px;padding:12px;border:none;background:var(--accent);color:#fff;border-radius:9px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer}
-/* SYNC MODAL */
-.sync-section{margin-bottom:18px}
-.sync-section-title{font-size:13px;font-weight:700;color:#7A8772;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
-.sync-input{width:100%;border:2px solid #D8D0C0;border-radius:9px;padding:10px 12px;font-family:inherit;font-size:15px;color:#1C2018;outline:none;margin-bottom:8px}
-.sync-input:focus{border-color:var(--accent)}
-.sync-btn{width:100%;padding:11px;border:none;background:var(--accent);color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px}
-.sync-btn.outline{background:none;border:2px solid var(--accent);color:var(--accent)}
-.sync-status{font-size:13px;padding:8px 12px;border-radius:8px;margin-top:8px;display:none}
-.sync-status.on{background:#D6EDDA;color:#1A4A1E;display:block}
-.sync-status.off{background:#FDDEDD;color:#7A1A1A;display:block}
-.sync-room-display{font-family:monospace;font-size:22px;font-weight:700;letter-spacing:4px;text-align:center;padding:14px;background:#F4EEE4;border-radius:9px;margin:8px 0;color:#1A3D1E}
-.sync-indicator{width:8px;height:8px;border-radius:50%;background:#ccc;display:inline-block;margin-right:6px}
-.sync-indicator.live{background:#2D9B4A;animation:pulse 1.5s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.note-card{background:#fff;border-radius:9px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(20,50,20,.07)}
-.note-text{font-size:15px;line-height:1.5;color:#1C2018;margin-bottom:4px;white-space:pre-wrap;word-break:break-word}
-.note-meta{font-size:11px;color:#7A8772}
-.note-textarea{width:100%;border:2px solid var(--accent);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:15px;color:#1C2018;resize:vertical;outline:none;line-height:1.5}
-.note-edit-btn{padding:5px 12px;border:1.5px solid #D8D0C0;border-radius:7px;background:none;font-family:inherit;font-size:12px;font-weight:600;color:#7A8772;cursor:pointer}
-.note-edit-btn:active{background:#F4EEE4}
-.note-save-btn{padding:7px 12px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
-.note-cancel-btn{padding:7px 12px;border:1.5px solid #D8D0C0;border-radius:7px;background:none;font-family:inherit;font-size:13px;font-weight:600;color:#7A8772;cursor:pointer}
-.note-del{padding:5px 12px;border:1.5px solid #FDDEDD;border-radius:7px;background:none;font-family:inherit;font-size:12px;font-weight:600;color:#C03030;cursor:pointer}
-.note-del:active{background:#FDDEDD}
-#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#1A3D1E;color:#fff;padding:10px 22px;border-radius:22px;font-size:14px;font-weight:600;z-index:600;white-space:nowrap;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.25);transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
-#toast.show{transform:translateX(-50%) translateY(0)}
-.sync-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F8F6F2;border-radius:9px;margin-bottom:6px}
-.sync-toggle-label{font-size:14px;font-weight:600;color:#1C2018}
-.toggle-switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
-.toggle-switch input{opacity:0;width:0;height:0}
-.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#D8D0C0;border-radius:24px;transition:.2s}
-.toggle-slider:before{content:"";position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
-.toggle-switch input:checked + .toggle-slider{background:var(--accent)}
-.toggle-switch input:checked + .toggle-slider:before{transform:translateX(20px)}
-.ver{text-align:center;padding:6px;font-size:10px;color:#ccc;position:fixed;bottom:0;left:0;right:0;pointer-events:none;z-index:1}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#111;min-height:100%}
+#root{min-height:100vh}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
 </style>
 </head>
 <body>
-
-<header>
-  <div class="app-title" id="appTitle">FreshList</div>
-  <div class="hdr-badge" id="hdrBadge"></div>
-  <button class="hdr-btn" id="syncBtn" title="Sync">&#128257;</button>
-  <button class="hdr-btn" id="settingsBtn" title="Settings">&#9881;&#65039;</button>
-</header>
-
-<div class="type-bar" id="typeBar">
-  <button class="type-btn active" data-lt="grocery">&#x1F6D2; Grocery</button>
-  <button class="type-btn" data-lt="todo">&#x2705; General</button>
-  <button class="type-btn" data-lt="personal">&#x1F464; Personal</button>
-  <button class="type-btn" data-lt="travel">&#x2708;&#xFE0F; Travel</button>
-  <button class="type-btn" data-lt="notes">&#x1F4DD; Notes</button>
-</div>
-
-<div class="content">
-  <!-- NOTES FULL VIEW (shown when Notes selected as list type) -->
-  <div id="notesFullPanel" style="display:none">
-    <div style="display:flex;gap:9px;margin-bottom:12px">
-      <input id="noteInputFull" type="text" placeholder="Write a note..." autocomplete="off"
-        style="flex:1;border:2px solid #D8D0C0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:15px;color:#1C2018;background:#FDFAF3;outline:none">
-      <button id="addNoteFullBtn" style="width:44px;height:44px;flex-shrink:0;border:none;background:var(--accent);color:#fff;border-radius:9px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
-    </div>
-    <div id="notesFullContent"></div>
-  </div>
-
-  <div id="mainContent">
-  <div class="input-card">
-    <div class="input-row">
-      <input id="itemInput" type="text" placeholder="Add an item..." autocomplete="off" autocorrect="off" spellcheck="false">
-      <button class="add-btn" id="addBtn">+</button>
-    </div>
-    <div class="cat-row" id="catRow">
-      <span class="cat-label">Category:</span>
-      <span class="cat-chip" id="catChip"></span>
-      <span class="cat-hint" id="catHint">tap to change</span>
-    </div>
-    <div class="ac" id="ac"></div>
-  </div>
-
-  <div class="tabs">
-    <button class="tab active" id="tabList">List <span class="tab-badge" id="listBadge"></span></button>
-    <button class="tab" id="tabHistory">&#x1F550; History</button>
-    <button class="tab" id="tabNotes">&#x1F4DD; Notes</button>
-  </div>
-  <div id="listPanel">
-    <div id="listContent"></div>
-    <button class="clear-btn" id="clearBtn" style="display:none">&#x2715; Clear completed</button>
-  </div>
-  <div id="historyPanel">
-    <div class="hist-search"><input id="histSearch" type="text" placeholder="Search history..." autocomplete="off"></div>
-    <div id="historyContent"></div>
-  </div>
-</div>
-  <div id="notesPanel" style="display:none">
-    <div style="display:flex;gap:9px;margin-bottom:12px">
-      <input id="noteInput" type="text" placeholder="Write a note..." autocomplete="off"
-        style="flex:1;border:2px solid #D8D0C0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:15px;color:#1C2018;background:#FDFAF3;outline:none">
-      <button id="addNoteBtn" style="width:44px;height:44px;flex-shrink:0;border:none;background:var(--accent);color:#fff;border-radius:9px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
-    </div>
-    <div id="notesContent"></div>
-  </div>
-
-  </div><!-- end mainContent -->
-
-<!-- CATEGORY PICKER MODAL -->
-<div class="overlay" id="pickerOverlay">
-  <div class="modal-box" style="position:relative">
-    <button class="modal-close" id="pickerClose">&#x2715;</button>
-    <div class="modal-title" id="pickerTitle">Choose a category</div>
-    <div class="picker-grid" id="pickerGrid"></div>
-    <button class="picker-add-cat" id="addCatBtn">&#x2795; Add custom category</button>
-
-    <!-- Inline add-category form (hidden by default) -->
-    <div id="addCatForm" style="display:none">
-      <div style="height:1px;background:#E8E4DC;margin:14px 0"></div>
-      <div class="modal-title" style="font-size:16px">New Category</div>
-      <div class="add-cat-form">
-        <label>Name</label>
-        <input id="newCatName" type="text" placeholder="e.g. Baby, Pet Food..." maxlength="24">
-        <label>Icon</label>
-        <div class="emoji-grid" id="emojiGrid"></div>
-        <label>Colour</label>
-        <div class="color-grid" id="colorGrid"></div>
-      </div>
-      <button class="form-btn" id="saveCatBtn">Save Category</button>
-    </div>
-  </div>
-</div>
-
-<!-- SYNC MODAL -->
-<div class="overlay" id="syncOverlay">
-  <div class="modal-box" style="position:relative">
-    <button class="modal-close" id="syncClose">&#x2715;</button>
-    <div class="modal-title">&#128257; Sync</div>
-
-    <div class="sync-section">
-      <div class="sync-section-title">Firebase Database URL</div>
-      <input class="sync-input" id="fbUrlInput" type="url" placeholder="https://your-app-default-rtdb.firebaseio.com">
-      <div style="font-size:12px;color:#7A8772;line-height:1.5">
-        Free setup: <strong>firebase.google.com</strong> &#x2192; New project &#x2192; Realtime Database &#x2192; Copy URL.<br>
-        Set rules to <code style="background:#F0EDE8;padding:1px 4px;border-radius:4px">{"rules":{".read":true,".write":true}}</code>
-      </div>
-    </div>
-
-    <div class="sync-section">
-      <div class="sync-section-title">Room</div>
-      <div id="syncRoomDisplay" style="display:none">
-        <div class="sync-room-display" id="roomCodeDisplay"></div>
-        <div style="font-size:13px;color:#7A8772;text-align:center;margin-bottom:10px">Share this code with the other person</div>
-      </div>
-      <input class="sync-input" id="roomCodeInput" placeholder="Enter 6-letter room code to join">
-      <button class="sync-btn" id="createRoomBtn">Create new room</button>
-      <button class="sync-btn outline" id="joinRoomBtn">Join existing room</button>
-      <button class="sync-btn outline" id="leaveRoomBtn" style="display:none;border-color:#C03030;color:#C03030">Leave room</button>
-      <div class="sync-status" id="syncStatus"></div>
-    </div>
-
-    <div class="sync-section">
-      <div class="sync-section-title">What to sync</div>
-      <div id="syncToggles">
-        <div class="sync-toggle-row" data-key="grocery">
-          <span class="sync-toggle-label">&#x1F6D2; Grocery</span>
-          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="grocery" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="sync-toggle-row" data-key="todo">
-          <span class="sync-toggle-label">&#x2705; General</span>
-          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="todo" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="sync-toggle-row" data-key="travel">
-          <span class="sync-toggle-label">&#x2708;&#xFE0F; Travel</span>
-          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="travel" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="sync-toggle-row" data-key="personal">
-          <span class="sync-toggle-label">&#x1F464; Personal</span>
-          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="personal"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="sync-toggle-row" data-key="notes">
-          <span class="sync-toggle-label">&#x1F4DD; Notes</span>
-          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="notes"><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-      <div style="font-size:12px;color:#7A8772;margin-top:8px;line-height:1.5">Unsynced sections stay private on this device only.</div>
-    </div>
-  </div>
-</div>
-
-<!-- SETTINGS MODAL -->
-<div class="overlay" id="settingsOverlay">
-  <div class="modal-box" style="position:relative">
-    <button class="modal-close" id="settingsClose">&#x2715;</button>
-    <div class="modal-title">&#9881;&#65039; Settings</div>
-    <div style="font-size:14px;color:#7A8772;text-align:center;margin-bottom:18px">Manage your custom categories</div>
-    <div id="customCatsList"></div>
-    <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
-    <button class="sync-btn outline" id="clearAllBtn" style="border-color:#C03030;color:#C03030">Clear all data</button>
-  </div>
-</div>
-
-<div id="toast"></div>
-<div class="ver">v8</div>
-
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>
 <script>
-// ============================================================
-// LIST TYPE CONFIG
-// ============================================================
-var LIST_TYPES = {
-  grocery:{ name:"&#x1F6D2; Grocery", placeholder:"Add an item...", color:"#2D6B35", emptyIco:"&#x1F6D2;", emptyTitle:"Your list is empty",  emptySub:"Start typing - categories detect automatically." },
-  todo:   { name:"&#x2705; General",  placeholder:"Add a task...",   color:"#5A3AA0", emptyIco:"&#x2705;", emptyTitle:"No tasks yet",         emptySub:"Add a task - it'll be categorised automatically." },
-  personal:{ name:"&#x1F464; Personal", placeholder:"Add a task...",   color:"#A0205A", emptyIco:"&#x1F464;", emptyTitle:"No personal tasks yet", emptySub:"Add a personal task - it'll be categorised automatically." },
-  travel: { name:"&#x2708; Travel",   placeholder:"Add to pack...",  color:"#1A5A8A", emptyIco:"&#x2708;", emptyTitle:"Nothing packed yet",  emptySub:"Add items to pack - categories detect automatically." },
-  notes:  { name:"&#x1F4DD; Notes",   placeholder:"",                color:"#A05A10", emptyIco:"&#x1F4DD;", emptyTitle:"No notes yet",        emptySub:"" },
+(function() {
+
+var h = React.createElement;
+var useState = React.useState;
+var useEffect = React.useEffect;
+var useRef = React.useRef;
+var FF = 'system-ui,-apple-system,sans-serif';
+var PC = '#14b8a6';
+var inp = {background:'#1e1e1e',border:'1px solid #2a2a2a',borderRadius:8,color:'#fff',padding:'10px 12px',fontSize:16,width:'100%',fontFamily:FF};
+function card(x) { return Object.assign({background:'#191919',borderRadius:14,padding:16}, x||{}); }
+var pg = {background:'#111',minHeight:'100vh',color:'#fff',padding:'20px 16px',maxWidth:440,margin:'0 auto',fontFamily:FF};
+function pgC() { return Object.assign({},pg,{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',minHeight:'100vh'}); }
+function pbtn(c,x) { return Object.assign({background:c,border:'none',color:'#fff',borderRadius:12,padding:'13px 20px',fontSize:15,fontWeight:600,cursor:'pointer',width:'100%',fontFamily:FF},x||{}); }
+var LS = {
+  get: function(k){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}},
+  set: function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+};
+function fmtDate(d){try{return new Date(d).toLocaleDateString('en-IE',{day:'numeric',month:'short'});}catch(e){return d;}}
+function bpCat(s,d){
+  if(s<120&&d<80)return{label:'Normal',color:'#22c55e'};
+  if(s<130&&d<80)return{label:'Elevated',color:'#f59e0b'};
+  if(s<140||d<90)return{label:'High Stage 1',color:'#f97316'};
+  return{label:'High Stage 2',color:'#ef4444'};
+}
+function playChime(){
+  try{
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [523.25,659.25,783.99].forEach(function(f,i){
+      var o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=f;
+      var t=ctx.currentTime+i*0.12;
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.25,t+0.04);
+      g.gain.exponentialRampToValueAtTime(0.001,t+1.1);
+      o.start(t);o.stop(t+1.1);
+    });
+  }catch(e){}
+}
+function eKey(ss,r,id){return ss+'_'+r+'_'+id;}
+function exIdFromKey(k){return k.split('_').slice(2).join('_');}
+function valStr(v){if(!v)return'--';if(v.weight)return v.reps+'r x '+v.weight+'kg';if(v.reps)return v.reps+'r';if(v.duration)return v.duration+'s';return'--';}
+
+// ── Data ───────────────────────────────────────────────────────────────────
+
+var WK = {
+  pull:{name:'Pull Day',emoji:'\uD83D\uDFE6',color:'#3b82f6',supersets:[
+    {id:'A',rounds:3,restSec:50,exercises:[{id:'rows',name:'Rows',type:'weighted'},{id:'bulgarian',name:'Bulgarian Split Squats',type:'weighted'}]},
+    {id:'B',rounds:3,restSec:50,exercises:[{id:'pullups',name:'Pull-ups / Inverted Rows',type:'reps'},{id:'glute_bridge',name:'Marching Glute Bridge',type:'reps'}]}
+  ]},
+  push:{name:'Push Day',emoji:'\uD83D\uDFE5',color:'#ef4444',supersets:[
+    {id:'A',rounds:3,restSec:50,exercises:[{id:'dips',name:'Dips',type:'reps'},{id:'sldl',name:'Single-leg Deadlift',type:'weighted'}]},
+    {id:'B',rounds:3,restSec:50,exercises:[{id:'pushups',name:'Push-ups',type:'reps'},{id:'side_plank',name:'Side Plank',type:'duration'}]}
+  ]}
+};
+var COND = {rounds:2,exercises:[{id:'step_ups',name:'Step-ups',type:'reps'},{id:'marching',name:'Marching in Place',type:'duration'}]};
+var ALL_EX = [
+  {id:'rows',name:'Rows',type:'weighted',wk:'pull'},
+  {id:'bulgarian',name:'Bulgarian Split Squats',type:'weighted',wk:'pull'},
+  {id:'pullups',name:'Pull-ups / Inverted Rows',type:'reps',wk:'pull'},
+  {id:'glute_bridge',name:'Marching Glute Bridge',type:'reps',wk:'pull'},
+  {id:'dips',name:'Dips',type:'reps',wk:'push'},
+  {id:'sldl',name:'Single-leg Deadlift',type:'weighted',wk:'push'},
+  {id:'pushups',name:'Push-ups',type:'reps',wk:'push'},
+  {id:'side_plank',name:'Side Plank',type:'duration',wk:'push'}
+];
+
+var YOGA = [
+  {name:'Seated Centering',sanskrit:'Sukhasana',dur:60,cue:'Sit cross-legged. Rest hands on knees, palms up. Slow belly breaths - inhale 4, exhale 6.'},
+  {name:'Neck and Shoulder Rolls',sanskrit:'Seated Mobilisation',dur:45,cue:'Drop right ear to shoulder, roll chin to chest, left ear to shoulder. Reverse. Roll shoulders 3x each way.'},
+  {name:'Cat-Cow',sanskrit:'Marjaryasana-Bitilasana',dur:60,cue:'Tabletop. Inhale: drop belly, lift chest. Exhale: round spine, tuck chin. Move with breath.'},
+  {name:'Bird Dog',sanskrit:'Dandayamna Bharmanasana',dur:50,cue:'From tabletop, extend right arm and left leg. Hold 3 breaths, switch. Hips level.'},
+  {name:'Dead Bug',sanskrit:'Urdhva Prasarita Padasana',dur:50,cue:'On back, knees 90 deg, arms up. Lower right arm and left leg - back flat. Switch. 4-5 reps each side.'},
+  {name:"Extended Child's Pose",sanskrit:'Utthita Balasana',dur:45,cue:'Sink hips back, knees wide. Arms forward, forehead toward mat. Breathe into your back.'},
+  {name:'Low Lunge Right',sanskrit:'Anjaneyasana',dur:45,cue:'Right foot forward, left knee down. Knee over ankle. Hands to right thigh, chest open.'},
+  {name:'Half Splits Right',sanskrit:'Ardha Hanumanasana',dur:45,cue:'Shift hips back, straighten right leg. Hinge forward from hips, spine long.'},
+  {name:'Low Lunge Left',sanskrit:'Anjaneyasana',dur:45,cue:'Left foot forward, right knee down. Hands to left thigh. Torso upright.'},
+  {name:'Half Splits Left',sanskrit:'Ardha Hanumanasana',dur:45,cue:'Shift hips back, straighten left leg. Hinge forward, spine long.'},
+  {name:'Mountain and Arm Raises',sanskrit:'Tadasana',dur:30,cue:'Feet hip-width. Inhale arms overhead, exhale release. 3-4 times.'},
+  {name:'Side Stretch Right',sanskrit:'Parsva Urdhva Hastasana',dur:30,cue:'Right arm overhead, lean left, hips square. Hold 4 breaths.'},
+  {name:'Side Stretch Left',sanskrit:'Parsva Urdhva Hastasana',dur:30,cue:'Left arm overhead, lean right. Feet grounded. Hold 4 breaths.'},
+  {name:'Warrior I Right',sanskrit:'Virabhadrasana I',dur:50,cue:'Left foot back 3.5ft, 45 deg. Right knee over ankle. Arms overhead.'},
+  {name:'Warrior I Left',sanskrit:'Virabhadrasana I',dur:50,cue:'Right foot back, 45 deg. Left knee bent. Arms overhead.'},
+  {name:'Warrior II Right',sanskrit:'Virabhadrasana II',dur:45,cue:'Arms wide - right forward, left back. Gaze right. Torso upright.'},
+  {name:'Warrior II Left',sanskrit:'Virabhadrasana II',dur:45,cue:'Left arm forward, right back. Gaze left. Sink into left knee.'},
+  {name:'Reclined Butterfly',sanskrit:'Supta Baddha Konasana',dur:60,cue:'Soles together, knees wide. Arms by sides, palms up. Eyes closed.'},
+  {name:'Supine Twist Right',sanskrit:'Supta Matsyendrasana',dur:45,cue:'Knees fall right. Left arm wide. Shoulders heavy. Breathe.'},
+  {name:'Supine Twist Left',sanskrit:'Supta Matsyendrasana',dur:45,cue:'Knees fall left. Right arm wide. Shoulders grounded.'},
+  {name:'Bridge Pose',sanskrit:'Setu Bandha Sarvangasana',dur:55,cue:'Knees bent, feet hip-width. Lift hips. Interlace fingers. Hold 5 breaths, lower slowly.'},
+  {name:'Knees to Chest',sanskrit:'Apanasana',dur:40,cue:'Draw both knees to chest. Rock gently side to side.'},
+  {name:'Savasana',sanskrit:'Savasana',dur:120,cue:'Legs long, feet falling open. Arms by sides, palms up. Eyes closed. Every muscle releases.'}
+];
+
+var YOGA2 = [
+  {name:'Seated Forward Fold Variation',sanskrit:'Sukhasana variation',dur:120,cue:'Sit with feet on the ground and knees lifted. Slowly drape your heart over the tops of your thighs. Breathe into the back body.'},
+  {name:'Core Stability Boat Prep',sanskrit:'Navasana variation',dur:50,cue:'From seated, lean back slightly and lift shins parallel to the floor. Hands behind thighs for support. Core engaged, breathe steadily.'},
+  {name:'Seated Spinal Twist Right',sanskrit:'Ardha Matsyendrasana',dur:55,cue:'Extend left leg. Hug right knee to chest. Inhale tall, exhale twist toward right knee. Left hand to right knee, right hand behind.'},
+  {name:'Seated Spinal Twist Left',sanskrit:'Ardha Matsyendrasana',dur:55,cue:'Extend right leg. Hug left knee to chest. Inhale tall, exhale twist left. Right hand to left knee, left hand behind.'},
+  {name:'Head-to-Knee Pose Right',sanskrit:'Janu Sirsasana',dur:55,cue:'Tuck left foot at inner right thigh. Extend right leg. Hinge from hips with long spine, reach toward right foot or shin.'},
+  {name:'Head-to-Knee Pose Left',sanskrit:'Janu Sirsasana',dur:55,cue:'Tuck right foot at inner left thigh. Extend left leg. Hinge from hips, long spine, reach toward left foot.'},
+  {name:'Bound Angle Diamond Fold',sanskrit:'Baddha Konasana',dur:100,cue:'Soles together, feet further from body making a wide diamond. Hinge forward from hips, chest leads, spine long.'},
+  {name:'Swimming Side Stretch',sanskrit:'Seated lateral flow',dur:65,cue:'Legs in wide straddle. Reach one arm up and over toward opposite toes in a fluid sweeping motion. 8 sweeps each side.'},
+  {name:'Seated Forward Fold',sanskrit:'Paschimottanasana',dur:90,cue:'Legs extended, soft bend in knees. Hinge forward from hips with long spine. Reach for shins, ankles or feet.'},
+  {name:'Froggy Pose',sanskrit:'Mandukasana variation',dur:50,cue:'Wide kneeling, knees far apart, hips low to floor, body folded forward. Forearms on the ground. Breathe into the inner groin.'},
+  {name:'Yogi Squat',sanskrit:'Malasana',dur:70,cue:'Deep squat, heels toward earth. Hands in prayer, elbows pressing knees wide. Tailbone heavy, spine long.'},
+  {name:'Standing Forward Fold',sanskrit:'Uttanasana',dur:110,cue:'Feet wide, hinge at hips, upper body hangs heavy. Soft bend in knees. Arms dangle or hold opposite elbows.'},
+  {name:'Knees to Chest',sanskrit:'Apanasana',dur:50,cue:'Lie on your back. Draw both knees gently to chest. Hold below kneecaps. Rock side to side.'},
+  {name:'Eagle Legs Twist Right',sanskrit:'Supta Garudasana variation',dur:75,cue:'Cross right leg over left, both knees fall to the left. Right arm wide. Both shoulders heavy. Breathe into the right outer hip.'},
+  {name:'Eagle Legs Twist Left',sanskrit:'Supta Garudasana variation',dur:75,cue:'Cross left leg over right, knees fall to the right. Left arm wide. Shoulders grounded. Soften on every exhale.'},
+  {name:'Happy Baby',sanskrit:'Ananda Balasana',dur:80,cue:'Hug knees to chest then reach for outer edges of feet. Knees wide toward armpits. Rock side to side if it feels good.'},
+  {name:'Windshield Wipers',sanskrit:'Supta variation',dur:90,cue:'Feet flat, knees bent, feet wider than hips. Let knees drop right then sweep to left. Slow and fluid.'},
+  {name:'Savasana',sanskrit:'Savasana',dur:120,cue:'Legs long, feet falling open. Arms by sides, palms up. Eyes fully closed. Every muscle releases.'}
+];
+
+var YOGA_FLOWS = [YOGA, YOGA2];
+var YOGA_NAMES = ['Full Body Flow', 'Hips and Lower Back'];
+var YOGA_DESCS = ['23 poses - ~18 min', '18 poses - ~22 min'];
+var YOGA_VID = [null, 'https://youtu.be/Ho9em79_0qg'];
+var YOGA_TOTALS = [
+  YOGA.reduce(function(s,p){return s+p.dur;},0),
+  YOGA2.reduce(function(s,p){return s+p.dur;},0)
+];
+
+var PROGRAMMES = [
+  {id:'nerve_hip',name:'Nerve and Hip',note:'Nerve mobility - hip flexor - daily',exercises:[
+    {id:'femoral',name:'Femoral Nerve Glide',type:'timed',dur:60,sets:2,note:'Twice a day - 1 min each side',url:'https://www.youtube.com/watch?v=q1ySRKEI0-I'},
+    {id:'sciatic',name:'Sciatic Nerve Glide',type:'timed',dur:60,sets:2,note:'Twice a day - 1 min each side',url:'https://www.youtube.com/watch?v=OMbKv94Bu_U'},
+    {id:'hip_flexor',name:'Hip Flexor Strengthening',type:'reps',sets:3,reps:6,note:'3 sets - 6 reps each side',url:'https://www.youtube.com/shorts/BVB2dIf5T2E'},
+    {id:'one_leg',name:'One Leg Stretch Level 2',type:'timed',dur:60,sets:3,note:'3 sets - 1 min each',url:'https://www.youtube.com/watch?v=fOhKim3hKvI'}
+  ]},
+  {id:'lower_limb',name:'Lower Limb',note:'Glutes - hamstring - quad - calf - knee - daily',exercises:[
+    {id:'hamstring_str',name:'Hamstring Stretch',type:'timed',dur:10,sets:3,note:'3 sets - 10s hold each leg',url:'https://www.youtube.com/watch?v=QL8FK8CsGc8'},
+    {id:'quad_str_side',name:'Quad Stretch Side-lying',type:'timed',dur:10,sets:3,note:'3 sets - 10s hold each side',url:'https://www.youtube.com/watch?v=599Tvr-JrBc'},
+    {id:'sl_glute_bridge',name:'Single Leg Glute Bridge',type:'reps',sets:1,reps:20,note:'20 reps each side',url:'https://www.youtube.com/watch?v=p-XVfkvtUPY'},
+    {id:'hip_abduction',name:'Hip Abduction with Band',type:'reps',sets:1,reps:20,note:'20 reps each side - band around knees',url:'https://www.youtube.com/watch?v=ESB3VC1XLoE'},
+    {id:'plantar_flex',name:'One Leg Plantar Flexion',type:'reps',sets:1,reps:20,note:'20 reps each side - knee bent on step',url:'https://www.youtube.com/watch?v=muijOYVNgsA'},
+    {id:'fwd_lunge',name:'Alternate Forward Lunge',type:'reps',sets:1,reps:12,note:'10-12 reps each side',url:'https://www.youtube.com/watch?v=CpvfDjEulYQ'},
+    {id:'bw_squat',name:'Bodyweight Squat',type:'reps',sets:1,reps:20,note:'20 reps - hips back, knees over feet',url:'https://www.youtube.com/watch?v=m0GcZ24pK6k'},
+    {id:'single_leg_sq',name:'Single Leg Squat',type:'reps',sets:1,reps:10,note:'10 reps each leg - knee over 2nd toe',url:'https://www.youtube.com/watch?v=Npz-kOxdy9I'},
+    {id:'wall_squat',name:'Wall Squat',type:'timed',dur:45,sets:1,note:'Hold 45s - thighs parallel - knees 90 deg',url:'https://www.youtube.com/watch?v=GyncayY3GuY'}
+  ]}
+];
+
+// ── Pose photos (all 15 confirmed) ─────────────────────────────────────────
+// Album order: XkewjmU KC0pJvb 9qlbSsR YC7xez0 jntGvZo Mz3Kc56 TUdZEV6
+//              PQgaetS UFuh4kl 5gbrs9Q DuPsRq7 0aDxqzj cpf1aN6 8l9K9p8 slcsFe7
+// Confirmed from direct sharing: PQgaetS=fwd_var, 5gbrs9Q=boat, DuPsRq7=twist,
+// UFuh4kl=h2k, 0aDxqzj=bound_angle, 8l9K9p8=swimming, cpf1aN6=paschim,
+// TUdZEV6=windshield, Mz3Kc56=knees_chest
+// Remaining 6 assigned by video sequence order:
+// XkewjmU=froggy, KC0pJvb=yogi_squat, 9qlbSsR=standing_fold,
+// YC7xez0=eagle_twist, jntGvZo=happy_baby, slcsFe7=savasana(flow2)
+var POSE_PHOTOS = {
+  seated_fwd_var: 'https://i.imgur.com/PQgaetS.png',
+  boat_prep:      'https://i.imgur.com/5gbrs9Q.png',
+  seated_twist:   'https://i.imgur.com/DuPsRq7.png',
+  head_to_knee:   'https://i.imgur.com/UFuh4kl.png',
+  bound_angle:    'https://i.imgur.com/0aDxqzj.png',
+  swimming:       'https://i.imgur.com/8l9K9p8.png',
+  paschimottanasana: 'https://i.imgur.com/cpf1aN6.png',
+  knees_chest:    'https://i.imgur.com/Mz3Kc56.png',
+  windshield:     'https://i.imgur.com/TUdZEV6.png',
+  froggy:         'https://i.imgur.com/XkewjmU.png',
+  yogi_squat:     'https://i.imgur.com/KC0pJvb.png',
+  standing_fold:  'https://i.imgur.com/9qlbSsR.png',
+  eagle_twist:    'https://i.imgur.com/YC7xez0.png',
+  happy_baby:     'https://i.imgur.com/jntGvZo.png',
+  savasana2:      'https://i.imgur.com/slcsFe7.png'
 };
 
-// ============================================================
-// CATEGORIES
-// ============================================================
-var GROCERY_CATS = [
-  {id:"produce",  name:"Produce",       emoji:"&#x1F966;", bg:"#D9EDDA", fg:"#1A4A1E"},
-  {id:"dairy",    name:"Dairy & Eggs",  emoji:"&#x1F95B;", bg:"#DDEEFF", fg:"#1A3A6A"},
-  {id:"meat",     name:"Meat & Fish",   emoji:"&#x1F969;", bg:"#FDDEDD", fg:"#7A1A1A"},
-  {id:"bakery",   name:"Bakery",        emoji:"&#x1F35E;", bg:"#FFF0D8", fg:"#7A4A1A"},
-  {id:"frozen",   name:"Frozen",        emoji:"&#x1F9CA;", bg:"#D8F0FF", fg:"#0A3A6A"},
-  {id:"drinks",   name:"Drinks",        emoji:"&#x1F964;", bg:"#D8FFE8", fg:"#0A4A1A"},
-  {id:"pantry",   name:"Pantry",        emoji:"&#x1F96B;", bg:"#F0E8D8", fg:"#5A3A1A"},
-  {id:"snacks",   name:"Snacks",        emoji:"&#x1F36B;", bg:"#EED8FF", fg:"#3A1A7A"},
-  {id:"cleaning", name:"Cleaning",      emoji:"&#x1F9F9;", bg:"#E8E8E8", fg:"#3A3A3A"},
-  {id:"personal", name:"Personal Care", emoji:"&#x1F9F4;", bg:"#FFD8EC", fg:"#7A1A4A"},
-  {id:"other",    name:"Other",         emoji:"&#x1F4E6;", bg:"#EDEAE4", fg:"#4A4A3A"},
-];
-var TODO_CATS = [
-  {id:"work",     name:"Work",     emoji:"&#x1F4BC;", bg:"#E8E0FF", fg:"#3A1A8A"},
-  {id:"home",     name:"Home",     emoji:"&#x1F3E0;", bg:"#FFF0D8", fg:"#7A4A1A"},
-  {id:"errands",  name:"Errands",  emoji:"&#x1F3C3;", bg:"#D8FFE8", fg:"#0A4A1A"},
-  {id:"health",   name:"Health",   emoji:"&#x2764;",  bg:"#FDDEDD", fg:"#7A1A1A"},
-  {id:"finance",  name:"Finance",  emoji:"&#x1F4B0;", bg:"#FFFBD8", fg:"#6A5A1A"},
-  {id:"family",   name:"Family",   emoji:"&#x1F46A;", bg:"#FFD8EC", fg:"#7A1A4A"},
-  {id:"personal", name:"Personal", emoji:"&#x2B50;",  bg:"#D8F0FF", fg:"#0A3A6A"},
-  {id:"other",    name:"Other",    emoji:"&#x1F4E6;", bg:"#EDEAE4", fg:"#4A4A3A"},
-];
-var TRAVEL_CATS = [
-  {id:"documents",     name:"Documents",     emoji:"&#x1F4C4;", bg:"#FFF0D8", fg:"#7A4A1A"},
-  {id:"clothing",      name:"Clothing",      emoji:"&#x1F457;", bg:"#FFD8EC", fg:"#7A1A4A"},
-  {id:"toiletries",    name:"Toiletries",    emoji:"&#x1FAA5;", bg:"#D8F0FF", fg:"#0A3A6A"},
-  {id:"electronics",   name:"Electronics",   emoji:"&#x1F50C;", bg:"#E8E0FF", fg:"#3A1A8A"},
-  {id:"health",        name:"Health",        emoji:"&#x1F48A;", bg:"#FDDEDD", fg:"#7A1A1A"},
-  {id:"money",         name:"Money & Cards", emoji:"&#x1F4B3;", bg:"#FFFBD8", fg:"#6A5A1A"},
-  {id:"entertainment", name:"Entertainment", emoji:"&#x1F4DA;", bg:"#D8FFE8", fg:"#0A4A1A"},
-  {id:"other",         name:"Other",         emoji:"&#x1F4E6;", bg:"#EDEAE4", fg:"#4A4A3A"},
-];
-
-var GROCERY_KW = [
-  ["oat milk","dairy"],["almond milk","dairy"],["soy milk","dairy"],["sour cream","dairy"],
-  ["double cream","dairy"],["single cream","dairy"],["clotted cream","dairy"],
-  ["creme fraiche","dairy"],["cottage cheese","dairy"],["cream cheese","dairy"],
-  ["semi-skimmed","dairy"],["skimmed milk","dairy"],
-  ["milk","dairy"],["cheese","dairy"],["yogurt","dairy"],["yoghurt","dairy"],
-  ["butter","dairy"],["cream","dairy"],["eggs","dairy"],["egg","dairy"],
-  ["cheddar","dairy"],["mozzarella","dairy"],["parmesan","dairy"],["brie","dairy"],
-  ["feta","dairy"],["gouda","dairy"],["edam","dairy"],["camembert","dairy"],
-  ["stilton","dairy"],["gruyere","dairy"],["ricotta","dairy"],["halloumi","dairy"],
-  ["mascarpone","dairy"],["ghee","dairy"],["kefir","dairy"],
-  ["sweet potato","produce"],["spring onion","produce"],["pak choi","produce"],["bok choy","produce"],
-  ["apple","produce"],["banana","produce"],["carrot","produce"],["lettuce","produce"],
-  ["tomato","produce"],["onion","produce"],["potato","produce"],["spinach","produce"],
-  ["broccoli","produce"],["cucumber","produce"],["pepper","produce"],["mushroom","produce"],
-  ["avocado","produce"],["lemon","produce"],["lime","produce"],["orange","produce"],
-  ["grape","produce"],["strawberr","produce"],["raspberr","produce"],["blueberr","produce"],
-  ["pear","produce"],["peach","produce"],["plum","produce"],["mango","produce"],
-  ["pineapple","produce"],["kiwi","produce"],["melon","produce"],["watermelon","produce"],
-  ["celery","produce"],["courgette","produce"],["zucchini","produce"],["aubergine","produce"],
-  ["eggplant","produce"],["cabbage","produce"],["kale","produce"],["leek","produce"],
-  ["garlic","produce"],["ginger","produce"],["coriander","produce"],["parsley","produce"],
-  ["basil","produce"],["mint","produce"],["chilli","produce"],["chili","produce"],
-  ["beetroot","produce"],["radish","produce"],["turnip","produce"],["parsnip","produce"],
-  ["butternut","produce"],["salad","produce"],["rocket","produce"],["fennel","produce"],
-  ["asparagus","produce"],["chard","produce"],["artichoke","produce"],["shallot","produce"],
-  ["smoked salmon","meat"],["sea bass","meat"],["sea bream","meat"],
-  ["chicken breast","meat"],["chicken thigh","meat"],["chicken wing","meat"],
-  ["chicken","meat"],["beef","meat"],["pork","meat"],["lamb","meat"],
-  ["mince","meat"],["steak","meat"],["sausage","meat"],["bacon","meat"],
-  ["ham","meat"],["turkey","meat"],["duck","meat"],["fish","meat"],
-  ["salmon","meat"],["tuna","meat"],["cod","meat"],["haddock","meat"],
-  ["prawn","meat"],["shrimp","meat"],["mussel","meat"],["oyster","meat"],
-  ["crab","meat"],["lobster","meat"],["mackerel","meat"],["sardine","meat"],
-  ["trout","meat"],["fillet","meat"],["brisket","meat"],["chorizo","meat"],
-  ["salami","meat"],["pepperoni","meat"],["pancetta","meat"],["lardons","meat"],
-  ["kipper","meat"],["venison","meat"],
-  ["english muffin","bakery"],["hot cross bun","bakery"],["bread roll","bakery"],
-  ["sourdough","bakery"],["baguette","bakery"],["croissant","bakery"],
-  ["bread","bakery"],["loaf","bakery"],["bagel","bakery"],["muffin","bakery"],
-  ["scone","bakery"],["donut","bakery"],["doughnut","bakery"],["pastry","bakery"],
-  ["pitta","bakery"],["pita","bakery"],["tortilla","bakery"],["naan","bakery"],
-  ["ciabatta","bakery"],["focaccia","bakery"],["brioche","bakery"],
-  ["crumpet","bakery"],["danish","bakery"],["waffle","bakery"],["cake","bakery"],
-  ["ice cream","frozen"],["ice lolly","frozen"],["fish finger","frozen"],
-  ["frozen pea","frozen"],["frozen veg","frozen"],["frozen meal","frozen"],
-  ["potato waffle","frozen"],["edamame","frozen"],["gelato","frozen"],
-  ["sorbet","frozen"],["frozen","frozen"],
-  ["orange juice","drinks"],["apple juice","drinks"],["coconut water","drinks"],
-  ["rose wine","drinks"],["red wine","drinks"],["white wine","drinks"],
-  ["sparkling water","drinks"],["energy drink","drinks"],["protein shake","drinks"],
-  ["water","drinks"],["juice","drinks"],["coffee","drinks"],["tea","drinks"],
-  ["wine","drinks"],["beer","drinks"],["cider","drinks"],
-  ["whiskey","drinks"],["whisky","drinks"],["vodka","drinks"],["gin","drinks"],
-  ["rum","drinks"],["cola","drinks"],["lemonade","drinks"],["squash","drinks"],
-  ["smoothie","drinks"],["kombucha","drinks"],["tonic","drinks"],
-  ["prosecco","drinks"],["champagne","drinks"],
-  ["olive oil","pantry"],["vegetable oil","pantry"],["coconut oil","pantry"],
-  ["peanut butter","pantry"],["tomato paste","pantry"],["tomato puree","pantry"],
-  ["soy sauce","pantry"],["hot sauce","pantry"],["fish sauce","pantry"],
-  ["oyster sauce","pantry"],["stock cube","pantry"],
-  ["baking powder","pantry"],["baking soda","pantry"],
-  ["chilli flakes","pantry"],["curry powder","pantry"],["black pepper","pantry"],
-  ["pasta","pantry"],["rice","pantry"],["flour","pantry"],["sugar","pantry"],
-  ["vinegar","pantry"],["cereal","pantry"],["oats","pantry"],["porridge","pantry"],
-  ["lentil","pantry"],["bean","pantry"],["chickpea","pantry"],
-  ["stock","pantry"],["broth","pantry"],["tinned","pantry"],["canned","pantry"],
-  ["honey","pantry"],["jam","pantry"],["nutella","pantry"],["syrup","pantry"],
-  ["salt","pantry"],["spice","pantry"],["cumin","pantry"],["paprika","pantry"],
-  ["turmeric","pantry"],["cinnamon","pantry"],["mustard","pantry"],
-  ["ketchup","pantry"],["mayonnaise","pantry"],["mayo","pantry"],
-  ["sriracha","pantry"],["yeast","pantry"],["cornflour","pantry"],
-  ["breadcrumb","pantry"],["noodle","pantry"],["quinoa","pantry"],
-  ["couscous","pantry"],["polenta","pantry"],["miso","pantry"],
-  ["tahini","pantry"],["passata","pantry"],["gravy","pantry"],
-  ["custard","pantry"],["nutmeg","pantry"],["bay leaf","pantry"],["oil","pantry"],
-  ["chocolate bar","snacks"],["granola bar","snacks"],["protein bar","snacks"],
-  ["rice cake","snacks"],["oat cake","snacks"],["rice cracker","snacks"],
-  ["dried fruit","snacks"],["mixed nuts","snacks"],["trail mix","snacks"],
-  ["crisps","snacks"],["chocolate","snacks"],["biscuit","snacks"],
-  ["cookie","snacks"],["almond","snacks"],["cashew","snacks"],
-  ["walnut","snacks"],["peanut","snacks"],["popcorn","snacks"],
-  ["cracker","snacks"],["sweets","snacks"],["candy","snacks"],["gummy","snacks"],
-  ["raisin","snacks"],["hummus","snacks"],["breadstick","snacks"],
-  ["washing up liquid","cleaning"],["dishwasher tablet","cleaning"],
-  ["fabric softener","cleaning"],["washing powder","cleaning"],
-  ["bin bag","cleaning"],["bin liner","cleaning"],
-  ["tin foil","cleaning"],["cling film","cleaning"],["kitchen roll","cleaning"],
-  ["paper towel","cleaning"],["air freshener","cleaning"],
-  ["toilet cleaner","cleaning"],["bathroom cleaner","cleaning"],
-  ["cleaning spray","cleaning"],["limescale","cleaning"],
-  ["detergent","cleaning"],["bleach","cleaning"],["sponge","cleaning"],
-  ["domestos","cleaning"],["dettol","cleaning"],["febreze","cleaning"],
-  ["persil","cleaning"],["ariel","cleaning"],["antibacterial","cleaning"],
-  ["toilet paper","personal"],["toilet roll","personal"],["loo roll","personal"],
-  ["shower gel","personal"],["hand soap","personal"],["body wash","personal"],
-  ["face wash","personal"],["body lotion","personal"],["hand cream","personal"],
-  ["dental floss","personal"],["cotton pads","personal"],["cotton buds","personal"],
-  ["baby wipes","personal"],["sanitary pad","personal"],["lip balm","personal"],
-  ["shampoo","personal"],["conditioner","personal"],["soap","personal"],
-  ["toothpaste","personal"],["toothbrush","personal"],["deodorant","personal"],
-  ["razor","personal"],["moisturiser","personal"],["moisturizer","personal"],
-  ["sunscreen","personal"],["sunblock","personal"],
-  ["tampon","personal"],["nappy","personal"],["diaper","personal"],
-  ["wipes","personal"],["tissues","personal"],
-  ["mouthwash","personal"],["perfume","personal"],["cologne","personal"],["aftershave","personal"],
-];
-var TODO_KW = [
-  ["standup","work"],["sprint","work"],["pull request","work"],["code review","work"],
-  ["meeting","work"],["email","work"],["report","work"],["presentation","work"],
-  ["deadline","work"],["phone call","work"],["conference","work"],["review","work"],
-  ["proposal","work"],["project","work"],["client","work"],["invoice","work"],
-  ["interview","work"],["quarterly","work"],["expense","work"],
-  ["hoover","home"],["vacuum","home"],["washing machine","home"],
-  ["clean","home"],["tidy","home"],["organise","home"],["organize","home"],
-  ["fix","home"],["repair","home"],["garden","home"],["mow","home"],
-  ["trim","home"],["plant","home"],["paint","home"],["decorate","home"],
-  ["laundry","home"],["dishwasher","home"],["rubbish","home"],
-  ["recycling","home"],["ironing","home"],
-  ["post office","errands"],["dry clean","errands"],["pick up","errands"],
-  ["drop off","errands"],["collect","errands"],["bank","errands"],
-  ["pharmacy","errands"],["chemist","errands"],["appointment","errands"],
-  ["renew","errands"],["register","errands"],["licence","errands"],["license","errands"],
-  ["doctor","health"],["dentist","health"],["optician","health"],
-  ["gym","health"],["exercise","health"],["physio","health"],
-  ["blood test","health"],["checkup","health"],["therapy","health"],
-  ["medication","health"],["prescription","health"],
-  ["run","health"],["jog","health"],["yoga","health"],["swim","health"],["cycle","health"],
-  ["mortgage","finance"],["rent","finance"],["utility","finance"],
-  ["tax return","finance"],["tax","finance"],["pension","finance"],
-  ["payment","finance"],["bill","finance"],["insurance","finance"],
-  ["savings","finance"],["direct debit","finance"],["standing order","finance"],
-  ["transfer","finance"],["budget","finance"],
-  ["school","family"],["birthday","family"],["gift","family"],["present","family"],
-  ["party","family"],["anniversary","family"],["wedding","family"],
-  ["babysitter","family"],["childcare","family"],["kids","family"],
-  ["mum","family"],["dad","family"],["parents","family"],["visit","family"],
-  ["read","personal"],["course","personal"],["learn","personal"],
-  ["study","personal"],["hobby","personal"],["journal","personal"],
-  ["meditate","personal"],["podcast","personal"],["research","personal"],
-  ["write","personal"],["book","personal"],
-];
-var TRAVEL_KW = [
-  ["boarding pass","documents"],["travel insurance","documents"],
-  ["driving licence","documents"],["driving license","documents"],
-  ["id card","documents"],["passport","documents"],["visa","documents"],
-  ["ticket","documents"],["itinerary","documents"],["booking","documents"],
-  ["reservation","documents"],["insurance","documents"],["sim card","documents"],
-  ["swimming trunks","clothing"],["rain jacket","clothing"],["sun hat","clothing"],
-  ["flip flops","clothing"],["running shoes","clothing"],
-  ["underwear","clothing"],["socks","clothing"],["shoes","clothing"],
-  ["boots","clothing"],["sandals","clothing"],["hat","clothing"],
-  ["scarf","clothing"],["gloves","clothing"],["belt","clothing"],
-  ["suit","clothing"],["shorts","clothing"],["dress","clothing"],
-  ["skirt","clothing"],["trousers","clothing"],["jeans","clothing"],
-  ["shirt","clothing"],["t-shirt","clothing"],["tshirt","clothing"],
-  ["jumper","clothing"],["sweater","clothing"],["hoodie","clothing"],
-  ["jacket","clothing"],["coat","clothing"],["pyjamas","clothing"],
-  ["pajamas","clothing"],["bikini","clothing"],["swimsuit","clothing"],
-  ["swimwear","clothing"],["clothes","clothing"],
-  ["toothbrush","toiletries"],["toothpaste","toiletries"],
-  ["shower gel","toiletries"],["shampoo","toiletries"],["conditioner","toiletries"],
-  ["razor","toiletries"],["deodorant","toiletries"],["moisturiser","toiletries"],
-  ["moisturizer","toiletries"],["sunscreen","toiletries"],["sun cream","toiletries"],
-  ["aftersun","toiletries"],["makeup","toiletries"],["mascara","toiletries"],
-  ["lipstick","toiletries"],["perfume","toiletries"],["cologne","toiletries"],
-  ["hairbrush","toiletries"],["comb","toiletries"],["nail file","toiletries"],
-  ["face wash","toiletries"],["contact lens","toiletries"],
-  ["plug adapter","electronics"],["travel adapter","electronics"],
-  ["power bank","electronics"],["portable charger","electronics"],
-  ["noise cancelling","electronics"],["memory card","electronics"],
-  ["phone","electronics"],["charger","electronics"],["adapter","electronics"],
-  ["camera","electronics"],["laptop","electronics"],["tablet","electronics"],
-  ["ipad","electronics"],["kindle","electronics"],["headphones","electronics"],
-  ["earphones","electronics"],["earbuds","electronics"],
-  ["smartwatch","electronics"],["cables","electronics"],["tripod","electronics"],
-  ["paracetamol","health"],["ibuprofen","health"],["antihistamine","health"],
-  ["insect repellent","health"],["mosquito","health"],
-  ["first aid","health"],["plasters","health"],["bandage","health"],
-  ["prescription","health"],["inhaler","health"],["epipen","health"],
-  ["medication","health"],["medicine","health"],["tablets","health"],
-  ["vitamins","health"],["antiseptic","health"],["eye drops","health"],
-  ["travel money","money"],["foreign currency","money"],["credit card","money"],
-  ["debit card","money"],["cash","money"],["wallet","money"],
-  ["euros","money"],["dollars","money"],["pounds","money"],
-  ["currency","money"],["forex","money"],
-  ["guidebook","entertainment"],["travel guide","entertainment"],
-  ["playing cards","entertainment"],["board game","entertainment"],
-  ["magazine","entertainment"],["notebook","entertainment"],
-  ["puzzle","entertainment"],["games","entertainment"],["book","entertainment"],
-];
-
-var LIST_CONFIG = {
-  grocery:{ cats:GROCERY_CATS, kw:GROCERY_KW, key:"fl4_grocery" },
-  todo:   { cats:TODO_CATS,    kw:TODO_KW,    key:"fl4_todo"    },
-  travel:   { cats:TRAVEL_CATS, kw:TRAVEL_KW,  key:"fl4_travel"   },
-  personal: { cats:TODO_CATS,   kw:TODO_KW,    key:"fl4_personal"  },
+// ── SVG fallbacks for Flow 1 poses ─────────────────────────────────────────
+var POSE_SVGS = {
+  seated_cross:'<circle cx="80" cy="14" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="22" x2="80" y2="58"/><line x1="72" y1="34" x2="52" y2="50"/><line x1="88" y1="34" x2="108" y2="50"/><line x1="80" y1="58" x2="50" y2="76"/><line x1="50" y1="76" x2="90" y2="72"/><line x1="80" y1="58" x2="110" y2="76"/><line x1="110" y1="76" x2="70" y2="72"/>',
+  cat_cow:'<circle cx="22" cy="44" r="7" fill="#c8a97e" stroke="none"/><line x1="28" y1="46" x2="38" y2="55"/><path d="M38,55 Q80,32 122,55"/><line x1="38" y1="55" x2="26" y2="80"/><line x1="50" y1="58" x2="42" y2="80"/><line x1="122" y1="55" x2="132" y2="80"/><line x1="112" y1="58" x2="118" y2="80"/>',
+  bird_dog:'<circle cx="22" cy="50" r="7" fill="#c8a97e" stroke="none"/><line x1="28" y1="52" x2="40" y2="58"/><path d="M40,58 Q80,56 118,58"/><line x1="40" y1="58" x2="26" y2="82"/><line x1="50" y1="60" x2="48" y2="82"/><line x1="118" y1="58" x2="148" y2="50"/><line x1="40" y1="50" x2="12" y2="42"/>',
+  dead_bug:'<circle cx="20" cy="60" r="8" fill="#c8a97e" stroke="none"/><line x1="28" y1="60" x2="88" y2="62"/><line x1="45" y1="58" x2="38" y2="36"/><line x1="65" y1="58" x2="72" y2="36"/><line x1="88" y1="60" x2="105" y2="42"/><line x1="105" y1="42" x2="120" y2="58"/><line x1="88" y1="64" x2="102" y2="84"/><line x1="102" y1="84" x2="138" y2="84"/>',
+  childs_pose:'<circle cx="25" cy="70" r="7" fill="#c8a97e" stroke="none"/><path d="M31,68 Q65,54 96,60 Q112,63 122,70"/><line x1="122" y1="70" x2="132" y2="88"/><line x1="112" y1="70" x2="118" y2="88"/><line x1="18" y1="84" x2="36" y2="84"/>',
+  low_lunge:'<circle cx="80" cy="20" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="28" x2="80" y2="65"/><line x1="80" y1="65" x2="108" y2="85"/><line x1="108" y1="85" x2="128" y2="85"/><line x1="80" y1="65" x2="58" y2="78"/><line x1="58" y1="78" x2="38" y2="84"/><line x1="72" y1="40" x2="56" y2="54"/><line x1="88" y1="40" x2="104" y2="54"/>',
+  half_splits:'<circle cx="50" cy="32" r="8" fill="#c8a97e" stroke="none"/><line x1="52" y1="40" x2="65" y2="68"/><line x1="65" y1="68" x2="138" y2="70"/><line x1="65" y1="68" x2="50" y2="85"/><line x1="50" y1="85" x2="28" y2="88"/><line x1="52" y1="46" x2="32" y2="52"/><line x1="56" y1="42" x2="80" y2="52"/>',
+  mountain:'<circle cx="80" cy="14" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="22" x2="80" y2="70"/><line x1="72" y1="34" x2="55" y2="14"/><line x1="88" y1="34" x2="105" y2="14"/><line x1="80" y1="70" x2="62" y2="102"/><line x1="80" y1="70" x2="98" y2="102"/>',
+  side_stretch:'<circle cx="76" cy="16" r="8" fill="#c8a97e" stroke="none"/><line x1="76" y1="24" x2="74" y2="70"/><line x1="68" y1="36" x2="48" y2="46"/><line x1="82" y1="32" x2="98" y2="12"/><line x1="98" y1="12" x2="122" y2="44"/><line x1="74" y1="70" x2="60" y2="102"/><line x1="74" y1="70" x2="88" y2="102"/>',
+  warrior1:'<circle cx="80" cy="14" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="22" x2="80" y2="62"/><line x1="72" y1="32" x2="63" y2="10"/><line x1="88" y1="32" x2="97" y2="10"/><line x1="80" y1="62" x2="102" y2="84"/><line x1="102" y1="84" x2="122" y2="84"/><line x1="80" y1="62" x2="55" y2="74"/><line x1="55" y1="74" x2="32" y2="84"/>',
+  warrior2:'<circle cx="80" cy="18" r="8" fill="#c8a97e" stroke="none"/><line x1="80" y1="26" x2="80" y2="65"/><line x1="68" y1="38" x2="18" y2="38"/><line x1="92" y1="38" x2="142" y2="38"/><line x1="80" y1="65" x2="50" y2="88"/><line x1="50" y1="88" x2="22" y2="88"/><line x1="80" y1="65" x2="110" y2="88"/><line x1="110" y1="88" x2="138" y2="88"/>',
+  reclined_butterfly:'<circle cx="18" cy="55" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="55" x2="88" y2="58"/><line x1="52" y1="56" x2="48" y2="75"/><line x1="68" y1="57" x2="64" y2="75"/><line x1="88" y1="55" x2="112" y2="40"/><line x1="112" y1="40" x2="130" y2="60"/><line x1="88" y1="60" x2="112" y2="76"/><line x1="112" y1="76" x2="130" y2="60"/>',
+  supine_twist:'<circle cx="18" cy="52" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="52" x2="90" y2="55"/><line x1="44" y1="50" x2="36" y2="30"/><line x1="90" y1="55" x2="112" y2="72"/><line x1="112" y1="72" x2="130" y2="88"/><line x1="112" y1="72" x2="130" y2="62"/>',
+  bridge:'<circle cx="18" cy="70" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="68" x2="55" y2="62"/><path d="M55,62 Q80,36 106,62"/><line x1="106" y1="62" x2="120" y2="85"/><line x1="96" y1="62" x2="108" y2="85"/><line x1="44" y1="64" x2="38" y2="84"/><line x1="55" y1="64" x2="48" y2="84"/>',
+  knees_chest_svg:'<circle cx="20" cy="60" r="8" fill="#c8a97e" stroke="none"/><line x1="28" y1="60" x2="75" y2="62"/><line x1="50" y1="58" x2="44" y2="38"/><line x1="65" y1="58" x2="72" y2="38"/><line x1="75" y1="60" x2="96" y2="44"/><line x1="96" y1="44" x2="110" y2="60"/><line x1="75" y1="64" x2="96" y2="78"/><line x1="96" y1="78" x2="110" y2="62"/><line x1="44" y1="38" x2="72" y2="34"/>',
+  savasana:'<circle cx="18" cy="58" r="8" fill="#c8a97e" stroke="none"/><line x1="26" y1="58" x2="122" y2="60"/><line x1="54" y1="57" x2="58" y2="78"/><line x1="70" y1="57" x2="68" y2="78"/><line x1="122" y1="58" x2="148" y2="64"/><line x1="122" y1="62" x2="148" y2="55"/>'
 };
 
-// ============================================================
-// CUSTOM CATEGORIES
-// ============================================================
-var CAT_COLORS = [
-  {bg:"#D9EDDA",fg:"#1A4A1E"},{bg:"#DDEEFF",fg:"#1A3A6A"},{bg:"#FDDEDD",fg:"#7A1A1A"},
-  {bg:"#FFF0D8",fg:"#7A4A1A"},{bg:"#D8F0FF",fg:"#0A3A6A"},{bg:"#D8FFE8",fg:"#0A4A1A"},
-  {bg:"#F0E8D8",fg:"#5A3A1A"},{bg:"#EED8FF",fg:"#3A1A7A"},{bg:"#E8E8E8",fg:"#3A3A3A"},
-  {bg:"#FFD8EC",fg:"#7A1A4A"},{bg:"#FFFBD8",fg:"#6A5A1A"},{bg:"#E8E0FF",fg:"#3A1A8A"},
-];
-var CAT_EMOJIS = ["&#x1F4E6;","&#x1F4A1;","&#x1F333;","&#x1F43E;","&#x1F3AE;","&#x1F4F8;",
-  "&#x1F3CB;","&#x2764;","&#x1F31F;","&#x1F381;","&#x1F4DA;","&#x1F527;",
-  "&#x1F9F9;","&#x1F3E1;","&#x26BD;","&#x1F3B5;","&#x2708;","&#x1F699;",
-  "&#x1F4AA;","&#x1F9D8;","&#x1F35C;","&#x1F9F4;","&#x1F4B0;","&#x1F4BB;"];
-
-var selectedCatEmoji = CAT_EMOJIS[0];
-var selectedCatColor = 0;
-
-function getCustomCats(lt) {
-  var v = storeGet("fl4_cc_" + lt);
-  return Array.isArray(v) ? v : [];
-}
-function saveCustomCats(lt, cats) { storeSet("fl4_cc_" + lt, cats); }
-
-function getAllCats(lt) {
-  return LIST_CONFIG[lt].cats.concat(getCustomCats(lt));
-}
-
-// ============================================================
-// STORAGE
-// ============================================================
-function storeGet(k) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch(e) { return null; } }
-function storeSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
-
-function loadListData(lt) {
-  if (listData[lt]) return listData[lt];
-  var raw = storeGet(LIST_CONFIG[lt].key);
-  var d = { items:[], hist:[] };
-  if (raw && typeof raw === "object") {
-    d.items = Array.isArray(raw.items) ? raw.items.filter(function(x){ return x && typeof x==="object"; }) : [];
-    d.hist  = Array.isArray(raw.hist)  ? raw.hist.filter(function(x) { return x && typeof x==="object"; }) : [];
+function getPoseKey(name, flowIdx) {
+  var n = name.toLowerCase();
+  // Flow 2 — photos available
+  if (flowIdx === 1) {
+    if (n.includes('seated forward fold variation')) return {photo:'seated_fwd_var'};
+    if (n.includes('boat prep') || n.includes('core stability')) return {photo:'boat_prep'};
+    if (n.includes('seated spinal twist') || n.includes('seated twist')) return {photo:'seated_twist'};
+    if (n.includes('head-to-knee') || n.includes('janu')) return {photo:'head_to_knee'};
+    if (n.includes('bound angle') || n.includes('diamond')) return {photo:'bound_angle'};
+    if (n.includes('swimming')) return {photo:'swimming'};
+    if (n.includes('paschimottanasana') || (n.includes('seated forward fold') && !n.includes('variation'))) return {photo:'paschimottanasana'};
+    if (n.includes('froggy')) return {photo:'froggy'};
+    if (n.includes('yogi squat') || n.includes('malasana')) return {photo:'yogi_squat'};
+    if (n.includes('standing forward') || n.includes('uttanasana')) return {photo:'standing_fold'};
+    if (n.includes('knees to chest') || n.includes('apanasana')) return {photo:'knees_chest'};
+    if (n.includes('eagle legs')) return {photo:'eagle_twist'};
+    if (n.includes('happy baby')) return {photo:'happy_baby'};
+    if (n.includes('windshield')) return {photo:'windshield'};
+    if (n.includes('savasana')) return {photo:'savasana2'};
+    return null;
   }
-  listData[lt] = d;
-  return d;
-}
-function saveCurrentList() {
-  var d = listData[currentList];
-  if (d) { storeSet(LIST_CONFIG[currentList].key, d); pushSync(); }
-}
-function getItems() { return loadListData(currentList).items; }
-function getHist()  { return loadListData(currentList).hist; }
-function getCats()  { return getAllCats(currentList); }
-
-// ============================================================
-// DETECTION
-// ============================================================
-function detectCat(name) {
-  if (!name) return "other";
-  var low = name.toLowerCase();
-  var kw = LIST_CONFIG[currentList].kw;
-  for (var i = 0; i < kw.length; i++) {
-    if (low.indexOf(kw[i][0]) !== -1) return kw[i][1];
-  }
-  return "other";
-}
-function getCat(id) {
-  var cats = getCats();
-  for (var i = 0; i < cats.length; i++) { if (cats[i].id === id) return cats[i]; }
-  return cats[cats.length-1];
+  // Flow 1 — SVG illustrations
+  if (n.includes('savasana')) return {svg:'savasana'};
+  if (n.includes('cat') || n.includes('cow')) return {svg:'cat_cow'};
+  if (n.includes('bird')) return {svg:'bird_dog'};
+  if (n.includes('dead bug')) return {svg:'dead_bug'};
+  if (n.includes('child')) return {svg:'childs_pose'};
+  if (n.includes('low lunge')) return {svg:'low_lunge'};
+  if (n.includes('half split')) return {svg:'half_splits'};
+  if (n.includes('mountain')) return {svg:'mountain'};
+  if (n.includes('warrior i') && !n.includes('ii')) return {svg:'warrior1'};
+  if (n.includes('warrior ii')) return {svg:'warrior2'};
+  if (n.includes('reclined butterfly')) return {svg:'reclined_butterfly'};
+  if (n.includes('supine twist')) return {svg:'supine_twist'};
+  if (n.includes('bridge')) return {svg:'bridge'};
+  if (n.includes('knees to chest') || n.includes('apanasana')) return {svg:'knees_chest_svg'};
+  if (n.includes('side stretch')) return {svg:'side_stretch'};
+  if (n.includes('centering') || n.includes('neck')) return {svg:'seated_cross'};
+  return null;
 }
 
-// ============================================================
-// STATE
-// ============================================================
-var currentList = "grocery";
-var manualCatId = null;
-var currentCatId = null;
-var editItemId = null;   // item whose category we're editing (null = adding new)
-var listData = { grocery:null, todo:null, travel:null, personal:null };
-
-// Sync state
-var fbUrl = storeGet("fl4_fbUrl") || "";
-var syncRoom = storeGet("fl4_room") || "";
-var syncES = null;
-var syncPaused = false;
-// Per-section sync prefs: default grocery/todo/travel ON, notes OFF
-var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, personal:false, notes:false };
-function saveSyncPrefs() { storeSet("fl4_syncPrefs", syncPrefs); }
-function isSynced(key) { return !!(syncPrefs[key]); }
-
-// ============================================================
-// DOM REFS
-// ============================================================
-var elInput     = document.getElementById("itemInput");
-var elAc        = document.getElementById("ac");
-var elCatRow    = document.getElementById("catRow");
-var elCatChip   = document.getElementById("catChip");
-var elCatHint   = document.getElementById("catHint");
-var elListC     = document.getElementById("listContent");
-var elHistoryC  = document.getElementById("historyContent");
-var elHdrBadge  = document.getElementById("hdrBadge");
-var elListBadge = document.getElementById("listBadge");
-var elClearBtn  = document.getElementById("clearBtn");
-var elToast     = document.getElementById("toast");
-var toastTimer  = null;
-
-// ============================================================
-// LIST TYPE SWITCHER
-// ============================================================
-function applyListTheme() {
-  var lt = LIST_TYPES[currentList];
-  document.documentElement.style.setProperty("--accent", lt.color);
-  document.getElementById("appTitle").innerHTML = lt.name;
-  elInput.placeholder = lt.placeholder;
-  document.getElementById("themeColor").setAttribute("content", lt.color);
-  var btns = document.querySelectorAll(".type-btn");
-  for (var i = 0; i < btns.length; i++) {
-    btns[i].classList.toggle("active", btns[i].dataset.lt === currentList);
-  }
-  var isNotes = currentList === "notes";
-  document.getElementById("notesFullPanel").style.display = isNotes ? "block" : "none";
-  document.getElementById("mainContent").style.display    = isNotes ? "none"  : "block";
-  if (isNotes) renderNotesFull();
-}
-document.getElementById("typeBar").addEventListener("click", function(e) {
-  var btn = e.target.closest(".type-btn");
-  if (!btn || btn.dataset.lt === currentList) return;
-  if (currentList !== "notes") saveCurrentList();
-  currentList = btn.dataset.lt;
-  manualCatId = null; currentCatId = null;
-  resetInput();
-  if (currentList !== "notes") { loadListData(currentList); switchTab("list"); renderList(); }
-  applyListTheme();
-});
-
-// ============================================================
-// TABS
-// ============================================================
-document.getElementById("tabList").addEventListener("click",    function(){ switchTab("list"); });
-document.getElementById("tabHistory").addEventListener("click", function(){ switchTab("history"); });
-function switchTab(t) {
-  document.getElementById("listPanel").style.display    = t==="list"    ? "block" : "none";
-  document.getElementById("historyPanel").style.display = t==="history" ? "block" : "none";
-  document.getElementById("notesPanel").style.display   = t==="notes"   ? "block" : "none";
-  document.getElementById("tabList").className    = "tab" + (t==="list"    ? " active" : "");
-  document.getElementById("tabHistory").className = "tab" + (t==="history" ? " active" : "");
-  document.getElementById("tabNotes").className   = "tab" + (t==="notes"   ? " active" : "");
-  if (t==="history") renderHistory();
-  if (t==="notes")   renderNotes();
-}
-
-// ============================================================
-// INPUT
-// ============================================================
-elInput.addEventListener("input", function() {
-  var val = elInput.value.trim();
-  if (!val) { hideCatRow(); hideAC(); currentCatId = null; manualCatId = null; return; }
-  currentCatId = manualCatId || detectCat(val);
-  showCatRow(currentCatId, !manualCatId);
-  showAC(val);
-});
-elInput.addEventListener("keydown", function(e){ if (e.key==="Enter") doAdd(); });
-document.addEventListener("click", function(e){
-  if (!document.querySelector(".input-card").contains(e.target)) hideAC();
-});
-elCatChip.addEventListener("click", function(){ openPicker(null); });
-
-function showCatRow(catId, isAuto) {
-  var c = getCat(catId);
-  elCatChip.innerHTML = c.emoji + " " + c.name;
-  elCatChip.style.background = c.bg;
-  elCatChip.style.color = c.fg;
-  elCatHint.style.display = isAuto ? "inline" : "none";
-  elCatRow.style.display = "flex";
-}
-function hideCatRow() { elCatRow.style.display = "none"; }
-function hideAC() { elAc.style.display = "none"; elAc.innerHTML = ""; }
-
-function showAC(query) {
-  var q = query.toLowerCase();
-  var hist = getHist();
-  var matches = [];
-  for (var i = 0; i < hist.length && matches.length < 7; i++) {
-    if (hist[i].name.toLowerCase().indexOf(q) !== -1 && hist[i].name.toLowerCase() !== q) matches.push(hist[i]);
-  }
-  if (!matches.length) { hideAC(); return; }
-  var html = "";
-  for (var j = 0; j < matches.length; j++) {
-    var h = matches[j], c = getCat(h.catId||"other");
-    var idx = h.name.toLowerCase().indexOf(q);
-    var hl = idx >= 0
-      ? esc(h.name.slice(0,idx))+"<b>"+esc(h.name.slice(idx,idx+query.length))+"</b>"+esc(h.name.slice(idx+query.length))
-      : esc(h.name);
-    html += "<div class='ac-item' data-name='"+esc(h.name)+"' data-cat='"+c.id+"'>" +
-      "<span class='ac-name'>"+hl+"</span>" +
-      "<span class='ac-badge' style='background:"+c.bg+";color:"+c.fg+"'>"+c.emoji+" "+c.name+"</span>" +
-      "<span class='ac-times'>"+(h.count||1)+"x</span></div>";
-  }
-  elAc.innerHTML = html; elAc.style.display = "block";
-  elAc.querySelectorAll(".ac-item").forEach(function(row) {
-    row.addEventListener("click", function(){
-      elInput.value = row.dataset.name;
-      manualCatId = row.dataset.cat; currentCatId = manualCatId;
-      showCatRow(currentCatId, false); hideAC(); elInput.focus();
+function PoseImage(props) {
+  var name = props.name;
+  var flowIdx = props.flowIdx || 0;
+  var key = getPoseKey(name, flowIdx);
+  if (!key) return null;
+  if (key.photo) {
+    var url = POSE_PHOTOS[key.photo];
+    if (!url) return null;
+    return h('img', {
+      src: url, alt: name,
+      style: {width:'100%',maxWidth:260,borderRadius:12,margin:'0 auto 12px',display:'block',objectFit:'cover'}
     });
-  });
-}
-
-// ============================================================
-// ADD ITEM
-// ============================================================
-document.getElementById("addBtn").addEventListener("click", doAdd);
-function doAdd() {
-  var name = elInput.value.trim();
-  if (!name) { elInput.focus(); return; }
-  var catId = manualCatId || detectCat(name);
-  var items = getItems();
-  for (var i = 0; i < items.length; i++) {
-    if (!items[i].done && items[i].name.toLowerCase()===name.toLowerCase()) {
-      toast("Already in your list!"); resetInput(); return;
-    }
   }
-  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false });
-  addToHist(name, catId);
-  saveCurrentList(); resetInput(); renderList(); switchTab("list");
-  toast("Added: "+name);
-}
-function resetInput() {
-  elInput.value = ""; hideCatRow(); hideAC(); currentCatId = null; manualCatId = null;
-}
-function addToHist(name, catId) {
-  var hist = getHist(), found = null;
-  for (var i = 0; i < hist.length; i++) {
-    if (hist[i].name.toLowerCase()===name.toLowerCase()) { found = hist[i]; break; }
-  }
-  if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); }
-  else { hist.unshift({ name:name, catId:catId, count:1, lastUsed:Date.now() }); }
-  if (hist.length > 150) listData[currentList].hist = hist.slice(0,150);
-  listData[currentList].hist.sort(function(a,b){ return (b.count-a.count)||(b.lastUsed-a.lastUsed); });
-}
-
-// ============================================================
-// RENDER LIST
-// ============================================================
-function renderList() {
-  var items = getItems();
-  var lt = LIST_TYPES[currentList];
-  var active=[], done=[];
-  for (var i=0;i<items.length;i++){ (items[i].done?done:active).push(items[i]); }
-  if (active.length) { elHdrBadge.textContent=active.length+" item"+(active.length!==1?"s":""); elHdrBadge.style.display="block"; }
-  else { elHdrBadge.style.display="none"; }
-  elListBadge.textContent = active.length||"";
-  elClearBtn.style.display = done.length?"block":"none";
-  if (!items.length) {
-    elListC.innerHTML = "<div class='empty'><div class='empty-ico'>"+lt.emptyIco+"</div><div class='empty-title'>"+lt.emptyTitle+"</div><div class='empty-sub'>"+lt.emptySub+"</div></div>";
-    return;
-  }
-  var groups={};
-  for (var i=0;i<active.length;i++) { var cid=active[i].catId||"other"; if (!groups[cid]) groups[cid]=[]; groups[cid].push(active[i]); }
-  var html="", cats=getCats();
-  for (var ci=0;ci<cats.length;ci++) {
-    var c=cats[ci], gi=groups[c.id]; if (!gi) continue;
-    html+="<div class='sec-hdr'><span>"+c.emoji+"&ensp;<span class='sec-name'>"+c.name+"</span></span><div class='sec-line'></div><span class='sec-count'>"+gi.length+"</span></div>";
-    for (var ii=0;ii<gi.length;ii++) html+=cardHTML(gi[ii],c);
-  }
-  if (done.length) {
-    html+="<div class='sec-hdr' style='margin-top:22px'><span>&#10003;&ensp;<span class='sec-name' style='color:#7A8772'>Done</span></span><div class='sec-line'></div><span class='sec-count'>"+done.length+"</span></div>";
-    for (var di=0;di<done.length;di++) html+=cardHTML(done[di],getCat(done[di].catId||"other"));
-  }
-  elListC.innerHTML = html;
-  elListC.querySelectorAll(".item-card").forEach(function(card) {
-    var id = +card.dataset.id;
-    card.addEventListener("click", function(e){
-      if (e.target.closest(".del-btn")||e.target.closest(".item-pill")) return;
-      toggleItem(id);
+  if (key.svg) {
+    var content = POSE_SVGS[key.svg];
+    if (!content) return null;
+    var svg = '<svg viewBox="0 0 160 120" width="100%" xmlns="http://www.w3.org/2000/svg"><g stroke="#c8a97e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">' + content + '</g></svg>';
+    return h('div', {
+      style: {background:'#161616',borderRadius:12,padding:'6px 20px 2px',marginBottom:12,maxWidth:220,margin:'0 auto 12px'},
+      dangerouslySetInnerHTML: {__html: svg}
     });
-    card.querySelector(".del-btn").addEventListener("click", function(e){ e.stopPropagation(); removeItem(id); });
-    card.querySelector(".item-pill").addEventListener("click", function(e){ e.stopPropagation(); openPicker(id); });
-  });
-}
-
-function cardHTML(item, c) {
-  return "<div class='item-card"+(item.done?" done":"")+"' data-id='"+item.id+"' style='border-left-color:"+c.fg+"33'>" +
-    "<div class='chk'>"+(item.done?"&#10003;":"")+"</div>" +
-    "<span class='item-name'>"+esc(item.name)+"</span>" +
-    "<span class='item-pill' style='background:"+c.bg+";color:"+c.fg+"' title='Tap to change category'>"+c.emoji+" "+c.name+"</span>" +
-    "<button class='del-btn'>&#x2715;</button></div>";
-}
-
-function toggleItem(id) {
-  var items=getItems();
-  for (var i=0;i<items.length;i++) { if (items[i].id===id) { items[i].done=!items[i].done; break; } }
-  saveCurrentList(); renderList();
-}
-function removeItem(id) {
-  listData[currentList].items = getItems().filter(function(x){ return x.id!==id; });
-  saveCurrentList(); renderList();
-}
-elClearBtn.addEventListener("click", function(){
-  listData[currentList].items = getItems().filter(function(x){ return !x.done; });
-  saveCurrentList(); renderList(); toast("Cleared completed items");
-});
-
-// ============================================================
-// RENDER HISTORY
-// ============================================================
-function renderHistory() {
-  var q = (document.getElementById("histSearch").value||"").trim().toLowerCase();
-  var hist = getHist();
-  var filtered = hist.filter(function(h){ return !q||h.name.toLowerCase().indexOf(q)!==-1; }).slice(0,60);
-  if (!filtered.length) {
-    elHistoryC.innerHTML="<div class='empty'><div class='empty-ico'>&#x1F550;</div><div class='empty-title'>"+(q?"No matches":"No history yet")+"</div><div class='empty-sub'>"+(q?"Try a different search":"Items you add will appear here for quick re-adding")+"</div></div>";
-    return;
   }
-  var items=getItems(), html="";
-  for (var i=0;i<filtered.length;i++) {
-    var h=filtered[i], c=getCat(h.catId||"other");
-    var inList=false;
-    for (var j=0;j<items.length;j++) { if (!items[j].done&&items[j].name.toLowerCase()===h.name.toLowerCase()) { inList=true; break; } }
-    html+="<div class='hist-item' data-name='"+esc(h.name)+"' data-cat='"+c.id+"'>" +
-      "<span class='hist-emoji'>"+c.emoji+"</span>" +
-      "<div class='hist-body'><div class='hist-name'>"+esc(h.name)+"</div>" +
-      "<div class='hist-meta'><span class='hist-cat' style='background:"+c.bg+";color:"+c.fg+"'>"+c.name+"</span>" +
-      "<span class='hist-count'>Added "+(h.count||1)+"x</span></div></div>" +
-      "<button class='hist-add"+(inList?" in-list":"")+"'>"+(inList?"&#10003;":"+")+"</button></div>";
+  return null;
+}
+
+// ── Shared Components ──────────────────────────────────────────────────────
+
+function MiniChart(props) {
+  var data = props.data, color = props.color;
+  if (!data || data.length < 2) return h('p',{style:{color:'#555',textAlign:'center',padding:'12px 0',fontSize:12}},'Log 2+ entries to show trend.');
+  var W=300,H=110,pl=36,pr=10,pt=8,iW=W-pl-pr,iH=H-pt-18;
+  var vals=data.map(function(d){return d.value;}),mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals),rng=mx-mn||1;
+  function cx(i){return pl+(i/(data.length-1))*iW;}
+  function cy(v){return pt+iH-((v-mn)/rng)*iH;}
+  var pts=data.map(function(d,i){return cx(i)+','+cy(d.value);}).join(' ');
+  var step=Math.max(1,Math.ceil(data.length/5));
+  return h('svg',{width:'100%',viewBox:'0 0 '+W+' '+H,style:{overflow:'visible'}},
+    [mn,mx].map(function(v,i){return h('g',{key:i},h('line',{x1:pl,x2:W-pr,y1:cy(v),y2:cy(v),stroke:'#222',strokeWidth:1}),h('text',{x:pl-4,y:cy(v)+4,textAnchor:'end',fill:'#555',fontSize:10},Math.round(v)));}),
+    data.map(function(d,i){return i%step===0?h('text',{key:'l'+i,x:cx(i),y:H-2,textAnchor:'middle',fill:'#555',fontSize:9},d.date):null;}),
+    h('polyline',{points:pts,fill:'none',stroke:color,strokeWidth:2,strokeLinejoin:'round',strokeLinecap:'round'}),
+    data.map(function(d,i){return h('circle',{key:'c'+i,cx:cx(i),cy:cy(d.value),r:3,fill:color});})
+  );
+}
+
+function ExInput(props) {
+  var ex=props.ex,val=props.val||{},onChange=props.onChange;
+  function lbl(t){return h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},t);}
+  if(ex.type==='weighted')return h('div',{style:{display:'flex',gap:8}},
+    h('div',{style:{flex:1}},lbl('Reps'),h('input',{type:'number',inputMode:'numeric',value:val.reps||'',onChange:function(e){onChange(Object.assign({},val,{reps:e.target.value}));},placeholder:'--',style:inp})),
+    h('div',{style:{flex:1}},lbl('kg'),h('input',{type:'number',inputMode:'decimal',value:val.weight||'',onChange:function(e){onChange(Object.assign({},val,{weight:e.target.value}));},placeholder:'--',style:inp}))
+  );
+  if(ex.type==='duration')return h('div',null,lbl('Seconds'),h('input',{type:'number',inputMode:'numeric',value:val.duration||'',onChange:function(e){onChange(Object.assign({},val,{duration:e.target.value}));},placeholder:'--',style:inp}));
+  return h('div',null,lbl('Reps'),h('input',{type:'number',inputMode:'numeric',value:val.reps||'',onChange:function(e){onChange(Object.assign({},val,{reps:e.target.value}));},placeholder:'--',style:inp}));
+}
+
+// ── View Components ────────────────────────────────────────────────────────
+
+function HomeView(p) {
+  var lastCard = null;
+  if (p.history[0]) {
+    var s0=p.history[0],isY0=s0.type==='yoga',isP0=s0.type==='physio';
+    var c0=isY0?'#8b5cf6':isP0?PC:((WK[s0.type]&&WK[s0.type].color)||'#555');
+    var l0=isY0?'Yoga - '+((s0.data&&s0.data.flowName)||''):isP0?'Physio - '+((s0.data&&s0.data.programme)||''):((WK[s0.type]&&WK[s0.type].emoji)||'')+' '+((WK[s0.type]&&WK[s0.type].name)||'');
+    lastCard=h('div',{style:card({borderLeft:'4px solid '+c0,marginBottom:20})},h('div',{style:{fontSize:11,color:'#555',marginBottom:2}},'Last session'),h('div',{style:{fontWeight:600}},l0+' - '+s0.date));
   }
-  elHistoryC.innerHTML=html;
-  elHistoryC.querySelectorAll(".hist-item").forEach(function(row) {
-    var nm=row.dataset.name, cat=row.dataset.cat;
-    row.querySelector(".hist-add").addEventListener("click", function(e){ e.stopPropagation(); addFromHistory(nm,cat); });
-    row.addEventListener("click", function(e){
-      if (e.target.closest(".hist-add")) return;
-      elInput.value=nm; manualCatId=cat; currentCatId=cat;
-      showCatRow(cat,false); switchTab("list"); elInput.focus();
-    });
-  });
+  return h('div',{style:pg},
+    h('h1',{style:{fontSize:24,fontWeight:800,margin:'0 0 4px'}},'My Health'),
+    h('p',{style:{color:'#555',margin:'0 0 20px',fontSize:13}},'This week: ',h('strong',{style:{color:'#fff'}},p.thisWeek+' workout'+(p.thisWeek!==1?'s':''))),
+    p.installPrompt?h('button',{onClick:function(){p.installPrompt.prompt();p.setInstallPrompt(null);},style:Object.assign(pbtn('#8b5cf6'),{marginBottom:14})},'Install app'):null,
+    lastCard,
+    h('div',{style:{fontSize:11,color:'#555',letterSpacing:1,textTransform:'uppercase',marginBottom:8}},'Workouts'),
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}},
+      ['pull','push'].map(function(t){var w=WK[t];return h('button',{key:t,onClick:function(){p.startWorkout(t);},style:{background:'#191919',border:'2px solid '+w.color,borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},h('div',{style:{fontSize:26}},w.emoji),h('div',{style:{fontWeight:700,marginTop:4,fontSize:13}},w.name));}),null
+    ),
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:20}},
+      h('button',{onClick:p.goYoga,style:{background:'#191919',border:'2px solid #8b5cf6',borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},h('div',{style:{fontSize:26}},'\uD83E\uDDD8'),h('div',{style:{fontWeight:700,fontSize:13,marginTop:4}},'Yoga'),h('div',{style:{fontSize:10,color:'#555',marginTop:2}},'2 flows')),
+      h('button',{onClick:p.goPhysio,style:{background:'#191919',border:'2px solid '+PC,borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},h('div',{style:{fontSize:26}},'\uD83E\uDE7A'),h('div',{style:{fontWeight:700,fontSize:13,marginTop:4}},'Physio'),h('div',{style:{fontSize:10,color:'#555',marginTop:2}},'2 programmes'))
+    ),
+    h('div',{style:{fontSize:11,color:'#555',letterSpacing:1,textTransform:'uppercase',marginBottom:8}},'Health Tracking'),
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:20}},
+      h('button',{onClick:function(){p.setView('bp');},style:{background:'#191919',border:'2px solid #f43f5e',borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},
+        h('div',{style:{fontSize:26}},'\u2764\uFE0F'),h('div',{style:{fontWeight:700,fontSize:13,marginTop:4}},'Blood Pressure'),
+        p.bpLog[0]?h('div',{style:{fontSize:11,color:'#555',marginTop:2}},p.bpLog[0].sys+'/'+p.bpLog[0].dia+' mmHg'):null),
+      h('button',{onClick:function(){p.setView('weight');},style:{background:'#191919',border:'2px solid #f59e0b',borderRadius:14,padding:'14px 10px',color:'#fff',cursor:'pointer',textAlign:'center',fontFamily:FF}},
+        h('div',{style:{fontSize:26}},'\u2696\uFE0F'),h('div',{style:{fontWeight:700,fontSize:13,marginTop:4}},'Weight'),
+        p.weightLog[0]?h('div',{style:{fontSize:11,color:'#555',marginTop:2}},p.weightLog[0].kg+' kg'):null)
+    ),
+    h('div',{style:{display:'flex',gap:10}},
+      h('button',{onClick:function(){p.setView('history');},style:{flex:1,background:'#191919',border:'1px solid #2a2a2a',color:'#bbb',borderRadius:12,padding:'12px 0',fontSize:14,cursor:'pointer',fontFamily:FF}},'History'),
+      h('button',{onClick:function(){p.setView('progress');},style:{flex:1,background:'#191919',border:'1px solid #2a2a2a',color:'#bbb',borderRadius:12,padding:'12px 0',fontSize:14,cursor:'pointer',fontFamily:FF}},'Progress')
+    )
+  );
 }
-document.getElementById("histSearch").addEventListener("input", renderHistory);
-function addFromHistory(name, catId) {
-  var items=getItems();
-  for (var i=0;i<items.length;i++) {
-    if (!items[i].done&&items[i].name.toLowerCase()===name.toLowerCase()) { toast("Already in your list!"); return; }
+
+function YogaSelectView(p) {
+  return h('div',{style:pg},
+    h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:24}},
+      h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:'#8b5cf6',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),
+      h('h2',{style:{margin:0,fontSize:18}},'Yoga')
+    ),
+    h('p',{style:{color:'#555',fontSize:13,marginBottom:16}},'Choose your flow:'),
+    YOGA_FLOWS.map(function(flow,i){
+      return h('button',{key:i,onClick:function(){p.startYoga(i);},style:card({cursor:'pointer',width:'100%',textAlign:'left',marginBottom:12,border:'1px solid #2a2a2a',borderLeft:'4px solid #8b5cf6'})},
+        h('div',{style:{fontWeight:700,fontSize:16,marginBottom:4,color:'#fff'}},YOGA_NAMES[i]),
+        h('div',{style:{fontSize:12,color:'#555',marginBottom:4}},YOGA_DESCS[i]),
+        YOGA_VID[i]?h('div',{style:{fontSize:11,color:'#8b5cf6'}},'Based on Yoga With Adriene'):null
+      );
+    })
+  );
+}
+
+function YogaRunView(p) {
+  var flow = YOGA_FLOWS[p.yogaFlowIdx];
+  var flowTotal = YOGA_TOTALS[p.yogaFlowIdx];
+
+  if (p.phase === 'yogaIntro') {
+    return h('div',{style:pgC()},
+      h('div',{style:{fontSize:56}},'\uD83E\uDDD8'),
+      h('h2',{style:{margin:'12px 0 4px'}},YOGA_NAMES[p.yogaFlowIdx]),
+      h('p',{style:{color:'#888',margin:'0 0 6px'}},flow.length+' poses - ~'+Math.round(flowTotal/60)+' min'),
+      h('p',{style:{color:'#555',fontSize:13,margin:'0 0 28px'}},'Digestive-safe sequence.'),
+      h('button',{onClick:function(){p.setYogaStarted(true);p.setPhase('yogaRunning');},style:pbtn('#8b5cf6',{maxWidth:220})},'Begin'),
+      h('button',{onClick:function(){p.setPhase('yogaSelect');},style:{background:'none',border:'none',color:'#555',fontSize:13,cursor:'pointer',marginTop:14,fontFamily:FF}},'Back')
+    );
   }
-  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false });
-  addToHist(name,catId); saveCurrentList(); renderList(); renderHistory(); toast("Added: "+name);
-}
 
-// ============================================================
-// CATEGORY PICKER (for new item OR editing existing item)
-// ============================================================
-function openPicker(itemId) {
-  editItemId = itemId; // null = picking for new item input
-  document.getElementById("addCatForm").style.display = "none";
-  document.getElementById("pickerTitle").textContent = itemId ? "Change category" : "Choose a category";
-  renderPickerGrid();
-  document.getElementById("pickerOverlay").classList.add("open");
-}
-
-function renderPickerGrid() {
-  var cats = getCats();
-  var activeCatId = editItemId
-    ? (function(){ var items=getItems(); for(var i=0;i<items.length;i++) if(items[i].id===editItemId) return items[i].catId; return "other"; })()
-    : (manualCatId || currentCatId || "other");
-  var html = "";
-  for (var i=0;i<cats.length;i++) {
-    var c=cats[i];
-    html+="<div class='picker-opt"+(activeCatId===c.id?" sel":"")+"' style='background:"+c.bg+";color:"+c.fg+"' data-id='"+c.id+"'>"+
-      "<span style='font-size:20px'>"+c.emoji+"</span><span>"+c.name+"</span></div>";
+  if (p.phase === 'yogaDone') {
+    return h('div',{style:pgC()},
+      h('div',{style:{fontSize:64}},'\uD83D\uDE4F'),
+      h('h2',{style:{fontSize:24,margin:'14px 0 6px'}},'Practice complete'),
+      h('p',{style:{color:'#888',margin:'0 0 8px'}},'Well done. Namaste.'),
+      h('p',{style:{color:'#555',fontSize:12,margin:'0 0 24px',maxWidth:280}},'Before rising, roll to your right side first.'),
+      h('button',{onClick:p.finishYoga,style:pbtn('#8b5cf6',{maxWidth:220})},'Save and finish'),
+      h('button',{onClick:function(){p.setPhase('yogaSelect');},style:{background:'none',border:'none',color:'#555',fontSize:13,cursor:'pointer',marginTop:12,fontFamily:FF}},'Do another flow')
+    );
   }
-  document.getElementById("pickerGrid").innerHTML = html;
-  document.getElementById("pickerGrid").querySelectorAll(".picker-opt").forEach(function(opt) {
-    opt.addEventListener("click", function(){
-      var catId = opt.dataset.id;
-      if (editItemId) {
-        // Edit existing item's category
-        var items = getItems();
-        for (var i=0;i<items.length;i++) { if (items[i].id===editItemId) { items[i].catId=catId; break; } }
-        saveCurrentList(); renderList();
-        toast("Category updated");
-      } else {
-        // Picking for new item
-        manualCatId = catId; currentCatId = catId;
-        showCatRow(catId, false);
-      }
-      closePicker();
-    });
-  });
+
+  var pose = flow[p.yogaIdx];
+  var pct = pose.dur>0 ? p.yogaTime/pose.dur : 0;
+  var YR = 54, ycirc = 2*Math.PI*YR;
+  var elapsed = flow.slice(0,p.yogaIdx).reduce(function(a,y){return a+y.dur;},0)+(pose.dur-p.yogaTime);
+  var totalPct = Math.min(elapsed/flowTotal,1);
+
+  return h('div',{style:Object.assign({},pg,{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh',position:'relative',paddingTop:40})},
+    h('div',{style:{position:'fixed',top:0,left:0,right:0,height:3,background:'#222',zIndex:10}},
+      h('div',{style:{height:3,background:'#8b5cf6',width:(totalPct*100)+'%',transition:'width 1s linear'}})),
+    h('div',{style:{fontSize:11,color:'#555',marginBottom:2}},YOGA_NAMES[p.yogaFlowIdx]),
+    h('div',{style:{fontSize:12,color:'#555',marginBottom:8}},(p.yogaIdx+1)+' / '+flow.length),
+    h('svg',{width:130,height:130,style:{marginBottom:12}},
+      h('circle',{cx:65,cy:65,r:YR,fill:'none',stroke:'#1e1e1e',strokeWidth:8}),
+      h('circle',{cx:65,cy:65,r:YR,fill:'none',stroke:p.yogaPaused?'#444':'#8b5cf6',strokeWidth:8,
+        strokeDasharray:ycirc,strokeDashoffset:ycirc*(1-pct),strokeLinecap:'round',
+        transform:'rotate(-90 65 65)',style:{transition:'stroke-dashoffset 0.95s linear'}}),
+      h('text',{x:65,y:72,textAnchor:'middle',fill:p.yogaPaused?'#555':'#fff',fontSize:34,fontWeight:'bold'},p.yogaTime)
+    ),
+    h('h2',{style:{fontSize:20,fontWeight:800,margin:'0 0 4px',textAlign:'center'}},pose.name),
+    h('p',{style:{fontSize:12,color:'#8b5cf6',margin:'0 0 8px',fontStyle:'italic'}},pose.sanskrit),
+    h(PoseImage,{name:pose.name,flowIdx:p.yogaFlowIdx}),
+    h('p',{style:{fontSize:14,color:'#888',textAlign:'center',maxWidth:300,lineHeight:1.65,margin:'0 0 12px',padding:'0 8px'}},pose.cue),
+    p.yogaIdx<flow.length-1?h('div',{style:{fontSize:11,color:'#333',marginBottom:14}},'Next: '+flow[p.yogaIdx+1].name):null,
+    h('div',{style:{display:'flex',gap:10}},
+      h('button',{onClick:function(){p.setYogaPaused(function(x){return !x;});},style:{background:'#1e1e1e',border:'1px solid #2a2a2a',color:'#ccc',borderRadius:10,padding:'10px 20px',fontSize:13,cursor:'pointer',fontFamily:FF}},p.yogaPaused?'Resume':'Pause'),
+      h('button',{onClick:p.skipYogaPose,style:{background:'#1e1e1e',border:'1px solid #2a2a2a',color:'#ccc',borderRadius:10,padding:'10px 20px',fontSize:13,cursor:'pointer',fontFamily:FF}},'Skip')
+    ),
+    h('button',{onClick:function(){clearInterval(p.yogaRef.current);if(window.confirm('Exit yoga?'))p.setView('home');},style:{background:'none',border:'none',color:'#333',fontSize:12,cursor:'pointer',marginTop:16,fontFamily:FF}},'Exit')
+  );
 }
 
-function closePicker() {
-  document.getElementById("pickerOverlay").classList.remove("open");
-  editItemId = null;
-}
-document.getElementById("pickerOverlay").addEventListener("click", function(e){ if (e.target===this) closePicker(); });
-document.getElementById("pickerClose").addEventListener("click", closePicker);
+function PhysioView(p) {
+  var prog = p.prog;
 
-// ---- ADD CUSTOM CATEGORY ----
-document.getElementById("addCatBtn").addEventListener("click", function() {
-  document.getElementById("addCatForm").style.display = "block";
-  document.getElementById("newCatName").value = "";
-  selectedCatEmoji = CAT_EMOJIS[0];
-  selectedCatColor = 0;
-  renderEmojiGrid(); renderColorGrid();
-  setTimeout(function(){ document.getElementById("newCatName").focus(); }, 100);
-});
-
-function renderEmojiGrid() {
-  var html = "";
-  for (var i=0;i<CAT_EMOJIS.length;i++) {
-    html+="<div class='emoji-opt"+(CAT_EMOJIS[i]===selectedCatEmoji?" sel":"")+"' data-idx='"+i+"'>"+CAT_EMOJIS[i]+"</div>";
+  if (p.physioPhase === 'select') {
+    return h('div',{style:pg},
+      h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:24}},
+        h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:PC,fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),
+        h('h2',{style:{margin:0,fontSize:18}},'Physio')
+      ),
+      h('p',{style:{color:'#555',fontSize:13,marginBottom:16}},'Choose your programme:'),
+      PROGRAMMES.map(function(pr,i){
+        return h('button',{key:pr.id,onClick:function(){p.startPhysio(i);},style:card({cursor:'pointer',width:'100%',textAlign:'left',marginBottom:12,border:'1px solid #2a2a2a',borderLeft:'4px solid '+PC})},
+          h('div',{style:{fontWeight:700,fontSize:16,marginBottom:4,color:'#fff'}},pr.name),
+          h('div',{style:{fontSize:12,color:'#555',marginBottom:8}},pr.note),
+          h('div',{style:{display:'flex',flexWrap:'wrap',gap:4}},pr.exercises.map(function(ex){return h('span',{key:ex.id,style:{background:'#111',borderRadius:6,padding:'2px 8px',fontSize:10,color:'#666'}},ex.name);}))
+        );
+      })
+    );
   }
-  document.getElementById("emojiGrid").innerHTML = html;
-  document.getElementById("emojiGrid").querySelectorAll(".emoji-opt").forEach(function(opt) {
-    opt.addEventListener("click", function(){
-      selectedCatEmoji = CAT_EMOJIS[+opt.dataset.idx];
-      renderEmojiGrid();
-    });
-  });
-}
-function renderColorGrid() {
-  var html = "";
-  for (var i=0;i<CAT_COLORS.length;i++) {
-    html+="<div class='color-opt"+(i===selectedCatColor?" sel":"")+"' data-idx='"+i+"' style='background:"+CAT_COLORS[i].bg+"'></div>";
+
+  if (p.physioPhase === 'intro') {
+    return h('div',{style:pgC()},
+      h('div',{style:{fontSize:48}},'\uD83E\uDE7A'),
+      h('h2',{style:{margin:'10px 0 4px'}},prog.name),
+      h('p',{style:{color:'#888',fontSize:13,margin:'0 0 20px',maxWidth:300,lineHeight:1.7}},prog.exercises.length+' exercises. Tap video links to check technique.'),
+      h('div',{style:{width:'100%',marginBottom:20}},
+        prog.exercises.map(function(ex,i){
+          return h('div',{key:ex.id,style:card({marginBottom:8,textAlign:'left'})},
+            h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+              h('div',null,h('div',{style:{fontWeight:600,fontSize:14}},(i+1)+'. '+ex.name),h('div',{style:{fontSize:11,color:'#555',marginTop:2}},ex.note)),
+              ex.url?h('a',{href:ex.url,target:'_blank',rel:'noopener noreferrer',style:{background:'#ef4444',color:'#fff',borderRadius:8,padding:'5px 10px',fontSize:11,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap',marginLeft:8}},'Video'):null
+            )
+          );
+        })
+      ),
+      h('button',{onClick:function(){p.setPhysioPhase('exercise');},style:pbtn(PC,{maxWidth:240})},'Begin'),
+      h('button',{onClick:function(){p.setPhysioPhase('select');},style:{background:'none',border:'none',color:'#555',fontSize:13,cursor:'pointer',marginTop:14,fontFamily:FF}},'Back')
+    );
   }
-  document.getElementById("colorGrid").innerHTML = html;
-  document.getElementById("colorGrid").querySelectorAll(".color-opt").forEach(function(opt) {
-    opt.addEventListener("click", function(){ selectedCatColor=+opt.dataset.idx; renderColorGrid(); });
-  });
-}
 
-document.getElementById("saveCatBtn").addEventListener("click", function() {
-  var name = document.getElementById("newCatName").value.trim();
-  if (!name) { toast("Please enter a category name"); return; }
-  var col = CAT_COLORS[selectedCatColor];
-  var newCat = {
-    id: "custom_" + Date.now(),
-    name: name,
-    emoji: selectedCatEmoji,
-    bg: col.bg,
-    fg: col.fg
-  };
-  var existing = getCustomCats(currentList);
-  existing.push(newCat);
-  saveCustomCats(currentList, existing);
-  document.getElementById("addCatForm").style.display = "none";
-  renderPickerGrid();
-  toast("Category added: " + name);
-});
-
-// ============================================================
-// SETTINGS MODAL
-// ============================================================
-document.getElementById("settingsBtn").addEventListener("click", function() {
-  renderCustomCatsList();
-  document.getElementById("settingsOverlay").classList.add("open");
-});
-document.getElementById("settingsClose").addEventListener("click", function(){ document.getElementById("settingsOverlay").classList.remove("open"); });
-document.getElementById("settingsOverlay").addEventListener("click", function(e){ if(e.target===this) this.classList.remove("open"); });
-
-function renderCustomCatsList() {
-  var el = document.getElementById("customCatsList");
-  var allCustom = {}, hasAny = false;
-  ["grocery","todo","travel","personal"].forEach(function(lt) {
-    var cc = getCustomCats(lt);
-    if (cc.length) { allCustom[lt] = cc; hasAny = true; }
-  });
-  if (!hasAny) {
-    el.innerHTML = "<div style='text-align:center;color:#7A8772;padding:20px;font-size:14px'>No custom categories yet.<br>Add them from the category picker when adding an item.</div>";
-    return;
+  if (p.physioPhase === 'done') {
+    return h('div',{style:pgC()},
+      h('div',{style:{fontSize:64}},'\u2705'),
+      h('h2',{style:{fontSize:24,margin:'14px 0 6px'}},'Physio complete!'),
+      h('p',{style:{color:'#888',margin:'0 0 4px'}},prog.name),
+      h('p',{style:{color:'#555',fontSize:13,margin:'0 0 24px'}},'Saved to your log.'),
+      h('button',{onClick:p.finishPhysio,style:pbtn(PC,{maxWidth:220})},'Done'),
+      h('button',{onClick:function(){p.setPhysioPhase('select');},style:{background:'none',border:'none',color:'#555',fontSize:13,cursor:'pointer',marginTop:12,fontFamily:FF}},'Do another programme')
+    );
   }
-  var html = "";
-  ["grocery","todo","travel","personal"].forEach(function(lt) {
-    var cc = allCustom[lt]; if (!cc) return;
-    html += "<div style='font-size:12px;font-weight:700;color:#7A8772;margin-bottom:6px;margin-top:12px;text-transform:uppercase'>"+lt+"</div>";
-    cc.forEach(function(c, idx) {
-      html += "<div style='display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border-radius:9px;margin-bottom:5px;box-shadow:0 1px 4px rgba(0,0,0,.07)'>" +
-        "<span style='font-size:20px'>"+c.emoji+"</span>" +
-        "<span style='flex:1;font-size:15px;font-weight:500'>"+esc(c.name)+"</span>" +
-        "<span style='font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:"+c.bg+";color:"+c.fg+"'>"+c.name+"</span>" +
-        "<button class='del-btn' style='opacity:.5' data-lt='"+lt+"' data-idx='"+idx+"'>&#x2715;</button>" +
-        "</div>";
-    });
-  });
-  el.innerHTML = html;
-  el.querySelectorAll(".del-btn").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      var lt = btn.dataset.lt, idx = +btn.dataset.idx;
-      var cc = getCustomCats(lt);
-      cc.splice(idx, 1);
-      saveCustomCats(lt, cc);
-      renderCustomCatsList();
-      toast("Category removed");
-    });
-  });
-}
 
-document.getElementById("clearAllBtn").addEventListener("click", function() {
-  if (!confirm("Clear ALL lists and history? This cannot be undone.")) return;
-  ["grocery","todo","travel","personal"].forEach(function(lt) {
-    storeSet(LIST_CONFIG[lt].key, {items:[],hist:[]});
-    listData[lt] = null;
-  });
-  renderList(); toast("All data cleared");
-  document.getElementById("settingsOverlay").classList.remove("open");
-});
+  var ex = prog.exercises[p.physioEx];
+  var pct = (ex.type==='timed' && ex.dur>0) ? p.physioTime/ex.dur : 0;
+  var R=54, circ=2*Math.PI*R;
 
-// ============================================================
-// SYNC (Firebase Realtime Database)
-// ============================================================
-document.getElementById("syncBtn").addEventListener("click", function() {
-  document.getElementById("fbUrlInput").value = fbUrl;
-  document.getElementById("roomCodeInput").value = "";
-  document.getElementById("syncRoomDisplay").style.display = syncRoom ? "block" : "none";
-  document.getElementById("roomCodeDisplay").textContent = syncRoom;
-  document.getElementById("leaveRoomBtn").style.display = syncRoom ? "block" : "none";
-  document.getElementById("joinRoomBtn").style.display = syncRoom ? "none" : "block";
-  document.getElementById("createRoomBtn").style.display = syncRoom ? "none" : "block";
-  // Restore toggle states
-  document.querySelectorAll(".sync-chk").forEach(function(chk) {
-    chk.checked = isSynced(chk.dataset.key);
-  });
-  updateSyncStatus();
-  document.getElementById("syncOverlay").classList.add("open");
-});
-
-// Save prefs whenever a toggle changes
-document.getElementById("syncToggles").addEventListener("change", function(e) {
-  var chk = e.target;
-  if (!chk.classList.contains("sync-chk")) return;
-  syncPrefs[chk.dataset.key] = chk.checked;
-  saveSyncPrefs();
-  if (fbUrl && syncRoom) pushSync();
-});
-document.getElementById("syncClose").addEventListener("click", function(){ document.getElementById("syncOverlay").classList.remove("open"); });
-document.getElementById("syncOverlay").addEventListener("click", function(e){ if(e.target===this) this.classList.remove("open"); });
-
-document.getElementById("createRoomBtn").addEventListener("click", function() {
-  var url = document.getElementById("fbUrlInput").value.trim().replace(/\/$/, "");
-  if (!url) { toast("Enter your Firebase URL first"); return; }
-  fbUrl = url; storeSet("fl4_fbUrl", fbUrl);
-  syncRoom = Math.random().toString(36).substr(2,6).toUpperCase();
-  storeSet("fl4_room", syncRoom);
-  pushSync();
-  startListening();
-  document.getElementById("syncRoomDisplay").style.display = "block";
-  document.getElementById("roomCodeDisplay").textContent = syncRoom;
-  document.getElementById("createRoomBtn").style.display = "none";
-  document.getElementById("joinRoomBtn").style.display = "none";
-  document.getElementById("leaveRoomBtn").style.display = "block";
-  updateSyncStatus();
-  toast("Room created! Share code: " + syncRoom);
-});
-
-document.getElementById("joinRoomBtn").addEventListener("click", function() {
-  var url = document.getElementById("fbUrlInput").value.trim().replace(/\/$/, "");
-  var code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
-  if (!url) { toast("Enter your Firebase URL first"); return; }
-  if (!code || code.length < 4) { toast("Enter a valid room code"); return; }
-  fbUrl = url; storeSet("fl4_fbUrl", fbUrl);
-  syncRoom = code; storeSet("fl4_room", syncRoom);
-  // Pull current state then listen
-  fetchSync(function() {
-    startListening();
-    document.getElementById("syncRoomDisplay").style.display = "block";
-    document.getElementById("roomCodeDisplay").textContent = syncRoom;
-    document.getElementById("joinRoomBtn").style.display = "none";
-    document.getElementById("createRoomBtn").style.display = "none";
-    document.getElementById("leaveRoomBtn").style.display = "block";
-    updateSyncStatus();
-    toast("Joined room: " + syncRoom);
-  });
-});
-
-document.getElementById("leaveRoomBtn").addEventListener("click", function() {
-  if (syncES) { syncES.close(); syncES = null; }
-  syncRoom = ""; storeSet("fl4_room", "");
-  document.getElementById("syncRoomDisplay").style.display = "none";
-  document.getElementById("leaveRoomBtn").style.display = "none";
-  document.getElementById("joinRoomBtn").style.display = "block";
-  document.getElementById("createRoomBtn").style.display = "block";
-  updateSyncStatus();
-  toast("Left sync room");
-});
-
-function updateSyncStatus() {
-  var el = document.getElementById("syncStatus");
-  if (syncRoom && fbUrl) {
-    el.className = "sync-status on";
-    el.innerHTML = "<span class='sync-indicator live'></span>Syncing room: <strong>"+syncRoom+"</strong>";
+  var timerCtrl;
+  if (p.physioTime === 0) {
+    timerCtrl = h('button',{onClick:p.physioNext,style:pbtn(PC,{padding:'11px 24px',width:'auto'})},p.physioSet<ex.sets?'Next set':'Next exercise');
   } else {
-    el.className = "sync-status";
-    el.style.display = "none";
-    return;
+    timerCtrl = h('div',{style:{display:'flex',gap:10}},
+      h('button',{onClick:function(){p.setPhysioRunning(function(r){return !r;});},style:{background:PC,border:'none',color:'#fff',borderRadius:10,padding:'10px 22px',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:FF}},p.physioRunning?'Pause':'Start'),
+      h('button',{onClick:p.physioNext,style:{background:'transparent',border:'1px solid '+PC,color:PC,borderRadius:10,padding:'10px 18px',fontSize:14,cursor:'pointer',fontFamily:FF}},'Skip')
+    );
   }
-  el.style.display = "block";
-  // Update sync indicator in header
-  document.getElementById("syncBtn").title = "Syncing: " + syncRoom;
+
+  return h('div',{style:Object.assign({},pg,{minHeight:'100vh'})},
+    h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}},
+      h('div',{style:{fontWeight:800,fontSize:16,color:PC}},'Physio - '+prog.name),
+      h('div',{style:{fontSize:13,color:'#555'}},(p.physioEx+1)+' / '+prog.exercises.length)
+    ),
+    h('div',{style:{marginBottom:16}},prog.exercises.map(function(_,i){return h('span',{key:i,style:{display:'inline-block',width:8,height:8,borderRadius:'50%',background:i<p.physioEx?PC+'55':i===p.physioEx?PC:'#222',marginRight:4}});})),
+    h('div',{style:card({marginBottom:16,borderLeft:'4px solid '+PC})},
+      h('div',{style:{fontWeight:700,fontSize:17,marginBottom:4}},ex.name),
+      h('div',{style:{fontSize:12,color:'#555',marginBottom:ex.url?10:0}},ex.note),
+      ex.url?h('a',{href:ex.url,target:'_blank',rel:'noopener noreferrer',style:{display:'inline-flex',alignItems:'center',gap:6,background:'#ef4444',color:'#fff',borderRadius:8,padding:'7px 14px',fontSize:13,textDecoration:'none',fontWeight:600}},'Watch video'):null
+    ),
+    h('div',{style:card({marginBottom:16,display:'flex',flexDirection:'column',alignItems:'center',padding:'20px 16px'})},
+      h('div',{style:{fontSize:12,color:'#555',marginBottom:12}},'Set '+p.physioSet+' of '+ex.sets),
+      ex.type==='timed'?[
+        h('svg',{key:'sv',width:130,height:130,style:{marginBottom:12}},
+          h('circle',{cx:65,cy:65,r:R,fill:'none',stroke:'#1e1e1e',strokeWidth:8}),
+          h('circle',{cx:65,cy:65,r:R,fill:'none',stroke:p.physioRunning?PC:'#2a2a2a',strokeWidth:8,strokeDasharray:circ,strokeDashoffset:circ*(1-pct),strokeLinecap:'round',transform:'rotate(-90 65 65)',style:{transition:'stroke-dashoffset 0.95s linear'}}),
+          h('text',{x:65,y:72,textAnchor:'middle',fill:p.physioRunning?'#fff':'#555',fontSize:34,fontWeight:'bold'},p.physioTime)
+        ),
+        timerCtrl
+      ]:[
+        h('div',{key:'r',style:{fontSize:36,fontWeight:800,color:'#fff',marginBottom:4}},ex.reps),
+        h('div',{key:'l',style:{fontSize:13,color:'#555',marginBottom:16}},'reps each side'),
+        h('button',{key:'b',onClick:p.physioNext,style:pbtn(PC,{padding:'12px 28px',width:'auto'})},p.physioSet<ex.sets?'Set '+p.physioSet+' done':'Next exercise')
+      ]
+    ),
+    h('button',{onClick:function(){clearInterval(p.physioRef.current);if(window.confirm('Exit physio?'))p.setView('home');},style:{background:'none',border:'none',color:'#2a2a2a',fontSize:13,cursor:'pointer',width:'100%',textAlign:'center',padding:'16px 0',fontFamily:FF}},'Exit')
+  );
 }
 
-function fbRoomUrl() {
-  return fbUrl + "/rooms/" + syncRoom + ".json";
+function BPView(p) {
+  var last=p.bpLog[0], cat=last?bpCat(last.sys,last.dia):null;
+  var cSys=p.bpLog.slice().reverse().map(function(e){return{date:fmtDate(e.date),value:e.sys};});
+  var cDia=p.bpLog.slice().reverse().map(function(e){return{date:fmtDate(e.date),value:e.dia};});
+  return h('div',{style:pg},
+    h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},
+      h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:'#f43f5e',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),
+      h('h2',{style:{margin:0,fontSize:18}},'Blood Pressure')
+    ),
+    h('div',{style:card({marginBottom:16,borderLeft:'4px solid #f43f5e'})},
+      h('div',{style:{fontWeight:600,marginBottom:12}},'New Reading'),
+      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}},
+        h('div',null,h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},'Systolic'),h('input',{type:'number',inputMode:'numeric',value:p.bpSys,onChange:function(e){p.setBpSys(e.target.value);},placeholder:'120',style:inp})),
+        h('div',null,h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},'Diastolic'),h('input',{type:'number',inputMode:'numeric',value:p.bpDia,onChange:function(e){p.setBpDia(e.target.value);},placeholder:'80',style:inp})),
+        h('div',null,h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},'Pulse'),h('input',{type:'number',inputMode:'numeric',value:p.bpPulse,onChange:function(e){p.setBpPulse(e.target.value);},placeholder:'70',style:inp}))
+      ),
+      h('button',{onClick:p.logBP,style:pbtn('#f43f5e')},'Save Reading')
+    ),
+    last?h('div',{style:card({marginBottom:16,borderLeft:'4px solid '+cat.color})},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}},
+        h('div',null,h('div',{style:{fontSize:28,fontWeight:800}},last.sys,h('span',{style:{color:'#555',fontSize:18}},'/'+last.dia)),h('div',{style:{fontSize:12,color:'#555'}},'mmHg'+(last.pulse?' - '+last.pulse+' bpm':'')),h('div',{style:{fontSize:13,color:cat.color,marginTop:4,fontWeight:600}},cat.label)),
+        h('div',{style:{fontSize:11,color:'#555',textAlign:'right'}},last.date,h('br'),last.time)
+      )
+    ):null,
+    p.bpLog.length>=2?h('div',{style:card({marginBottom:16})},h('div',{style:{fontSize:12,color:'#555',marginBottom:6}},'Systolic'),h(MiniChart,{data:cSys,color:'#f43f5e'}),h('div',{style:{fontSize:12,color:'#555',margin:'10px 0 6px'}},'Diastolic'),h(MiniChart,{data:cDia,color:'#fb7185'})):null,
+    p.bpLog.map(function(e){
+      var c=bpCat(e.sys,e.dia);
+      return h('div',{key:e.id,style:card({marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'})},
+        h('div',null,h('div',{style:{fontWeight:600}},e.sys+'/'+e.dia+' mmHg'+(e.pulse?' - '+e.pulse+' bpm':'')),h('div',{style:{fontSize:11,color:c.color,marginTop:2}},c.label+' - '+e.date+' '+e.time)),
+        h('button',{onClick:function(){p.saveBp(p.bpLog.filter(function(x){return x.id!==e.id;}));},style:{background:'none',border:'none',color:'#333',fontSize:18,cursor:'pointer',padding:'4px 8px'}},'x')
+      );
+    })
+  );
 }
 
-function pushSync() {
-  if (!fbUrl || !syncRoom || syncPaused) return;
-  var data = {};
-  ["grocery","todo","travel","personal"].forEach(function(lt) {
-    if (!isSynced(lt)) return;
-    var d = listData[lt];
-    var notes = storeGet("fl4_notes_" + lt) || [];
-    if (d) data[lt] = { items: d.items, hist: d.hist, notes: notes };
-  });
-  if (isSynced("notes")) data["global_notes"] = storeGet("fl4_notes_global") || [];
-  fetch(fbRoomUrl(), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} })
-    .catch(function(){});
+function WeightView(p) {
+  var wlast=p.weightLog[0], wprev=p.weightLog[1];
+  var wdiff=wlast&&wprev?(wlast.kg-wprev.kg).toFixed(1):null;
+  var wData=p.weightLog.slice().reverse().map(function(e){return{date:fmtDate(e.date),value:e.kg};});
+  return h('div',{style:pg},
+    h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},
+      h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:'#f59e0b',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),
+      h('h2',{style:{margin:0,fontSize:18}},'Weight')
+    ),
+    h('div',{style:card({marginBottom:16,borderLeft:'4px solid #f59e0b'})},
+      h('div',{style:{fontWeight:600,marginBottom:12}},'Log Weight'),
+      h('div',{style:{display:'flex',gap:8,alignItems:'flex-end'}},
+        h('div',{style:{flex:1}},h('div',{style:{fontSize:11,color:'#666',marginBottom:3}},'kg'),h('input',{type:'number',inputMode:'decimal',value:p.weightVal,onChange:function(e){p.setWeightVal(e.target.value);},placeholder:'82.5',style:inp})),
+        h('button',{onClick:p.logWeight,style:pbtn('#f59e0b',{flex:'0 0 auto',width:'auto',padding:'12px 20px'})},'Save')
+      )
+    ),
+    wlast?h('div',{style:card({marginBottom:16,borderLeft:'4px solid #f59e0b'})},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+        h('div',null,h('div',{style:{fontSize:32,fontWeight:800}},wlast.kg,h('span',{style:{fontSize:16,color:'#555'}},' kg')),wdiff!==null?h('div',{style:{fontSize:13,color:parseFloat(wdiff)<=0?'#22c55e':'#f97316',marginTop:4}},(parseFloat(wdiff)>0?'+':'')+wdiff+' kg since last'):null),
+        h('div',{style:{fontSize:11,color:'#555'}},wlast.date)
+      )
+    ):null,
+    p.weightLog.length>=2?h('div',{style:card({marginBottom:16})},h('div',{style:{fontSize:12,color:'#555',marginBottom:6}},'Weight (kg)'),h(MiniChart,{data:wData,color:'#f59e0b'})):null,
+    p.weightLog.map(function(e,i){
+      var nx=p.weightLog[i+1], d=nx?(e.kg-nx.kg).toFixed(1):null;
+      return h('div',{key:e.id,style:card({marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'})},
+        h('div',null,h('div',{style:{fontWeight:600}},e.kg+' kg'),h('div',{style:{fontSize:11,color:'#555',marginTop:2}},e.date,d!==null?h('span',{style:{color:parseFloat(d)<=0?'#22c55e':'#f97316',marginLeft:6}},(parseFloat(d)>0?'+':'')+d+' kg'):null)),
+        h('button',{onClick:function(){p.saveWeight(p.weightLog.filter(function(x){return x.id!==e.id;}));},style:{background:'none',border:'none',color:'#333',fontSize:18,cursor:'pointer',padding:'4px 8px'}},'x')
+      );
+    })
+  );
 }
 
-function fetchSync(cb) {
-  if (!fbUrl || !syncRoom) return;
-  fetch(fbRoomUrl()).then(function(r){ return r.json(); }).then(function(data) {
-    if (data && typeof data === "object") {
-      syncPaused = true;
-      ["grocery","todo","travel","personal"].forEach(function(lt) {
-        if (!isSynced(lt)) return;  // skip unsynced sections
-        if (data[lt] && typeof data[lt]==="object") {
-          var d = data[lt];
-          listData[lt] = {
-            items: Array.isArray(d.items) ? d.items.filter(Boolean) : [],
-            hist:  Array.isArray(d.hist)  ? d.hist.filter(Boolean)  : [],
-          };
-          storeSet(LIST_CONFIG[lt].key, listData[lt]);
-          if (Array.isArray(d.notes)) storeSet("fl4_notes_" + lt, d.notes.filter(Boolean));
-        }
-      });
-      if (isSynced("notes") && Array.isArray(data["global_notes"])) storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
-      if (currentList === "notes") renderNotesFull();
-      syncPaused = false;
-      renderList();
+function HistoryView(p) {
+  if (p.history.length === 0) {
+    return h('div',{style:pg},
+      h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:'#3b82f6',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),h('h2',{style:{margin:0,fontSize:18}},'History')),
+      h('p',{style:{color:'#555',textAlign:'center',marginTop:60}},'No sessions yet')
+    );
+  }
+  var rows = p.history.map(function(s) {
+    var isY=s.type==='yoga', isP=s.type==='physio';
+    var col=isY?'#8b5cf6':isP?PC:((WK[s.type]&&WK[s.type].color)||'#555');
+    var isOpen = p.expanded===s.id;
+    if (isY) {
+      return h('div',{key:s.id,style:card({borderLeft:'4px solid '+col,marginBottom:10})},
+        h('div',{style:{display:'flex',justifyContent:'space-between'}},h('div',{style:{fontWeight:600}},'Yoga - '+((s.data&&s.data.flowName)||'')),h('div',{style:{fontSize:12,color:'#555'}},s.date)),
+        h('div',{style:{fontSize:12,color:'#555',marginTop:4}},(s.data&&s.data.poses)+' poses')
+      );
     }
-    if (cb) cb();
-  }).catch(function(){ if (cb) cb(); });
-}
-
-function startListening() {
-  if (syncES) syncES.close();
-  if (!fbUrl || !syncRoom) return;
-  try {
-    syncES = new EventSource(fbUrl + "/rooms/" + syncRoom + ".json?accept=text/event-stream");
-    syncES.addEventListener("put", function(e) {
-      try {
-        var payload = JSON.parse(e.data);
-        var data = payload.data;
-        if (!data || typeof data !== "object") return;
-        syncPaused = true;
-        ["grocery","todo","travel","personal"].forEach(function(lt) {
-          if (data[lt] && typeof data[lt]==="object") {
-            var d = data[lt];
-            listData[lt] = {
-              items: Array.isArray(d.items) ? d.items.filter(Boolean) : [],
-              hist:  Array.isArray(d.hist)  ? d.hist.filter(Boolean)  : [],
-            };
-            storeSet(LIST_CONFIG[lt].key, listData[lt]);
-          }
-        });
-        syncPaused = false;
-        renderList();
-      } catch(err){}
-    });
-    syncES.onerror = function() {
-      // Retry after 5s
-      setTimeout(function(){ if (syncRoom && fbUrl) startListening(); }, 5000);
-    };
-  } catch(err) {}
-}
-
-// ============================================================
-// TOAST & HELPERS
-// ============================================================
-function toast(msg) {
-  elToast.textContent=msg; elToast.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer=setTimeout(function(){ elToast.classList.remove("show"); }, 2200);
-}
-function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
-
-// ============================================================
-// NOTES
-// ============================================================
-document.getElementById("tabNotes").addEventListener("click", function(){ switchTab("notes"); });
-
-function getNotes(lt) {
-  var key = lt || currentList;
-  var v = storeGet("fl4_notes_" + key);
-  return Array.isArray(v) ? v : [];
-}
-function saveNotes(notes, lt) {
-  var key = lt || currentList;
-  storeSet("fl4_notes_" + key, notes);
-}
-
-document.getElementById("addNoteBtn").addEventListener("click", function(){
-  addNote(currentList, "noteInput", renderNotes);
-});
-document.getElementById("noteInput").addEventListener("keydown", function(e){
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addNote(currentList, "noteInput", renderNotes); }
-});
-document.getElementById("addNoteFullBtn").addEventListener("click", function(){
-  addNote("global", "noteInputFull", renderNotesFull);
-});
-document.getElementById("noteInputFull").addEventListener("keydown", function(e){
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addNote("global", "noteInputFull", renderNotesFull); }
-});
-
-function addNote(lt, inputId, renderFn) {
-  var text = document.getElementById(inputId).value.trim();
-  if (!text) return;
-  var notes = getNotes(lt);
-  notes.unshift({ id: Date.now(), text: text, ts: Date.now() });
-  saveNotes(notes, lt);
-  document.getElementById(inputId).value = "";
-  renderFn();
-  toast("Note saved");
-  if (fbUrl && syncRoom) pushSync();
-}
-
-function fmtDate(ts) {
-  var d = new Date(ts);
-  var p = function(x){ return x < 10 ? "0"+x : x; };
-  return d.getDate()+"/"+p(d.getMonth()+1)+"/"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes());
-}
-
-function renderNotesIn(elId, lt, renderFn) {
-  var el = document.getElementById(elId);
-  var notes = getNotes(lt);
-  if (!notes.length) {
-    el.innerHTML = "<div class='empty'><div class='empty-ico'>&#x1F4DD;</div><div class='empty-title'>No notes yet</div><div class='empty-sub'>Type a note above and press Enter to save it.</div></div>";
-    return;
-  }
-  var html = "";
-  for (var i = 0; i < notes.length; i++) {
-    var n = notes[i];
-    var edited = n.editedTs ? " &bull; edited "+fmtDate(n.editedTs) : "";
-    html += "<div class='note-card' data-id='"+n.id+"'>" +
-      "<div class='note-display'>" +
-        "<div class='note-text' id='nt_"+n.id+"'>"+escNl(n.text)+"</div>" +
-        "<div class='note-meta'>"+fmtDate(n.ts)+edited+"</div>" +
-      "</div>" +
-      "<div class='note-edit-box' id='ne_"+n.id+"' style='display:none'>" +
-        "<textarea class='note-textarea' rows='3'>"+esc(n.text)+"</textarea>" +
-        "<div style='display:flex;gap:6px;margin-top:6px'>" +
-          "<button class='note-save-btn' style='flex:1'>Save</button>" +
-          "<button class='note-cancel-btn' style='flex:1'>Cancel</button>" +
-        "</div>" +
-      "</div>" +
-      "<div style='display:flex;gap:6px;margin-top:8px'>" +
-        "<button class='note-edit-btn'>&#x270E; Edit</button>" +
-        "<button class='note-del'>&#x2715; Delete</button>" +
-      "</div>" +
-    "</div>";
-  }
-  el.innerHTML = html;
-
-  el.querySelectorAll(".note-card").forEach(function(card) {
-    var id = +card.dataset.id;
-
-    card.querySelector(".note-edit-btn").addEventListener("click", function() {
-      card.querySelector(".note-display").style.display = "none";
-      card.querySelector(".note-edit-box").style.display = "block";
-      card.querySelector(".note-textarea").focus();
-    });
-
-    card.querySelector(".note-cancel-btn").addEventListener("click", function() {
-      card.querySelector(".note-display").style.display = "block";
-      card.querySelector(".note-edit-box").style.display = "none";
-    });
-
-    card.querySelector(".note-save-btn").addEventListener("click", function() {
-      var newText = card.querySelector(".note-textarea").value.trim();
-      if (!newText) return;
-      var notes = getNotes(lt);
-      for (var i = 0; i < notes.length; i++) {
-        if (notes[i].id === id) { notes[i].text = newText; notes[i].editedTs = Date.now(); break; }
-      }
-      saveNotes(notes, lt);
-      if (fbUrl && syncRoom) pushSync();
-      renderFn();
-      toast("Note updated");
-    });
-
-    card.querySelector(".note-del").addEventListener("click", function() {
-      var notes = getNotes(lt).filter(function(n){ return n.id !== id; });
-      saveNotes(notes, lt);
-      if (fbUrl && syncRoom) pushSync();
-      renderFn();
-    });
+    if (isP) {
+      return h('div',{key:s.id,style:card({borderLeft:'4px solid '+col,marginBottom:10})},
+        h('div',{style:{display:'flex',justifyContent:'space-between'}},h('div',{style:{fontWeight:600}},'Physio - '+((s.data&&s.data.programme)||'')),h('div',{style:{fontSize:12,color:'#555'}},s.date)),
+        h('div',{style:{fontSize:12,color:'#555',marginTop:4}},(s.data&&s.data.exercises)+' exercises')
+      );
+    }
+    var w = WK[s.type];
+    if (!w) return null;
+    var byEx = {};
+    Object.keys(s.data||{}).forEach(function(k){var v=s.data[k],id=exIdFromKey(k),r=parseInt(k.split('_')[1]);if(!byEx[id])byEx[id]={rounds:{}};byEx[id].rounds[r]=v;});
+    var exOrder = w.supersets.reduce(function(a,ss){return a.concat(ss.exercises);},[]);
+    var ordEx = exOrder.filter(function(e){return byEx[e.id];});
+    function getSs(id){for(var i=0;i<w.supersets.length;i++){if(w.supersets[i].exercises.find(function(e){return e.id===id;}))return w.supersets[i].id;}return null;}
+    var preview = !isOpen ? h('div',{style:{display:'flex',flexWrap:'wrap',gap:'3px 14px',marginTop:7}},
+      ordEx.slice(0,4).map(function(ex){var v=byEx[ex.id]&&byEx[ex.id].rounds[1];if(!v)return null;return h('span',{key:ex.id,style:{fontSize:12,color:'#888'}},h('span',{style:{color:'#555'}},ex.name.split(/[\s/]/)[0]+' '),valStr(v));})) : null;
+    var detail = isOpen ? h('div',{style:{marginTop:14},onClick:function(e){e.stopPropagation();}},
+      ordEx.map(function(ex,i){
+        var ssId=getSs(ex.id), prevSs=i>0?getSs(ordEx[i-1].id):null;
+        var rounds=(byEx[ex.id]&&byEx[ex.id].rounds)||{}, maxR=Math.max.apply(null,Object.keys(rounds).map(Number));
+        return h('div',{key:ex.id},
+          ssId!==prevSs?h('div',{style:{fontSize:11,color:col,fontWeight:600,letterSpacing:1,textTransform:'uppercase',marginTop:i===0?0:12,marginBottom:8}},'Superset '+ssId):null,
+          h('div',{style:{marginBottom:10}},
+            h('div',{style:{fontSize:13,fontWeight:600,color:'#ccc',marginBottom:6}},ex.name),
+            h('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
+              Array.from({length:maxR},function(_,j){var r=j+1,v=rounds[r];if(!v)return null;return h('div',{key:r,style:{background:'#111',borderRadius:8,padding:'5px 10px',fontSize:12,color:'#aaa',border:'1px solid #222'}},h('span',{style:{color:'#555',fontSize:10,marginRight:3}},'R'+r),valStr(v));})
+            )
+          )
+        );
+      })) : null;
+    return h('div',{key:s.id,style:card({borderLeft:'4px solid '+col,marginBottom:10,cursor:'pointer'}),onClick:function(){p.setExpanded(isOpen?null:s.id);}},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+        h('div',{style:{fontWeight:600}},w.emoji+' '+w.name),
+        h('div',{style:{display:'flex',alignItems:'center',gap:8}},h('div',{style:{fontSize:12,color:'#555'}},s.date+(s.cond?' cond':'')),h('div',{style:{color:'#444',fontSize:11}},isOpen?'\u25B2':'\u25BC'))
+      ),
+      preview, detail
+    );
   });
+  return h('div',{style:pg},
+    h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:'#3b82f6',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),h('h2',{style:{margin:0,fontSize:18}},'History')),
+    rows
+  );
 }
 
-function renderNotes()     { renderNotesIn("notesContent",     currentList, renderNotes); }
-function renderNotesFull() { renderNotesIn("notesFullContent", "global",    renderNotesFull); }
-
-function escNl(s) {
-  return esc(s).replace(/\n/g, "<br>");
+function ProgressView(p) {
+  var ex=ALL_EX.find(function(e){return e.id===p.selEx;});
+  var exColor=(ex&&ex.wk==='push')?'#ef4444':'#3b82f6';
+  var pData=p.history.slice().reverse().reduce(function(acc,s){
+    if(s.type==='yoga'||s.type==='physio')return acc;
+    var vals=Object.keys(s.data||{}).filter(function(k){return exIdFromKey(k)===p.selEx;}).map(function(k){return s.data[k];});
+    if(!vals.length)return acc;
+    var m=ex&&ex.type==='weighted'?Math.max.apply(null,vals.map(function(v){return+v.weight||0;})):ex&&ex.type==='duration'?Math.max.apply(null,vals.map(function(v){return+v.duration||0;})):Math.max.apply(null,vals.map(function(v){return+v.reps||0;}));
+    if(m>0)acc.push({date:s.date.slice(5),value:m});
+    return acc;
+  },[]);
+  var yLabel=(ex&&ex.type==='weighted')?'Max kg':(ex&&ex.type==='duration')?'Max sec':'Max reps';
+  return h('div',{style:pg},
+    h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:20}},h('button',{onClick:function(){p.setView('home');},style:{background:'none',border:'none',color:'#3b82f6',fontSize:15,cursor:'pointer',padding:0,fontFamily:FF}},'Back'),h('h2',{style:{margin:0,fontSize:18}},'Progress')),
+    h('select',{value:p.selEx,onChange:function(e){p.setSelEx(e.target.value);},style:Object.assign({},inp,{marginBottom:20})},ALL_EX.map(function(e){return h('option',{key:e.id,value:e.id},e.name);})),
+    h('div',{style:card()},h('div',{style:{fontSize:12,color:'#555',marginBottom:8}},yLabel),h(MiniChart,{data:pData,color:exColor}))
+  );
 }
 
-// ============================================================
-// SERVICE WORKER
-// ============================================================
-if ("serviceWorker" in navigator) { navigator.serviceWorker.register("./sw.js").catch(function(){}); }
+function WorkoutView(p) {
+  var w = WK[p.wType];
+  if (!w) return null;
 
-// ============================================================
-// INIT
-// ============================================================
-loadListData("grocery");
-if (fbUrl && syncRoom) { startListening(); updateSyncStatus(); }
-applyListTheme();
-switchTab("list");
-renderList();
-</script>
+  if (p.phase==='complete') return h('div',{style:pgC()},h('div',{style:{fontSize:72}},'\uD83C\uDF89'),h('h2',{style:{fontSize:24,margin:'12px 0 4px'}},'Session complete!'),h('p',{style:{color:'#555',margin:'0 0 20px'}},'Saved to your log.'),h('button',{onClick:function(){p.setView('home');},style:pbtn(w.color,{maxWidth:180})},'Done'));
+
+  if (p.phase==='condOption') return h('div',{style:Object.assign({},pgC(),{gap:10})},h('div',{style:{fontSize:56}},'\uD83D\uDD25'),h('h2',{style:{margin:0}},'Main workout done!'),h('p',{style:{color:'#888',margin:'4px 0 16px'}},'Add optional conditioning?'),h('button',{onClick:function(){p.setPhase('inCond');p.setCondRound(1);},style:pbtn('#f59e0b')},'Yes - add conditioning'),h('button',{onClick:function(){p.finish(false);},style:Object.assign(pbtn('#333'),{border:'1px solid #2a2a2a'})},'Skip - finish now'));
+
+  if (p.phase==='inCond') return h('div',{style:pg},
+    h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}},h('div',{style:{fontWeight:700,color:'#f59e0b',fontSize:16}},'Conditioning'),h('div',{style:{fontSize:13,color:'#555'}},'Round '+p.condRound+' / '+COND.rounds)),
+    COND.exercises.map(function(ex){return h('div',{key:ex.id,style:card({marginBottom:12})},h('div',{style:{fontWeight:600,marginBottom:10}},ex.name),h(ExInput,{ex:ex,val:p.entries[eKey('cond',p.condRound,ex.id)],onChange:function(v){p.upd('cond',p.condRound,ex.id,v);}}));}),
+    h('button',{onClick:p.completeCondRound,style:Object.assign(pbtn('#f59e0b'),{marginTop:8})},p.condRound<COND.rounds?'Round '+p.condRound+' done':'Finish Workout')
+  );
+
+  if (p.phase==='rest') {
+    var RR=48,cc=2*Math.PI*RR,rp=p.restDur>0?p.restTime/p.restDur:0;
+    return h('div',{style:pgC()},
+      h('div',{style:{fontSize:13,color:'#444',marginBottom:20,letterSpacing:2,textTransform:'uppercase'}},'Rest'),
+      h('svg',{width:120,height:120,style:{marginBottom:28}},
+        h('circle',{cx:60,cy:60,r:RR,fill:'none',stroke:'#1e1e1e',strokeWidth:8}),
+        h('circle',{cx:60,cy:60,r:RR,fill:'none',stroke:w.color,strokeWidth:8,strokeDasharray:cc,strokeDashoffset:cc*(1-rp),strokeLinecap:'round',transform:'rotate(-90 60 60)',style:{transition:'stroke-dashoffset 0.95s linear'}}),
+        h('text',{x:60,y:68,textAnchor:'middle',fill:'#fff',fontSize:32,fontWeight:'bold'},p.restTime)
+      ),
+      h('button',{onClick:p.skipRest,style:{background:'transparent',border:'1px solid #2a2a2a',color:'#666',borderRadius:12,padding:'11px 32px',fontSize:14,cursor:'pointer',fontFamily:FF}},'Skip')
+    );
+  }
+
+  var ss = w.supersets[p.ssIdx];
+  return h('div',{style:pg},
+    h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}},
+      h('div',null,h('div',{style:{fontSize:11,color:'#555'}},w.emoji+' '+w.name),h('div',{style:{fontWeight:800,fontSize:22}},'Superset '+ss.id)),
+      h('div',{style:{background:w.color+'18',color:w.color,borderRadius:20,padding:'5px 16px',fontWeight:700,fontSize:15}},p.round+'/'+ss.rounds)
+    ),
+    h('div',{style:{fontSize:12,color:'#333',marginBottom:20}},'Back-to-back - rest '+ss.restSec+'s between rounds'),
+    ss.exercises.map(function(ex){return h('div',{key:ex.id,style:card({marginBottom:12})},h('div',{style:{fontWeight:600,marginBottom:10}},ex.name),h(ExInput,{ex:ex,val:p.entries[eKey(ss.id,p.round,ex.id)],onChange:function(v){p.upd(ss.id,p.round,ex.id,v);}}));}),
+    h('button',{onClick:p.completeRound,style:Object.assign(pbtn(w.color),{marginTop:8})},p.round<ss.rounds?'Done - rest '+ss.restSec+'s':p.ssIdx<w.supersets.length-1?'Superset '+ss.id+' done':'All supersets done'),
+    h('div',{style:{display:'flex',justifyContent:'center',gap:8,marginTop:20}},w.supersets.map(function(s,i){return h('div',{key:s.id,style:{width:8,height:8,borderRadius:'50%',background:i<p.ssIdx?w.color+'55':i===p.ssIdx?w.color:'#222'}});})),
+    h('button',{onClick:function(){if(window.confirm('Abandon workout?'))p.setView('home');},style:{background:'none',border:'none',color:'#2a2a2a',fontSize:13,cursor:'pointer',width:'100%',textAlign:'center',padding:'12px 0',marginTop:4,fontFamily:FF}},'Abandon')
+  );
+}
+
+// ── Main App ───────────────────────────────────────────────────────────────
+
+function App() {
+  var vs=useState('home'); var view=vs[0]; var setView=vs[1];
+  var hs=useState(function(){return LS.get('wlog_v2')||[];}); var history=hs[0]; var setHistory=hs[1];
+  var bl=useState(function(){return LS.get('bp_log')||[];}); var bpLog=bl[0]; var setBpLog=bl[1];
+  var wl=useState(function(){return LS.get('weight_log')||[];}); var weightLog=wl[0]; var setWeightLog=wl[1];
+  var ws=useState(null); var wType=ws[0]; var setWType=ws[1];
+  var si=useState(0); var ssIdx=si[0]; var setSsIdx=si[1];
+  var rs=useState(1); var round=rs[0]; var setRound=rs[1];
+  var ph=useState('log'); var phase=ph[0]; var setPhase=ph[1];
+  var en=useState({}); var entries=en[0]; var setEntries=en[1];
+  var cr=useState(1); var condRound=cr[0]; var setCondRound=cr[1];
+  var rt=useState(50); var restTime=rt[0]; var setRestTime=rt[1];
+  var rd=useState(50); var restDur=rd[0]; var setRestDur=rd[1];
+  var iRef=useRef(null); var advRef=useRef(null);
+  var yf=useState(0); var yogaFlowIdx=yf[0]; var setYogaFlowIdx=yf[1];
+  var yi=useState(0); var yogaIdx=yi[0]; var setYogaIdx=yi[1];
+  var yt=useState(0); var yogaTime=yt[0]; var setYogaTime=yt[1];
+  var yg=useState(false); var yogaStarted=yg[0]; var setYogaStarted=yg[1];
+  var yp=useState(false); var yogaPaused=yp[0]; var setYogaPaused=yp[1];
+  var yogaRef=useRef(null);
+  var pp=useState(0); var physioProgIdx=pp[0]; var setPhysioProgIdx=pp[1];
+  var pe=useState(0); var physioEx=pe[0]; var setPhysioEx=pe[1];
+  var ps2=useState(1); var physioSet=ps2[0]; var setPhysioSet=ps2[1];
+  var pt=useState(0); var physioTime=pt[0]; var setPhysioTime=pt[1];
+  var pr=useState(false); var physioRunning=pr[0]; var setPhysioRunning=pr[1];
+  var pp2=useState('select'); var physioPhase=pp2[0]; var setPhysioPhase=pp2[1];
+  var physioRef=useRef(null);
+  var bs=useState(''); var bpSys=bs[0]; var setBpSys=bs[1];
+  var bd=useState(''); var bpDia=bd[0]; var setBpDia=bd[1];
+  var bp3=useState(''); var bpPulse=bp3[0]; var setBpPulse=bp3[1];
+  var wv=useState(''); var weightVal=wv[0]; var setWeightVal=wv[1];
+  var ex2=useState(null); var expanded=ex2[0]; var setExpanded=ex2[1];
+  var se=useState('rows'); var selEx=se[0]; var setSelEx=se[1];
+  var ip=useState(null); var installPrompt=ip[0]; var setInstallPrompt=ip[1];
+
+  useEffect(function(){
+    var hh=function(e){e.preventDefault();setInstallPrompt(e);};
+    window.addEventListener('beforeinstallprompt',hh);
+    return function(){window.removeEventListener('beforeinstallprompt',hh);};
+  },[]);
+
+  useEffect(function(){
+    if(phase!=='rest')return;
+    iRef.current=setInterval(function(){
+      setRestTime(function(t){if(t>1)return t-1;clearInterval(iRef.current);setTimeout(function(){setPhase('log');if(advRef.current)advRef.current();},50);return 0;});
+    },1000);
+    return function(){clearInterval(iRef.current);};
+  },[phase]);
+
+  useEffect(function(){
+    if(!yogaStarted||yogaPaused||view!=='yoga')return;
+    var flow=YOGA_FLOWS[yogaFlowIdx];
+    yogaRef.current=setInterval(function(){
+      setYogaTime(function(t){
+        if(t>1)return t-1;
+        clearInterval(yogaRef.current);playChime();
+        var next=yogaIdx+1;
+        setTimeout(function(){
+          if(next>=flow.length){setYogaStarted(false);setPhase('yogaDone');}
+          else{setYogaIdx(next);setYogaTime(flow[next].dur);}
+        },150);
+        return 0;
+      });
+    },1000);
+    return function(){clearInterval(yogaRef.current);};
+  },[yogaStarted,yogaPaused,yogaIdx,view,yogaFlowIdx]);
+
+  useEffect(function(){
+    if(!physioRunning||view!=='physio')return;
+    physioRef.current=setInterval(function(){
+      setPhysioTime(function(t){if(t>1)return t-1;clearInterval(physioRef.current);setPhysioRunning(false);playChime();return 0;});
+    },1000);
+    return function(){clearInterval(physioRef.current);};
+  },[physioRunning,view]);
+
+  function saveHistory(hh){setHistory(hh);LS.set('wlog_v2',hh);}
+  function saveBp(ll){setBpLog(ll);LS.set('bp_log',ll);}
+  function saveWeight(ll){setWeightLog(ll);LS.set('weight_log',ll);}
+  function startWorkout(t){setWType(t);setSsIdx(0);setRound(1);setPhase('log');setEntries({});setCondRound(1);setView('workout');}
+  function startRest(fn){var dur=WK[wType].supersets[ssIdx].restSec;advRef.current=fn;setRestDur(dur);setRestTime(dur);setPhase('rest');}
+  function skipRest(){clearInterval(iRef.current);setPhase('log');if(advRef.current)advRef.current();}
+  function upd(ss,r,id,v){setEntries(function(prev){var n=Object.assign({},prev);n[eKey(ss,r,id)]=v;return n;});}
+  function completeRound(){
+    var ss=WK[wType].supersets[ssIdx];
+    if(round<ss.rounds){startRest(function(){setRound(function(r){return r+1;});});}
+    else if(ssIdx<WK[wType].supersets.length-1){startRest(function(){setSsIdx(function(i){return i+1;});setRound(1);});}
+    else{setPhase('condOption');}
+  }
+  function completeCondRound(){if(condRound<COND.rounds)setCondRound(function(c){return c+1;});else finish(true);}
+  function finish(cond){var s={id:Date.now(),date:new Date().toISOString().slice(0,10),type:wType,cond:!!cond,data:Object.assign({},entries)};saveHistory([s].concat(history));setPhase('complete');}
+  function goYoga(){setPhase('yogaSelect');setView('yoga');}
+  function startYoga(idx){var flow=YOGA_FLOWS[idx];setYogaFlowIdx(idx);setYogaIdx(0);setYogaTime(flow[0].dur);setYogaStarted(false);setYogaPaused(false);setPhase('yogaIntro');}
+  function skipYogaPose(){var flow=YOGA_FLOWS[yogaFlowIdx];clearInterval(yogaRef.current);playChime();var next=yogaIdx+1;if(next>=flow.length){setYogaStarted(false);setPhase('yogaDone');}else{setYogaIdx(next);setYogaTime(flow[next].dur);}}
+  function finishYoga(){var flow=YOGA_FLOWS[yogaFlowIdx];var s={id:Date.now(),date:new Date().toISOString().slice(0,10),type:'yoga',data:{poses:flow.length,duration:YOGA_TOTALS[yogaFlowIdx],flowName:YOGA_NAMES[yogaFlowIdx]}};saveHistory([s].concat(history));setView('home');}
+  function goPhysio(){setPhysioPhase('select');setView('physio');}
+  var prog=PROGRAMMES[physioProgIdx];
+  function startPhysio(idx){var p2=PROGRAMMES[idx];setPhysioProgIdx(idx);setPhysioEx(0);setPhysioSet(1);setPhysioTime(p2.exercises[0].type==='timed'?p2.exercises[0].dur:0);setPhysioRunning(false);setPhysioPhase('intro');}
+  function physioNext(){var ex=prog.exercises[physioEx];if(physioSet<ex.sets){setPhysioSet(function(s){return s+1;});if(ex.type==='timed'){setPhysioTime(ex.dur);setPhysioRunning(false);}}else{var next=physioEx+1;if(next>=prog.exercises.length)setPhysioPhase('done');else{setPhysioEx(next);setPhysioSet(1);var nex=prog.exercises[next];setPhysioTime(nex.type==='timed'?nex.dur:0);setPhysioRunning(false);}}}
+  function finishPhysio(){var s={id:Date.now(),date:new Date().toISOString().slice(0,10),type:'physio',data:{programme:prog.name,exercises:prog.exercises.length}};saveHistory([s].concat(history));setPhysioPhase('select');setView('home');}
+  function logBP(){var sys=parseInt(bpSys),dia=parseInt(bpDia);if(!sys||!dia)return;var e={id:Date.now(),date:new Date().toISOString().slice(0,10),time:new Date().toLocaleTimeString('en-IE',{hour:'2-digit',minute:'2-digit'}),sys:sys,dia:dia,pulse:bpPulse?parseInt(bpPulse):null};saveBp([e].concat(bpLog));setBpSys('');setBpDia('');setBpPulse('');}
+  function logWeight(){var kg=parseFloat(weightVal);if(!kg)return;saveWeight([{id:Date.now(),date:new Date().toISOString().slice(0,10),kg:kg}].concat(weightLog));setWeightVal('');}
+
+  var thisWeek=(function(){var t=new Date(),d={};history.forEach(function(s){if((t-new Date(s.date))/86400000<7)d[s.date]=1;});return Object.keys(d).length;})();
+
+  if(view==='home') return h(HomeView,{history:history,bpLog:bpLog,weightLog:weightLog,thisWeek:thisWeek,installPrompt:installPrompt,setInstallPrompt:setInstallPrompt,setView:setView,startWorkout:startWorkout,goYoga:goYoga,goPhysio:goPhysio});
+  if(view==='bp') return h(BPView,{bpLog:bpLog,bpSys:bpSys,setBpSys:setBpSys,bpDia:bpDia,setBpDia:setBpDia,bpPulse:bpPulse,setBpPulse:setBpPulse,logBP:logBP,saveBp:saveBp,setView:setView});
+  if(view==='weight') return h(WeightView,{weightLog:weightLog,weightVal:weightVal,setWeightVal:setWeightVal,logWeight:logWeight,saveWeight:saveWeight,setView:setView});
+  if(view==='history') return h(HistoryView,{history:history,expanded:expanded,setExpanded:setExpanded,setView:setView});
+  if(view==='progress') return h(ProgressView,{history:history,selEx:selEx,setSelEx:setSelEx,setView:setView});
+
+  if(view==='yoga'){
+    if(phase==='yogaSelect') return h(YogaSelectView,{setView:setView,startYoga:startYoga});
+    return h(YogaRunView,{phase:phase,setPhase:setPhase,yogaFlowIdx:yogaFlowIdx,yogaIdx:yogaIdx,yogaTime:yogaTime,yogaStarted:yogaStarted,yogaPaused:yogaPaused,setYogaStarted:setYogaStarted,setYogaPaused:setYogaPaused,skipYogaPose:skipYogaPose,finishYoga:finishYoga,yogaRef:yogaRef,setView:setView});
+  }
+
+  if(view==='physio') return h(PhysioView,{physioPhase:physioPhase,setPhysioPhase:setPhysioPhase,prog:prog,physioEx:physioEx,physioSet:physioSet,physioTime:physioTime,physioRunning:physioRunning,setPhysioRunning:setPhysioRunning,startPhysio:startPhysio,physioNext:physioNext,finishPhysio:finishPhysio,physioRef:physioRef,setView:setView});
+
+  if(view==='workout') return h(WorkoutView,{phase:phase,setPhase:setPhase,wType:wType,ssIdx:ssIdx,round:round,restTime:restTime,restDur:restDur,condRound:condRound,setCondRound:setCondRound,entries:entries,completeRound:completeRound,completeCondRound:completeCondRound,finish:finish,skipRest:skipRest,upd:upd,setView:setView});
+
+  return null;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null));
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});}
+
+})();
+<\/script>
 </body>
 </html>
