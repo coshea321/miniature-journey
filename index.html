@@ -290,7 +290,8 @@ function HomeView(p) {
     h('div',{style:{display:'flex',gap:10}},
       h('button',{onClick:function(){p.setView('history');},style:{flex:1,background:'#191919',border:'1px solid #2a2a2a',color:'#bbb',borderRadius:12,padding:'12px 0',fontSize:14,cursor:'pointer',fontFamily:FF}},'History'),
       h('button',{onClick:function(){p.setView('progress');},style:{flex:1,background:'#191919',border:'1px solid #2a2a2a',color:'#bbb',borderRadius:12,padding:'12px 0',fontSize:14,cursor:'pointer',fontFamily:FF}},'Progress')
-    )
+    ),
+    h('div',{style:{textAlign:'center',marginTop:24,fontSize:11,color:'#2a2a2a'}},'v1.0')
   );
 }
 
