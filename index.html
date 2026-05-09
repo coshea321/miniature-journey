@@ -607,7 +607,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v17</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v19</div>
 
   </div>
 </div>
@@ -2846,14 +2846,18 @@ function renderHomeScreen() {
   } else {
     document.getElementById("tcBabySub").textContent = "No medicine logged yet";
   }
-  var todayWkt = getWorkoutForDate(trainTodayStr());
-  if (todayWkt && todayWkt.exercises.length) {
-    var exCount = todayWkt.exercises.length;
-    var setCount = 0;
-    for (var i = 0; i < todayWkt.exercises.length; i++) setCount += todayWkt.exercises[i].sets.length;
-    document.getElementById("tcTrainCount").textContent = exCount;
-    document.getElementById("tcTrainLabel").textContent = "exercise" + (exCount !== 1 ? "s" : "");
-    document.getElementById("tcTrainSub").textContent   = setCount + " set" + (setCount !== 1 ? "s" : "") + " logged";
+  var wd = getWD();
+  var todaySessions = (wd.workouts||[]).filter(function(w){ return w.date === trainTodayStr(); });
+  if (todaySessions.length) {
+    var names = todaySessions.map(function(w){
+      if (w.type==='yoga')   return '&#x1F9D8; ' + (w.sessionName||'Yoga');
+      if (w.type==='physio') return '&#x1FAB4; ' + (w.sessionName||'Physio');
+      var ec = (w.exercises||[]).length;
+      return '&#x1F4AA; ' + (w.sessionName||'Workout') + (ec ? ' &middot; '+ec+'ex' : '');
+    });
+    document.getElementById("tcTrainCount").textContent  = todaySessions.length;
+    document.getElementById("tcTrainLabel").textContent  = "session" + (todaySessions.length !== 1 ? "s" : "") + " today";
+    document.getElementById("tcTrainSub").innerHTML      = names.join('<br>');
   } else {
     document.getElementById("tcTrainCount").textContent = "—";
     document.getElementById("tcTrainLabel").textContent = "today";
@@ -2961,7 +2965,7 @@ function openHqp(mode, labelText, btnClass, placeholder) {
   document.getElementById("hqpAddBtn").className    = "hqp-add " + btnClass;
   document.getElementById("homeQuickInput").placeholder = placeholder;
   document.getElementById("homeQuickInput").value   = "";
-  document.getElementById("homeQuickPanel").style.display = "";
+  document.getElementById("homeQuickPanel").style.display = "block";
   setTimeout(function(){ document.getElementById("homeQuickInput").focus(); }, 50);
 }
 function closeHqp() {
