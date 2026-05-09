@@ -502,6 +502,8 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v15</div>
+
   </div>
 </div>
 
@@ -2697,11 +2699,12 @@ function closeSessionOverlay() {
 }
 
 document.getElementById("sesBackBtn").addEventListener("click", function(){
-  if (SS.type === "workout" && SS.wPhase !== "complete") {
-    if (!confirm("Exit workout? Progress will be lost.")) return;
-  }
-  if (SS.type === "yoga" && SS.yStarted && SS.yPhase === "running") {
-    if (!confirm("Exit yoga session?")) return;
+  var inProgress =
+    (SS.type === "workout" && SS.wPhase !== "intro" && SS.wPhase !== "complete") ||
+    (SS.type === "yoga"    && SS.yPhase === "running") ||
+    (SS.type === "physio"  && SS.pPhase !== "intro" && SS.pPhase !== "done");
+  if (inProgress) {
+    if (!confirm("Exit this session? Your progress will be lost.")) return;
   }
   closeSessionOverlay();
 });
@@ -2788,14 +2791,29 @@ function renderYogaSession() {
     "<p class='ses-pose-cue'>"+esc(pose.cue)+"</p>" +
     nextPose +
     "<div class='ses-ctrl-row'>" +
+      "<button class='ses-ctrl-btn' onclick='prevYogaPose()'>&#x2039; Back</button>" +
       "<button class='ses-ctrl-btn' onclick='toggleYogaPause()'>"+(SS.yPaused?"Resume":"Pause")+"</button>" +
-      "<button class='ses-ctrl-btn' onclick='skipYogaPose()'>Skip</button>" +
+      "<button class='ses-ctrl-btn' onclick='skipYogaPose()'>Skip &#x203A;</button>" +
     "</div>" +
-    "<button class='ses-exit-link' onclick=\"if(confirm('Exit?'))closeSessionOverlay()\">Exit practice</button>";
+    "<button class='ses-exit-link' onclick=\"exitSession()\">Exit practice</button>";
 }
 
-function beginYoga() {
-  SS.yStarted = true;
+// Shared "Are you sure?" exit used by inline onclick buttons
+function exitSession() {
+  if (confirm("Exit this session? Your progress will be lost.")) closeSessionOverlay();
+}
+
+function prevYogaPose() {
+  if (SS.yPoseIdx === 0) { exitSession(); return; }
+  clearST();
+  SS.yPoseIdx--;
+  SS.yTime = YOGA_FLOWS_TRAIN[SS.yFlowIdx][SS.yPoseIdx].dur;
+  SS.yPaused = false;
+  renderYogaSession();
+  startYogaTimer();
+}
+
+function beginYoga() {  SS.yStarted = true;
   SS.yPhase   = "running";
   SS.yTime    = YOGA_FLOWS_TRAIN[SS.yFlowIdx][0].dur;
   renderYogaSession();
@@ -2936,7 +2954,11 @@ function renderPhysioSession() {
       videoHtml +
     "</div>" +
     timerBlock +
-    ctrlBlock;
+    ctrlBlock +
+    "<div style='display:flex;justify-content:space-between;margin-top:10px'>" +
+      "<button class='ses-ctrl-btn' onclick='physioPrev()'>&#x2039; Back</button>" +
+      "<button class='ses-exit-link' style='margin:0' onclick='exitSession()'>Exit</button>" +
+    "</div>";
 }
 
 function beginPhysio() {
@@ -2984,6 +3006,20 @@ function physioNext() {
       SS.pTime   = nex.type==="timed" ? nex.dur : 0;
     }
   }
+  renderPhysioSession();
+}
+function physioPrev() {
+  clearST(); SS.pRunning = false;
+  if (SS.pSetNum > 1) {
+    SS.pSetNum--;
+  } else if (SS.pExIdx > 0) {
+    SS.pExIdx--;
+    SS.pSetNum = PROGRAMMES_TRAIN[SS.pProgIdx].exercises[SS.pExIdx].sets;
+  } else {
+    SS.pPhase = "intro"; renderPhysioSession(); return;
+  }
+  var ex = PROGRAMMES_TRAIN[SS.pProgIdx].exercises[SS.pExIdx];
+  SS.pTime = ex.type==="timed" ? ex.dur : 0;
   renderPhysioSession();
 }
 function finishPhysio() {
@@ -3045,6 +3081,9 @@ function renderWorkoutSession() {
         "<text x='65' y='72' text-anchor='middle' fill='#fff' font-size='34' font-weight='bold' id='restNum'>"+SS.wRestTime+"</text>" +
       "</svg></div>" +
       "<button class='ses-skip-btn' onclick='skipWorkoutRest()'>Skip rest</button>" +
+      "<div style='display:flex;justify-content:center;gap:20px;margin-top:14px'>" +
+        "<button class='ses-exit-link' style='margin:0' onclick='exitSession()'>Exit session</button>" +
+      "</div>" +
     "</div>";
     return;
   }
@@ -3078,7 +3117,11 @@ function renderWorkoutSession() {
     body.innerHTML = "<div class='ss-card'>" +
       "<div class='ss-card-hdr'><span class='ss-card-label'>Conditioning</span><span class='ss-card-round'>Round "+SS.wCondRound+" of "+COND_TRAIN.rounds+"</span></div>" +
       exHtml + "</div>" +
-      "<button class='ss-done-btn' onclick='completeCondRound()'>Done</button>";
+      "<button class='ss-done-btn' onclick='completeCondRound()'>Done</button>" +
+    "<div style='display:flex;justify-content:space-between;padding:0 14px 4px'>" +
+      "<button class='ses-ctrl-btn' onclick='SS.wPhase=\"condOption\";renderWorkoutSession()'>&#x2039; Back</button>" +
+      "<button class='ses-exit-link' style='margin:0' onclick='exitSession()'>Exit</button>" +
+    "</div>";
     wireInputs();
     return;
   }
@@ -3114,7 +3157,11 @@ function renderWorkoutSession() {
       "<span class='ss-card-round'>Round "+SS.wRound+" of "+ss2.rounds+"</span>" +
     "</div>" +
     exHtml2 + "</div>" +
-    "<button class='ss-done-btn' onclick='completeWktRound()'>Done with round</button>";
+    "<button class='ss-done-btn' onclick='completeWktRound()'>Done with round</button>" +
+    "<div style='display:flex;justify-content:space-between;padding:0 14px 4px'>" +
+      "<button class='ses-ctrl-btn' onclick='workoutBack()'>&#x2039; Back</button>" +
+      "<button class='ses-exit-link' style='margin:0' onclick='exitSession()'>Exit</button>" +
+    "</div>";
   wireInputs();
 }
 
@@ -3135,6 +3182,20 @@ function wireInputs() {
       SS.wEntries[key][field] = inp.value;
     });
   });
+}
+
+function workoutBack() {
+  clearST();
+  if (SS.wRound > 1) {
+    SS.wRound--;
+  } else if (SS.wSsIdx > 0) {
+    SS.wSsIdx--;
+    SS.wRound = WK_TRAIN[SS.wType].supersets[SS.wSsIdx].rounds;
+  } else {
+    SS.wPhase = "intro"; renderWorkoutSession(); return;
+  }
+  SS.wPhase = "log";
+  renderWorkoutSession();
 }
 
 function beginWorkout() {
