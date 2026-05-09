@@ -1,12 +1,13 @@
 {
   "name": "My Health",
   "short_name": "Health",
-  "description": "Workout, Yoga, Physio, BP and Weight tracker",
-  "start_url": "./index.html",
+  "description": "Lists, Workouts, Yoga, Physio & Body tracker",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#111111",
-  "theme_color": "#111111",
+  "background_color": "#111820",
+  "theme_color": "#111820",
+  "categories": ["health", "fitness", "lifestyle"],
   "icons": [
     {
       "src": "./icon-192.png",
