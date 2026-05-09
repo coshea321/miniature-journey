@@ -2168,7 +2168,17 @@ function mergeHist(existing, incoming) {
 // ============================================================
 // SERVICE WORKER
 // ============================================================
-if ("serviceWorker" in navigator) { navigator.serviceWorker.register("./sw.js").catch(function(){}); }
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").catch(function(){});
+
+  // When the service worker activates a new version, it posts SW_UPDATED.
+  // We reload once so the user gets the latest version automatically.
+  navigator.serviceWorker.addEventListener("message", function(e) {
+    if (e.data && e.data.type === "SW_UPDATED") {
+      window.location.reload();
+    }
+  });
+}
 
 // ============================================================
 // INIT
