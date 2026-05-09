@@ -242,17 +242,106 @@ body.home-mode .bn-btn{color:#4A6080}
 .wk-dot.has-list{background:#1A3020;border-color:#2D6B35}
 .wk-dot.worked.has-list{background:linear-gradient(135deg,#2D6B35,#3B6FE0);border-color:transparent}
 
-/* Bottom nav active states for 3-tab */
+/* Bottom nav active states */
 body.home-mode .bn-btn.home-active{color:#7AAAD8}
 .bn-btn.life-active{color:#2D6B35}
 .bn-btn.train-active{color:#3B6FE0}
+.bn-btn.baby-active{color:#c084fc}
 
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;display:flex;background:#fff;border-top:1px solid #E0DCD4;z-index:350;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -2px 12px rgba(0,0,0,.08)}
-.bn-btn{flex:1;padding:10px 8px 8px;border:none;background:none;font-family:inherit;font-size:11px;font-weight:700;color:#AAA090;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:color .2s}
-.bn-btn .bn-ico{font-size:24px;line-height:1}
-.bn-btn.life-active{color:#2D6B35}
-.bn-btn.train-active{color:#3B6FE0}
+.bn-btn{flex:1;padding:8px 4px 6px;border:none;background:none;font-family:inherit;font-size:10px;font-weight:700;color:#AAA090;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color .2s}
+.bn-btn .bn-ico{font-size:22px;line-height:1}
 body .content{padding-bottom:90px}
+
+/* ============================================================
+   BABY SECTION
+   ============================================================ */
+body.baby-mode{background:#110A14;color:#F0E8F2}
+body.baby-mode header{background:#110A14;border-bottom:1px solid #2E1A36}
+body.baby-mode .app-title{color:#F0E8F2}
+body.baby-mode .hdr-btn{background:rgba(255,255,255,.07);color:#C0B0D0}
+body.baby-mode .bottom-nav{background:#110A14;border-top-color:#2E1A36}
+body.baby-mode #toast{background:#230D2E}
+
+.baby-subnav{display:flex;gap:4px;padding:5px 5px 4px;background:#0D0710;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+.bsn-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:#6A4A7A;background:none;cursor:pointer;transition:all .18s}
+.bsn-btn.active{color:#F0E8F2;background:#9333ea}
+.baby-content{padding:13px 13px 100px}
+
+.baby-log-card{background:#1E0D26;border-radius:12px;padding:14px;margin-bottom:13px;border:1px solid #2E1A36}
+.baby-card-title{font-family:Georgia,serif;font-size:16px;font-weight:600;color:#F0E8F2;margin-bottom:12px}
+.baby-log-btn{width:100%;padding:11px;border:none;background:#9333ea;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.baby-log-btn:active{opacity:.8}
+
+/* Growth */
+.growth-input-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.growth-field label{display:block;font-size:11px;font-weight:700;color:#6A4A7A;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.growth-input{border:1.5px solid #2E1A36;border-radius:9px;padding:11px 12px;background:#0D0710;color:#F0E8F2;font-family:inherit;font-size:17px;text-align:center;outline:none;transition:border-color .15s;width:100%;box-sizing:border-box}
+.growth-input:focus{border-color:#9333ea}
+.growth-entry{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid #0D0710}
+.growth-entry:last-child{border-bottom:none}
+.growth-entry-date{font-size:12px;color:#6A4A7A;min-width:82px}
+.growth-entry-vals{flex:1;font-size:14px;color:#D8C0E8;font-weight:500}
+.growth-entry-diff{font-size:11px;font-weight:700;color:#a855f7;margin-right:8px}
+.growth-entry-del{border:none;background:none;color:#804050;font-size:13px;cursor:pointer;opacity:.45}
+
+/* Medicine */
+.med-quick-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.med-chip{padding:5px 12px;border-radius:20px;border:1.5px solid #2E1A36;background:none;color:#9A78AA;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.med-chip.selected{background:#9333ea;color:#fff;border-color:#9333ea}
+.med-input-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.med-input{border:1.5px solid #2E1A36;border-radius:9px;padding:10px 12px;background:#0D0710;color:#F0E8F2;font-family:inherit;font-size:14px;outline:none;transition:border-color .15s;width:100%;box-sizing:border-box}
+.med-input:focus{border-color:#9333ea}
+.med-input::placeholder{color:#4A2A5A}
+.med-full-row{margin-bottom:8px}
+.med-entry{padding:10px 0;border-bottom:1px solid #0D0710}
+.med-entry:last-child{border-bottom:none}
+.med-entry-top{display:flex;align-items:center;gap:8px}
+.med-entry-name{font-size:15px;font-weight:700;color:#F0E8F2;flex:1}
+.med-entry-dose{font-size:13px;color:#a855f7;font-weight:600}
+.med-entry-del{border:none;background:none;color:#804050;font-size:13px;cursor:pointer;opacity:.45}
+.med-entry-dt{font-size:11px;color:#6A4A7A;margin-top:2px}
+.med-entry-note{font-size:12px;color:#9A78AA;margin-top:2px;font-style:italic}
+
+/* Milestones */
+.ms-cat-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.ms-cat-btn{padding:5px 12px;border-radius:20px;border:1.5px solid #2E1A36;background:none;font-family:inherit;font-size:12px;font-weight:700;color:#6A4A7A;cursor:pointer;transition:all .15s}
+.ms-cat-btn.sel{color:#fff;border-color:transparent}
+.milestone-entry{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #0D0710}
+.milestone-entry:last-child{border-bottom:none}
+.ms-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.milestone-body{flex:1}
+.milestone-text{font-size:14px;color:#F0E8F2;margin-bottom:2px}
+.milestone-meta{font-size:11px;color:#6A4A7A}
+.milestone-cat-badge{font-size:10px;font-weight:700;border-radius:6px;padding:1px 7px;margin-left:6px;display:inline-block}
+.milestone-entry-del{border:none;background:none;color:#804050;font-size:13px;cursor:pointer;opacity:.45;flex-shrink:0}
+
+/* Teeth */
+.teeth-jaw-label{font-size:11px;font-weight:700;color:#6A4A7A;text-align:center;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.teeth-row{display:flex;justify-content:center;gap:3px;margin-bottom:4px}
+.tooth-btn{width:28px;height:34px;border-radius:5px 5px 9px 9px;border:2px solid #2E1A36;background:#0D0710;cursor:pointer;font-size:8px;font-weight:700;color:#6A4A7A;transition:all .2s;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2;padding:2px;box-sizing:border-box}
+.tooth-btn:active{opacity:.7}
+.tooth-btn.erupted{background:#9333ea;border-color:#a855f7;color:#fff}
+.tooth-btn.lower{border-radius:9px 9px 5px 5px}
+.teeth-midline{height:2px;background:#2E1A36;border-radius:1px;margin:7px 16px}
+.teeth-count{text-align:center;font-size:13px;color:#a855f7;font-weight:700;margin-top:12px;padding:8px;background:#1E0D26;border-radius:8px}
+
+/* Tooth tap modal */
+#toothModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:700;align-items:flex-end;justify-content:center}
+#toothModal.open{display:flex}
+.tooth-modal-box{background:#1E0D26;border-radius:16px 16px 0 0;padding:22px 20px 32px;width:100%;max-width:480px;border-top:1px solid #2E1A36}
+.tooth-modal-name{font-family:Georgia,serif;font-size:18px;font-weight:600;color:#F0E8F2;margin-bottom:3px}
+.tooth-modal-sub{font-size:13px;color:#6A4A7A;margin-bottom:18px}
+.tooth-modal-btn{width:100%;padding:13px;border:none;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px;display:block}
+.tmbtn-erupt{background:#9333ea;color:#fff}
+.tmbtn-undo{background:#2E1A36;color:#a855f7}
+.tmbtn-cancel{background:none;border:none;font-family:inherit;font-size:13px;color:#6A4A7A;cursor:pointer;width:100%;padding:6px;margin-top:2px}
+
+/* Baby home card */
+.today-card-baby{background:linear-gradient(135deg,#1A0A24 0%,#220D30 100%);border:1px solid #9333ea40;cursor:pointer}
+.today-card-baby .tc-count{color:#c084fc}
+.today-card-baby .tc-label{color:#7E22CE}
+.today-card-baby .tc-sub{color:#9A64C8}
 
 /* ============================================================
    TRAIN SECTION — dark theme
@@ -449,7 +538,7 @@ body.train-mode #toast{background:#132040}
       <div class="home-date-big" id="homeDateBig">Today</div>
     </div>
 
-    <!-- Today at a glance — 2-col split -->
+    <!-- Today at a glance — 2+2 split -->
     <div class="today-split">
       <div class="today-card today-card-life" id="tcLifeCard">
         <div class="tc-icon">&#x1F6D2;</div>
@@ -463,6 +552,21 @@ body.train-mode #toast{background:#132040}
         <div class="tc-label" id="tcTrainLabel">today</div>
         <div class="tc-sub" id="tcTrainSub">No session yet</div>
       </div>
+      <div class="today-card today-card-baby" id="tcBabyCard" style="grid-column:span 2">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div>
+            <div class="tc-icon" style="margin-bottom:0">&#x1F476;</div>
+          </div>
+          <div style="flex:1">
+            <div class="tc-label" style="margin-bottom:2px">Last medicine</div>
+            <div class="tc-sub" id="tcBabySub" style="font-size:13px">No medicine logged yet</div>
+          </div>
+          <div style="text-align:right">
+            <div class="tc-count" style="font-size:20px" id="tcBabyTeeth">0</div>
+            <div class="tc-label">teeth</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Quick-add buttons -->
@@ -470,6 +574,7 @@ body.train-mode #toast{background:#132040}
       <button class="hqbtn hqbtn-grocery" id="hqGrocery">+ Grocery</button>
       <button class="hqbtn hqbtn-task" id="hqTask">+ Task</button>
       <button class="hqbtn hqbtn-train" id="hqExercise">+ Exercise</button>
+      <button class="hqbtn" style="background:#1A0A24;color:#c084fc;border:1.5px solid #9333ea40" id="hqMed">+ Medicine</button>
     </div>
 
     <!-- Inline quick-add panel -->
@@ -502,7 +607,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v16</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v17</div>
 
   </div>
 </div>
@@ -630,6 +735,109 @@ body.train-mode #toast{background:#132040}
   </div>
 
 </div><!-- end trainSection -->
+
+<!-- ============================================================
+     BABY SECTION
+     ============================================================ -->
+<div id="babySection" style="display:none">
+
+  <div class="baby-subnav">
+    <button class="bsn-btn active" data-bview="growth">&#x1F4CF; Growth</button>
+    <button class="bsn-btn" data-bview="medicine">&#x1F48A; Medicine</button>
+    <button class="bsn-btn" data-bview="milestones">&#x2B50; Milestones</button>
+    <button class="bsn-btn" data-bview="teeth">&#x1F9B7; Teeth</button>
+  </div>
+
+  <!-- GROWTH -->
+  <div id="babyGrowthView" class="baby-content">
+    <div class="baby-log-card">
+      <div class="baby-card-title">&#x1F4CF; Log measurement</div>
+      <div class="growth-input-grid">
+        <div class="growth-field"><label>Height (cm)</label><input id="growthHeight" class="growth-input" type="number" min="40" max="130" step="0.1" placeholder="—" inputmode="decimal"></div>
+        <div class="growth-field"><label>Weight (kg)</label><input id="growthWeight" class="growth-input" type="number" min="2" max="30" step="0.05" placeholder="—" inputmode="decimal"></div>
+      </div>
+      <div style="margin-bottom:8px"><label style="font-size:11px;font-weight:700;color:#6A4A7A;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Date</label>
+        <input id="growthDate" type="date" class="growth-input" style="font-size:14px;text-align:left"></div>
+      <button class="baby-log-btn" id="growthLogBtn">Save measurement</button>
+    </div>
+    <div class="baby-log-card">
+      <div class="baby-card-title">&#x1F4C8; History</div>
+      <div id="growthHistory"></div>
+    </div>
+  </div>
+
+  <!-- MEDICINE -->
+  <div id="babyMedicineView" class="baby-content" style="display:none">
+    <div class="baby-log-card">
+      <div class="baby-card-title">&#x1F48A; Log medicine</div>
+      <div class="med-quick-chips" id="medChips">
+        <button class="med-chip" data-med="Calpol">Calpol</button>
+        <button class="med-chip" data-med="Nurofen">Nurofen</button>
+        <button class="med-chip" data-med="Antibiotic">Antibiotic</button>
+        <button class="med-chip" data-med="Antihistamine">Antihistamine</button>
+        <button class="med-chip" data-med="Vitamin D">Vitamin D</button>
+      </div>
+      <div class="med-input-row">
+        <input id="medName" class="med-input" type="text" placeholder="Medicine name" autocomplete="off">
+        <input id="medDose" class="med-input" type="text" placeholder="Dose e.g. 5ml">
+      </div>
+      <div class="med-input-row">
+        <input id="medDate" type="date" class="med-input">
+        <input id="medTime" type="time" class="med-input">
+      </div>
+      <div class="med-full-row"><input id="medNote" class="med-input" type="text" placeholder="Notes (optional)" autocomplete="off"></div>
+      <button class="baby-log-btn" id="medLogBtn">Log medicine</button>
+    </div>
+    <div class="baby-log-card">
+      <div class="baby-card-title">&#x1F4CB; Log</div>
+      <div id="medicineHistory"></div>
+    </div>
+  </div>
+
+  <!-- MILESTONES -->
+  <div id="babyMilestonesView" class="baby-content" style="display:none">
+    <div class="baby-log-card">
+      <div class="baby-card-title">&#x2B50; Add milestone</div>
+      <div class="ms-cat-row" id="msCatRow">
+        <button class="ms-cat-btn sel" data-cat="physical" style="background:#1d4ed8;border-color:#1d4ed8">&#x1F3C3; Physical</button>
+        <button class="ms-cat-btn" data-cat="language" style="color:#059669">&#x1F4AC; Language</button>
+        <button class="ms-cat-btn" data-cat="social" style="color:#d97706">&#x1F91D; Social</button>
+        <button class="ms-cat-btn" data-cat="cognitive" style="color:#9333ea">&#x1F9E0; Cognitive</button>
+      </div>
+      <div class="med-full-row"><input id="msText" class="med-input" type="text" placeholder="Describe the milestone..." autocomplete="off"></div>
+      <div style="margin-bottom:8px"><input id="msDate" type="date" class="med-input"></div>
+      <button class="baby-log-btn" id="msLogBtn">Save milestone</button>
+    </div>
+    <div class="baby-log-card">
+      <div class="baby-card-title">&#x1F4D6; Timeline</div>
+      <div id="milestonesHistory"></div>
+    </div>
+  </div>
+
+  <!-- TEETH -->
+  <div id="babyTeethView" class="baby-content" style="display:none">
+    <div class="baby-log-card">
+      <div class="baby-card-title">&#x1F9B7; Tap a tooth to record it</div>
+      <div class="teeth-jaw-label">Upper</div>
+      <div class="teeth-row" id="teethUpperRow"></div>
+      <div class="teeth-midline"></div>
+      <div class="teeth-row" id="teethLowerRow"></div>
+      <div class="teeth-jaw-label" style="margin-top:6px">Lower</div>
+      <div class="teeth-count" id="teethCount">0 of 20 teeth</div>
+    </div>
+  </div>
+
+</div><!-- end babySection -->
+
+<!-- Tooth tap modal -->
+<div id="toothModal">
+  <div class="tooth-modal-box">
+    <div class="tooth-modal-name" id="toothModalName"></div>
+    <div class="tooth-modal-sub" id="toothModalSub"></div>
+    <button class="tooth-modal-btn tmbtn-erupt" id="toothEruptBtn"></button>
+    <button class="tooth-modal-btn tmbtn-cancel" id="toothCancelBtn">Cancel</button>
+  </div>
+</div>
 
 <!-- SESSION OVERLAY (fullscreen active session) -->
 <div id="sessionOverlay">
@@ -787,6 +995,9 @@ body.train-mode #toast{background:#132040}
   </button>
   <button class="bn-btn" id="bnTrain">
     <span class="bn-ico">&#x1F4AA;</span>Train
+  </button>
+  <button class="bn-btn" id="bnBaby">
+    <span class="bn-ico">&#x1F476;</span>Baby
   </button>
 </nav>
 
@@ -2168,6 +2379,361 @@ function mergeHist(existing, incoming) {
 // ============================================================
 // SERVICE WORKER
 // ============================================================
+// ============================================================
+// BABY MODULE
+// ============================================================
+var currentBabyView = "growth";
+
+var TOOTH_NAMES = {
+  // upper left→right from patient's perspective
+  UL5:"Upper left 2nd molar", UL4:"Upper left 1st molar", UL3:"Upper left canine",
+  UL2:"Upper left lateral incisor", UL1:"Upper left central incisor",
+  UR1:"Upper right central incisor", UR2:"Upper right lateral incisor",
+  UR3:"Upper right canine", UR4:"Upper right 1st molar", UR5:"Upper right 2nd molar",
+  // lower
+  LL5:"Lower left 2nd molar", LL4:"Lower left 1st molar", LL3:"Lower left canine",
+  LL2:"Lower left lateral incisor", LL1:"Lower left central incisor",
+  LR1:"Lower right central incisor", LR2:"Lower right lateral incisor",
+  LR3:"Lower right canine", LR4:"Lower right 1st molar", LR5:"Lower right 2nd molar"
+};
+var TOOTH_ERUPT_AGES = {
+  UL1:"8–12 mo", UR1:"8–12 mo", LL1:"6–10 mo", LR1:"6–10 mo",
+  UL2:"9–13 mo", UR2:"9–13 mo", LL2:"10–16 mo", LR2:"10–16 mo",
+  UL3:"16–22 mo", UR3:"16–22 mo", LL3:"16–23 mo", LR3:"16–23 mo",
+  UL4:"13–19 mo", UR4:"13–19 mo", LL4:"14–18 mo", LR4:"14–18 mo",
+  UL5:"25–33 mo", UR5:"25–33 mo", LL5:"23–31 mo", LR5:"23–31 mo"
+};
+var MS_CATS = {
+  physical:  { label:"Physical",  color:"#1d4ed8", bg:"#1e3a8a" },
+  language:  { label:"Language",  color:"#059669", bg:"#064e3b" },
+  social:    { label:"Social",    color:"#d97706", bg:"#451a03" },
+  cognitive: { label:"Cognitive", color:"#9333ea", bg:"#3b0764" }
+};
+
+function getBD()      { return storeGet("fl4_baby") || { growth:[], medicine:[], milestones:[], teeth:{} }; }
+function saveBD(data) { storeSet("fl4_baby", data); }
+
+function renderBabyView() {
+  // Sync sub-nav buttons
+  document.querySelectorAll(".bsn-btn").forEach(function(b){
+    b.classList.toggle("active", b.dataset.bview === currentBabyView);
+  });
+  document.getElementById("babyGrowthView").style.display     = currentBabyView === "growth"     ? "" : "none";
+  document.getElementById("babyMedicineView").style.display   = currentBabyView === "medicine"   ? "" : "none";
+  document.getElementById("babyMilestonesView").style.display = currentBabyView === "milestones" ? "" : "none";
+  document.getElementById("babyTeethView").style.display      = currentBabyView === "teeth"      ? "" : "none";
+
+  if (currentBabyView === "growth")     renderGrowth();
+  if (currentBabyView === "medicine")   renderMedicine();
+  if (currentBabyView === "milestones") renderMilestones();
+  if (currentBabyView === "teeth")      renderTeeth();
+}
+
+// ── Baby sub-nav wiring ───────────────────────────────────
+document.getElementById("babySection").addEventListener("click", function(e) {
+  var btn = e.target.closest(".bsn-btn");
+  if (btn) { currentBabyView = btn.dataset.bview; renderBabyView(); }
+});
+
+// ── Helpers ───────────────────────────────────────────────
+function babyFmtDate(dateStr) {
+  var d = new Date(dateStr + "T12:00:00");
+  return d.toLocaleDateString("en-IE", {day:"numeric", month:"short", year:"numeric"});
+}
+function todayDateStr() {
+  var d = new Date();
+  return d.getFullYear() + "-" + t2(d.getMonth()+1) + "-" + t2(d.getDate());
+}
+function nowTimeStr() {
+  var d = new Date();
+  return t2(d.getHours()) + ":" + t2(d.getMinutes());
+}
+
+// ── GROWTH ────────────────────────────────────────────────
+(function initGrowthDate(){
+  var di = document.getElementById("growthDate");
+  if (di) di.value = todayDateStr();
+})();
+
+document.getElementById("growthLogBtn").addEventListener("click", function() {
+  var h  = parseFloat(document.getElementById("growthHeight").value);
+  var w  = parseFloat(document.getElementById("growthWeight").value);
+  var dt = document.getElementById("growthDate").value || todayDateStr();
+  if (!h && !w) { toast("Enter at least height or weight"); return; }
+  var data = getBD();
+  data.growth = data.growth || [];
+  data.growth.unshift({ date: dt, height: h||null, weight: w||null });
+  data.growth.sort(function(a,b){ return b.date.localeCompare(a.date); });
+  saveBD(data);
+  document.getElementById("growthHeight").value = "";
+  document.getElementById("growthWeight").value = "";
+  document.getElementById("growthDate").value = todayDateStr();
+  renderGrowth();
+  toast("&#x1F4CF; Measurement saved");
+});
+
+function renderGrowth() {
+  var data = getBD(), entries = data.growth || [];
+  var el = document.getElementById("growthHistory");
+  if (!entries.length) { el.innerHTML = "<p style='text-align:center;color:#4A2A5A;padding:20px;font-size:14px'>No measurements yet.</p>"; return; }
+  var html = "";
+  for (var i = 0; i < entries.length; i++) {
+    var e2 = entries[i];
+    var vals = [];
+    if (e2.height) vals.push(e2.height + " cm");
+    if (e2.weight) vals.push(e2.weight + " kg");
+    var diff = "";
+    if (i < entries.length - 1) {
+      var prev = entries[i+1];
+      var parts = [];
+      if (e2.weight && prev.weight) {
+        var dw = (e2.weight - prev.weight).toFixed(2);
+        parts.push((dw > 0 ? "+" : "") + dw + " kg");
+      }
+      if (e2.height && prev.height) {
+        var dh = (e2.height - prev.height).toFixed(1);
+        if (dh != 0) parts.push((dh > 0 ? "+" : "") + dh + " cm");
+      }
+      if (parts.length) diff = "<span class='growth-entry-diff'>"+parts.join(" / ")+"</span>";
+    }
+    html += "<div class='growth-entry'>" +
+      "<span class='growth-entry-date'>"+babyFmtDate(e2.date)+"</span>" +
+      "<span class='growth-entry-vals'>"+vals.join(" · ")+"</span>" +
+      diff +
+      "<button class='growth-entry-del' data-idx='"+i+"'>&#x2715;</button>" +
+    "</div>";
+  }
+  el.innerHTML = html;
+  el.querySelectorAll(".growth-entry-del").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var data = getBD(); data.growth.splice(+btn.dataset.idx, 1); saveBD(data); renderGrowth();
+    });
+  });
+}
+
+// ── MEDICINE ──────────────────────────────────────────────
+(function initMedDateTime(){
+  var md = document.getElementById("medDate"), mt = document.getElementById("medTime");
+  if (md) md.value = todayDateStr();
+  if (mt) mt.value = nowTimeStr();
+})();
+
+// Quick-chip selection
+var selectedMedChip = null;
+document.getElementById("medChips").addEventListener("click", function(e) {
+  var chip = e.target.closest(".med-chip");
+  if (!chip) return;
+  var name = chip.dataset.med;
+  document.querySelectorAll(".med-chip").forEach(function(c){ c.classList.remove("selected"); });
+  chip.classList.add("selected");
+  selectedMedChip = name;
+  document.getElementById("medName").value = name;
+  // Pre-fill dose for common ones
+  var doses = { "Calpol":"5ml", "Nurofen":"5ml", "Vitamin D":"4 drops" };
+  if (doses[name] && !document.getElementById("medDose").value) {
+    document.getElementById("medDose").value = doses[name];
+  }
+});
+
+document.getElementById("medLogBtn").addEventListener("click", function() {
+  var name = document.getElementById("medName").value.trim();
+  var dose = document.getElementById("medDose").value.trim();
+  var date = document.getElementById("medDate").value || todayDateStr();
+  var time = document.getElementById("medTime").value || nowTimeStr();
+  var note = document.getElementById("medNote").value.trim();
+  if (!name) { toast("Enter medicine name"); return; }
+  var data = getBD();
+  data.medicine = data.medicine || [];
+  data.medicine.unshift({ id: Date.now(), name: name, dose: dose, datetime: date+"T"+time, note: note });
+  saveBD(data);
+  // Reset
+  document.getElementById("medName").value = "";
+  document.getElementById("medDose").value = "";
+  document.getElementById("medNote").value = "";
+  document.getElementById("medDate").value = todayDateStr();
+  document.getElementById("medTime").value = nowTimeStr();
+  document.querySelectorAll(".med-chip").forEach(function(c){ c.classList.remove("selected"); });
+  selectedMedChip = null;
+  renderMedicine();
+  toast("&#x1F48A; Medicine logged");
+});
+
+function renderMedicine() {
+  var data = getBD(), entries = data.medicine || [];
+  var el = document.getElementById("medicineHistory");
+  if (!entries.length) { el.innerHTML = "<p style='text-align:center;color:#4A2A5A;padding:20px;font-size:14px'>No medicines logged yet.</p>"; return; }
+  // Group by date
+  var byDate = {};
+  var dateOrder = [];
+  entries.forEach(function(e2) {
+    var d = e2.datetime ? e2.datetime.slice(0,10) : "unknown";
+    if (!byDate[d]) { byDate[d] = []; dateOrder.push(d); }
+    byDate[d].push(e2);
+  });
+  var html = "";
+  dateOrder.forEach(function(d) {
+    html += "<div style='font-size:11px;font-weight:700;color:#6A4A7A;padding:8px 0 4px;text-transform:uppercase;letter-spacing:.4px'>"+babyFmtDate(d)+"</div>";
+    byDate[d].forEach(function(e2) {
+      var dt = new Date(e2.datetime);
+      var timeStr = isNaN(dt) ? "" : dt.toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"});
+      html += "<div class='med-entry'>" +
+        "<div class='med-entry-top'>" +
+          "<span class='med-entry-name'>"+esc(e2.name)+"</span>" +
+          (e2.dose ? "<span class='med-entry-dose'>"+esc(e2.dose)+"</span>" : "") +
+          "<button class='med-entry-del' data-id='"+e2.id+"'>&#x2715;</button>" +
+        "</div>" +
+        "<div class='med-entry-dt'>"+timeStr+"</div>" +
+        (e2.note ? "<div class='med-entry-note'>"+esc(e2.note)+"</div>" : "") +
+      "</div>";
+    });
+  });
+  el.innerHTML = html;
+  el.querySelectorAll(".med-entry-del").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var data = getBD();
+      data.medicine = (data.medicine||[]).filter(function(e2){ return e2.id !== +btn.dataset.id; });
+      saveBD(data); renderMedicine();
+    });
+  });
+}
+
+// ── MILESTONES ────────────────────────────────────────────
+var selectedMsCat = "physical";
+(function initMsDate(){
+  var d = document.getElementById("msDate");
+  if (d) d.value = todayDateStr();
+})();
+
+document.getElementById("msCatRow").addEventListener("click", function(e) {
+  var btn = e.target.closest(".ms-cat-btn");
+  if (!btn) return;
+  selectedMsCat = btn.dataset.cat;
+  document.querySelectorAll(".ms-cat-btn").forEach(function(b) {
+    var c = MS_CATS[b.dataset.cat];
+    b.classList.toggle("sel", b.dataset.cat === selectedMsCat);
+    b.style.background = b.dataset.cat === selectedMsCat ? c.bg : "";
+    b.style.color = b.dataset.cat === selectedMsCat ? "#fff" : c.color;
+    b.style.borderColor = b.dataset.cat === selectedMsCat ? c.color : "#2E1A36";
+  });
+});
+
+document.getElementById("msLogBtn").addEventListener("click", function() {
+  var text = document.getElementById("msText").value.trim();
+  var date = document.getElementById("msDate").value || todayDateStr();
+  if (!text) { toast("Describe the milestone"); return; }
+  var data = getBD();
+  data.milestones = data.milestones || [];
+  data.milestones.unshift({ id: Date.now(), text: text, date: date, cat: selectedMsCat });
+  data.milestones.sort(function(a,b){ return b.date.localeCompare(a.date); });
+  saveBD(data);
+  document.getElementById("msText").value = "";
+  document.getElementById("msDate").value = todayDateStr();
+  renderMilestones();
+  toast("&#x2B50; Milestone saved!");
+});
+
+function renderMilestones() {
+  var data = getBD(), entries = data.milestones || [];
+  var el = document.getElementById("milestonesHistory");
+  if (!entries.length) { el.innerHTML = "<p style='text-align:center;color:#4A2A5A;padding:20px;font-size:14px'>No milestones yet.</p>"; return; }
+  var html = "";
+  entries.forEach(function(e2) {
+    var cat = MS_CATS[e2.cat] || MS_CATS.physical;
+    html += "<div class='milestone-entry'>" +
+      "<div class='ms-dot' style='background:"+cat.color+"'></div>" +
+      "<div class='milestone-body'>" +
+        "<div class='milestone-text'>"+esc(e2.text)+"</div>" +
+        "<div class='milestone-meta'>"+babyFmtDate(e2.date) +
+          "<span class='milestone-cat-badge' style='background:"+cat.bg+";color:"+cat.color+"'>"+cat.label+"</span>" +
+        "</div>" +
+      "</div>" +
+      "<button class='milestone-entry-del' data-id='"+e2.id+"'>&#x2715;</button>" +
+    "</div>";
+  });
+  el.innerHTML = html;
+  el.querySelectorAll(".milestone-entry-del").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var data = getBD();
+      data.milestones = (data.milestones||[]).filter(function(e2){ return e2.id !== +btn.dataset.id; });
+      saveBD(data); renderMilestones();
+    });
+  });
+}
+
+// ── TEETH ─────────────────────────────────────────────────
+var UPPER_TEETH = ["UL5","UL4","UL3","UL2","UL1","UR1","UR2","UR3","UR4","UR5"];
+var LOWER_TEETH = ["LL5","LL4","LL3","LL2","LL1","LR1","LR2","LR3","LR4","LR5"];
+var TOOTH_SHORT = {
+  UL5:"L\n2M", UL4:"L\n1M", UL3:"L\nC", UL2:"L\nLI", UL1:"L\nCI",
+  UR1:"R\nCI", UR2:"R\nLI", UR3:"R\nC",  UR4:"R\n1M", UR5:"R\n2M",
+  LL5:"L\n2M", LL4:"L\n1M", LL3:"L\nC",  LL2:"L\nLI", LL1:"L\nCI",
+  LR1:"R\nCI", LR2:"R\nLI", LR3:"R\nC",  LR4:"R\n1M", LR5:"R\n2M"
+};
+
+var toothPending = null;
+
+function renderTeeth() {
+  var data = getBD(), teeth = data.teeth || {};
+  var upper = document.getElementById("teethUpperRow");
+  var lower = document.getElementById("teethLowerRow");
+  var eruptedCount = 0;
+
+  function buildRow(ids, isLower) {
+    var html = "";
+    ids.forEach(function(id) {
+      var erupted = !!teeth[id];
+      if (erupted) eruptedCount++;
+      html += "<button class='tooth-btn"+(isLower?" lower":"")+(erupted?" erupted":"")+"' data-tooth='"+id+"'>"+
+        (TOOTH_SHORT[id]||id).replace("\n","<br>") + "</button>";
+    });
+    return html;
+  }
+
+  upper.innerHTML = buildRow(UPPER_TEETH, false);
+  lower.innerHTML = buildRow(LOWER_TEETH, true);
+  document.getElementById("teethCount").textContent = eruptedCount + " of 20 teeth";
+
+  // Wire tooth taps
+  [upper, lower].forEach(function(row) {
+    row.querySelectorAll(".tooth-btn").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        openToothModal(btn.dataset.tooth);
+      });
+    });
+  });
+}
+
+function openToothModal(toothId) {
+  toothPending = toothId;
+  var data = getBD(), erupted = !!(data.teeth||{})[toothId];
+  document.getElementById("toothModalName").textContent = TOOTH_NAMES[toothId] || toothId;
+  document.getElementById("toothModalSub").textContent = "Typical eruption: " + (TOOTH_ERUPT_AGES[toothId]||"varies");
+  var eruptBtn = document.getElementById("toothEruptBtn");
+  eruptBtn.textContent = erupted ? "✓ Mark as not yet erupted" : "Mark as erupted";
+  eruptBtn.className = "tooth-modal-btn " + (erupted ? "tmbtn-undo" : "tmbtn-erupt");
+  document.getElementById("toothModal").classList.add("open");
+}
+
+document.getElementById("toothEruptBtn").addEventListener("click", function() {
+  if (!toothPending) return;
+  var data = getBD();
+  data.teeth = data.teeth || {};
+  data.teeth[toothPending] = !data.teeth[toothPending];
+  saveBD(data);
+  document.getElementById("toothModal").classList.remove("open");
+  toothPending = null;
+  renderTeeth();
+  toast(data.teeth[toothPending===null?Object.keys(data.teeth).pop():toothPending] ? "&#x1F9B7; Tooth erupted!" : "Tooth removed");
+});
+
+document.getElementById("toothCancelBtn").addEventListener("click", function() {
+  document.getElementById("toothModal").classList.remove("open");
+  toothPending = null;
+});
+document.getElementById("toothModal").addEventListener("click", function(e) {
+  if (e.target === this) { this.classList.remove("open"); toothPending = null; }
+});
+
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./sw.js").catch(function(){});
 
@@ -2186,7 +2752,6 @@ if ("serviceWorker" in navigator) {
 loadListData("grocery");
 loadListData("todo");
 if (fbUrl && syncRoom) { startListening(); updateSyncStatus(); }
-switchSection("home");
 
 // ============================================================
 // SECTION SWITCHER  (Home / Lists / Train)
@@ -2199,13 +2764,16 @@ function switchSection(section) {
   document.getElementById("homeSection").style.display  = section === "home"  ? "" : "none";
   document.getElementById("lifeSection").style.display  = section === "lists" ? "" : "none";
   document.getElementById("trainSection").style.display = section === "train" ? "" : "none";
+  document.getElementById("babySection").style.display  = section === "baby"  ? "" : "none";
 
   document.getElementById("bnHome").className  = "bn-btn" + (section === "home"  ? " home-active"  : "");
   document.getElementById("bnLife").className  = "bn-btn" + (section === "lists" ? " life-active"  : "");
   document.getElementById("bnTrain").className = "bn-btn" + (section === "train" ? " train-active" : "");
+  document.getElementById("bnBaby").className  = "bn-btn" + (section === "baby"  ? " baby-active"  : "");
 
   document.body.classList.toggle("home-mode",  section === "home");
   document.body.classList.toggle("train-mode", section === "train");
+  document.body.classList.toggle("baby-mode",  section === "baby");
 
   if (section === "home") {
     document.getElementById("themeColor").setAttribute("content", "#111820");
@@ -2216,17 +2784,26 @@ function switchSection(section) {
     document.body.classList.remove("home-mode");
     applyListTheme();
     renderList();
-  } else {
+  } else if (section === "train") {
     document.getElementById("themeColor").setAttribute("content", "#132040");
     document.getElementById("appTitle").textContent  = "\u{1F4AA} Train";
     document.getElementById("hdrBadge").style.display = "none";
     renderTrainView();
+  } else if (section === "baby") {
+    document.getElementById("themeColor").setAttribute("content", "#110A14");
+    document.getElementById("appTitle").innerHTML = "&#x1F476; Baby";
+    document.getElementById("hdrBadge").style.display = "none";
+    renderBabyView();
   }
 }
 
 document.getElementById("bnHome").addEventListener("click",  function(){ switchSection("home");  });
 document.getElementById("bnLife").addEventListener("click",  function(){ switchSection("lists"); });
 document.getElementById("bnTrain").addEventListener("click", function(){ switchSection("train"); });
+document.getElementById("bnBaby").addEventListener("click",  function(){ switchSection("baby");  });
+
+// Boot into home
+switchSection("home");
 
 // ============================================================
 // HOME SCREEN
@@ -2254,7 +2831,21 @@ function renderHomeScreen() {
     (tdItems.length ? "<span>&#x2705; "+tdItems.length+"</span>"   : "") ||
     "<span>All clear!</span>";
 
-  // ── Train today-card ──────────────────────────────────────
+  // ── Baby today-card ──────────────────────────────────────
+  var bd = getBD();
+  var teethCount = (bd.teeth||{});
+  var eruptedCount = Object.keys(teethCount).filter(function(k){ return teethCount[k]; }).length;
+  document.getElementById("tcBabyTeeth").textContent = eruptedCount;
+  var meds = (bd.medicine||[]);
+  if (meds.length) {
+    var last = meds[0];
+    var dt = new Date(last.datetime);
+    var timeStr = dt.toLocaleTimeString("en-IE", {hour:"2-digit",minute:"2-digit"});
+    var dateStr2 = dt.toLocaleDateString("en-IE", {day:"numeric",month:"short"});
+    document.getElementById("tcBabySub").textContent = last.name + (last.dose?" · "+last.dose:"") + " · " + dateStr2 + " " + timeStr;
+  } else {
+    document.getElementById("tcBabySub").textContent = "No medicine logged yet";
+  }
   var todayWkt = getWorkoutForDate(trainTodayStr());
   if (todayWkt && todayWkt.exercises.length) {
     var exCount = todayWkt.exercises.length;
@@ -2354,6 +2945,7 @@ function renderWeekStrip() {
 // ── Today-card tap → navigate to section ─────────────────
 document.getElementById("tcLifeCard").addEventListener("click",  function(){ switchSection("lists"); });
 document.getElementById("tcTrainCard").addEventListener("click", function(){ switchSection("train"); });
+document.getElementById("tcBabyCard").addEventListener("click",  function(){ switchSection("baby");  });
 document.getElementById("hSeeAllGrocery").addEventListener("click", function(){
   switchSection("lists"); currentList = "grocery"; applyListTheme(); switchTab("list"); renderList();
 });
@@ -2379,6 +2971,11 @@ function closeHqp() {
 document.getElementById("hqGrocery").addEventListener("click",  function(){ openHqp("grocery","Add to Grocery",  "life",  "e.g. Milk, Bread..."); });
 document.getElementById("hqTask").addEventListener("click",     function(){ openHqp("todo",   "Add to To-do",    "life",  "e.g. Call the doctor..."); });
 document.getElementById("hqExercise").addEventListener("click", function(){ openHqp("exercise","Log an Exercise","train", "e.g. Bench Press..."); });
+document.getElementById("hqMed").addEventListener("click",      function(){
+  switchSection("baby");
+  currentBabyView = "medicine";
+  renderBabyView();
+});
 document.getElementById("hqpCancel").addEventListener("click",  closeHqp);
 
 document.getElementById("hqpAddBtn").addEventListener("click",  doHqpAdd);
