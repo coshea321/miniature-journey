@@ -421,7 +421,21 @@ body.train-mode #toast{background:#132040}
 .bw-entry-del{border:none;background:none;color:#A05050;font-size:13px;cursor:pointer;opacity:.5}
 .bw-entry-del:active{opacity:1}
 
-/* Train empty state */
+/* Blood pressure */
+.bp-input-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px}
+.bp-field{display:flex;flex-direction:column;gap:4px}
+.bp-field-label{font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;text-align:center}
+.bp-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;margin-left:6px}
+.bp-normal{background:#064e3b;color:#34d399}
+.bp-elevated{background:#451a03;color:#fb923c}
+.bp-high{background:#450a0a;color:#f87171}
+.bp-entry{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid #0F1928}
+.bp-entry:last-child{border-bottom:none}
+.bp-entry-date{font-size:11px;color:#5A7090;min-width:72px}
+.bp-reading{font-size:16px;font-weight:700;color:#E8EDF2;flex:1}
+.bp-reading-pulse{font-size:12px;color:#5A7090;margin-left:6px}
+.bp-entry-del{border:none;background:none;color:#A05050;font-size:13px;cursor:pointer;opacity:.45}
+.bp-entry-del:active{opacity:1}
 .train-empty{text-align:center;padding:50px 24px 32px;color:#3A5070}
 .train-empty-ico{font-size:48px;margin-bottom:10px}
 .train-empty-title{font-family:Georgia,serif;font-size:18px;color:#7A9AB8;margin-bottom:6px}
@@ -607,7 +621,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v19</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v21</div>
 
   </div>
 </div>
@@ -729,8 +743,31 @@ body.train-mode #toast{background:#132040}
       </div>
     </div>
     <div class="bw-card">
-      <div class="bw-card-title">&#x1F4C8; History</div>
+      <div class="bw-card-title">&#x1F4C8; Weight History</div>
       <div id="bwHistory"></div>
+    </div>
+
+    <div class="bw-card">
+      <div class="bw-card-title">&#x2764;&#xFE0F; Log Blood Pressure</div>
+      <div class="bp-input-grid">
+        <div class="bp-field">
+          <span class="bp-field-label">Systolic</span>
+          <input id="bpSys" type="number" min="60" max="250" class="bw-input" placeholder="120" inputmode="numeric">
+        </div>
+        <div class="bp-field">
+          <span class="bp-field-label">Diastolic</span>
+          <input id="bpDia" type="number" min="40" max="150" class="bw-input" placeholder="80" inputmode="numeric">
+        </div>
+        <div class="bp-field">
+          <span class="bp-field-label">Pulse</span>
+          <input id="bpPulse" type="number" min="30" max="220" class="bw-input" placeholder="70" inputmode="numeric">
+        </div>
+      </div>
+      <button class="bw-log-btn" id="bpLogBtn">Log reading</button>
+    </div>
+    <div class="bw-card">
+      <div class="bw-card-title">&#x1F4C8; BP History</div>
+      <div id="bpHistory"></div>
     </div>
   </div>
 
@@ -959,6 +996,10 @@ body.train-mode #toast{background:#132040}
         <div class="sync-toggle-row" data-key="notes">
           <span class="sync-toggle-label">&#x1F4DD; Notes</span>
           <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="notes"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="sync-toggle-row" data-key="baby">
+          <span class="sync-toggle-label">&#x1F476; Baby</span>
+          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="baby"><span class="toggle-slider"></span></label>
         </div>
       </div>
       <div style="font-size:12px;color:#7A8772;margin-top:8px;line-height:1.5">Unsynced sections stay private on this device only.</div>
@@ -1339,7 +1380,7 @@ var syncPaused = false;
 var lastPushTs = 0;       // timestamp of our last push to Firebase
 var SSE_GRACE_MS = 3000;  // ignore SSE events for 3s after a local push
 // Per-section sync prefs: default grocery/todo/travel ON, notes OFF
-var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, personal:false, notes:false };
+var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, personal:false, notes:false, baby:false };
 function saveSyncPrefs() { storeSet("fl4_syncPrefs", syncPrefs); }
 function isSynced(key) { return !!(syncPrefs[key]); }
 
@@ -1931,6 +1972,7 @@ function pushSync() {
     if (d) data[lt] = { items: d.items, hist: d.hist, notes: notes };
   });
   if (isSynced("notes")) data["global_notes"] = storeGet("fl4_notes_global") || [];
+  if (isSynced("baby"))  data["baby"] = getBD();
   lastPushTs = Date.now();
   fetch(fbRoomUrl(), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} })
     .catch(function(){});
@@ -1955,6 +1997,10 @@ function fetchSync(cb) {
         }
       });
       if (isSynced("notes") && Array.isArray(data["global_notes"])) storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
+      if (isSynced("baby") && data["baby"] && typeof data["baby"]==="object") {
+        storeSet("fl4_baby", data["baby"]);
+        if (currentSection === "baby") renderBabyView();
+      }
       if (currentList === "notes") renderNotesFull();
       syncPaused = false;
       renderList();
@@ -1997,6 +2043,10 @@ function startListening() {
         });
         if (isSynced("notes") && Array.isArray(data["global_notes"])) {
           storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
+        }
+        if (isSynced("baby") && data["baby"] && typeof data["baby"]==="object") {
+          storeSet("fl4_baby", data["baby"]);
+          if (currentSection === "baby") renderBabyView();
         }
         syncPaused = false;
         renderList();
@@ -2411,7 +2461,7 @@ var MS_CATS = {
 };
 
 function getBD()      { return storeGet("fl4_baby") || { growth:[], medicine:[], milestones:[], teeth:{} }; }
-function saveBD(data) { storeSet("fl4_baby", data); }
+function saveBD(data) { storeSet("fl4_baby", data); if (fbUrl && syncRoom && isSynced("baby")) pushSync(); }
 
 function renderBabyView() {
   // Sync sub-nav buttons
@@ -4023,6 +4073,73 @@ function renderBodyView() {
   el.querySelectorAll(".bw-entry-del").forEach(function(btn) {
     btn.addEventListener("click",function(){
       var data=getWD(); data.bodyweight=(data.bodyweight||[]).filter(function(e){return e.date!==btn.dataset.date;}); saveWD(data); renderBodyView();
+    });
+  });
+  renderBpHistory();
+}
+
+// ── Blood pressure ────────────────────────────────────────
+function bpCategory(sys, dia) {
+  if (sys < 120 && dia < 80)  return { label:"Normal",   cls:"bp-normal"   };
+  if (sys < 130 && dia < 80)  return { label:"Elevated",  cls:"bp-elevated" };
+  if (sys < 140 || dia < 90)  return { label:"High I",    cls:"bp-high"     };
+  return                              { label:"High II",   cls:"bp-high"     };
+}
+
+document.getElementById("bpLogBtn").addEventListener("click", function() {
+  var sys   = parseInt(document.getElementById("bpSys").value);
+  var dia   = parseInt(document.getElementById("bpDia").value);
+  var pulse = parseInt(document.getElementById("bpPulse").value) || null;
+  if (!sys || !dia || sys < 60 || dia < 40) { toast("Enter valid systolic and diastolic values"); return; }
+  var data = getWD();
+  data.bp  = data.bp || [];
+  var now  = new Date();
+  data.bp.unshift({
+    id:    Date.now(),
+    dt:    now.toISOString(),
+    sys:   sys,
+    dia:   dia,
+    pulse: pulse
+  });
+  saveWD(data);
+  document.getElementById("bpSys").value   = "";
+  document.getElementById("bpDia").value   = "";
+  document.getElementById("bpPulse").value = "";
+  renderBpHistory();
+  toast("&#x2764;&#xFE0F; BP logged: " + sys + "/" + dia);
+});
+
+function renderBpHistory() {
+  var data = getWD(), readings = (data.bp || []);
+  var el   = document.getElementById("bpHistory");
+  if (!el) return;
+  if (!readings.length) {
+    el.innerHTML = "<p style='text-align:center;color:#3A5070;padding:20px;font-size:14px'>No readings yet.</p>";
+    return;
+  }
+  // Show last 30
+  var shown = readings.slice(0, 30);
+  var html  = "";
+  shown.forEach(function(r) {
+    var cat   = bpCategory(r.sys, r.dia);
+    var dt    = new Date(r.dt);
+    var label = dt.toLocaleDateString("en-IE", {day:"numeric", month:"short"}) +
+                " " + dt.toLocaleTimeString("en-IE", {hour:"2-digit", minute:"2-digit"});
+    html += "<div class='bp-entry'>" +
+      "<span class='bp-entry-date'>"+label+"</span>" +
+      "<span class='bp-reading'>"+r.sys+"/"+r.dia +
+        "<span class='bp-badge "+cat.cls+"'>"+cat.label+"</span>" +
+        (r.pulse ? "<span class='bp-reading-pulse'>&#x1F493; "+r.pulse+"</span>" : "") +
+      "</span>" +
+      "<button class='bp-entry-del' data-id='"+r.id+"'>&#x2715;</button>" +
+    "</div>";
+  });
+  el.innerHTML = html;
+  el.querySelectorAll(".bp-entry-del").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var data = getWD();
+      data.bp  = (data.bp||[]).filter(function(r){ return r.id !== +btn.dataset.id; });
+      saveWD(data); renderBpHistory();
     });
   });
 }
