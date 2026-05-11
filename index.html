@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v41</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v42</div>
 
   </div>
 </div>
@@ -1077,12 +1077,14 @@ body.train-mode #toast{background:#132040}
         <button class="sync-btn outline" id="leaveHouseholdBtn" style="margin-top:8px;border-color:#C03030;color:#C03030">Leave household</button>
       </div>
       <div id="syncHouseholdSetup">
-        <button class="sync-btn" id="createHouseholdBtn">Create household</button>
-        <div style="text-align:center;font-size:13px;color:#7A8772;margin:6px 0">or join an existing one</div>
-        <div style="display:flex;gap:8px">
-          <input class="sync-input" id="joinHouseholdInput" placeholder="Household code" style="flex:1;margin:0;font-family:monospace;letter-spacing:3px;text-transform:uppercase;font-weight:700">
-          <button class="sync-btn outline" id="joinHouseholdBtn" style="margin:0;padding:10px 14px;white-space:nowrap">Join</button>
+        <!-- Join — shown prominently at top -->
+        <div style="background:#F0F7F0;border-radius:12px;padding:16px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;color:#4A7A4A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Join an existing household</div>
+          <input class="sync-input" id="joinHouseholdInput" placeholder="Enter code e.g. ABC123" style="margin-bottom:8px;font-family:monospace;font-size:22px;letter-spacing:6px;text-transform:uppercase;font-weight:700;text-align:center;padding:14px">
+          <button class="sync-btn" id="joinHouseholdBtn" style="background:#2D6B35">Join household</button>
         </div>
+        <div style="text-align:center;font-size:13px;color:#7A8772;margin:10px 0">or</div>
+        <button class="sync-btn outline" id="createHouseholdBtn">Create a new household</button>
       </div>
     </div>
 
