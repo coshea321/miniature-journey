@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v35</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v36</div>
 
   </div>
 </div>
@@ -1055,7 +1055,10 @@ body.train-mode #toast{background:#132040}
         <div id="syncUsernameLbl" style="font-size:15px;font-weight:700;color:#2A3A28"></div>
         <div id="syncFbLbl" style="font-size:11px;color:#7A8772"></div>
       </div>
-      <button id="logoutBtn" style="border:none;background:none;font-size:12px;color:#C03030;cursor:pointer;font-family:inherit;font-weight:600">Log out</button>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="sync-btn" id="syncNowBtn" style="flex:1;margin:0">&#x2191;&#x2193; Sync now</button>
+        <button class="sync-btn outline" id="logoutBtn" style="margin:0;padding:10px 14px;white-space:nowrap;color:#C03030;border-color:#C03030">Log out</button>
+      </div>
     </div>
 
     <!-- Household -->
@@ -2081,15 +2084,25 @@ function verifySession() {
 function onLoginSuccess() {
   hideLoginOverlay();
   setLoginSpinner(false);
-  // Load household from user profile if not in localStorage
+  // Load household from user profile if not stored locally
   if (!hearthHouse) {
     fetch(userUrl("/household")).then(function(r){ return r.json(); }).then(function(code) {
-      if (code && typeof code === "string") { hearthHouse = code; storeSet("hearth_household", hearthHouse); startListening(); }
+      if (code && typeof code === "string") {
+        hearthHouse = code; storeSet("hearth_household", hearthHouse);
+        startListening();
+        fetchHousehold();
+      }
     }).catch(function(){});
   }
+  // Push local data first so other devices can fetch it, then fetch remote to merge
+  pushHealth();
   fetchHealth();
-  if (isHouseholdSet()) { fetchHousehold(); startListening(); startHealthListening(); }
-  else { startHealthListening(); }
+  if (isHouseholdSet()) {
+    pushHousehold();
+    fetchHousehold();
+    startListening();
+  }
+  startHealthListening();
   updateSyncStatus();
 }
 
@@ -2347,6 +2360,22 @@ document.getElementById("syncBtn").addEventListener("click", function() {
 });
 document.getElementById("syncClose").addEventListener("click", function(){ document.getElementById("syncOverlay").classList.remove("open"); });
 document.getElementById("syncOverlay").addEventListener("click", function(e){ if(e.target===this) this.classList.remove("open"); });
+
+document.getElementById("syncNowBtn").addEventListener("click", function() {
+  pushHealth();
+  fetchHealth(function() {
+    if (isHouseholdSet()) {
+      pushHousehold();
+      fetchHousehold(function() {
+        renderList();
+        if (currentSection === "home") renderHomeScreen();
+        toast("&#x2705; Synced!");
+      });
+    } else {
+      toast("&#x2705; Health data synced!");
+    }
+  });
+});
 
 document.getElementById("logoutBtn").addEventListener("click", function() {
   if (confirm("Log out? You can log back in on any device.")) { logout(); document.getElementById("syncOverlay").classList.remove("open"); }
