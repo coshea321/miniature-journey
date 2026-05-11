@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v38</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v39</div>
 
   </div>
 </div>
@@ -3282,13 +3282,13 @@ function renderHomeScreen() {
   }
 
   // ── Grocery spotlight (top 5 undone) ─────────────────────
-  renderSpotlight("homeGrocerySpot", "grocery", 5);
+  try { renderSpotlight("homeGrocerySpot", "grocery", 5); } catch(e) { console.warn("Grocery spotlight:", e); }
 
   // ── Todo spotlight (top 4 undone) ────────────────────────
-  renderSpotlight("homeTodoSpot", "todo", 4);
+  try { renderSpotlight("homeTodoSpot", "todo", 4); } catch(e) { console.warn("Todo spotlight:", e); }
 
   // ── Week strip ────────────────────────────────────────────
-  renderWeekStrip();
+  try { renderWeekStrip(); } catch(e) { console.warn("Week strip:", e); }
 }
 
 function renderSpotlight(elId, lt, maxItems) {
@@ -3332,7 +3332,7 @@ function renderWeekStrip() {
     var isToday = dateStr === today;
 
     var wkt    = getWorkoutForDate(dateStr);
-    var hasWkt = wkt && wkt.exercises.length > 0;
+    var hasWkt = wkt && Array.isArray(wkt.exercises) && wkt.exercises.length > 0;
 
     // Check if any list had items added or completed on this day (rough: items whose id date matches)
     loadListData("grocery"); loadListData("todo");
@@ -3632,7 +3632,13 @@ function getWD()      { return storeGet("fl4_workouts") || { workouts:[], bodywe
 function saveWD(data) { storeSet("fl4_workouts", data); pushHealth(); }
 function getWorkoutForDate(date) {
   var data = getWD();
-  for (var i=0;i<data.workouts.length;i++) if (data.workouts[i].date===date) return data.workouts[i];
+  for (var i=0;i<data.workouts.length;i++) {
+    if (data.workouts[i].date===date) {
+      // Ensure exercises always exists
+      if (!data.workouts[i].exercises) data.workouts[i].exercises = [];
+      return data.workouts[i];
+    }
+  }
   return null;
 }
 function getOrMakeWorkout(date) {
@@ -3709,6 +3715,7 @@ function renderTrainView() {
 // ── Programs grid ─────────────────────────────────────────
 function renderTrainPrograms() {
   var el = document.getElementById("progGrid");
+  if (!el) return;
   var programs = [
     { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#0F1F3A,#162B52)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Rows · Split Squats · Pull-ups · Glute Bridge", descColor:"#4A7AB8" },
     { type:"workout", key:"push",  bg:"linear-gradient(135deg,#2A1010,#3A1818)", border:"#ef444440", icon:"&#x1F534;", name:"Push Day", desc:"Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B85050" },
