@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v34</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v35</div>
 
   </div>
 </div>
@@ -1969,6 +1969,15 @@ document.getElementById("clearAllBtn").addEventListener("click", function() {
 });
 
 // ============================================================
+// COMPATIBILITY — polyfills for older iOS Safari
+// ============================================================
+if (!Array.prototype.find) {
+  Array.prototype.find = function(fn) {
+    for (var i = 0; i < this.length; i++) { if (fn(this[i], i, this)) return this[i]; }
+  };
+}
+
+// ============================================================
 // SYNC — Hearth (username / password)
 // ============================================================
 
@@ -2011,53 +2020,62 @@ function userUrl(path)  { return hearthBase() + "/hearth/users/" + hearthUser + 
 function houseUrl(path) { return hearthBase() + "/hearth/households/" + hearthHouse + (path||"") + ".json"; }
 
 // ── Password hashing (SHA-256 via Web Crypto) ─────────────
-async function hashPw(password) {
-  var buf  = new TextEncoder().encode(hearthFbId.replace(/https?:\/\//, "") + ":" + password);
-  var hash = await crypto.subtle.digest("SHA-256", buf);
-  return Array.from(new Uint8Array(hash)).map(function(b){ return b.toString(16).padStart(2,"0"); }).join("");
+function hashPw(password) {
+  var buf = new TextEncoder().encode(hearthFbId.replace(/https?:\/\//, "") + ":" + password);
+  return crypto.subtle.digest("SHA-256", buf).then(function(hash) {
+    return Array.from(new Uint8Array(hash)).map(function(b){ return ("0"+b.toString(16)).slice(-2); }).join("");
+  });
 }
 
 // ── Account management ────────────────────────────────────
-async function doCreateAccount(username, password) {
+function doCreateAccount(username, password) {
   setLoginSpinner(true);
-  try {
-    var hash = await hashPw(password);
-    // Check username available
-    var existing = await fetch(hearthBase() + "/hearth/users/" + username + "/auth.json").then(function(r){ return r.json(); });
-    if (existing && existing.hash) { showLoginError("Username already taken"); setLoginSpinner(false); return; }
-    // Write auth record
-    var resp = await fetch(hearthBase() + "/hearth/users/" + username + "/auth.json", {
-      method:"PUT", body:JSON.stringify({ hash:hash, createdAt:Date.now() }), headers:{"Content-Type":"application/json"}
-    });
-    if (!resp.ok) throw new Error("HTTP " + resp.status);
-    hearthUser  = username; hearthToken = hash;
-    storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
-    onLoginSuccess();
-  } catch(e) { showLoginError("Could not create account. Check your Firebase ID and rules."); setLoginSpinner(false); }
+  hashPw(password).then(function(hash) {
+    return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json")
+      .then(function(r){ return r.json(); })
+      .then(function(existing) {
+        if (existing && existing.hash) { showLoginError("Username already taken"); setLoginSpinner(false); throw new Error("taken"); }
+        return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json", {
+          method:"PUT", body:JSON.stringify({ hash:hash, createdAt:Date.now() }), headers:{"Content-Type":"application/json"}
+        }).then(function(resp) {
+          if (!resp.ok) throw new Error("HTTP " + resp.status);
+          hearthUser = username; hearthToken = hash;
+          storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
+          onLoginSuccess();
+        });
+      });
+  }).catch(function(e) {
+    if (e.message !== "taken") { showLoginError("Could not create account. Check your Firebase URL and rules."); }
+    setLoginSpinner(false);
+  });
 }
 
-async function doLogin(username, password) {
+function doLogin(username, password) {
   setLoginSpinner(true);
-  try {
-    var hash    = await hashPw(password);
-    var authRec = await fetch(hearthBase() + "/hearth/users/" + username + "/auth.json").then(function(r){ return r.json(); });
-    if (!authRec || authRec.hash !== hash) { showLoginError("Incorrect username or password"); setLoginSpinner(false); return; }
-    hearthUser  = username; hearthToken = hash;
-    storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
-    onLoginSuccess();
-  } catch(e) { showLoginError("Could not reach Firebase. Check your project ID and rules."); setLoginSpinner(false); }
+  hashPw(password).then(function(hash) {
+    return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json")
+      .then(function(r){ return r.json(); })
+      .then(function(authRec) {
+        if (!authRec || authRec.hash !== hash) { showLoginError("Incorrect username or password"); setLoginSpinner(false); return; }
+        hearthUser = username; hearthToken = hash;
+        storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
+        onLoginSuccess();
+      });
+  }).catch(function(e) { showLoginError("Could not reach Firebase. Check your database URL and rules."); setLoginSpinner(false); });
 }
 
-async function verifySession() {
+function verifySession() {
   if (!isLoggedIn()) { showLoginOverlay(); return; }
-  try {
-    var authRec = await fetch(hearthBase() + "/hearth/users/" + hearthUser + "/auth.json").then(function(r){ return r.json(); });
-    if (!authRec || authRec.hash !== hearthToken) { logout(true); return; }
-    onLoginSuccess();
-  } catch(e) {
-    // Network error — allow offline use with cached data
-    onLoginSuccess();
-  }
+  fetch(hearthBase() + "/hearth/users/" + hearthUser + "/auth.json")
+    .then(function(r){ return r.json(); })
+    .then(function(authRec) {
+      if (!authRec || authRec.hash !== hearthToken) { logout(true); return; }
+      onLoginSuccess();
+    })
+    .catch(function() {
+      // Network error — allow offline use
+      onLoginSuccess();
+    });
 }
 
 function onLoginSuccess() {
@@ -3142,7 +3160,7 @@ function switchSection(section) {
     renderList();
   } else if (section === "train") {
     document.getElementById("themeColor").setAttribute("content", "#132040");
-    document.getElementById("appTitle").textContent  = "\u{1F4AA} Train";
+    document.getElementById("appTitle").textContent  = "💪 Train";
     document.getElementById("hdrBadge").style.display = "none";
     renderTrainView();
   } else if (section === "baby") {
