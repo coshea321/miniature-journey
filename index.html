@@ -563,7 +563,7 @@ body.train-mode #toast{background:#132040}
 <body>
 
 <header>
-  <div class="app-title" id="appTitle">FreshList</div>
+  <div class="app-title" id="appTitle">🔥 Hearth</div>
   <div class="hdr-badge" id="hdrBadge"></div>
   <button class="hdr-btn" id="syncBtn" title="Sync">&#128257;</button>
   <button class="hdr-btn" id="settingsBtn" title="Settings">&#9881;&#65039;</button>
@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v25</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v26</div>
 
   </div>
 </div>
@@ -1471,7 +1471,7 @@ var toastTimer  = null;
 function applyListTheme() {
   var lt = LIST_TYPES[currentList];
   document.documentElement.style.setProperty("--accent", lt.color);
-  document.getElementById("appTitle").innerHTML = lt.name;
+  document.getElementById("appTitle").innerHTML = "&#x1F525; Hearth";
   elInput.placeholder = lt.placeholder;
   document.getElementById("themeColor").setAttribute("content", lt.color);
   var btns = document.querySelectorAll(".type-btn");
@@ -2940,7 +2940,7 @@ function switchSection(section) {
 
   if (section === "home") {
     document.getElementById("themeColor").setAttribute("content", "#111820");
-    document.getElementById("appTitle").innerHTML = "innerHTML = "&#x1F4F1; Today"#x1F525; Hearth";
+    document.getElementById("appTitle").innerHTML = "&#x1F525; Hearth";
     document.getElementById("hdrBadge").style.display = "none";
     renderHomeScreen();
   } else if (section === "lists") {
