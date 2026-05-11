@@ -106,7 +106,7 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 .sync-section-title{font-size:13px;font-weight:700;color:#7A8772;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
 .sync-input{width:100%;border:2px solid #D8D0C0;border-radius:9px;padding:10px 12px;font-family:inherit;font-size:15px;color:#1C2018;outline:none;margin-bottom:8px}
 .sync-input:focus{border-color:var(--accent)}
-.sync-btn{width:100%;padding:11px;border:none;background:var(--accent);color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px}
+.sync-btn{touch-action:manipulation;width:100%;padding:11px;border:none;background:var(--accent);color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px}
 .sync-btn.outline{background:none;border:2px solid var(--accent);color:var(--accent)}
 .sync-status{font-size:13px;padding:8px 12px;border-radius:8px;margin-top:8px;display:none}
 .sync-status.on{background:#D6EDDA;color:#1A4A1E;display:block}
@@ -270,7 +270,7 @@ body.baby-mode #toast{background:#230D2E}
 
 .baby-log-card{background:#1E0D26;border-radius:12px;padding:14px;margin-bottom:13px;border:1px solid #2E1A36}
 .baby-card-title{font-family:Georgia,serif;font-size:16px;font-weight:600;color:#F0E8F2;margin-bottom:12px}
-.baby-log-btn{width:100%;padding:11px;border:none;background:#9333ea;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.baby-log-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;width:100%;padding:11px;border:none;background:#9333ea;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s}
 .baby-log-btn:active{opacity:.8}
 
 /* Growth */
@@ -409,7 +409,7 @@ body.train-mode #toast{background:#132040}
 .bw-input{flex:1;border:1.5px solid #1E3050;border-radius:9px;padding:11px 12px;background:#0A1018;color:#E8EDF2;font-family:inherit;font-size:18px;text-align:center;outline:none;transition:border-color .15s}
 .bw-input:focus{border-color:#3B6FE0}
 .bw-unit{color:#5A7090;font-size:14px;font-weight:700;flex-shrink:0}
-.bw-log-btn{padding:11px 18px;border:none;background:#3B6FE0;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s;flex-shrink:0}
+.bw-log-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:11px 18px;border:none;background:#3B6FE0;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s;flex-shrink:0}
 .bw-log-btn:active{opacity:.8}
 .bw-entry{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid #0F1928}
 .bw-entry:last-child{border-bottom:none}
@@ -455,7 +455,7 @@ body.train-mode #toast{background:#132040}
 .cardio-name-input{flex:1;padding:10px 12px;border:1.5px solid #1E3050;border-radius:8px;background:#0A1018;color:#E8EDF2;font-family:inherit;font-size:14px;outline:none;transition:border-color .15s}
 .cardio-name-input:focus{border-color:#0ea5e9}
 .cardio-name-input::placeholder{color:#3A5070}
-.cardio-log-btn{width:100%;padding:11px;border:none;background:#0ea5e9;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.cardio-log-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;width:100%;padding:11px;border:none;background:#0ea5e9;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s}
 .cardio-log-btn:active{opacity:.8}
 .cardio-est{font-size:11px;color:#0ea5e9;text-align:right;margin-bottom:8px;font-weight:600;min-height:16px}
 .cardio-entry{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #0F1928}
@@ -499,7 +499,7 @@ body.train-mode #toast{background:#132040}
 .ses-intro-ex-num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
 .ses-intro-ex-name{font-size:14px;font-weight:500;color:#C0D0E0;flex:1}
 .ses-intro-ex-note{font-size:11px;color:#3A5070;text-align:right}
-.ses-begin-btn{padding:14px 44px;border:none;border-radius:12px;font-family:inherit;font-size:16px;font-weight:700;color:#fff;cursor:pointer;margin-bottom:10px}
+.ses-begin-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:14px 44px;border:none;border-radius:12px;font-family:inherit;font-size:16px;font-weight:700;color:#fff;cursor:pointer;margin-bottom:10px}
 .ses-back-link{background:none;border:none;color:#3A5070;font-family:inherit;font-size:13px;cursor:pointer;padding:6px}
 
 /* Timer circle */
@@ -524,7 +524,7 @@ body.train-mode #toast{background:#132040}
 .ses-set-info{font-size:12px;color:#5A7090;text-align:center;margin-bottom:8px}
 .ses-reps-card{background:#132040;border-radius:12px;padding:16px;text-align:center;margin-bottom:12px}
 .ses-reps-label{font-size:11px;font-weight:700;color:#5A7090;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
-.ses-reps-done-btn{padding:12px 32px;border:none;background:#14b8a6;color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px}
+.ses-reps-done-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:12px 32px;border:none;background:#14b8a6;color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px}
 .ses-skip-small{background:none;border:none;color:#3A5070;font-family:inherit;font-size:12px;cursor:pointer;padding:4px}
 
 /* Rest */
@@ -545,7 +545,7 @@ body.train-mode #toast{background:#132040}
 .ss-field-label{font-size:10px;color:#5A7090;margin-bottom:4px;font-weight:700;text-transform:uppercase}
 .ss-input{width:100%;padding:9px 6px;border:1.5px solid #1C2A3E;border-radius:8px;background:#0A1018;color:#E8EDF2;font-family:inherit;font-size:16px;text-align:center;outline:none}
 .ss-input:focus{border-color:#3B6FE0}
-.ss-done-btn{display:block;width:calc(100% - 28px);margin:12px 14px 14px;padding:14px;border:none;background:#3B6FE0;color:#fff;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer}
+.ss-done-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:block;width:calc(100% - 28px);margin:12px 14px 14px;padding:14px;border:none;background:#3B6FE0;color:#fff;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer}
 
 /* Cond option + done screen */
 .cond-opt{background:#132040;border-radius:12px;padding:16px;margin-bottom:10px;cursor:pointer;border:1px solid #1C2A3E;text-align:center;transition:opacity .15s}
@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v40</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v41</div>
 
   </div>
 </div>
@@ -1991,6 +1991,15 @@ if (!Element.prototype.closest) {
   };
 }
 
+// Prevent ghost-click double-fire on Android Chrome
+// Usage: if (btnBusy(this)) return;
+function btnBusy(el) {
+  if (el._busy) return true;
+  el._busy = true;
+  setTimeout(function(){ el._busy = false; }, 800);
+  return false;
+}
+
 // ============================================================
 // SYNC — Hearth (username / password)
 // ============================================================
@@ -2129,6 +2138,7 @@ function logout(silent) {
 // ── Push / fetch ──────────────────────────────────────────
 function pushHealth() {
   if (!isLoggedIn() || syncPaused || !isSynced("health")) return;
+  lastPushTs = Date.now();
   fetch(userUrl("/health"), { method:"PUT", body:JSON.stringify(getWD()), headers:{"Content-Type":"application/json"} }).catch(function(){});
 }
 
@@ -2875,6 +2885,7 @@ function nowTimeStr() {
 })();
 
 document.getElementById("growthLogBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
   var h  = parseFloat(document.getElementById("growthHeight").value);
   var w  = parseFloat(document.getElementById("growthWeight").value);
   var dt = document.getElementById("growthDate").value || todayDateStr();
@@ -2955,6 +2966,7 @@ document.getElementById("medChips").addEventListener("click", function(e) {
 });
 
 document.getElementById("medLogBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
   var name = document.getElementById("medName").value.trim();
   var dose = document.getElementById("medDose").value.trim();
   var date = document.getElementById("medDate").value || todayDateStr();
@@ -3037,6 +3049,7 @@ document.getElementById("msCatRow").addEventListener("click", function(e) {
 });
 
 document.getElementById("msLogBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
   var text = document.getElementById("msText").value.trim();
   var date = document.getElementById("msDate").value || todayDateStr();
   if (!text) { toast("Describe the milestone"); return; }
@@ -4407,6 +4420,7 @@ function updateCardioEst() {
 }
 
 document.getElementById("cardioLogBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
   var customName = document.getElementById("cardioCustomName").value.trim();
   var activity   = customName || cardioSelectedActivity;
   var mins       = parseFloat(document.getElementById("cardioDuration").value);
@@ -4614,6 +4628,7 @@ function renderWorkoutHistory() {
 
 // ── Bodyweight log ────────────────────────────────────────
 document.getElementById("bwLogBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
   var val=parseFloat(document.getElementById("bwInput").value);
   if (!val||val<20||val>350) { toast("Enter a valid weight (20–350 kg)"); return; }
   var data=getWD(), today=trainTodayStr();
@@ -4660,6 +4675,7 @@ function bpCategory(sys, dia) {
 }
 
 document.getElementById("bpLogBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
   var sys   = parseInt(document.getElementById("bpSys").value);
   var dia   = parseInt(document.getElementById("bpDia").value);
   var pulse = parseInt(document.getElementById("bpPulse").value) || null;
