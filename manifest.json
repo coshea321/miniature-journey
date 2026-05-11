@@ -1,12 +1,12 @@
 {
-  "name": "My Health",
-  "short_name": "Health",
-  "description": "Lists, Workouts, Yoga, Physio & Body tracker",
+  "name": "Hearth",
+  "short_name": "Hearth",
+  "description": "Your family hub — lists, fitness, baby tracking and more",
   "start_url": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#111820",
-  "theme_color": "#111820",
+  "background_color": "#1C0A04",
+  "theme_color": "#1C0A04",
   "categories": ["health", "fitness", "lifestyle"],
   "icons": [
     {
