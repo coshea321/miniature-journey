@@ -441,6 +441,32 @@ body.train-mode #toast{background:#132040}
 .train-empty-title{font-family:Georgia,serif;font-size:18px;color:#7A9AB8;margin-bottom:6px}
 .train-empty-sub{font-size:14px;line-height:1.5}
 
+/* Cardio log */
+.cardio-card{background:#132040;border-radius:12px;padding:13px;margin-bottom:13px;border:1px solid #1E3050}
+.cardio-card-title{font-family:Georgia,serif;font-size:15px;font-weight:600;color:#E8EDF2;margin-bottom:10px}
+.cardio-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.cardio-chip{padding:6px 12px;border-radius:20px;border:1.5px solid #1E3050;background:none;color:#7A9AB8;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.cardio-chip.sel{background:#0ea5e9;border-color:#0ea5e9;color:#fff}
+.cardio-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
+.cardio-field label{display:block;font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.cardio-input{width:100%;padding:10px;border:1.5px solid #1E3050;border-radius:8px;background:#0A1018;color:#E8EDF2;font-family:inherit;font-size:16px;text-align:center;outline:none;box-sizing:border-box;transition:border-color .15s}
+.cardio-input:focus{border-color:#0ea5e9}
+.cardio-custom-row{display:flex;gap:8px;margin-bottom:10px}
+.cardio-name-input{flex:1;padding:10px 12px;border:1.5px solid #1E3050;border-radius:8px;background:#0A1018;color:#E8EDF2;font-family:inherit;font-size:14px;outline:none;transition:border-color .15s}
+.cardio-name-input:focus{border-color:#0ea5e9}
+.cardio-name-input::placeholder{color:#3A5070}
+.cardio-log-btn{width:100%;padding:11px;border:none;background:#0ea5e9;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.cardio-log-btn:active{opacity:.8}
+.cardio-est{font-size:11px;color:#0ea5e9;text-align:right;margin-bottom:8px;font-weight:600;min-height:16px}
+.cardio-entry{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #0F1928}
+.cardio-entry:last-child{border-bottom:none}
+.cardio-entry-ico{font-size:18px;flex-shrink:0}
+.cardio-entry-body{flex:1}
+.cardio-entry-name{font-size:14px;font-weight:700;color:#E8EDF2}
+.cardio-entry-meta{font-size:12px;color:#5A7090}
+.cardio-entry-cal{font-size:12px;font-weight:700;color:#0ea5e9}
+.cardio-entry-del{border:none;background:none;color:#A05050;font-size:13px;cursor:pointer;opacity:.45}
+
 /* ============================================================
    PROGRAM CARDS
    ============================================================ */
@@ -621,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v23</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v24</div>
 
   </div>
 </div>
@@ -725,6 +751,32 @@ body.train-mode #toast{background:#132040}
         <div class="quick-chips" id="quickChips"></div>
       </div>
     </div>
+
+    <!-- Cardio log -->
+    <div class="cardio-card">
+      <div class="cardio-card-title">&#x1F3C3; Cardio</div>
+      <div class="cardio-chips" id="cardioChips">
+        <button class="cardio-chip" data-activity="Walking" data-met="3.5" data-ico="&#x1F6B6;">&#x1F6B6; Walking</button>
+        <button class="cardio-chip" data-activity="Running" data-met="9.8" data-ico="&#x1F3C3;">&#x1F3C3; Running</button>
+        <button class="cardio-chip" data-activity="Cycling" data-met="7.5" data-ico="&#x1F6B4;">&#x1F6B4; Cycling</button>
+        <button class="cardio-chip" data-activity="Skipping" data-met="11.0" data-ico="&#x1FA83;">&#x1FA83; Skipping</button>
+        <button class="cardio-chip" data-activity="Swimming" data-met="8.0" data-ico="&#x1F3CA;">&#x1F3CA; Swimming</button>
+        <button class="cardio-chip" data-activity="Rowing" data-met="7.0" data-ico="&#x1F6A3;">&#x1F6A3; Rowing</button>
+        <button class="cardio-chip" data-activity="Hiking" data-met="5.3" data-ico="&#x1F9D7;">&#x1F9D7; Hiking</button>
+        <button class="cardio-chip" data-activity="HIIT" data-met="10.0" data-ico="&#x26A1;">&#x26A1; HIIT</button>
+      </div>
+      <div class="cardio-custom-row">
+        <input id="cardioCustomName" class="cardio-name-input" type="text" placeholder="Or type activity..." autocomplete="off" autocorrect="off">
+      </div>
+      <div class="cardio-inputs">
+        <div class="cardio-field"><label>Duration (min)</label><input id="cardioDuration" type="number" class="cardio-input" min="1" max="600" placeholder="30" inputmode="numeric"></div>
+        <div class="cardio-field"><label>Calories (kcal)</label><input id="cardioCalories" type="number" class="cardio-input" min="0" max="5000" placeholder="auto" inputmode="numeric"></div>
+      </div>
+      <div class="cardio-est" id="cardioEst"></div>
+      <button class="cardio-log-btn" id="cardioLogBtn">Log cardio</button>
+    </div>
+    <!-- Cardio history for selected date rendered here -->
+    <div id="cardioHistory"></div>
   </div>
 
   <!-- HISTORY VIEW -->
@@ -4032,9 +4084,136 @@ function finishWorkoutSession(withCond) {
   toast("&#x1F4AA; "+wk.name+" saved!");
 }
 
-// ── Free-form log ─────────────────────────────────────────
+// ── Cardio log ─────────────────────────────────────────────
+// MET values: kcal = MET × weight(kg) × duration(h)
+// We use 75kg as a default if user weight unknown
+var cardioSelectedActivity = null;
+var cardioSelectedMet = 0;
+var cardioSelectedIco = "&#x1F3C3;";
+
+// Wire chips
+document.getElementById("cardioChips").addEventListener("click", function(e) {
+  var chip = e.target.closest(".cardio-chip");
+  if (!chip) return;
+  document.querySelectorAll(".cardio-chip").forEach(function(c){ c.classList.remove("sel"); });
+  chip.classList.add("sel");
+  cardioSelectedActivity = chip.dataset.activity;
+  cardioSelectedMet      = parseFloat(chip.dataset.met);
+  cardioSelectedIco      = chip.dataset.ico;
+  document.getElementById("cardioCustomName").value = "";
+  updateCardioEst();
+});
+
+// Custom name clears chip selection
+document.getElementById("cardioCustomName").addEventListener("input", function() {
+  if (this.value.trim()) {
+    document.querySelectorAll(".cardio-chip").forEach(function(c){ c.classList.remove("sel"); });
+    cardioSelectedActivity = null;
+    cardioSelectedMet = 0;
+    document.getElementById("cardioCalories").placeholder = "kcal";
+    document.getElementById("cardioEst").textContent = "";
+  }
+});
+
+// Auto-estimate on duration change
+document.getElementById("cardioDuration").addEventListener("input", updateCardioEst);
+document.getElementById("cardioCalories").addEventListener("input", function() {
+  document.getElementById("cardioEst").textContent = "";
+});
+
+function updateCardioEst() {
+  var mins = parseFloat(document.getElementById("cardioDuration").value);
+  var manualCal = document.getElementById("cardioCalories").value;
+  if (manualCal) { document.getElementById("cardioEst").textContent = ""; return; }
+  if (!cardioSelectedMet || !mins) { document.getElementById("cardioEst").textContent = ""; return; }
+  // Use logged bodyweight if available, otherwise 75kg
+  var wd = getWD();
+  var bw = wd.bodyweight && wd.bodyweight.length ? wd.bodyweight[0].weight : 75;
+  var kcal = Math.round(cardioSelectedMet * bw * (mins / 60));
+  document.getElementById("cardioEst").textContent = "Est. ~" + kcal + " kcal (based on " + bw + " kg)";
+  document.getElementById("cardioCalories").placeholder = "~" + kcal;
+}
+
+document.getElementById("cardioLogBtn").addEventListener("click", function() {
+  var customName = document.getElementById("cardioCustomName").value.trim();
+  var activity   = customName || cardioSelectedActivity;
+  var mins       = parseFloat(document.getElementById("cardioDuration").value);
+  var manualCal  = parseFloat(document.getElementById("cardioCalories").value);
+  if (!activity) { toast("Pick or type an activity"); return; }
+  if (!mins || mins < 1) { toast("Enter duration in minutes"); return; }
+
+  // Calculate calories
+  var kcal = manualCal || 0;
+  if (!kcal && cardioSelectedMet) {
+    var wd = getWD();
+    var bw = wd.bodyweight && wd.bodyweight.length ? wd.bodyweight[0].weight : 75;
+    kcal = Math.round(cardioSelectedMet * bw * (mins / 60));
+  }
+
+  var data = getWD();
+  data.cardio = data.cardio || [];
+  data.cardio.unshift({
+    id:       Date.now(),
+    date:     workoutDate,
+    activity: activity,
+    ico:      customName ? "&#x1F3C3;" : cardioSelectedIco,
+    mins:     mins,
+    kcal:     kcal || null,
+    manual:   !!manualCal
+  });
+  saveWD(data);
+
+  // Reset
+  document.getElementById("cardioCustomName").value  = "";
+  document.getElementById("cardioDuration").value    = "";
+  document.getElementById("cardioCalories").value    = "";
+  document.getElementById("cardioEst").textContent   = "";
+  document.querySelectorAll(".cardio-chip").forEach(function(c){ c.classList.remove("sel"); });
+  cardioSelectedActivity = null; cardioSelectedMet = 0; cardioSelectedIco = "&#x1F3C3;";
+
+  renderCardioHistory();
+  toast("&#x1F3C3; " + activity + " logged!");
+});
+
+function renderCardioHistory() {
+  var data    = getWD();
+  var entries = (data.cardio || []).filter(function(e){ return e.date === workoutDate; });
+  var el      = document.getElementById("cardioHistory");
+  if (!entries.length) { el.innerHTML = ""; return; }
+  var totalKcal = entries.reduce(function(s, e){ return s + (e.kcal||0); }, 0);
+  var totalMins = entries.reduce(function(s, e){ return s + (e.mins||0); }, 0);
+  var html = "<div class='cardio-card'>" +
+    "<div style='display:flex;align-items:center;margin-bottom:8px'>" +
+      "<div class='cardio-card-title' style='margin:0;flex:1'>&#x1F3C3; Today&#x2019;s cardio</div>" +
+      "<div style='font-size:12px;color:#0ea5e9;font-weight:700'>" +
+        totalMins + " min" + (totalKcal ? " &middot; " + totalKcal + " kcal" : "") +
+      "</div>" +
+    "</div>";
+  entries.forEach(function(e) {
+    html += "<div class='cardio-entry'>" +
+      "<span class='cardio-entry-ico'>" + e.ico + "</span>" +
+      "<div class='cardio-entry-body'>" +
+        "<div class='cardio-entry-name'>" + esc(e.activity) + "</div>" +
+        "<div class='cardio-entry-meta'>" + e.mins + " min" +
+          (e.kcal ? "<span class='cardio-entry-cal'> &middot; " + e.kcal + " kcal" + (e.manual?"":" est") + "</span>" : "") +
+        "</div>" +
+      "</div>" +
+      "<button class='cardio-entry-del' data-id='" + e.id + "'>&#x2715;</button>" +
+    "</div>";
+  });
+  html += "</div>";
+  el.innerHTML = html;
+  el.querySelectorAll(".cardio-entry-del").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var data = getWD();
+      data.cardio = (data.cardio||[]).filter(function(e){ return e.id !== +btn.dataset.id; });
+      saveWD(data); renderCardioHistory();
+    });
+  });
+}
+
+// ── Free-form exercise log ────────────────────────────────
 function renderWorkoutLog() {
-  document.getElementById("workoutDateLabel").textContent = trainFmtDate(workoutDate);
   document.getElementById("nextDayBtn").disabled = workoutDate >= trainTodayStr();
   var workout = getWorkoutForDate(workoutDate);
   var el = document.getElementById("workoutExercises");
@@ -4064,6 +4243,7 @@ function renderWorkoutLog() {
   }
   el.innerHTML = html;
   wireWorkoutLog();
+  renderCardioHistory();
 }
 
 function wireWorkoutLog() {
@@ -4137,6 +4317,26 @@ function renderWorkoutHistory() {
       "<div class='whi-row'><span>"+icon+" "+esc(name)+"</span><span class='whi-sets'>"+sub+"</span></div>"+
     "</div>";
   });
+
+  // Cardio entries
+  var cardioAll = (data.cardio||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  // Group by date
+  var cardioByDate = {};
+  cardioAll.forEach(function(e){ (cardioByDate[e.date] = cardioByDate[e.date]||[]).push(e); });
+  Object.keys(cardioByDate).sort(function(a,b){ return b.localeCompare(a); }).forEach(function(date) {
+    var entries = cardioByDate[date];
+    var totalMins = entries.reduce(function(s,e){ return s+(e.mins||0);},0);
+    var totalKcal = entries.reduce(function(s,e){ return s+(e.kcal||0);},0);
+    var rows = entries.map(function(e){
+      return "<div class='whi-row'><span>"+e.ico+" "+esc(e.activity)+"</span><span class='whi-sets'>"+e.mins+"min"+(e.kcal?" &middot; "+e.kcal+"kcal":"")+"</span></div>";
+    }).join("");
+    html = "<div class='workout-hist-item'>"+
+      "<div class='whi-date'>&#x1F3C3; "+trainFmtDateLong(date)+"</div>"+
+      rows+
+      "<div class='whi-row' style='color:#0ea5e9;font-size:11px'><span>Total</span><span class='whi-sets'>"+totalMins+" min"+(totalKcal?" &middot; "+totalKcal+" kcal":"")+"</span></div>"+
+    "</div>" + html;
+  });
+
   el.innerHTML = html;
 }
 
