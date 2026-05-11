@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v32</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v33</div>
 
   </div>
 </div>
@@ -1009,7 +1009,7 @@ body.train-mode #toast{background:#132040}
     <div id="loginStepFb" style="background:rgba(255,255,255,.06);border-radius:16px;padding:20px;margin-bottom:12px">
       <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Firebase project ID</div>
       <div style="display:flex;gap:8px">
-        <input id="loginFbInput" style="flex:1;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.15);border-radius:9px;padding:11px 13px;color:#fff;font-size:15px;font-family:inherit;outline:none" placeholder="my-hearth-12345">
+        <input id="loginFbInput" style="flex:1;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.15);border-radius:9px;padding:11px 13px;color:#fff;font-size:15px;font-family:inherit;outline:none" placeholder="Paste your database URL or project ID">
         <button id="loginFbSaveBtn" style="padding:11px 16px;background:#C4833A;border:none;border-radius:9px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap">Set</button>
       </div>
       <div id="loginFbOk" style="display:none;font-size:12px;color:#6BCF86;margin-top:6px">✓ Connected</div>
@@ -1984,11 +1984,16 @@ var SSE_GRACE_MS  = 3000;
 
 // Migrate from old keys
 (function() {
+  // Migrate old keys — store the full database URL
   var oldFb   = storeGet("fl4_fbUrl") || storeGet("hearth_fbProject") || storeGet("hearth_fb") || "";
   var oldRoom = storeGet("fl4_room")  || storeGet("hearth_household")  || storeGet("hearth_code") || "";
   if (oldFb && !hearthFbId) {
-    var m = oldFb.match(/https:\/\/([^.]+)-default-rtdb/);
-    hearthFbId = m ? m[1] : oldFb.replace(/https?:\/\/|\//g, "");
+    // Accept full URL or bare project ID
+    if (oldFb.indexOf("firebaseio.com") !== -1 || oldFb.indexOf("firebasedatabaseapp.com") !== -1) {
+      hearthFbId = oldFb.replace(/\/+$/, ""); // store full URL, strip trailing slash
+    } else {
+      hearthFbId = "https://" + oldFb.replace(/[^a-z0-9-]/g,"") + "-default-rtdb.firebaseio.com";
+    }
     storeSet("hearth_fb", hearthFbId);
   }
   if (oldRoom && !hearthHouse) { hearthHouse = oldRoom; storeSet("hearth_household", hearthHouse); }
@@ -2001,13 +2006,13 @@ function isLoggedIn()    { return !!(hearthFbId && hearthUser && hearthToken); }
 function isHouseholdSet(){ return !!(isLoggedIn() && hearthHouse); }
 
 // ── Firebase URL helpers ──────────────────────────────────
-function hearthBase()   { return "https://" + hearthFbId + "-default-rtdb.firebaseio.com"; }
+function hearthBase()   { return hearthFbId.replace(/\/+$/, ""); } // hearthFbId is the full database URL
 function userUrl(path)  { return hearthBase() + "/hearth/users/" + hearthUser + (path||"") + ".json"; }
 function houseUrl(path) { return hearthBase() + "/hearth/households/" + hearthHouse + (path||"") + ".json"; }
 
 // ── Password hashing (SHA-256 via Web Crypto) ─────────────
 async function hashPw(password) {
-  var buf  = new TextEncoder().encode(hearthFbId + ":" + password);
+  var buf  = new TextEncoder().encode(hearthFbId.replace(/https?:\/\//, "") + ":" + password);
   var hash = await crypto.subtle.digest("SHA-256", buf);
   return Array.from(new Uint8Array(hash)).map(function(b){ return b.toString(16).padStart(2,"0"); }).join("");
 }
@@ -2246,9 +2251,21 @@ function enableAccountStep() {
 }
 
 document.getElementById("loginFbSaveBtn").addEventListener("click", function() {
-  var pid = document.getElementById("loginFbInput").value.trim().toLowerCase().replace(/[^a-z0-9-]/g,"");
-  if (!pid) { return; }
-  hearthFbId = pid; storeSet("hearth_fb", hearthFbId);
+  var raw = document.getElementById("loginFbInput").value.trim();
+  if (!raw) { return; }
+  var url;
+  if (raw.indexOf("firebaseio.com") !== -1 || raw.indexOf("firebasedatabaseapp.com") !== -1) {
+    // Full URL pasted — use directly, ensure https://
+    url = raw.replace(/^https?:\/\//, "");
+    url = "https://" + url.replace(/\/+$/, "");
+  } else {
+    // Bare project ID — build standard URL
+    var pid = raw.toLowerCase().replace(/[^a-z0-9-]/g, "");
+    url = "https://" + pid + "-default-rtdb.firebaseio.com";
+  }
+  hearthFbId = url;
+  storeSet("hearth_fb", hearthFbId);
+  document.getElementById("loginFbInput").value = hearthFbId; // show cleaned value
   document.getElementById("loginFbOk").style.display = "block";
   enableAccountStep();
 });
@@ -2276,7 +2293,7 @@ function renderSyncModal() {
     if (loggedIn) {
       document.getElementById("syncAvatarCircle").textContent = hearthUser.charAt(0).toUpperCase();
       document.getElementById("syncUsernameLbl").textContent = hearthUser;
-      document.getElementById("syncFbLbl").textContent = "Firebase: " + hearthFbId;
+      document.getElementById("syncFbLbl").textContent = "Firebase: " + hearthFbId.replace("https://","").split(".")[0];
     }
   }
   var houseConnected = isHouseholdSet();
@@ -3086,7 +3103,11 @@ if ("serviceWorker" in navigator) {
 // ============================================================
 loadListData("grocery");
 loadListData("todo");
-if (isLoggedIn()) { verifySession(); } else if (hearthFbId) { showLoginOverlay(); }
+// Clear mangled Firebase URL if it lacks a dot (was corrupted by old regex)
+if (hearthFbId && hearthFbId.indexOf(".") === -1) {
+  hearthFbId = ""; storeSet("hearth_fb", "");
+}
+if (isLoggedIn()) { verifySession(); } else if (hearthFbId) { showLoginOverlay(); } else { showLoginOverlay(); }
 
 // ============================================================
 // SECTION SWITCHER  (Home / Lists / Train)
