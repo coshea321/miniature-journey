@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v28</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v29</div>
 
   </div>
 </div>
@@ -1018,10 +1018,11 @@ body.train-mode #toast{background:#132040}
         <button class="sync-btn outline" id="copyUserIdBtn" style="margin:0;padding:8px 12px;white-space:nowrap;font-size:12px">Copy</button>
       </div>
       <div style="font-size:12px;color:#7A8772;margin-bottom:6px">On a second device? Paste your code from the first device here:</div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
         <input class="sync-input" id="importDeviceCodeInput" placeholder="Paste device code" style="flex:1;margin:0;font-size:13px;font-family:monospace">
         <button class="sync-btn" id="importDeviceCodeBtn" style="margin:0;padding:10px 14px;white-space:nowrap;font-size:13px">Use this code</button>
       </div>
+      <button class="sync-btn outline" id="pushHealthNowBtn" style="font-size:13px">&#x2191; Push my health data to cloud now</button>
     </div>
 
     <!-- Firebase setup -->
@@ -2287,6 +2288,13 @@ document.getElementById("copyUserIdBtn").addEventListener("click", function() {
   navigator.clipboard && navigator.clipboard.writeText(hearthUserId).then(function(){ toast("Device code copied!"); });
 });
 
+// Push health data manually
+document.getElementById("pushHealthNowBtn").addEventListener("click", function() {
+  if (!isPersonalReady()) { toast("Set up Firebase first"); return; }
+  pushPersonalData();
+  toast("&#x2191; Health data pushed to cloud");
+});
+
 // Import device code from another device
 document.getElementById("importDeviceCodeBtn").addEventListener("click", function() {
   var code = document.getElementById("importDeviceCodeInput").value.trim();
@@ -2313,9 +2321,11 @@ document.getElementById("saveFbBtn").addEventListener("click", function() {
   hearthFbProjectId = pid; storeSet("hearth_fbProject", hearthFbProjectId);
   document.getElementById("fbSetupStatus").innerHTML = "<div style='font-size:12px;color:#2D6B35;margin-bottom:8px'>&#x2714; Connected to: <strong>" + hearthFbProjectId + "</strong></div>";
   document.getElementById("householdSection").style.display = "block";
+  // Push existing local health data immediately so it's available on other devices
+  pushPersonalData();
   fetchPersonalData();
   startPersonalListening();
-  toast("Firebase project saved");
+  toast("Firebase project saved — health data pushed");
 });
 
 // Create household
