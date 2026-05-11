@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v33</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v34</div>
 
   </div>
 </div>
@@ -1989,8 +1989,8 @@ var SSE_GRACE_MS  = 3000;
   var oldRoom = storeGet("fl4_room")  || storeGet("hearth_household")  || storeGet("hearth_code") || "";
   if (oldFb && !hearthFbId) {
     // Accept full URL or bare project ID
-    if (oldFb.indexOf("firebaseio.com") !== -1 || oldFb.indexOf("firebasedatabaseapp.com") !== -1) {
-      hearthFbId = oldFb.replace(/\/+$/, ""); // store full URL, strip trailing slash
+    if (oldFb.match(/firebaseio\.com|firebasedatabase\.app/i)) {
+      hearthFbId = oldFb.replace(/^(https?:\/\/)?/, "https://").replace(/\/+$/, "");
     } else {
       hearthFbId = "https://" + oldFb.replace(/[^a-z0-9-]/g,"") + "-default-rtdb.firebaseio.com";
     }
@@ -2254,10 +2254,10 @@ document.getElementById("loginFbSaveBtn").addEventListener("click", function() {
   var raw = document.getElementById("loginFbInput").value.trim();
   if (!raw) { return; }
   var url;
-  if (raw.indexOf("firebaseio.com") !== -1 || raw.indexOf("firebasedatabaseapp.com") !== -1) {
-    // Full URL pasted — use directly, ensure https://
-    url = raw.replace(/^https?:\/\//, "");
-    url = "https://" + url.replace(/\/+$/, "");
+  // Detect any Firebase database URL (firebaseio.com or firebasedatabase.app)
+  if (raw.match(/firebaseio\.com|firebasedatabase\.app/i)) {
+    // Full URL pasted — normalise to https:// and strip trailing slash
+    url = raw.replace(/^(https?:\/\/)?/, "https://").replace(/\/+$/, "");
   } else {
     // Bare project ID — build standard URL
     var pid = raw.toLowerCase().replace(/[^a-z0-9-]/g, "");
