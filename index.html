@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v29</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v31</div>
 
   </div>
 </div>
@@ -998,106 +998,70 @@ body.train-mode #toast{background:#132040}
 
 <!-- SYNC MODAL -->
 <div class="overlay" id="syncOverlay">
-  <div class="modal-box" style="position:relative;max-height:88vh;overflow-y:auto">
+  <div class="modal-box" style="position:relative">
     <button class="modal-close" id="syncClose">&#x2715;</button>
-    <div class="modal-title">&#x1F504; Sync &amp; Household</div>
+    <div class="modal-title">&#x1F504; Sync</div>
 
-    <!-- Status pill -->
-    <div class="sync-status" id="syncStatus" style="display:none"></div>
-
-    <!-- Profile -->
-    <div class="sync-section">
-      <div class="sync-section-title">Your profile</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-        <input class="sync-input" id="profileNameInput" placeholder="Your name" style="flex:1;margin:0">
-        <button class="sync-btn" id="saveNameBtn" style="margin:0;padding:10px 14px;white-space:nowrap">Save</button>
+    <!-- Connected state -->
+    <div id="syncConnected" style="display:none">
+      <div style="background:#F0F7F0;border-radius:12px;padding:14px 16px;margin-bottom:14px;text-align:center">
+        <div style="font-size:11px;font-weight:700;color:#4A7A4A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Your sync code</div>
+        <div id="syncCodeBig" style="font-family:monospace;font-size:28px;font-weight:700;letter-spacing:6px;color:#2D6B35;margin-bottom:8px"></div>
+        <div style="font-size:12px;color:#7A8772;margin-bottom:10px">Share this code with any device that should sync with you</div>
+        <button class="sync-btn outline" id="copySyncCodeBtn" style="margin-bottom:0;font-size:13px">Copy code</button>
       </div>
-      <div style="font-size:12px;color:#7A8772;margin-bottom:4px">Your device code — share with yourself to sync health data across your own devices</div>
-      <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px">
-        <code id="userIdDisplay" style="flex:1;background:#F0EDE8;padding:7px 10px;border-radius:7px;font-size:12px;color:#4A4A3A;word-break:break-all"></code>
-        <button class="sync-btn outline" id="copyUserIdBtn" style="margin:0;padding:8px 12px;white-space:nowrap;font-size:12px">Copy</button>
+      <div style="font-size:12px;color:#7A8772;margin-bottom:14px;text-align:center">
+        <span id="syncProjectLabel"></span>
       </div>
-      <div style="font-size:12px;color:#7A8772;margin-bottom:6px">On a second device? Paste your code from the first device here:</div>
-      <div style="display:flex;gap:8px;margin-bottom:8px">
-        <input class="sync-input" id="importDeviceCodeInput" placeholder="Paste device code" style="flex:1;margin:0;font-size:13px;font-family:monospace">
-        <button class="sync-btn" id="importDeviceCodeBtn" style="margin:0;padding:10px 14px;white-space:nowrap;font-size:13px">Use this code</button>
-      </div>
-      <button class="sync-btn outline" id="pushHealthNowBtn" style="font-size:13px">&#x2191; Push my health data to cloud now</button>
+      <button class="sync-btn outline" id="disconnectSyncBtn" style="border-color:#C03030;color:#C03030;margin-bottom:14px">Disconnect</button>
     </div>
 
-    <!-- Firebase setup -->
-    <div class="sync-section" id="fbSetupSection">
-      <div class="sync-section-title">Firebase project</div>
-      <div id="fbSetupStatus"></div>
-      <input class="sync-input" id="fbProjectInput" placeholder="e.g. my-hearth-app" style="margin-bottom:6px">
-      <button class="sync-btn outline" id="saveFbBtn" style="margin-bottom:8px">Save project ID</button>
-      <details style="font-size:12px;color:#7A8772;line-height:1.6">
-        <summary style="cursor:pointer;font-weight:600;margin-bottom:4px">How to get a free Firebase project &#x2192;</summary>
-        <ol style="margin:6px 0 0 16px;padding:0">
-          <li>Go to <strong>firebase.google.com</strong> → Add project</li>
-          <li>Give it any name, click through the steps</li>
-          <li>In the left menu → Build → <strong>Realtime Database</strong></li>
-          <li>Click <strong>Create Database</strong> → choose a region → Start in <strong>test mode</strong></li>
-          <li>Copy the project ID from the database URL:<br><code style="background:#F0EDE8;padding:2px 5px;border-radius:4px">https://<strong>YOUR-PROJECT-ID</strong>-default-rtdb…</code></li>
-        </ol>
-      </details>
-    </div>
-
-    <!-- Household -->
-    <div class="sync-section" id="householdSection" style="display:none">
-      <div class="sync-section-title">Household</div>
-      <div id="householdConnected" style="display:none">
-        <div style="background:#F0F7F0;border-radius:10px;padding:12px 14px;margin-bottom:10px">
-          <div style="font-size:12px;color:#4A7A4A;font-weight:700;margin-bottom:4px">HOUSEHOLD CODE</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div id="householdCodeDisplay" style="font-family:monospace;font-size:22px;font-weight:700;letter-spacing:3px;color:#2D6B35;flex:1"></div>
-            <button class="sync-btn outline" id="copyHouseholdBtn" style="margin:0;padding:8px 12px;font-size:12px;white-space:nowrap">Copy</button>
+    <!-- Setup state -->
+    <div id="syncSetup">
+      <div class="sync-section">
+        <div class="sync-section-title">1. Firebase project ID</div>
+        <input class="sync-input" id="syncFbInput" placeholder="e.g. my-hearth-12345">
+        <details style="font-size:12px;color:#7A8772;line-height:1.6;margin-top:4px">
+          <summary style="cursor:pointer;font-weight:600">How to get one (free, 2 min) &#x2192;</summary>
+          <ol style="margin:6px 0 0 16px;padding:0">
+            <li>Go to <strong>console.firebase.google.com</strong></li>
+            <li>Add project &#x2192; any name &#x2192; Continue through steps</li>
+            <li>Build &#x2192; <strong>Realtime Database</strong> &#x2192; Create Database</li>
+            <li>Choose region &#x2192; <strong>Start in test mode</strong> &#x2192; Enable</li>
+            <li>Copy the project ID from the URL:<br>
+              <code style="background:#F0EDE8;padding:2px 5px;border-radius:4px">console.firebase.google.com/project/<strong>THIS-PART</strong>/...</code>
+            </li>
+          </ol>
+          <div style="margin-top:8px">In Realtime Database &#x2192; <strong>Rules</strong> tab, paste:<br>
+            <code style="background:#F0EDE8;padding:4px 6px;border-radius:4px;display:block;margin-top:4px;font-size:11px;line-height:1.8">{"rules":{"hearth":{"$code":{".read":true,".write":true}}}}</code>
           </div>
-          <div style="font-size:12px;color:#7A8772;margin-top:6px">Share this with family members to give them access</div>
+        </details>
+      </div>
+
+      <div class="sync-section">
+        <div class="sync-section-title">2. Sync code</div>
+        <div style="font-size:12px;color:#7A8772;margin-bottom:8px">Generate a new code (first device) or enter the code from your other device.</div>
+        <div style="display:flex;gap:8px">
+          <input class="sync-input" id="syncCodeInput" placeholder="Enter or generate" style="flex:1;margin:0;font-family:monospace;font-size:16px;letter-spacing:3px;text-transform:uppercase;font-weight:700">
+          <button class="sync-btn outline" id="genCodeBtn" style="margin:0;padding:10px 12px;white-space:nowrap;font-size:13px">Generate</button>
         </div>
-        <div style="font-size:13px;font-weight:700;color:#4A4A3A;margin-bottom:6px">Members</div>
-        <div id="membersList" style="margin-bottom:10px"></div>
-        <button class="sync-btn outline" id="leaveHouseholdBtn" style="border-color:#C03030;color:#C03030">Leave household</button>
       </div>
-      <div id="householdJoin">
-        <button class="sync-btn" id="createHouseholdBtn">Create new household</button>
-        <div style="text-align:center;font-size:13px;color:#7A8772;margin:8px 0">or</div>
-        <input class="sync-input" id="joinCodeInput" placeholder="Enter household code" style="text-transform:uppercase;letter-spacing:2px;font-weight:700">
-        <input class="sync-input" id="joinNameCheck" placeholder="Your name (must match)" style="margin-top:6px">
-        <button class="sync-btn outline" id="joinHouseholdBtn">Join household</button>
-      </div>
+
+      <button class="sync-btn" id="startSyncBtn" style="font-size:15px">Start syncing</button>
     </div>
 
     <!-- What to sync -->
-    <div class="sync-section" id="syncPrefsSection" style="display:none">
-      <div class="sync-section-title">What to sync with household</div>
+    <div class="sync-section" id="syncTogglesSection">
+      <div class="sync-section-title">What to sync</div>
       <div id="syncToggles">
-        <div class="sync-toggle-row">
-          <span class="sync-toggle-label">&#x1F6D2; Grocery</span>
-          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="grocery" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="sync-toggle-row">
-          <span class="sync-toggle-label">&#x2705; General</span>
-          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="todo" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="sync-toggle-row">
-          <span class="sync-toggle-label">&#x2708;&#xFE0F; Travel</span>
-          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="travel" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="sync-toggle-row">
-          <span class="sync-toggle-label">&#x1F464; Personal</span>
-          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="personal"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="sync-toggle-row">
-          <span class="sync-toggle-label">&#x1F4DD; Notes</span>
-          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="notes"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="sync-toggle-row">
-          <span class="sync-toggle-label">&#x1F476; Baby</span>
-          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="baby"><span class="toggle-slider"></span></label>
-        </div>
+        <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F6D2; Grocery</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="grocery" checked><span class="toggle-slider"></span></label></div>
+        <div class="sync-toggle-row"><span class="sync-toggle-label">&#x2705; General</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="todo" checked><span class="toggle-slider"></span></label></div>
+        <div class="sync-toggle-row"><span class="sync-toggle-label">&#x2708;&#xFE0F; Travel</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="travel" checked><span class="toggle-slider"></span></label></div>
+        <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F464; Personal</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="personal"><span class="toggle-slider"></span></label></div>
+        <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F4DD; Notes</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="notes"><span class="toggle-slider"></span></label></div>
+        <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F476; Baby</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="baby" checked><span class="toggle-slider"></span></label></div>
+        <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F4AA; Health &amp; fitness</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="health" checked><span class="toggle-slider"></span></label></div>
       </div>
-      <div style="font-size:12px;color:#7A8772;margin-top:8px;line-height:1.5">Health &amp; fitness data always syncs to your personal device code only.</div>
     </div>
 
   </div>
@@ -1133,73 +1097,6 @@ body.train-mode #toast{background:#132040}
     <div id="importStatus" style="font-size:13px;padding:8px 12px;border-radius:8px;display:none;margin-bottom:10px"></div>
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <button class="sync-btn outline" id="clearAllBtn" style="border-color:#C03030;color:#C03030">Clear all data</button>
-  </div>
-</div>
-
-<!-- ONBOARDING OVERLAY -->
-<div id="onboardingOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:800;overflow-y:auto">
-  <div style="max-width:420px;margin:40px auto 40px;padding:0 16px">
-    <div style="background:#fff;border-radius:20px;overflow:hidden">
-      <!-- Steps header -->
-      <div style="background:#2D6B35;padding:20px 24px 16px">
-        <div style="font-family:Georgia,serif;font-size:22px;font-weight:600;color:#fff;margin-bottom:4px">&#x1F525; Welcome to Hearth</div>
-        <div style="font-size:13px;color:rgba(255,255,255,.75)" id="onboardStepLabel">Step 1 of 3 — Your identity</div>
-        <div style="display:flex;gap:4px;margin-top:12px">
-          <div id="ob-dot-1" style="height:4px;flex:1;border-radius:2px;background:#fff;opacity:1"></div>
-          <div id="ob-dot-2" style="height:4px;flex:1;border-radius:2px;background:#fff;opacity:.3"></div>
-          <div id="ob-dot-3" style="height:4px;flex:1;border-radius:2px;background:#fff;opacity:.3"></div>
-        </div>
-      </div>
-      <div style="padding:24px">
-
-        <!-- Step 1: Name -->
-        <div id="obStep1">
-          <div style="font-size:15px;color:#4A4A3A;margin-bottom:16px;line-height:1.5">What should Hearth call you?</div>
-          <input id="obNameInput" class="sync-input" placeholder="Your name" style="margin-bottom:8px">
-          <button class="sync-btn" id="obStep1Btn">Continue &#x2192;</button>
-        </div>
-
-        <!-- Step 2: Firebase -->
-        <div id="obStep2" style="display:none">
-          <div style="font-size:15px;color:#4A4A3A;margin-bottom:8px;line-height:1.5">Set up sync (optional)</div>
-          <div style="font-size:13px;color:#7A8772;margin-bottom:14px;line-height:1.6">Hearth uses a free Firebase database to sync across devices and share with family. You can skip this and set it up later from the sync button.</div>
-          <input id="obFbInput" class="sync-input" placeholder="Firebase project ID (e.g. my-hearth)" style="margin-bottom:6px">
-          <details style="font-size:12px;color:#7A8772;line-height:1.6;margin-bottom:12px">
-            <summary style="cursor:pointer;font-weight:600">How to get a free project ID &#x2192;</summary>
-            <ol style="margin:6px 0 0 16px;padding:0">
-              <li><strong>firebase.google.com</strong> → Add project → any name</li>
-              <li>Build → <strong>Realtime Database</strong> → Create Database</li>
-              <li>Choose a region → <strong>Start in test mode</strong></li>
-              <li>Your project ID is the part before <em>-default-rtdb</em> in the URL</li>
-            </ol>
-          </details>
-          <button class="sync-btn" id="obStep2Btn">Continue &#x2192;</button>
-          <button class="sync-btn outline" id="obSkipFbBtn" style="margin-top:6px">Skip for now</button>
-        </div>
-
-        <!-- Step 3: Household -->
-        <div id="obStep3" style="display:none">
-          <div style="font-size:15px;color:#4A4A3A;margin-bottom:8px;line-height:1.5">Set up your household</div>
-          <div style="font-size:13px;color:#7A8772;margin-bottom:14px;line-height:1.6">Create a household to share grocery lists, baby data and more with family. Or join an existing one.</div>
-          <button class="sync-btn" id="obCreateBtn">Create a new household</button>
-          <div style="text-align:center;font-size:13px;color:#7A8772;margin:8px 0">or</div>
-          <input id="obJoinCodeInput" class="sync-input" placeholder="Enter household code" style="text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:6px">
-          <button class="sync-btn outline" id="obJoinBtn">Join household</button>
-          <button class="sync-btn outline" id="obSkipHouseholdBtn" style="margin-top:6px;color:#7A8772;border-color:#C8C4BC">Skip — I'll do this later</button>
-        </div>
-
-        <!-- Step 3b: Created -->
-        <div id="obStep3b" style="display:none;text-align:center">
-          <div style="font-size:40px;margin-bottom:10px">&#x1F3E0;</div>
-          <div style="font-family:Georgia,serif;font-size:20px;font-weight:600;color:#2D4A28;margin-bottom:4px">Household created!</div>
-          <div style="font-size:13px;color:#7A8772;margin-bottom:16px">Share this code with family members</div>
-          <div id="obCodeDisplay" style="font-family:monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:#2D6B35;background:#F0F7F0;padding:14px;border-radius:12px;margin-bottom:6px"></div>
-          <button class="sync-btn outline" id="obCopyCodeBtn" style="margin-bottom:16px">Copy code</button>
-          <button class="sync-btn" id="obDoneBtn">Let&#x2019;s go &#x1F525;</button>
-        </div>
-
-      </div>
-    </div>
   </div>
 </div>
 
@@ -1515,7 +1412,7 @@ function loadListData(lt) {
 }
 function saveCurrentList() {
   var d = listData[currentList];
-  if (d) { storeSet(LIST_CONFIG[currentList].key, d); if (isHouseholdReady()) pushHouseholdData(); }
+  if (d) { storeSet(LIST_CONFIG[currentList].key, d); if (isReady()) pushAll(); }
 }
 function getItems() { return loadListData(currentList).items; }
 function getHist()  { return loadListData(currentList).hist; }
@@ -1549,8 +1446,7 @@ var editItemId = null;   // item whose category we're editing (null = adding new
 var listData = { grocery:null, todo:null, travel:null, personal:null };
 
 // Sync state
-// Legacy vars kept for migration detection only
-var fbUrl = ""; var syncRoom = ""; var syncES = null;
+var fbUrl = ""; var syncRoom = "";
 var syncPaused = false;
 var lastPushTs = 0;       // timestamp of our last push to Firebase
 var SSE_GRACE_MS = 3000;  // ignore SSE events for 3s after a local push
@@ -2039,151 +1935,99 @@ document.getElementById("clearAllBtn").addEventListener("click", function() {
 });
 
 // ============================================================
-// IDENTITY & SYNC — Hearth v2
+// SYNC — Hearth (simple single-code system)
 // ============================================================
 
-// ── Identity ─────────────────────────────────────────────
-var hearthUserId        = storeGet("hearth_userId")     || null;
-var hearthName          = storeGet("hearth_name")       || "";
-var hearthFbProjectId   = storeGet("hearth_fbProject")  || "";
-var hearthHouseholdCode = storeGet("hearth_household")  || "";
+var hearthFbId   = storeGet("hearth_fb")   || "";
+var hearthCode   = storeGet("hearth_code") || "";
+var hearthSyncES = null;
+var syncPaused   = false;
+var lastPushTs   = 0;
+var SSE_GRACE_MS = 3000;
 
-// Migrate from old fl4_fbUrl / fl4_room if present
-(function migrateOldSync() {
-  if (hearthFbProjectId || hearthHouseholdCode) return; // already using new system
-  var oldUrl  = storeGet("fl4_fbUrl");
-  var oldRoom = storeGet("fl4_room");
-  if (oldUrl && oldRoom) {
-    // Extract project ID from URL: https://{projectId}-default-rtdb...firebaseio.com
-    var m = oldUrl.match(/https:\/\/([^.]+)-default-rtdb/);
-    if (m) {
-      hearthFbProjectId = m[1];
-      storeSet("hearth_fbProject", hearthFbProjectId);
-    }
-    // Use old room as household code
-    hearthHouseholdCode = oldRoom;
-    storeSet("hearth_household", hearthHouseholdCode);
-  }
-})();
-
-if (!hearthUserId) {
-  hearthUserId = generateHearthId(16);
-  storeSet("hearth_userId", hearthUserId);
-}
-
-var hearthSyncES      = null;
-var hearthPersonalES  = null;
-var syncPaused        = false;
-var lastPushTs        = 0;
-var SSE_GRACE_MS      = 3000;
-
-var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, personal:false, notes:false, baby:true };
+var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, personal:false, notes:false, baby:true, health:true };
 function saveSyncPrefs() { storeSet("fl4_syncPrefs", syncPrefs); }
 function isSynced(key)   { return !!(syncPrefs[key]); }
 
-function generateHearthId(len) {
-  var c = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  var s = "";
-  for (var i = 0; i < len; i++) s += c[Math.floor(Math.random() * c.length)];
-  return s;
-}
-function generateHouseholdCode() {
+// Migrate old fl4_fbUrl / fl4_room → new keys
+(function() {
+  if (hearthFbId && hearthCode) return;
+  var oldUrl  = storeGet("fl4_fbUrl")  || storeGet("hearth_fbProject") || "";
+  var oldCode = storeGet("fl4_room")   || storeGet("hearth_household") || "";
+  if (oldUrl && !hearthFbId) {
+    var m = oldUrl.match(/https:\/\/([^.]+)-default-rtdb/);
+    if (m) { hearthFbId = m[1]; storeSet("hearth_fb", hearthFbId); }
+    else   { hearthFbId = oldUrl.replace(/https?:\/\/|\//g,""); }
+  }
+  if (oldCode && !hearthCode) { hearthCode = oldCode; storeSet("hearth_code", hearthCode); }
+})();
+
+function genCode() {
   var c = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
   var s = "";
-  for (var i = 0; i < 6; i++) s += c[Math.floor(Math.random() * c.length)];
+  for (var i = 0; i < 8; i++) s += c[Math.floor(Math.random() * c.length)];
   return s;
 }
 
-// ── Firebase URLs ─────────────────────────────────────────
-function hearthFbBase() {
-  if (!hearthFbProjectId) return "";
-  return "https://" + hearthFbProjectId + "-default-rtdb.firebaseio.com";
-}
-function householdUrl(path) {
-  return hearthFbBase() + "/households/" + hearthHouseholdCode + (path||"") + ".json";
-}
-function personalUrl(path) {
-  return hearthFbBase() + "/users/" + hearthUserId + (path||"") + ".json";
-}
-function memberUrl() {
-  return hearthFbBase() + "/households/" + hearthHouseholdCode + "/members/" + hearthUserId + ".json";
-}
+function hearthBase() { return "https://" + hearthFbId + "-default-rtdb.firebaseio.com"; }
+function hearthUrl()  { return hearthBase() + "/hearth/" + hearthCode + ".json"; }
+function isReady()    { return !!(hearthFbId && hearthCode); }
 
-function isHouseholdReady() { return !!(hearthFbProjectId && hearthHouseholdCode); }
-function isPersonalReady()  { return !!(hearthFbProjectId && hearthUserId); }
-
-// ── Push functions ────────────────────────────────────────
-function pushHouseholdData() {
-  if (!isHouseholdReady() || syncPaused) return;
+// ── Push all synced data ──────────────────────────────────
+function pushAll() {
+  if (!isReady() || syncPaused) return;
   var data = {};
   ["grocery","todo","travel","personal"].forEach(function(lt) {
     if (!isSynced(lt)) return;
-    var d = listData[lt];
-    var notes = storeGet("fl4_notes_" + lt) || [];
-    if (d) data["lists_" + lt] = { items: d.items, hist: d.hist, notes: notes };
+    var d = listData[lt], notes = storeGet("fl4_notes_" + lt) || [];
+    if (d) data["list_" + lt] = { items: d.items, hist: d.hist, notes: notes };
   });
-  if (isSynced("notes")) data["global_notes"] = storeGet("fl4_notes_global") || [];
+  if (isSynced("notes"))  data["global_notes"] = storeGet("fl4_notes_global") || [];
+  if (isSynced("health")) data["health"]        = getWD();
   if (isSynced("baby")) {
     var bd = getBD();
-    if ((bd.growth||[]).length || (bd.medicine||[]).length || (bd.milestones||[]).length || Object.keys(bd.teeth||{}).length) {
+    if ((bd.growth||[]).length || (bd.medicine||[]).length || (bd.milestones||[]).length || Object.keys(bd.teeth||{}).length)
       data["baby"] = bd;
-    }
   }
   lastPushTs = Date.now();
-  fetch(householdUrl(), { method:"PATCH", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).catch(function(){});
+  fetch(hearthUrl(), { method:"PATCH", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} })
+    .catch(function(){});
 }
 
-function pushPersonalData() {
-  if (!isPersonalReady() || syncPaused) return;
-  var wd = getWD();
-  fetch(personalUrl("/health"), { method:"PUT", body:JSON.stringify(wd), headers:{"Content-Type":"application/json"} }).catch(function(){});
+// ── Fetch + apply ─────────────────────────────────────────
+function fetchAll(cb) {
+  if (!isReady()) { if (cb) cb(); return; }
+  fetch(hearthUrl())
+    .then(function(r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      if (data && typeof data === "object") applyData(data);
+      if (cb) cb();
+    })
+    .catch(function(err) { console.warn("Hearth fetch error:", err); if (cb) cb(); });
 }
 
-function registerMember() {
-  if (!isHouseholdReady() || !hearthName) return;
-  fetch(memberUrl(), {
-    method:"PUT",
-    body: JSON.stringify({ name: hearthName, lastSeen: Date.now() }),
-    headers: {"Content-Type":"application/json"}
-  }).catch(function(){});
-}
-
-// ── Fetch functions ───────────────────────────────────────
-function fetchHouseholdData(cb) {
-  if (!isHouseholdReady()) { if (cb) cb(); return; }
-  fetch(householdUrl()).then(function(r){ return r.json(); }).then(function(data) {
-    if (data && typeof data === "object") applyHouseholdData(data);
-    if (cb) cb();
-  }).catch(function(){ if (cb) cb(); });
-}
-
-function fetchPersonalData(cb) {
-  if (!isPersonalReady()) { if (cb) cb(); return; }
-  fetch(personalUrl("/health")).then(function(r){ return r.json(); }).then(function(data) {
-    if (data && typeof data === "object") {
-      storeSet("fl4_workouts", data);
-    }
-    if (cb) cb();
-  }).catch(function(){ if (cb) cb(); });
-}
-
-function applyHouseholdData(data) {
+function applyData(data) {
   syncPaused = true;
   ["grocery","todo","travel","personal"].forEach(function(lt) {
     if (!isSynced(lt)) return;
-    var key = "lists_" + lt;
-    if (data[key] && typeof data[key] === "object") {
-      var d = data[key];
-      var incoming = Array.isArray(d.items) ? d.items.filter(Boolean) : [];
-      var local = listData[lt] ? (listData[lt].items || []) : [];
-      var inIds = {}; incoming.forEach(function(x){ inIds[x.id] = true; });
-      var localOnly = local.filter(function(x){ return !inIds[x.id]; });
-      listData[lt] = { items: localOnly.concat(incoming), hist: Array.isArray(d.hist) ? d.hist.filter(Boolean) : [] };
-      storeSet(LIST_CONFIG[lt].key, listData[lt]);
-      if (Array.isArray(d.notes)) storeSet("fl4_notes_" + lt, d.notes.filter(Boolean));
-    }
+    var d = data["list_" + lt];
+    if (!d || typeof d !== "object") return;
+    var incoming  = Array.isArray(d.items) ? d.items.filter(Boolean) : [];
+    var local     = listData[lt] ? (listData[lt].items||[]) : [];
+    var inIds     = {};
+    incoming.forEach(function(x){ inIds[x.id] = true; });
+    var localOnly = local.filter(function(x){ return !inIds[x.id]; });
+    listData[lt]  = { items: localOnly.concat(incoming), hist: Array.isArray(d.hist) ? d.hist.filter(Boolean) : [] };
+    storeSet(LIST_CONFIG[lt].key, listData[lt]);
+    if (Array.isArray(d.notes)) storeSet("fl4_notes_" + lt, d.notes.filter(Boolean));
   });
-  if (isSynced("notes") && Array.isArray(data["global_notes"])) storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
+  if (isSynced("notes") && Array.isArray(data["global_notes"]))
+    storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
+  if (isSynced("health") && data["health"] && typeof data["health"] === "object")
+    storeSet("fl4_workouts", data["health"]);
   if (isSynced("baby") && data["baby"] && typeof data["baby"] === "object") {
     storeSet("fl4_baby", data["baby"]);
     if (currentSection === "baby") renderBabyView();
@@ -2193,195 +2037,96 @@ function applyHouseholdData(data) {
   if (currentSection === "home") renderHomeScreen();
 }
 
-// ── SSE listeners ─────────────────────────────────────────
-function startHouseholdListening() {
+// ── SSE live listener ─────────────────────────────────────
+function startListening() {
   if (hearthSyncES) hearthSyncES.close();
-  if (!isHouseholdReady()) return;
+  if (!isReady()) return;
   try {
-    hearthSyncES = new EventSource(hearthFbBase() + "/households/" + hearthHouseholdCode + ".json?accept=text/event-stream");
+    hearthSyncES = new EventSource(hearthBase() + "/hearth/" + hearthCode + ".json?accept=text/event-stream");
     hearthSyncES.addEventListener("put", function(e) {
-      try {
-        var payload = JSON.parse(e.data);
-        var data = payload.data;
-        if (!data || typeof data !== "object") return;
-        if (Date.now() - lastPushTs < SSE_GRACE_MS) return;
-        applyHouseholdData(data);
-      } catch(err) {}
-    });
-    hearthSyncES.onerror = function() {
-      setTimeout(function(){ if (isHouseholdReady()) startHouseholdListening(); }, 5000);
-    };
-  } catch(err) {}
-}
-
-function startPersonalListening() {
-  if (hearthPersonalES) hearthPersonalES.close();
-  if (!isPersonalReady()) return;
-  try {
-    hearthPersonalES = new EventSource(hearthFbBase() + "/users/" + hearthUserId + "/health.json?accept=text/event-stream");
-    hearthPersonalES.addEventListener("put", function(e) {
       try {
         var payload = JSON.parse(e.data);
         if (!payload.data || typeof payload.data !== "object") return;
         if (Date.now() - lastPushTs < SSE_GRACE_MS) return;
-        storeSet("fl4_workouts", payload.data);
+        applyData(payload.data);
       } catch(err) {}
     });
-    hearthPersonalES.onerror = function() {
-      setTimeout(function(){ if (isPersonalReady()) startPersonalListening(); }, 5000);
+    hearthSyncES.onerror = function() {
+      setTimeout(function(){ if (isReady()) startListening(); }, 5000);
     };
   } catch(err) {}
 }
 
-// ── Update sync status indicator ─────────────────────────
+// ── Sync status indicator ─────────────────────────────────
 function updateSyncStatus() {
-  var el = document.getElementById("syncStatus");
-  if (!el) return;
-  if (isHouseholdReady()) {
-    el.style.display = "block";
-    el.className = "sync-status on";
-    el.innerHTML = "<span class='sync-indicator live'></span>Household: <strong>" + hearthHouseholdCode + "</strong>" +
-      (hearthName ? " &nbsp;&middot;&nbsp; " + esc(hearthName) : "");
-  } else if (isPersonalReady()) {
-    el.style.display = "block";
-    el.className = "sync-status";
-    el.innerHTML = "<span class='sync-indicator'></span>Personal sync only";
-  } else {
-    el.style.display = "none";
-  }
+  var btn = document.getElementById("syncBtn");
+  if (!btn) return;
+  btn.title = isReady() ? "Syncing: " + hearthCode : "Set up sync";
+  btn.style.opacity = isReady() ? "1" : "0.6";
 }
 
 // ── Open sync modal ───────────────────────────────────────
 document.getElementById("syncBtn").addEventListener("click", function() {
-  // Populate fields
-  document.getElementById("profileNameInput").value = hearthName;
-  document.getElementById("userIdDisplay").textContent = hearthUserId;
-  document.getElementById("fbProjectInput").value = hearthFbProjectId;
-  document.getElementById("fbSetupStatus").innerHTML = hearthFbProjectId
-    ? "<div style='font-size:12px;color:#2D6B35;margin-bottom:8px'>&#x2714; Connected to: <strong>" + hearthFbProjectId + "</strong></div>" : "";
-  document.getElementById("householdSection").style.display = hearthFbProjectId ? "block" : "none";
-  document.getElementById("syncPrefsSection").style.display = isHouseholdReady() ? "block" : "none";
-  document.getElementById("householdConnected").style.display = hearthHouseholdCode ? "block" : "none";
-  document.getElementById("householdJoin").style.display = hearthHouseholdCode ? "none" : "block";
-  if (hearthHouseholdCode) {
-    document.getElementById("householdCodeDisplay").textContent = hearthHouseholdCode;
-    loadMembersList();
+  var connected = isReady();
+  document.getElementById("syncConnected").style.display = connected ? "block" : "none";
+  document.getElementById("syncSetup").style.display     = connected ? "none"  : "block";
+  document.getElementById("syncTogglesSection").style.display = "block";
+  if (connected) {
+    document.getElementById("syncCodeBig").textContent = hearthCode;
+    document.getElementById("syncProjectLabel").textContent = "Firebase: " + hearthFbId;
+  } else {
+    document.getElementById("syncFbInput").value   = hearthFbId;
+    document.getElementById("syncCodeInput").value = hearthCode;
   }
-  document.querySelectorAll(".sync-chk").forEach(function(chk) { chk.checked = isSynced(chk.dataset.key); });
-  updateSyncStatus();
+  document.querySelectorAll(".sync-chk").forEach(function(chk){ chk.checked = isSynced(chk.dataset.key); });
   document.getElementById("syncOverlay").classList.add("open");
 });
 document.getElementById("syncClose").addEventListener("click", function(){ document.getElementById("syncOverlay").classList.remove("open"); });
-document.getElementById("syncOverlay").addEventListener("click", function(e){ if(e.target===this) this.classList.remove("open"); });
+document.getElementById("syncOverlay").addEventListener("click", function(e){ if (e.target===this) this.classList.remove("open"); });
 
-// Save name
-document.getElementById("saveNameBtn").addEventListener("click", function() {
-  var name = document.getElementById("profileNameInput").value.trim();
-  if (!name) { toast("Enter your name"); return; }
-  hearthName = name; storeSet("hearth_name", hearthName);
-  if (isHouseholdReady()) registerMember();
-  toast("Name saved: " + name);
+// Generate code button
+document.getElementById("genCodeBtn").addEventListener("click", function(){
+  document.getElementById("syncCodeInput").value = genCode();
 });
 
-// Copy userId
-document.getElementById("copyUserIdBtn").addEventListener("click", function() {
-  navigator.clipboard && navigator.clipboard.writeText(hearthUserId).then(function(){ toast("Device code copied!"); });
-});
-
-// Push health data manually
-document.getElementById("pushHealthNowBtn").addEventListener("click", function() {
-  if (!isPersonalReady()) { toast("Set up Firebase first"); return; }
-  pushPersonalData();
-  toast("&#x2191; Health data pushed to cloud");
-});
-
-// Import device code from another device
-document.getElementById("importDeviceCodeBtn").addEventListener("click", function() {
-  var code = document.getElementById("importDeviceCodeInput").value.trim();
-  if (!code || code.length < 8) { toast("Paste your full device code"); return; }
-  if (!confirm("Replace this device's health code with the one you pasted? Your local health data will be replaced with data from that device on next sync.")) return;
-  hearthUserId = code;
-  storeSet("hearth_userId", hearthUserId);
-  document.getElementById("userIdDisplay").textContent = hearthUserId;
-  document.getElementById("importDeviceCodeInput").value = "";
-  if (isPersonalReady()) {
-    fetchPersonalData(function() {
-      startPersonalListening();
-      toast("&#x2705; Device code updated — health data synced");
-    });
-  } else {
-    toast("&#x2705; Device code saved — set up Firebase to start syncing");
-  }
-});
-
-// Save Firebase project ID
-document.getElementById("saveFbBtn").addEventListener("click", function() {
-  var pid = document.getElementById("fbProjectInput").value.trim().toLowerCase().replace(/[^a-z0-9-]/g,"");
-  if (!pid) { toast("Enter a project ID"); return; }
-  hearthFbProjectId = pid; storeSet("hearth_fbProject", hearthFbProjectId);
-  document.getElementById("fbSetupStatus").innerHTML = "<div style='font-size:12px;color:#2D6B35;margin-bottom:8px'>&#x2714; Connected to: <strong>" + hearthFbProjectId + "</strong></div>";
-  document.getElementById("householdSection").style.display = "block";
-  // Push existing local health data immediately so it's available on other devices
-  pushPersonalData();
-  fetchPersonalData();
-  startPersonalListening();
-  toast("Firebase project saved — health data pushed");
-});
-
-// Create household
-document.getElementById("createHouseholdBtn").addEventListener("click", function() {
-  if (!isPersonalReady()) { toast("Save your Firebase project first"); return; }
-  hearthHouseholdCode = generateHouseholdCode();
-  storeSet("hearth_household", hearthHouseholdCode);
-  registerMember();
-  pushHouseholdData();
-  startHouseholdListening();
-  document.getElementById("householdConnected").style.display = "block";
-  document.getElementById("householdJoin").style.display = "none";
-  document.getElementById("householdCodeDisplay").textContent = hearthHouseholdCode;
-  document.getElementById("syncPrefsSection").style.display = "block";
-  updateSyncStatus();
-  toast("&#x1F3E0; Household created: " + hearthHouseholdCode);
-});
-
-// Join household
-document.getElementById("joinHouseholdBtn").addEventListener("click", function() {
-  var code = document.getElementById("joinCodeInput").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
-  if (!code || code.length < 4) { toast("Enter a valid household code"); return; }
-  if (!isPersonalReady()) { toast("Save your Firebase project first"); return; }
-  hearthHouseholdCode = code; storeSet("hearth_household", hearthHouseholdCode);
-  fetchHouseholdData(function() {
-    registerMember();
-    startHouseholdListening();
-    document.getElementById("householdConnected").style.display = "block";
-    document.getElementById("householdJoin").style.display = "none";
-    document.getElementById("householdCodeDisplay").textContent = hearthHouseholdCode;
-    document.getElementById("syncPrefsSection").style.display = "block";
-    loadMembersList();
+// Start syncing button
+document.getElementById("startSyncBtn").addEventListener("click", function() {
+  var pid  = document.getElementById("syncFbInput").value.trim().toLowerCase().replace(/[^a-z0-9-]/g,"");
+  var code = document.getElementById("syncCodeInput").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if (!pid)             { toast("Enter your Firebase project ID"); return; }
+  if (code.length < 4)  { toast("Enter or generate a sync code"); return; }
+  hearthFbId  = pid;  storeSet("hearth_fb",   hearthFbId);
+  hearthCode  = code; storeSet("hearth_code", hearthCode);
+  // Push local data first, then fetch remote and merge
+  pushAll();
+  fetchAll(function() {
+    startListening();
     updateSyncStatus();
-    toast("&#x1F91D; Joined household: " + hearthHouseholdCode);
+    document.getElementById("syncConnected").style.display = "block";
+    document.getElementById("syncSetup").style.display = "none";
+    document.getElementById("syncCodeBig").textContent = hearthCode;
+    document.getElementById("syncProjectLabel").textContent = "Firebase: " + hearthFbId;
+    toast("&#x2705; Syncing! Code: " + hearthCode);
   });
 });
 
-// Copy household code
-document.getElementById("copyHouseholdBtn").addEventListener("click", function() {
-  navigator.clipboard && navigator.clipboard.writeText(hearthHouseholdCode).then(function(){ toast("Household code copied!"); });
+// Copy sync code
+document.getElementById("copySyncCodeBtn").addEventListener("click", function(){
+  navigator.clipboard && navigator.clipboard.writeText(hearthCode).then(function(){ toast("Sync code copied!"); });
 });
 
-// Leave household
-document.getElementById("leaveHouseholdBtn").addEventListener("click", function() {
-  if (!confirm("Leave this household? Your local data stays, but you'll stop syncing.")) return;
+// Disconnect
+document.getElementById("disconnectSyncBtn").addEventListener("click", function(){
+  if (!confirm("Stop syncing? Your local data stays, but changes won't sync until you reconnect.")) return;
   if (hearthSyncES) { hearthSyncES.close(); hearthSyncES = null; }
-  // Remove self from members
-  if (isHouseholdReady()) {
-    fetch(memberUrl(), { method:"DELETE" }).catch(function(){});
-  }
-  hearthHouseholdCode = ""; storeSet("hearth_household", "");
-  document.getElementById("householdConnected").style.display = "none";
-  document.getElementById("householdJoin").style.display = "block";
-  document.getElementById("syncPrefsSection").style.display = "none";
+  hearthFbId = ""; hearthCode = "";
+  storeSet("hearth_fb", ""); storeSet("hearth_code", "");
+  document.getElementById("syncConnected").style.display = "none";
+  document.getElementById("syncSetup").style.display = "block";
+  document.getElementById("syncFbInput").value = "";
+  document.getElementById("syncCodeInput").value = "";
   updateSyncStatus();
-  toast("Left household");
+  toast("Sync disconnected");
 });
 
 // Sync prefs toggles
@@ -2390,96 +2135,8 @@ document.getElementById("syncToggles").addEventListener("change", function(e) {
   if (!chk.classList.contains("sync-chk")) return;
   syncPrefs[chk.dataset.key] = chk.checked;
   saveSyncPrefs();
-  if (isHouseholdReady()) pushHouseholdData();
+  if (isReady()) pushAll();
 });
-
-// Load members list
-function loadMembersList() {
-  if (!isHouseholdReady()) return;
-  fetch(hearthFbBase() + "/households/" + hearthHouseholdCode + "/members.json")
-    .then(function(r){ return r.json(); })
-    .then(function(members) {
-      var el = document.getElementById("membersList");
-      if (!members || typeof members !== "object") { el.innerHTML = "<div style='font-size:13px;color:#7A8772'>No other members yet</div>"; return; }
-      var html = "";
-      Object.keys(members).forEach(function(uid) {
-        var m = members[uid];
-        var isMe = uid === hearthUserId;
-        var ago = m.lastSeen ? Math.round((Date.now() - m.lastSeen) / 60000) : null;
-        var agoStr = ago === null ? "" : ago < 2 ? " · just now" : ago < 60 ? " · " + ago + "m ago" : "";
-        html += "<div style='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F0EDE8'>" +
-          "<div style='width:28px;height:28px;border-radius:50%;background:#2D6B35;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0'>" +
-          esc((m.name||"?").charAt(0).toUpperCase()) + "</div>" +
-          "<div style='flex:1;font-size:13px;color:#2A2A1A'>" + esc(m.name||"Unknown") + (isMe ? " <span style='color:#7A8772'>(you)</span>" : "") + agoStr + "</div>" +
-        "</div>";
-      });
-      el.innerHTML = html;
-    }).catch(function(){});
-}
-
-// ── Onboarding ────────────────────────────────────────────
-var obCurrentStep = 1;
-
-function showOnboarding() {
-  document.getElementById("onboardingOverlay").style.display = "block";
-  document.body.style.overflow = "hidden";
-}
-function hideOnboarding() {
-  document.getElementById("onboardingOverlay").style.display = "none";
-  document.body.style.overflow = "";
-  storeSet("hearth_onboarded", true);
-}
-function obGotoStep(n) {
-  obCurrentStep = n;
-  [1,2,3,"3b"].forEach(function(s){ document.getElementById("obStep"+s).style.display = "none"; });
-  document.getElementById("obStep"+n).style.display = "block";
-  var labels = { 1:"Step 1 of 3 — Your identity", 2:"Step 2 of 3 — Sync setup", 3:"Step 3 of 3 — Household", "3b":"Step 3 of 3 — Household" };
-  document.getElementById("onboardStepLabel").textContent = labels[n] || "";
-  [1,2,3].forEach(function(i){
-    var dot = document.getElementById("ob-dot-"+i);
-    if (dot) dot.style.opacity = (i <= (n === "3b" ? 3 : n)) ? "1" : "0.3";
-  });
-}
-
-document.getElementById("obStep1Btn").addEventListener("click", function() {
-  var name = document.getElementById("obNameInput").value.trim();
-  if (!name) { toast("Enter your name to continue"); return; }
-  hearthName = name; storeSet("hearth_name", hearthName);
-  obGotoStep(2);
-});
-document.getElementById("obStep2Btn").addEventListener("click", function() {
-  var pid = document.getElementById("obFbInput").value.trim().toLowerCase().replace(/[^a-z0-9-]/g,"");
-  if (!pid) { toast("Enter a Firebase project ID"); return; }
-  hearthFbProjectId = pid; storeSet("hearth_fbProject", hearthFbProjectId);
-  fetchPersonalData(); startPersonalListening();
-  obGotoStep(3);
-});
-document.getElementById("obSkipFbBtn").addEventListener("click", function() { obGotoStep(3); });
-document.getElementById("obCreateBtn").addEventListener("click", function() {
-  hearthHouseholdCode = generateHouseholdCode(); storeSet("hearth_household", hearthHouseholdCode);
-  if (isHouseholdReady()) { registerMember(); pushHouseholdData(); startHouseholdListening(); }
-  document.getElementById("obCodeDisplay").textContent = hearthHouseholdCode;
-  obGotoStep("3b");
-});
-document.getElementById("obCopyCodeBtn").addEventListener("click", function() {
-  navigator.clipboard && navigator.clipboard.writeText(hearthHouseholdCode).then(function(){ toast("Code copied!"); });
-});
-document.getElementById("obJoinBtn").addEventListener("click", function() {
-  var code = document.getElementById("obJoinCodeInput").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
-  if (!code || code.length < 4) { toast("Enter a valid household code"); return; }
-  if (!isPersonalReady()) { toast("Set up Firebase first, or skip"); return; }
-  hearthHouseholdCode = code; storeSet("hearth_household", hearthHouseholdCode);
-  fetchHouseholdData(function() { registerMember(); startHouseholdListening(); hideOnboarding(); updateSyncStatus(); toast("&#x1F91D; Joined!"); });
-});
-document.getElementById("obSkipHouseholdBtn").addEventListener("click", function() { hideOnboarding(); });
-document.getElementById("obDoneBtn").addEventListener("click", function() { hideOnboarding(); updateSyncStatus(); });
-
-// Show onboarding if not yet done
-if (!storeGet("hearth_onboarded") && !hearthName) {
-  setTimeout(showOnboarding, 400);
-}
-
-// Save prefs whenever a toggle changes
 // ============================================================
 // TOAST & HELPERS
 // ============================================================
@@ -2530,7 +2187,7 @@ function addNote(lt, inputId, renderFn) {
   document.getElementById(inputId).value = "";
   renderFn();
   toast("Note saved");
-  if (isHouseholdReady()) pushHouseholdData();
+  if (isReady()) pushAll();
 }
 
 function fmtDate(ts) {
@@ -2602,7 +2259,7 @@ document.getElementById("noteEditorSave").addEventListener("click", function() {
     notes.unshift({ id: Date.now(), text: text, html: html, ts: Date.now() });
   }
   saveNotes(notes, noteEditorLt);
-  if (isHouseholdReady()) pushHouseholdData();
+  if (isReady()) pushAll();
   if (noteEditorRenderFn) noteEditorRenderFn();
   closeNoteEditor();
   toast(noteEditorId ? "Note updated" : "Note saved");
@@ -2700,7 +2357,7 @@ function renderNotesIn(elId, lt, renderFn) {
       if (!confirm("Delete this note?")) return;
       var notes = getNotes(lt).filter(function(n){ return n.id !== id; });
       saveNotes(notes, lt);
-      if (isHouseholdReady()) pushHouseholdData();
+      if (isReady()) pushAll();
       renderFn();
     });
   });
@@ -2882,7 +2539,7 @@ var MS_CATS = {
 };
 
 function getBD()      { return storeGet("fl4_baby") || { growth:[], medicine:[], milestones:[], teeth:{} }; }
-function saveBD(data) { storeSet("fl4_baby", data); if (isHouseholdReady() && isSynced("baby")) pushHouseholdData(); }
+function saveBD(data) { storeSet("fl4_baby", data); if (isReady() && isSynced("baby")) pushAll(); }
 
 function renderBabyView() {
   // Sync sub-nav buttons
@@ -3222,9 +2879,8 @@ if ("serviceWorker" in navigator) {
 // ============================================================
 loadListData("grocery");
 loadListData("todo");
-if (isHouseholdReady()) { fetchHouseholdData(); startHouseholdListening(); }
-if (isPersonalReady())  { fetchPersonalData();  startPersonalListening();  }
-if (isHouseholdReady()) registerMember();
+if (isReady()) { fetchAll(); startListening(); }
+updateSyncStatus();
 
 // ============================================================
 // SECTION SWITCHER  (Home / Lists / Train)
@@ -3689,7 +3345,7 @@ function trainFmtDateLong(dateStr) {
   return d.toLocaleDateString("en-IE", { weekday:"long", day:"numeric", month:"long" });
 }
 function getWD()      { return storeGet("fl4_workouts") || { workouts:[], bodyweight:[] }; }
-function saveWD(data) { storeSet("fl4_workouts", data); pushPersonalData(); }
+function saveWD(data) { storeSet("fl4_workouts", data); if (isReady() && isSynced("health")) pushAll(); }
 function getWorkoutForDate(date) {
   var data = getWD();
   for (var i=0;i<data.workouts.length;i++) if (data.workouts[i].date===date) return data.workouts[i];
