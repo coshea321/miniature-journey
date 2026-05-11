@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v39</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v40</div>
 
   </div>
 </div>
@@ -1868,6 +1868,7 @@ document.getElementById("saveCatBtn").addEventListener("click", function() {
   var existing = getCustomCats(currentList);
   existing.push(newCat);
   saveCustomCats(currentList, existing);
+  if (isHouseholdSet()) pushHousehold();
   document.getElementById("addCatForm").style.display = "none";
   renderPickerGrid();
   toast("Category added: " + name);
@@ -2137,7 +2138,8 @@ function pushHousehold() {
   ["grocery","todo","travel","personal"].forEach(function(lt) {
     if (!isSynced(lt)) return;
     var d = listData[lt], notes = storeGet("fl4_notes_" + lt) || [];
-    if (d) data["list_" + lt] = { items:d.items, hist:d.hist, notes:notes };
+    var cc = getCustomCats(lt);
+    if (d) data["list_" + lt] = { items:d.items, hist:d.hist, notes:notes, customCats:cc };
   });
   if (isSynced("notes"))  data["global_notes"] = storeGet("fl4_notes_global") || [];
   if (isSynced("baby")) {
@@ -2171,13 +2173,21 @@ function applyHousehold(data) {
     if (!isSynced(lt)) return;
     var d = data["list_" + lt];
     if (!d || typeof d !== "object") return;
-    var incoming = Array.isArray(d.items) ? d.items.filter(Boolean) : [];
-    var local    = listData[lt] ? (listData[lt].items||[]) : [];
-    var inIds    = {}; incoming.forEach(function(x){ inIds[x.id]=true; });
+    var incoming  = Array.isArray(d.items) ? d.items.filter(Boolean) : [];
+    var local     = listData[lt] ? (listData[lt].items||[]) : [];
+    var inIds     = {}; incoming.forEach(function(x){ inIds[x.id]=true; });
     var localOnly = local.filter(function(x){ return !inIds[x.id]; });
-    listData[lt] = { items:localOnly.concat(incoming), hist:Array.isArray(d.hist)?d.hist.filter(Boolean):[] };
+    listData[lt]  = { items:localOnly.concat(incoming), hist:Array.isArray(d.hist)?d.hist.filter(Boolean):[] };
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
     if (Array.isArray(d.notes)) storeSet("fl4_notes_" + lt, d.notes.filter(Boolean));
+    // Merge custom categories
+    if (Array.isArray(d.customCats) && d.customCats.length) {
+      var existingCats   = getCustomCats(lt);
+      var existingCatIds = {};
+      existingCats.forEach(function(c){ existingCatIds[c.id] = true; });
+      var newCats = d.customCats.filter(function(c){ return c && !existingCatIds[c.id]; });
+      if (newCats.length) saveCustomCats(lt, existingCats.concat(newCats));
+    }
   });
   if (isSynced("notes") && Array.isArray(data["global_notes"])) storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
   if (isSynced("baby") && data["baby"] && typeof data["baby"] === "object") {
@@ -3187,6 +3197,14 @@ function switchSection(section) {
   document.body.classList.toggle("home-mode",  section === "home");
   document.body.classList.toggle("train-mode", section === "train");
   document.body.classList.toggle("baby-mode",  section === "baby");
+
+  // Download latest household data when user navigates to a shared section
+  if (isHouseholdSet() && (section === "home" || section === "lists" || section === "baby")) {
+    fetchHousehold();
+  }
+  if (isLoggedIn() && section === "train") {
+    fetchHealth();
+  }
 
   if (section === "home") {
     document.getElementById("themeColor").setAttribute("content", "#111820");
