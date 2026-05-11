@@ -621,7 +621,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v21</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v22</div>
 
   </div>
 </div>
@@ -1972,9 +1972,16 @@ function pushSync() {
     if (d) data[lt] = { items: d.items, hist: d.hist, notes: notes };
   });
   if (isSynced("notes")) data["global_notes"] = storeGet("fl4_notes_global") || [];
-  if (isSynced("baby"))  data["baby"] = getBD();
+  if (isSynced("baby")) {
+    var bd = getBD();
+    // Only push if there is actual baby data — never overwrite another device's data with empty defaults
+    if ((bd.growth||[]).length || (bd.medicine||[]).length || (bd.milestones||[]).length || Object.keys(bd.teeth||{}).length) {
+      data["baby"] = bd;
+    }
+  }
   lastPushTs = Date.now();
-  fetch(fbRoomUrl(), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} })
+  // PATCH instead of PUT: only update keys this device owns, leaving others (e.g. baby on a non-baby device) untouched
+  fetch(fbRoomUrl(), { method:"PATCH", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} })
     .catch(function(){});
 }
 
@@ -3067,8 +3074,44 @@ function addToHistFor(lt, name, catId) {
 }
 
 // ============================================================
-// TRAIN MODULE
+// DATA MIGRATION — import records from old standalone app
 // ============================================================
+(function migrateOldData() {
+  if (storeGet("fl4_migrated_v1")) return; // already done
+
+  // 1. Body weight: 'weight_log' [{id,date,kg}] → fl4_workouts.bodyweight [{date,weight}]
+  var oldWeight = storeGet("weight_log");
+  if (oldWeight && oldWeight.length) {
+    var wd = getWD();
+    var existingDates = {};
+    (wd.bodyweight||[]).forEach(function(e){ existingDates[e.date] = true; });
+    var toMerge = oldWeight.filter(function(e){ return e.date && !existingDates[e.date]; })
+      .map(function(e){ return { date: e.date, weight: e.kg }; });
+    if (toMerge.length) {
+      wd.bodyweight = (wd.bodyweight||[]).concat(toMerge)
+        .sort(function(a,b){ return b.date.localeCompare(a.date); });
+      saveWD(wd);
+    }
+  }
+
+  // 2. BP: 'bp_log' [{id,date,time,sys,dia,pulse}] → fl4_workouts.bp [{id,dt,sys,dia,pulse}]
+  var oldBp = storeGet("bp_log");
+  if (oldBp && oldBp.length) {
+    var wd2 = getWD();
+    var existingIds = {};
+    (wd2.bp||[]).forEach(function(e){ existingIds[e.id] = true; });
+    var toMergeBp = oldBp.filter(function(e){ return !existingIds[e.id]; })
+      .map(function(e){
+        return { id: e.id, dt: e.date + "T" + (e.time||"12:00"), sys: e.sys, dia: e.dia, pulse: e.pulse||null };
+      });
+    if (toMergeBp.length) {
+      wd2.bp = toMergeBp.concat(wd2.bp||[]);
+      saveWD(wd2);
+    }
+  }
+
+  storeSet("fl4_migrated_v1", true);
+})();
 
 // ── Chime ─────────────────────────────────────────────────
 function playChime(){
