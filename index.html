@@ -621,7 +621,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v22</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v23</div>
 
   </div>
 </div>
@@ -1014,6 +1014,19 @@ body.train-mode #toast{background:#132040}
     <div class="modal-title">&#9881;&#65039; Settings</div>
     <div style="font-size:14px;color:#7A8772;text-align:center;margin-bottom:18px">Manage your custom categories</div>
     <div id="customCatsList"></div>
+    <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
+    <div class="sync-section-title" style="margin-bottom:8px">Visible sections</div>
+    <div style="font-size:12px;color:#7A8772;margin-bottom:10px;line-height:1.5">Hide sections you don't use. Lists and Baby cannot be hidden.</div>
+    <div id="sectionToggles">
+      <div class="sync-toggle-row">
+        <span class="sync-toggle-label">&#x1F3E0; Home dashboard</span>
+        <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="home" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="sync-toggle-row">
+        <span class="sync-toggle-label">&#x1F4AA; Train</span>
+        <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="train" checked><span class="toggle-slider"></span></label>
+      </div>
+    </div>
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <div class="sync-section-title" style="margin-bottom:8px">Import / Export</div>
     <button class="sync-btn" id="exportBtn">&#x2B07;&#xFE0F; Export all data</button>
@@ -1766,13 +1779,54 @@ document.getElementById("saveCatBtn").addEventListener("click", function() {
 });
 
 // ============================================================
-// SETTINGS MODAL
 // ============================================================
+// SECTION VISIBILITY
+// ============================================================
+var HIDEABLE_SECTIONS = ["home", "train"]; // lists and baby are always visible
+
+var sectionVisible = (function() {
+  var stored = storeGet("fl4_secVisible") || {};
+  // Default: all visible
+  HIDEABLE_SECTIONS.forEach(function(s) { if (stored[s] === undefined) stored[s] = true; });
+  return stored;
+})();
+
+function saveSectionVisible() { storeSet("fl4_secVisible", sectionVisible); }
+
+function applySectionVisibility() {
+  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", baby:"bnBaby" };
+  HIDEABLE_SECTIONS.forEach(function(sec) {
+    var btn = document.getElementById(navIds[sec]);
+    if (btn) btn.style.display = sectionVisible[sec] ? "" : "none";
+  });
+}
+
+// Wire section toggles in settings
 document.getElementById("settingsBtn").addEventListener("click", function() {
+  // Restore toggle states
+  document.querySelectorAll(".section-chk").forEach(function(chk) {
+    chk.checked = sectionVisible[chk.dataset.sec] !== false;
+  });
   renderCustomCatsList();
   document.getElementById("settingsOverlay").classList.add("open");
 });
-document.getElementById("settingsClose").addEventListener("click", function(){ document.getElementById("settingsOverlay").classList.remove("open"); });
+
+document.getElementById("sectionToggles").addEventListener("change", function(e) {
+  var chk = e.target;
+  if (!chk.classList.contains("section-chk")) return;
+  var sec = chk.dataset.sec;
+  sectionVisible[sec] = chk.checked;
+  saveSectionVisible();
+  applySectionVisibility();
+  // If we just hid the current section, navigate to the first visible one
+  if (!chk.checked && currentSection === sec) {
+    var fallback = ["lists","baby","train","home"].find(function(s) {
+      return s === "lists" || s === "baby" || sectionVisible[s];
+    });
+    switchSection(fallback || "lists");
+  }
+});
+
 document.getElementById("settingsOverlay").addEventListener("click", function(e){ if(e.target===this) this.classList.remove("open"); });
 
 function renderCustomCatsList() {
@@ -2859,8 +2913,12 @@ document.getElementById("bnLife").addEventListener("click",  function(){ switchS
 document.getElementById("bnTrain").addEventListener("click", function(){ switchSection("train"); });
 document.getElementById("bnBaby").addEventListener("click",  function(){ switchSection("baby");  });
 
-// Boot into home
-switchSection("home");
+// Boot into first visible section
+applySectionVisibility();
+var bootSection = ["home","lists","train","baby"].find(function(s) {
+  return s === "lists" || s === "baby" || sectionVisible[s];
+}) || "lists";
+switchSection(bootSection);
 
 // ============================================================
 // HOME SCREEN
