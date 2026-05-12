@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v45</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v46</div>
 
   </div>
 </div>
@@ -2219,38 +2219,39 @@ function pushHousehold() {
       data["baby"] = bd;
   }
   lastPushTs = Date.now();
-  fetch(houseUrl(), { method:"PATCH", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).catch(function(){});
+  fetch(houseUrl("/shared"), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).catch(function(){});
 }
 
 
 function fetchHousehold(cb) {
   if (!isHouseholdSet()) { if(cb)cb(); return; }
-  fetch(houseUrl()).then(function(r){ return r.json(); }).then(function(data) {
+  fetch(houseUrl("/shared")).then(function(r){ return r.json(); }).then(function(data) {
     if (data && typeof data === "object") applyHousehold(data);
     if (cb) cb();
   }).catch(function(){ if(cb)cb(); });
 }
 
 function applyHousehold(data) {
+  // Last-write-wins: Firebase is the source of truth.
+  // No local merging — merging causes deleted items to reappear.
   syncPaused = true;
   ["grocery","todo","travel","personal"].forEach(function(lt) {
     if (!isSynced(lt)) return;
     var d = data["list_" + lt];
     if (!d || typeof d !== "object") return;
-    var incoming  = Array.isArray(d.items) ? d.items.filter(Boolean) : [];
-    var local     = listData[lt] ? (listData[lt].items||[]) : [];
-    var inIds     = {}; incoming.forEach(function(x){ inIds[x.id]=true; });
-    var localOnly = local.filter(function(x){ return !inIds[x.id]; });
-    listData[lt]  = { items:localOnly.concat(incoming), hist:Array.isArray(d.hist)?d.hist.filter(Boolean):[] };
+    // Replace entirely with incoming data
+    listData[lt] = {
+      items: Array.isArray(d.items) ? d.items.filter(Boolean) : [],
+      hist:  Array.isArray(d.hist)  ? d.hist.filter(Boolean)  : []
+    };
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
     if (Array.isArray(d.notes)) storeSet("fl4_notes_" + lt, d.notes.filter(Boolean));
-    // Merge custom categories
+    // Merge custom categories (add-only, never loses local cats)
     if (Array.isArray(d.customCats) && d.customCats.length) {
-      var existingCats   = getCustomCats(lt);
-      var existingCatIds = {};
-      existingCats.forEach(function(c){ existingCatIds[c.id] = true; });
-      var newCats = d.customCats.filter(function(c){ return c && !existingCatIds[c.id]; });
-      if (newCats.length) saveCustomCats(lt, existingCats.concat(newCats));
+      var existing = getCustomCats(lt), existingIds = {};
+      existing.forEach(function(c){ existingIds[c.id]=true; });
+      var newCats = d.customCats.filter(function(c){ return c && !existingIds[c.id]; });
+      if (newCats.length) saveCustomCats(lt, existing.concat(newCats));
     }
   });
   if (isSynced("notes") && Array.isArray(data["global_notes"])) storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
@@ -2268,7 +2269,7 @@ function startListening() {
   if (hearthSyncES) hearthSyncES.close();
   if (!isHouseholdSet()) return;
   try {
-    hearthSyncES = new EventSource(hearthBase() + "/hearth/households/" + hearthHouse + ".json?accept=text/event-stream");
+    hearthSyncES = new EventSource(hearthBase() + "/hearth/households/" + hearthHouse + "/shared.json?accept=text/event-stream");
 
     function handleEvent(e) {
       try {
