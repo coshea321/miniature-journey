@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v42</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v43</div>
 
   </div>
 </div>
@@ -1090,7 +1090,8 @@ body.train-mode #toast{background:#132040}
 
     <!-- What to sync -->
     <div class="sync-section">
-      <div class="sync-section-title">What to sync</div>
+      <div class="sync-section-title">Share with household</div>
+      <div style="font-size:12px;color:#7A8772;margin-bottom:10px;line-height:1.5">Your own data (health, lists, baby) always syncs across your own devices automatically. These toggles control what household members can see.</div>
       <div id="syncToggles">
         <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F6D2; Grocery</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="grocery" checked><span class="toggle-slider"></span></label></div>
         <div class="sync-toggle-row"><span class="sync-toggle-label">&#x2705; General</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="todo" checked><span class="toggle-slider"></span></label></div>
@@ -1098,7 +1099,6 @@ body.train-mode #toast{background:#132040}
         <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F464; Personal</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="personal"><span class="toggle-slider"></span></label></div>
         <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F4DD; Notes</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="notes"><span class="toggle-slider"></span></label></div>
         <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F476; Baby</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="baby" checked><span class="toggle-slider"></span></label></div>
-        <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F4AA; Health &amp; fitness</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="health" checked><span class="toggle-slider"></span></label></div>
       </div>
     </div>
   </div>
@@ -1451,7 +1451,7 @@ function loadListData(lt) {
 }
 function saveCurrentList() {
   var d = listData[currentList];
-  if (d) { storeSet(LIST_CONFIG[currentList].key, d); if (isHouseholdSet()) pushHousehold(); }
+  if (d) { storeSet(LIST_CONFIG[currentList].key, d); pushPersonal(); if (isHouseholdSet() && isSynced(currentList)) pushHousehold(); }
 }
 function getItems() { return loadListData(currentList).items; }
 function getHist()  { return loadListData(currentList).hist; }
@@ -2117,8 +2117,8 @@ function onLoginSuccess() {
     }).catch(function(){});
   }
   // Push local data first so other devices can fetch it, then fetch remote to merge
-  pushHealth();
-  fetchHealth();
+  pushPersonal();
+  fetchPersonal();
   if (isHouseholdSet()) {
     pushHousehold();
     fetchHousehold();
@@ -2163,13 +2163,7 @@ function pushHousehold() {
   fetch(houseUrl(), { method:"PATCH", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).catch(function(){});
 }
 
-function fetchHealth(cb) {
-  if (!isLoggedIn()) { if(cb)cb(); return; }
-  fetch(userUrl("/health")).then(function(r){ return r.json(); }).then(function(data) {
-    if (data && typeof data === "object") storeSet("fl4_workouts", data);
-    if (cb) cb();
-  }).catch(function(){ if(cb)cb(); });
-}
+// fetchPersonal is defined above in the push block
 
 function fetchHousehold(cb) {
   if (!isHouseholdSet()) { if(cb)cb(); return; }
@@ -2233,13 +2227,13 @@ function startHealthListening() {
   if (hearthHealthES) hearthHealthES.close();
   if (!isLoggedIn() || !isSynced("health")) return;
   try {
-    hearthHealthES = new EventSource(hearthBase() + "/hearth/users/" + hearthUser + "/health.json?accept=text/event-stream");
+    hearthHealthES = new EventSource(hearthBase() + "/hearth/users/" + hearthUser + "/data.json?accept=text/event-stream");
     hearthHealthES.addEventListener("put", function(e) {
       try {
         var p = JSON.parse(e.data);
         if (!p.data || typeof p.data !== "object") return;
         if (Date.now() - lastPushTs < SSE_GRACE_MS) return;
-        storeSet("fl4_workouts", p.data);
+        applyPersonal(p.data);
       } catch(err){}
     });
     hearthHealthES.onerror = function(){ setTimeout(function(){ if(isLoggedIn()) startHealthListening(); }, 5000); };
@@ -2395,7 +2389,8 @@ document.getElementById("syncOverlay").addEventListener("click", function(e){ if
 
 document.getElementById("syncNowBtn").addEventListener("click", function() {
   pushHealth();
-  fetchHealth(function() {
+  pushPersonal();
+  fetchPersonal(function() {
     if (isHouseholdSet()) {
       pushHousehold();
       fetchHousehold(function() {
@@ -2404,7 +2399,7 @@ document.getElementById("syncNowBtn").addEventListener("click", function() {
         toast("&#x2705; Synced!");
       });
     } else {
-      toast("&#x2705; Health data synced!");
+      toast("&#x2705; Synced!");
     }
   });
 });
@@ -2842,7 +2837,7 @@ var MS_CATS = {
 };
 
 function getBD()      { return storeGet("fl4_baby") || { growth:[], medicine:[], milestones:[], teeth:{} }; }
-function saveBD(data) { storeSet("fl4_baby", data); if (isHouseholdSet() && isSynced("baby")) pushHousehold(); }
+function saveBD(data) { storeSet("fl4_baby", data); pushPersonal(); if (isHouseholdSet() && isSynced("baby")) pushHousehold(); }
 
 function renderBabyView() {
   // Sync sub-nav buttons
@@ -3218,7 +3213,7 @@ function switchSection(section) {
     fetchHousehold();
   }
   if (isLoggedIn() && section === "train") {
-    fetchHealth();
+    fetchPersonal();
   }
 
   if (section === "home") {
@@ -3662,7 +3657,7 @@ function trainFmtDateLong(dateStr) {
   return d.toLocaleDateString("en-IE", { weekday:"long", day:"numeric", month:"long" });
 }
 function getWD()      { return storeGet("fl4_workouts") || { workouts:[], bodyweight:[] }; }
-function saveWD(data) { storeSet("fl4_workouts", data); pushHealth(); }
+function saveWD(data) { storeSet("fl4_workouts", data); pushPersonal(); }
 function getWorkoutForDate(date) {
   var data = getWD();
   for (var i=0;i<data.workouts.length;i++) {
