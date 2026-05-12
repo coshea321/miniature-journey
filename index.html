@@ -480,14 +480,14 @@ body.train-mode #toast{background:#132040}
 /* ============================================================
    SESSION OVERLAY  (fullscreen active session)
    ============================================================ */
-#sessionOverlay{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:#0A1018;z-index:600;overflow-y:auto;max-width:480px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;-webkit-overflow-scrolling:touch}
-.ses-prog-bar-wrap{position:sticky;top:0;height:3px;background:#1C2A3E;z-index:11}
+#sessionOverlay{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:#0A1018;z-index:800;max-width:480px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
+.ses-prog-bar-wrap{height:3px;background:#1C2A3E;flex-shrink:0}
 .ses-prog-fill{height:3px;transition:width 1s linear}
-.ses-hdr{position:sticky;top:3px;z-index:10;display:flex;align-items:center;gap:10px;padding:11px 14px;background:#0A1018;border-bottom:1px solid #1C2A3E}
+.ses-hdr{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:11px 14px;background:#0A1018;border-bottom:1px solid #1C2A3E}
 .ses-back{width:36px;height:36px;border:none;background:rgba(255,255,255,.07);color:#C0CCD8;border-radius:9px;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .ses-title{font-family:Georgia,serif;font-size:16px;font-weight:600;color:#E8EDF2;flex:1}
 .ses-count{font-size:12px;color:#5A7090;font-weight:600}
-.ses-body{padding:16px 14px 80px;color:#E8EDF2}
+.ses-body{flex:1;overflow-y:auto;padding:16px 14px 40px;color:#E8EDF2}
 
 /* Intro */
 .ses-intro{display:flex;flex-direction:column;align-items:center;text-align:center;padding:36px 16px 0}
@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v50</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v51</div>
 
   </div>
 </div>
@@ -3862,7 +3862,6 @@ function openSessionOverlay(title) {
   document.getElementById("sesProgFill").style.width = "0%";
   document.getElementById("sesProgFill").style.background = "#3B6FE0";
   document.getElementById("sessionOverlay").style.display = "flex";
-  document.getElementById("sessionOverlay").style.flexDirection = "column";
   document.body.style.overflow = "hidden";
 }
 function closeSessionOverlay() {
@@ -3872,6 +3871,40 @@ function closeSessionOverlay() {
   // Refresh home dashboard if visible
   if (currentSection === "home") renderHomeScreen();
 }
+
+// Event delegation for all session buttons — more reliable than inline onclick on Android Chrome
+document.getElementById("sesBody").addEventListener("click", function(e) {
+  var btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  e.preventDefault();
+  var action = btn.getAttribute("data-action");
+  var arg    = btn.getAttribute("data-arg");
+  var actions = {
+    "finishYoga":         finishYoga,
+    "finishPhysio":       finishPhysio,
+    "beginYoga":          beginYoga,
+    "beginPhysio":        beginPhysio,
+    "beginWorkout":       beginWorkout,
+    "toggleYogaPause":    toggleYogaPause,
+    "skipYogaPose":       skipYogaPose,
+    "prevYogaPose":       prevYogaPose,
+    "togglePhysioTimer":  togglePhysioTimer,
+    "physioNext":         physioNext,
+    "physioPrev":         physioPrev,
+    "completeWktRound":   completeWktRound,
+    "skipWorkoutRest":    skipWorkoutRest,
+    "startConditioning":  startConditioning,
+    "completeCondRound":  completeCondRound,
+    "workoutBack":        workoutBack,
+    "closeSessionOverlay":closeSessionOverlay,
+    "exitSession":        exitSession,
+    "openYogaSession":    function(){ openYogaSession(+arg); },
+    "openPhysioSession":  function(){ openPhysioSession(+arg); },
+    "finishWorkoutSession":function(){ finishWorkoutSession(arg === "true"); },
+    "goCondOption":       function(){ SS.wPhase="condOption"; renderWorkoutSession(); }
+  };
+  if (actions[action]) actions[action]();
+});
 
 document.getElementById("sesBackBtn").addEventListener("click", function(){
   var inProgress =
@@ -3935,8 +3968,8 @@ function renderYogaSession() {
       "<div class='ses-intro-name'>"+YOGA_TRAIN_NAMES[SS.yFlowIdx]+"</div>" +
       "<div class='ses-intro-sub'>"+flow.length+" poses &middot; ~"+Math.round(YOGA_TRAIN_TOTALS[SS.yFlowIdx]/60)+" min</div>" +
       "<div style='width:100%;max-width:320px;background:#132040;border-radius:12px;padding:12px 14px;margin-bottom:28px;text-align:left'>"+exList+"</div>" +
-      "<button class='ses-begin-btn' style='background:#8b5cf6' onclick='beginYoga()'>Begin practice</button>" +
-      "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
+      "<button class='ses-begin-btn' style='background:#8b5cf6' data-action='beginYoga'>Begin practice</button>" +
+      "<button class='ses-back-link' data-action='closeSessionOverlay'>Cancel</button>" +
     "</div>";
     return;
   }
@@ -3947,8 +3980,8 @@ function renderYogaSession() {
       "<div class='ses-done-ico'>&#x1F64F;</div>" +
       "<div class='ses-done-title'>Practice complete</div>" +
       "<div class='ses-done-sub'>Well done. Namaste.<br><small style='color:#2A3A52'>Before rising, roll to your right side first.</small></div>" +
-      "<button class='ses-done-btn' onclick='finishYoga()'>Save &amp; finish</button>" +
-      "<button class='ses-done-link' onclick='openYogaSession(SS.yFlowIdx)'>Do it again</button>" +
+      "<button class='ses-done-btn' data-action='finishYoga'>Save &amp; finish</button>" +
+      "<button class='ses-done-link' data-action='openYogaSession' data-arg='SS.yFlowIdx'>Do it again</button>" +
     "</div>";
     return;
   }
@@ -3966,9 +3999,9 @@ function renderYogaSession() {
     "<p class='ses-pose-cue'>"+esc(pose.cue)+"</p>" +
     nextPose +
     "<div class='ses-ctrl-row'>" +
-      "<button class='ses-ctrl-btn' onclick='prevYogaPose()'>&#x2039; Back</button>" +
-      "<button class='ses-ctrl-btn' onclick='toggleYogaPause()'>"+(SS.yPaused?"Resume":"Pause")+"</button>" +
-      "<button class='ses-ctrl-btn' onclick='skipYogaPose()'>Skip &#x203A;</button>" +
+      "<button class='ses-ctrl-btn' data-action='prevYogaPose'>&#x2039; Back</button>" +
+      "<button class='ses-ctrl-btn' data-action='toggleYogaPause'>"+(SS.yPaused?"Resume":"Pause")+"</button>" +
+      "<button class='ses-ctrl-btn' data-action='skipYogaPose'>Skip &#x203A;</button>" +
     "</div>" +
     "<button class='ses-exit-link' onclick=\"exitSession()\">Exit practice</button>";
 }
@@ -4078,8 +4111,8 @@ function renderPhysioSession() {
       "<div class='ses-intro-name'>"+prog.name.replace(/&amp;/g,"&")+"</div>" +
       "<div class='ses-intro-sub'>"+prog.note+"</div>" +
       "<div class='ses-intro-list'>"+exList+"</div>" +
-      "<button class='ses-begin-btn' style='background:#14b8a6' onclick='beginPhysio()'>Begin</button>" +
-      "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
+      "<button class='ses-begin-btn' style='background:#14b8a6' data-action='beginPhysio'>Begin</button>" +
+      "<button class='ses-back-link' data-action='closeSessionOverlay'>Cancel</button>" +
     "</div>";
     return;
   }
@@ -4089,8 +4122,8 @@ function renderPhysioSession() {
       "<div class='ses-done-ico'>&#x2705;</div>" +
       "<div class='ses-done-title'>Physio complete!</div>" +
       "<div class='ses-done-sub'>"+prog.name.replace(/&amp;/g,"&")+" done.</div>" +
-      "<button class='ses-done-btn' onclick='finishPhysio()'>Save &amp; finish</button>" +
-      "<button class='ses-done-link' onclick='openPhysioSession(SS.pProgIdx)'>Do it again</button>" +
+      "<button class='ses-done-btn' data-action='finishPhysio'>Save &amp; finish</button>" +
+      "<button class='ses-done-link' data-action='openPhysioSession' data-arg='SS.pProgIdx'>Do it again</button>" +
     "</div>";
     return;
   }
@@ -4104,8 +4137,8 @@ function renderPhysioSession() {
   if (ex.type === "timed" && SS.pTime > 0) {
     timerBlock = "<div class='ses-timer-wrap'>" + timerCircle(SS.pTime, ex.dur, "#14b8a6", !SS.pRunning) + "</div>";
     ctrlBlock  = "<div style='display:flex;gap:10px;justify-content:center;margin-bottom:10px'>" +
-      "<button class='ses-ctrl-btn' onclick='togglePhysioTimer()'>"+(SS.pRunning?"Pause":"Start")+"</button>" +
-      "<button class='ses-ctrl-btn' onclick='physioNext()'>Skip</button>" +
+      "<button class='ses-ctrl-btn' data-action='togglePhysioTimer'>"+(SS.pRunning?"Pause":"Start")+"</button>" +
+      "<button class='ses-ctrl-btn' data-action='physioNext'>Skip</button>" +
     "</div>";
   } else if (ex.type === "reps" || isTimedZero) {
     timerBlock = "<div class='ses-reps-card'>" +
@@ -4113,12 +4146,12 @@ function renderPhysioSession() {
       "<div style='font-size:22px;font-weight:700;color:#14b8a6;margin-bottom:14px'>"+
         (ex.type==="reps" ? ex.reps+" reps" : ex.dur+"s") +
       "</div>" +
-      "<button class='ses-reps-done-btn' onclick='physioNext()'>"+(SS.pSetNum<ex.sets?'Next set':'Next exercise')+"</button>" +
+      "<button class='ses-reps-done-btn' data-action='physioNext'>"+(SS.pSetNum<ex.sets?'Next set':'Next exercise')+"</button>" +
     "</div>";
     ctrlBlock = "";
   } else {
     timerBlock = "";
-    ctrlBlock  = "<button class='ses-reps-done-btn' style='width:100%;margin-bottom:10px' onclick='physioNext()'>"+(SS.pSetNum<ex.sets?'Next set':'Next exercise')+"</button>";
+    ctrlBlock  = "<button class='ses-reps-done-btn' style='width:100%;margin-bottom:10px' data-action='physioNext'>"+(SS.pSetNum<ex.sets?'Next set':'Next exercise')+"</button>";
   }
 
   body.innerHTML =
@@ -4131,8 +4164,8 @@ function renderPhysioSession() {
     timerBlock +
     ctrlBlock +
     "<div style='display:flex;justify-content:space-between;margin-top:10px'>" +
-      "<button class='ses-ctrl-btn' onclick='physioPrev()'>&#x2039; Back</button>" +
-      "<button class='ses-exit-link' style='margin:0' onclick='exitSession()'>Exit</button>" +
+      "<button class='ses-ctrl-btn' data-action='physioPrev'>&#x2039; Back</button>" +
+      "<button class='ses-exit-link' style='margin:0' data-action='exitSession'>Exit</button>" +
     "</div>";
 }
 
@@ -4235,8 +4268,8 @@ function renderWorkoutSession() {
       "<div class='ses-intro-name'>"+wk.name+"</div>" +
       "<div class='ses-intro-sub'>"+wk.supersets.length+" supersets &middot; 3 rounds each &middot; 50s rest</div>" +
       "<div class='ses-intro-list'>"+exList+"</div>" +
-      "<button class='ses-begin-btn' style='background:"+wk.color+"' onclick='beginWorkout()'>Start workout</button>" +
-      "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
+      "<button class='ses-begin-btn' style='background:"+wk.color+"' data-action='beginWorkout'>Start workout</button>" +
+      "<button class='ses-back-link' data-action='closeSessionOverlay'>Cancel</button>" +
     "</div>";
     return;
   }
@@ -4255,9 +4288,9 @@ function renderWorkoutSession() {
         " stroke-linecap='round' transform='rotate(-90 65 65)' id='restArc'/>" +
         "<text x='65' y='72' text-anchor='middle' fill='#fff' font-size='34' font-weight='bold' id='restNum'>"+SS.wRestTime+"</text>" +
       "</svg></div>" +
-      "<button class='ses-skip-btn' onclick='skipWorkoutRest()'>Skip rest</button>" +
+      "<button class='ses-skip-btn' data-action='skipWorkoutRest'>Skip rest</button>" +
       "<div style='display:flex;justify-content:center;gap:20px;margin-top:14px'>" +
-        "<button class='ses-exit-link' style='margin:0' onclick='exitSession()'>Exit session</button>" +
+        "<button class='ses-exit-link' style='margin:0' data-action='exitSession'>Exit session</button>" +
       "</div>" +
     "</div>";
     return;
@@ -4268,11 +4301,11 @@ function renderWorkoutSession() {
       "<div style='font-size:36px;margin-bottom:10px'>&#x1F3C3;</div>" +
       "<div style='font-family:Georgia,serif;font-size:20px;font-weight:600;color:#E8EDF2;margin-bottom:6px'>Main work done!</div>" +
       "<div style='font-size:14px;color:#5A7090;margin-bottom:22px'>Add conditioning?</div>" +
-      "<div class='cond-opt' onclick='startConditioning()'>" +
+      "<div class='cond-opt' data-action='startConditioning'>" +
         "<div class='cond-opt-title'>Yes, add conditioning</div>" +
         "<div class='cond-opt-sub'>"+COND_TRAIN.exercises[0].name+" + "+COND_TRAIN.exercises[1].name+" &middot; "+COND_TRAIN.rounds+" rounds</div>" +
       "</div>" +
-      "<div class='cond-opt' onclick='finishWorkoutSession(false)'>" +
+      "<div class='cond-opt' data-action='finishWorkoutSession' data-arg='false'>" +
         "<div class='cond-opt-title'>No thanks, I\'m done</div>" +
         "<div class='cond-opt-sub'>Save and finish</div>" +
       "</div>" +
@@ -4292,10 +4325,10 @@ function renderWorkoutSession() {
     body.innerHTML = "<div class='ss-card'>" +
       "<div class='ss-card-hdr'><span class='ss-card-label'>Conditioning</span><span class='ss-card-round'>Round "+SS.wCondRound+" of "+COND_TRAIN.rounds+"</span></div>" +
       exHtml + "</div>" +
-      "<button class='ss-done-btn' onclick='completeCondRound()'>Done</button>" +
+      "<button class='ss-done-btn' data-action='completeCondRound'>Done</button>" +
     "<div style='display:flex;justify-content:space-between;padding:0 14px 4px'>" +
       "<button class='ses-ctrl-btn' onclick='SS.wPhase=\"condOption\";renderWorkoutSession()'>&#x2039; Back</button>" +
-      "<button class='ses-exit-link' style='margin:0' onclick='exitSession()'>Exit</button>" +
+      "<button class='ses-exit-link' style='margin:0' data-action='exitSession'>Exit</button>" +
     "</div>";
     wireInputs();
     return;
@@ -4306,7 +4339,7 @@ function renderWorkoutSession() {
       "<div class='ses-done-ico'>&#x1F4AA;</div>" +
       "<div class='ses-done-title'>"+WK_TRAIN[SS.wType].name+" done!</div>" +
       "<div class='ses-done-sub'>Great work. Saved to your log.</div>" +
-      "<button class='ses-done-btn' onclick='closeSessionOverlay()'>Finish</button>" +
+      "<button class='ses-done-btn' data-action='closeSessionOverlay'>Finish</button>" +
     "</div>";
     return;
   }
@@ -4333,12 +4366,12 @@ function renderWorkoutSession() {
     "</div>" +
     exHtml2 + "</div>" +
     "<div style='font-size:12px;color:#5A7090;text-align:center;padding:0 14px 8px'>Fill in your reps and weight above, then tap Log round</div>" +
-    "<button class='ss-done-btn' onclick='completeWktRound()' style='touch-action:manipulation'>" +
+    "<button class='ss-done-btn' data-action='completeWktRound' style='touch-action:manipulation'>" +
       (SS.wRound < ss2.rounds ? "&#x2713; Log round &amp; rest" : SS.wSsIdx < wk.supersets.length-1 ? "&#x2713; Log round &amp; next superset" : "&#x2713; Log final round") +
     "</button>" +
     "<div style='display:flex;justify-content:space-between;padding:0 14px 4px'>" +
-      "<button class='ses-ctrl-btn' onclick='workoutBack()' style='touch-action:manipulation'>&#x2039; Back</button>" +
-      "<button class='ses-exit-link' style='margin:0' onclick='exitSession()'>Exit</button>" +
+      "<button class='ses-ctrl-btn' data-action='workoutBack' style='touch-action:manipulation'>&#x2039; Back</button>" +
+      "<button class='ses-exit-link' style='margin:0' data-action='exitSession'>Exit</button>" +
     "</div>";
   wireInputs();
 }
