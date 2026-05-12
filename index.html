@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v43</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v44</div>
 
   </div>
 </div>
@@ -2124,7 +2124,7 @@ function onLoginSuccess() {
     fetchHousehold();
     startListening();
   }
-  startHealthListening();
+  startPersonalListening();
   updateSyncStatus();
 }
 
@@ -2138,10 +2138,69 @@ function logout(silent) {
 }
 
 // ── Push / fetch ──────────────────────────────────────────
-function pushHealth() {
-  if (!isLoggedIn() || syncPaused || !isSynced("health")) return;
+
+// Personal sync: always-on, syncs ALL data for same user on any device
+function pushPersonal() {
+  if (!isLoggedIn() || syncPaused) return;
   lastPushTs = Date.now();
-  fetch(userUrl("/health"), { method:"PUT", body:JSON.stringify(getWD()), headers:{"Content-Type":"application/json"} }).catch(function(){});
+  var d = {};
+  d.health = getWD();
+  ["grocery","todo","travel","personal"].forEach(function(lt) {
+    var ld = listData[lt], notes = storeGet("fl4_notes_" + lt) || [];
+    if (ld) d["list_" + lt] = { items:ld.items, hist:ld.hist, notes:notes, customCats:getCustomCats(lt) };
+  });
+  d.global_notes = storeGet("fl4_notes_global") || [];
+  d.baby = getBD();
+  fetch(userUrl("/data"), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).catch(function(){});
+}
+
+function applyPersonal(d) {
+  if (!d || typeof d !== "object") return;
+  if (d.health && typeof d.health === "object") storeSet("fl4_workouts", d.health);
+  ["grocery","todo","travel","personal"].forEach(function(lt) {
+    var ld = d["list_" + lt];
+    if (!ld || typeof ld !== "object") return;
+    var incoming  = Array.isArray(ld.items) ? ld.items.filter(Boolean) : [];
+    var local     = listData[lt] ? (listData[lt].items||[]) : [];
+    var inIds     = {}; incoming.forEach(function(x){ inIds[x.id]=true; });
+    var localOnly = local.filter(function(x){ return !inIds[x.id]; });
+    listData[lt]  = { items:localOnly.concat(incoming), hist:Array.isArray(ld.hist)?ld.hist.filter(Boolean):[] };
+    storeSet(LIST_CONFIG[lt].key, listData[lt]);
+    if (Array.isArray(ld.notes)) storeSet("fl4_notes_" + lt, ld.notes.filter(Boolean));
+    if (Array.isArray(ld.customCats) && ld.customCats.length) {
+      var existing = getCustomCats(lt), existingIds = {};
+      existing.forEach(function(c){ existingIds[c.id]=true; });
+      var newCats = ld.customCats.filter(function(c){ return c && !existingIds[c.id]; });
+      if (newCats.length) saveCustomCats(lt, existing.concat(newCats));
+    }
+  });
+  if (Array.isArray(d.global_notes)) storeSet("fl4_notes_global", d.global_notes.filter(Boolean));
+  if (d.baby && typeof d.baby === "object") {
+    var local = getBD();
+    var merged = {
+      growth:     (d.baby.growth||[]).length     >= (local.growth||[]).length     ? d.baby.growth     : local.growth,
+      medicine:   (d.baby.medicine||[]).length   >= (local.medicine||[]).length   ? d.baby.medicine   : local.medicine,
+      milestones: (d.baby.milestones||[]).length >= (local.milestones||[]).length ? d.baby.milestones : local.milestones,
+      teeth:      Object.keys(d.baby.teeth||{}).length >= Object.keys(local.teeth||{}).length ? d.baby.teeth : local.teeth
+    };
+    storeSet("fl4_baby", merged);
+    if (currentSection === "baby") renderBabyView();
+  }
+  syncPaused = false;
+  renderList();
+  if (currentSection === "home") renderHomeScreen();
+  if (currentSection === "train") renderTrainView();
+}
+
+function fetchPersonal(cb) {
+  if (!isLoggedIn()) { if(cb)cb(); return; }
+  fetch(userUrl("/data"))
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (d && typeof d === "object") applyPersonal(d);
+      if (cb) cb();
+    })
+    .catch(function(){ if(cb)cb(); });
 }
 
 function pushHousehold() {
@@ -2163,7 +2222,6 @@ function pushHousehold() {
   fetch(houseUrl(), { method:"PATCH", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).catch(function(){});
 }
 
-// fetchPersonal is defined above in the push block
 
 function fetchHousehold(cb) {
   if (!isHouseholdSet()) { if(cb)cb(); return; }
@@ -2223,9 +2281,9 @@ function startListening() {
   } catch(err){}
 }
 
-function startHealthListening() {
+function startPersonalListening() {
   if (hearthHealthES) hearthHealthES.close();
-  if (!isLoggedIn() || !isSynced("health")) return;
+  if (!isLoggedIn()) return;
   try {
     hearthHealthES = new EventSource(hearthBase() + "/hearth/users/" + hearthUser + "/data.json?accept=text/event-stream");
     hearthHealthES.addEventListener("put", function(e) {
@@ -2233,10 +2291,11 @@ function startHealthListening() {
         var p = JSON.parse(e.data);
         if (!p.data || typeof p.data !== "object") return;
         if (Date.now() - lastPushTs < SSE_GRACE_MS) return;
+        syncPaused = false;
         applyPersonal(p.data);
       } catch(err){}
     });
-    hearthHealthES.onerror = function(){ setTimeout(function(){ if(isLoggedIn()) startHealthListening(); }, 5000); };
+    hearthHealthES.onerror = function(){ setTimeout(function(){ if(isLoggedIn()) startPersonalListening(); }, 5000); };
   } catch(err){}
 }
 
@@ -2388,7 +2447,7 @@ document.getElementById("syncClose").addEventListener("click", function(){ docum
 document.getElementById("syncOverlay").addEventListener("click", function(e){ if(e.target===this) this.classList.remove("open"); });
 
 document.getElementById("syncNowBtn").addEventListener("click", function() {
-  pushHealth();
+  pushPersonal();
   pushPersonal();
   fetchPersonal(function() {
     if (isHouseholdSet()) {
@@ -2433,7 +2492,7 @@ document.getElementById("syncToggles").addEventListener("change", function(e) {
   if (!chk.classList.contains("sync-chk")) return;
   syncPrefs[chk.dataset.key] = chk.checked;
   saveSyncPrefs();
-  if (isSynced("health")) pushHealth(); else if (isHouseholdSet()) pushHousehold();
+  if (isSynced("health")) pushPersonal(); else if (isHouseholdSet()) pushHousehold();
 });
 // ============================================================
 // TOAST & HELPERS
@@ -3184,7 +3243,7 @@ loadListData("todo");
 if (hearthFbId && hearthFbId.indexOf(".") === -1) {
   hearthFbId = ""; storeSet("hearth_fb", "");
 }
-if (isLoggedIn()) { verifySession(); } else if (hearthFbId) { showLoginOverlay(); } else { showLoginOverlay(); }
+if (isLoggedIn()) { verifySession(); } else { showLoginOverlay(); }
 
 // ============================================================
 // SECTION SWITCHER  (Home / Lists / Train)
@@ -4583,9 +4642,10 @@ function wireWorkoutLog() {
 // ── History ───────────────────────────────────────────────
 function renderWorkoutHistory() {
   var data = getWD(), el = document.getElementById("trainHistoryContent");
-  var sessions = (data.workouts||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
-  if (!sessions.length) {
-    el.innerHTML="<div class='train-empty'><div class='train-empty-ico'>&#x1F4C5;</div><div class='train-empty-title'>No sessions yet</div><div class='train-empty-sub'>Complete a program or free-form log to see history.</div></div>";
+  var sessions  = (data.workouts||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  var cardioAll = (data.cardio||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  if (!sessions.length && !cardioAll.length) {
+    el.innerHTML="<div class='train-empty'><div class='train-empty-ico'>&#x1F4C5;</div><div class='train-empty-title'>No history yet</div><div class='train-empty-sub'>Log a session or cardio to see it here.</div></div>";
     return;
   }
   var html="";
@@ -4601,8 +4661,7 @@ function renderWorkoutHistory() {
     "</div>";
   });
 
-  // Cardio entries
-  var cardioAll = (data.cardio||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  // Cardio entries — cardioAll already declared above
   // Group by date
   var cardioByDate = {};
   cardioAll.forEach(function(e){ (cardioByDate[e.date] = cardioByDate[e.date]||[]).push(e); });
