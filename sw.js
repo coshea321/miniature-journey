@@ -1,5 +1,5 @@
 const CACHE = 'myhealth-v1';
-// v44 — 2026-05-11
+// v45 — 2026-05-11
 const ASSETS = [
   './',
   './index.html',

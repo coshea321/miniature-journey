@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v44</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v45</div>
 
   </div>
 </div>
@@ -2014,7 +2014,7 @@ var hearthSyncES  = null;
 var hearthHealthES = null;
 var syncPaused    = false;
 var lastPushTs    = 0;
-var SSE_GRACE_MS  = 3000;
+var SSE_GRACE_MS  = 1500;
 
 // Migrate from old keys
 (function() {
@@ -2269,14 +2269,23 @@ function startListening() {
   if (!isHouseholdSet()) return;
   try {
     hearthSyncES = new EventSource(hearthBase() + "/hearth/households/" + hearthHouse + ".json?accept=text/event-stream");
-    hearthSyncES.addEventListener("put", function(e) {
+
+    function handleEvent(e) {
       try {
         var p = JSON.parse(e.data);
-        if (!p.data || typeof p.data !== "object") return;
         if (Date.now() - lastPushTs < SSE_GRACE_MS) return;
-        applyHousehold(p.data);
-      } catch(err){}
-    });
+        // "put" gives full data, "patch" gives a partial object of changed keys
+        if (e.type === "put" && p.data && typeof p.data === "object") {
+          applyHousehold(p.data);
+        } else if (e.type === "patch" && p.data && typeof p.data === "object") {
+          // Partial update — fetch the full object so we apply consistently
+          fetchHousehold();
+        }
+      } catch(err) {}
+    }
+
+    hearthSyncES.addEventListener("put",   handleEvent);
+    hearthSyncES.addEventListener("patch", handleEvent);
     hearthSyncES.onerror = function(){ setTimeout(function(){ if(isHouseholdSet()) startListening(); }, 5000); };
   } catch(err){}
 }
@@ -2286,15 +2295,22 @@ function startPersonalListening() {
   if (!isLoggedIn()) return;
   try {
     hearthHealthES = new EventSource(hearthBase() + "/hearth/users/" + hearthUser + "/data.json?accept=text/event-stream");
-    hearthHealthES.addEventListener("put", function(e) {
+
+    function handlePersonalEvent(e) {
       try {
         var p = JSON.parse(e.data);
-        if (!p.data || typeof p.data !== "object") return;
         if (Date.now() - lastPushTs < SSE_GRACE_MS) return;
-        syncPaused = false;
-        applyPersonal(p.data);
-      } catch(err){}
-    });
+        if (e.type === "put" && p.data && typeof p.data === "object") {
+          syncPaused = false;
+          applyPersonal(p.data);
+        } else if (e.type === "patch") {
+          fetchPersonal();
+        }
+      } catch(err) {}
+    }
+
+    hearthHealthES.addEventListener("put",   handlePersonalEvent);
+    hearthHealthES.addEventListener("patch", handlePersonalEvent);
     hearthHealthES.onerror = function(){ setTimeout(function(){ if(isLoggedIn()) startPersonalListening(); }, 5000); };
   } catch(err){}
 }
