@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v48</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v49</div>
 
   </div>
 </div>
@@ -3521,6 +3521,8 @@ function doHqpAdd() {
     listData[lt].items.unshift({ id: Date.now(), name: name, catId: catId, done: false });
     addToHistFor(lt, name, catId);
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
+    pushPersonal();
+    if (isHouseholdSet() && isSynced(lt)) pushHousehold();
     toast("Added to " + (lt === "grocery" ? "Grocery" : "To-do") + ": " + name);
   } else if (hqpMode === "exercise") {
     doAddExercise(name);
@@ -4330,9 +4332,12 @@ function renderWorkoutSession() {
       "<span class='ss-card-round'>Round "+SS.wRound+" of "+ss2.rounds+"</span>" +
     "</div>" +
     exHtml2 + "</div>" +
-    "<button class='ss-done-btn' onclick='completeWktRound()'>Done with round</button>" +
+    "<div style='font-size:12px;color:#5A7090;text-align:center;padding:0 14px 8px'>Fill in your reps and weight above, then tap Log round</div>" +
+    "<button class='ss-done-btn' onclick='completeWktRound()' style='touch-action:manipulation'>" +
+      (SS.wRound < ss2.rounds ? "&#x2713; Log round &amp; rest" : SS.wSsIdx < wk.supersets.length-1 ? "&#x2713; Log round &amp; next superset" : "&#x2713; Log final round") +
+    "</button>" +
     "<div style='display:flex;justify-content:space-between;padding:0 14px 4px'>" +
-      "<button class='ses-ctrl-btn' onclick='workoutBack()'>&#x2039; Back</button>" +
+      "<button class='ses-ctrl-btn' onclick='workoutBack()' style='touch-action:manipulation'>&#x2039; Back</button>" +
       "<button class='ses-exit-link' style='margin:0' onclick='exitSession()'>Exit</button>" +
     "</div>";
   wireInputs();
