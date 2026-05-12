@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v46</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v48</div>
 
   </div>
 </div>
@@ -1426,7 +1426,7 @@ function getCustomCats(lt) {
   var v = storeGet("fl4_cc_" + lt);
   return Array.isArray(v) ? v : [];
 }
-function saveCustomCats(lt, cats) { storeSet("fl4_cc_" + lt, cats); }
+function saveCustomCats(lt, cats) { storeSet("fl4_cc_" + lt, cats); pushPersonal(); }
 
 function getAllCats(lt) {
   return LIST_CONFIG[lt].cats.concat(getCustomCats(lt));
@@ -2156,15 +2156,15 @@ function pushPersonal() {
 
 function applyPersonal(d) {
   if (!d || typeof d !== "object") return;
+  // Last-write-wins — same principle as applyHousehold, no local merging
   if (d.health && typeof d.health === "object") storeSet("fl4_workouts", d.health);
   ["grocery","todo","travel","personal"].forEach(function(lt) {
     var ld = d["list_" + lt];
     if (!ld || typeof ld !== "object") return;
-    var incoming  = Array.isArray(ld.items) ? ld.items.filter(Boolean) : [];
-    var local     = listData[lt] ? (listData[lt].items||[]) : [];
-    var inIds     = {}; incoming.forEach(function(x){ inIds[x.id]=true; });
-    var localOnly = local.filter(function(x){ return !inIds[x.id]; });
-    listData[lt]  = { items:localOnly.concat(incoming), hist:Array.isArray(ld.hist)?ld.hist.filter(Boolean):[] };
+    listData[lt] = {
+      items: Array.isArray(ld.items) ? ld.items.filter(Boolean) : [],
+      hist:  Array.isArray(ld.hist)  ? ld.hist.filter(Boolean)  : []
+    };
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
     if (Array.isArray(ld.notes)) storeSet("fl4_notes_" + lt, ld.notes.filter(Boolean));
     if (Array.isArray(ld.customCats) && ld.customCats.length) {
@@ -2534,6 +2534,7 @@ function getNotes(lt) {
 function saveNotes(notes, lt) {
   var key = lt || currentList;
   storeSet("fl4_notes_" + key, notes);
+  pushPersonal();
 }
 
 // Note input boxes now open fullscreen editor on focus/click
