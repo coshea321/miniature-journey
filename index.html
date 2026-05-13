@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v52</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v53</div>
 
   </div>
 </div>
@@ -656,6 +656,7 @@ body.train-mode #toast{background:#132040}
 <div class="type-bar" id="typeBar">
   <button class="type-btn active" data-lt="grocery">&#x1F6D2; Grocery</button>
   <button class="type-btn" data-lt="todo">&#x2705; General</button>
+  <button class="type-btn" data-lt="baby">&#x1F476; Baby</button>
   <button class="type-btn" data-lt="personal">&#x1F464; Personal</button>
   <button class="type-btn" data-lt="travel">&#x2708;&#xFE0F; Travel</button>
   <button class="type-btn" data-lt="notes">&#x1F4DD; Notes</button>
@@ -1165,6 +1166,7 @@ var LIST_TYPES = {
   grocery:{ name:"&#x1F6D2; Grocery", placeholder:"Add an item...", color:"#2D6B35", emptyIco:"&#x1F6D2;", emptyTitle:"Your list is empty",  emptySub:"Start typing - categories detect automatically." },
   todo:   { name:"&#x2705; General",  placeholder:"Add a task...",   color:"#5A3AA0", emptyIco:"&#x2705;", emptyTitle:"No tasks yet",         emptySub:"Add a task - it'll be categorised automatically." },
   personal:{ name:"&#x1F464; Personal", placeholder:"Add a task...",   color:"#A0205A", emptyIco:"&#x1F464;", emptyTitle:"No personal tasks yet", emptySub:"Add a personal task - it'll be categorised automatically." },
+  baby:    { name:"&#x1F476; Baby list", placeholder:"Add baby item...",  color:"#7E22CE", emptyIco:"&#x1F476;", emptyTitle:"Baby list is empty", emptySub:"Add nappies, formula, clothing and more." },
   travel: { name:"&#x2708; Travel",   placeholder:"Add to pack...",  color:"#1A5A8A", emptyIco:"&#x2708;", emptyTitle:"Nothing packed yet",  emptySub:"Add items to pack - categories detect automatically." },
   notes:  { name:"&#x1F4DD; Notes",   placeholder:"",                color:"#A05A10", emptyIco:"&#x1F4DD;", emptyTitle:"No notes yet",        emptySub:"" },
 };
@@ -1398,11 +1400,31 @@ var TRAVEL_KW = [
   ["puzzle","entertainment"],["games","entertainment"],["book","entertainment"],
 ];
 
+var BABY_CATS = [
+  {id:"nappies",   name:"Nappies",      emoji:"&#x1F4A7;", bg:"#D8F0FF", fg:"#0A3A6A"},
+  {id:"feeding",   name:"Feeding",      emoji:"&#x1F37C;", bg:"#FFF0D8", fg:"#7A4A1A"},
+  {id:"clothing",  name:"Clothing",     emoji:"&#x1F455;", bg:"#EED8FF", fg:"#3A1A7A"},
+  {id:"toiletries",name:"Toiletries",   emoji:"&#x1F6C1;", bg:"#D8FFE8", fg:"#0A4A1A"},
+  {id:"medicine",  name:"Medicine",     emoji:"&#x1F48A;", bg:"#FDDEDD", fg:"#7A1A1A"},
+  {id:"toys",      name:"Toys",         emoji:"&#x1F9F8;", bg:"#FFD8EC", fg:"#7A1A4A"},
+  {id:"health",    name:"Health",       emoji:"&#x2764;",  bg:"#D9EDDA", fg:"#1A4A1E"},
+  {id:"other",     name:"Other",        emoji:"&#x1F4E6;", bg:"#E8E8E8", fg:"#3A3A3A"},
+];
+var BABY_KW = [
+  ["nappy","nappies"],["pampers","nappies"],["huggies","nappies"],
+  ["formula","feeding"],["bottle","feeding"],["spoon","feeding"],["bib","feeding"],["wipes","nappies"],
+  ["babygro","clothing"],["onesie","clothing"],["vest","clothing"],["sock","clothing"],
+  ["shampoo","toiletries"],["cream","toiletries"],["lotion","toiletries"],["bath","toiletries"],
+  ["calpol","medicine"],["nurofen","medicine"],["vitamin","medicine"],["medicine","medicine"],
+  ["toy","toys"],["book","toys"],["dummy","toys"],
+];
+
 var LIST_CONFIG = {
   grocery:{ cats:GROCERY_CATS, kw:GROCERY_KW, key:"fl4_grocery" },
   todo:   { cats:TODO_CATS,    kw:TODO_KW,    key:"fl4_todo"    },
   travel:   { cats:TRAVEL_CATS, kw:TRAVEL_KW,  key:"fl4_travel"   },
   personal: { cats:TODO_CATS,   kw:TODO_KW,    key:"fl4_personal"  },
+  baby:     { cats:BABY_CATS,   kw:BABY_KW,    key:"fl4_babylist"   },
 };
 
 // ============================================================
@@ -1930,7 +1952,7 @@ document.getElementById("settingsOverlay").addEventListener("click", function(e)
 function renderCustomCatsList() {
   var el = document.getElementById("customCatsList");
   var allCustom = {}, hasAny = false;
-  ["grocery","todo","travel","personal"].forEach(function(lt) {
+  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
     var cc = getCustomCats(lt);
     if (cc.length) { allCustom[lt] = cc; hasAny = true; }
   });
@@ -1939,7 +1961,7 @@ function renderCustomCatsList() {
     return;
   }
   var html = "";
-  ["grocery","todo","travel","personal"].forEach(function(lt) {
+  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
     var cc = allCustom[lt]; if (!cc) return;
     html += "<div style='font-size:12px;font-weight:700;color:#7A8772;margin-bottom:6px;margin-top:12px;text-transform:uppercase'>"+lt+"</div>";
     cc.forEach(function(c, idx) {
@@ -1966,7 +1988,7 @@ function renderCustomCatsList() {
 
 document.getElementById("clearAllBtn").addEventListener("click", function() {
   if (!confirm("Clear ALL lists and history? This cannot be undone.")) return;
-  ["grocery","todo","travel","personal"].forEach(function(lt) {
+  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
     storeSet(LIST_CONFIG[lt].key, {items:[],hist:[]});
     listData[lt] = null;
   });
@@ -2153,7 +2175,7 @@ function pushPersonal() {
   lastPushTs = Date.now();
   var d = {};
   d.health = getWD();
-  ["grocery","todo","travel","personal"].forEach(function(lt) {
+  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
     var ld = listData[lt], notes = storeGet("fl4_notes_" + lt) || [];
     if (ld) d["list_" + lt] = { items:ld.items, hist:ld.hist, notes:notes, customCats:getCustomCats(lt) };
   });
@@ -2166,7 +2188,7 @@ function applyPersonal(d) {
   if (!d || typeof d !== "object") return;
   // Last-write-wins — same principle as applyHousehold, no local merging
   if (d.health && typeof d.health === "object") storeSet("fl4_workouts", d.health);
-  ["grocery","todo","travel","personal"].forEach(function(lt) {
+  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
     var ld = d["list_" + lt];
     if (!ld || typeof ld !== "object") return;
     listData[lt] = {
@@ -2214,7 +2236,7 @@ function fetchPersonal(cb) {
 function pushHousehold() {
   if (!isHouseholdSet() || syncPaused) return;
   var data = {};
-  ["grocery","todo","travel","personal"].forEach(function(lt) {
+  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
     if (!isSynced(lt)) return;
     var d = listData[lt], notes = storeGet("fl4_notes_" + lt) || [];
     var cc = getCustomCats(lt);
@@ -2243,7 +2265,7 @@ function applyHousehold(data) {
   // Last-write-wins: Firebase is the source of truth.
   // No local merging — merging causes deleted items to reappear.
   syncPaused = true;
-  ["grocery","todo","travel","personal"].forEach(function(lt) {
+  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
     if (!isSynced(lt)) return;
     var d = data["list_" + lt];
     if (!d || typeof d !== "object") return;
@@ -2758,21 +2780,32 @@ function escNl(s) {
 // EXPORT
 // ============================================================
 document.getElementById("exportBtn").addEventListener("click", function() {
-  // Ensure all lists are loaded before export
-  ["grocery","todo","travel","personal"].forEach(function(lt) { loadListData(lt); });
+  var LIST_KEYS = ["grocery","todo","travel","personal","baby"];
+  LIST_KEYS.forEach(function(lt) { loadListData(lt); });
+
+  // Local time string for filename (respects device timezone)
+  var now = new Date();
+  var pad = function(x){ return x < 10 ? "0"+x : ""+x; };
+  var localDate = now.getFullYear()+"-"+pad(now.getMonth()+1)+"-"+pad(now.getDate());
+  var localTime = pad(now.getHours())+pad(now.getMinutes());
 
   var exportData = {
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    lists: {},
-    notes: {},
-    customCats: {}
+    version:    3,
+    exportedAt: now.toISOString(),
+    exportedAtLocal: localDate + "T" + localTime,
+    lists:      {},
+    notes:      {},
+    customCats: {},
+    workouts:   getWD(),
+    baby:       getBD(),
+    secVisible: storeGet("fl4_secVisible") || {},
+    syncPrefs:  storeGet("fl4_syncPrefs")  || {}
   };
 
-  ["grocery","todo","travel","personal"].forEach(function(lt) {
+  LIST_KEYS.forEach(function(lt) {
     var d = listData[lt] || { items:[], hist:[] };
-    exportData.lists[lt] = { items: d.items, hist: d.hist };
-    exportData.notes[lt] = getNotes(lt);
+    exportData.lists[lt]      = { items: d.items, hist: d.hist };
+    exportData.notes[lt]      = getNotes(lt);
     exportData.customCats[lt] = getCustomCats(lt);
   });
   exportData.notes["global"] = getNotes("global");
@@ -2781,11 +2814,8 @@ document.getElementById("exportBtn").addEventListener("click", function() {
   var blob = new Blob([json], { type:"application/json" });
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement("a");
-  var d    = new Date();
-  var pad  = function(x){ return x < 10 ? "0"+x : ""+x; };
-  var dateStr = d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
   a.href     = url;
-  a.download = "freshlist-backup-" + dateStr + ".json";
+  a.download = "hearth-backup-" + localDate + ".json";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -2804,63 +2834,114 @@ document.getElementById("importFile").addEventListener("change", function(e) {
   reader.onload = function(ev) {
     try {
       var data = JSON.parse(ev.target.result);
-      if (!data || !data.lists) throw new Error("Invalid file format");
+      if (!data) throw new Error("Invalid file format");
 
-      var imported = { lists:0, notes:0, cats:0 };
+      var imported = { lists:0, notes:0, cats:0, workouts:0, baby:0 };
+      var LIST_KEYS = ["grocery","todo","travel","personal","baby"];
 
-      ["grocery","todo","travel","personal"].forEach(function(lt) {
-        if (data.lists[lt] && typeof data.lists[lt] === "object") {
+      // ── Lists ──────────────────────────────────────────────
+      if (data.lists) {
+        LIST_KEYS.forEach(function(lt) {
+          if (!data.lists[lt] || typeof data.lists[lt] !== "object") return;
           var d = data.lists[lt];
           var items = Array.isArray(d.items) ? d.items.filter(Boolean) : [];
           var hist  = Array.isArray(d.hist)  ? d.hist.filter(Boolean)  : [];
-
-          // Merge with existing: keep local items, add imported ones not already present
           loadListData(lt);
           var existing = listData[lt] || { items:[], hist:[] };
           var existingIds = {};
           existing.items.forEach(function(x){ existingIds[x.id] = true; });
           var newItems = items.filter(function(x){ return !existingIds[x.id]; });
-          listData[lt] = {
-            items: newItems.concat(existing.items),
-            hist:  mergeHist(existing.hist, hist)
-          };
+          listData[lt] = { items: newItems.concat(existing.items), hist: mergeHist(existing.hist, hist) };
           storeSet(LIST_CONFIG[lt].key, listData[lt]);
           imported.lists += newItems.length;
-        }
+        });
+      }
 
-        if (data.notes && Array.isArray(data.notes[lt])) {
-          var existingNotes = getNotes(lt);
+      // ── Notes ──────────────────────────────────────────────
+      if (data.notes) {
+        LIST_KEYS.concat(["global"]).forEach(function(lt) {
+          if (!Array.isArray(data.notes[lt])) return;
+          var existingNotes   = getNotes(lt);
           var existingNoteIds = {};
           existingNotes.forEach(function(n){ existingNoteIds[n.id] = true; });
           var newNotes = data.notes[lt].filter(function(n){ return n && !existingNoteIds[n.id]; });
           saveNotes(newNotes.concat(existingNotes), lt);
           imported.notes += newNotes.length;
-        }
+        });
+      }
 
-        if (data.customCats && Array.isArray(data.customCats[lt])) {
-          var existingCats = getCustomCats(lt);
+      // ── Custom categories ──────────────────────────────────
+      if (data.customCats) {
+        LIST_KEYS.forEach(function(lt) {
+          if (!Array.isArray(data.customCats[lt])) return;
+          var existingCats   = getCustomCats(lt);
           var existingCatIds = {};
           existingCats.forEach(function(c){ existingCatIds[c.id] = true; });
           var newCats = data.customCats[lt].filter(function(c){ return c && !existingCatIds[c.id]; });
           saveCustomCats(lt, existingCats.concat(newCats));
           imported.cats += newCats.length;
-        }
-      });
-
-      // Global notes
-      if (data.notes && Array.isArray(data.notes["global"])) {
-        var existingGlobal = getNotes("global");
-        var existingGlobalIds = {};
-        existingGlobal.forEach(function(n){ existingGlobalIds[n.id] = true; });
-        var newGlobal = data.notes["global"].filter(function(n){ return n && !existingGlobalIds[n.id]; });
-        saveNotes(newGlobal.concat(existingGlobal), "global");
-        imported.notes += newGlobal.length;
+        });
       }
 
+      // ── Workouts / cardio / BP / bodyweight ────────────────
+      if (data.workouts && typeof data.workouts === "object") {
+        var existing = getWD();
+        // Merge workouts by id
+        var merged = data.workouts;
+        if (existing.workouts && existing.workouts.length) {
+          var inIds = {};
+          (merged.workouts||[]).forEach(function(w){ inIds[w.id]=true; });
+          var localOnly = existing.workouts.filter(function(w){ return !inIds[w.id]; });
+          merged.workouts = (merged.workouts||[]).concat(localOnly);
+          merged.workouts.sort(function(a,b){ return b.date.localeCompare(a.date); });
+        }
+        if (existing.bodyweight && existing.bodyweight.length) {
+          var bwDates = {};
+          (merged.bodyweight||[]).forEach(function(e){ bwDates[e.date]=true; });
+          var newBw = existing.bodyweight.filter(function(e){ return !bwDates[e.date]; });
+          merged.bodyweight = (merged.bodyweight||[]).concat(newBw);
+        }
+        if (existing.bp && existing.bp.length) {
+          var bpIds = {};
+          (merged.bp||[]).forEach(function(r){ bpIds[r.id]=true; });
+          var newBp = existing.bp.filter(function(r){ return !bpIds[r.id]; });
+          merged.bp = (merged.bp||[]).concat(newBp);
+        }
+        if (existing.cardio && existing.cardio.length) {
+          var cIds = {};
+          (merged.cardio||[]).forEach(function(r){ cIds[r.id]=true; });
+          var newC = existing.cardio.filter(function(r){ return !cIds[r.id]; });
+          merged.cardio = (merged.cardio||[]).concat(newC);
+        }
+        saveWD(merged);
+        imported.workouts = (merged.workouts||[]).length;
+      }
+
+      // ── Baby data ──────────────────────────────────────────
+      if (data.baby && typeof data.baby === "object") {
+        var existingBaby = getBD();
+        var bd = data.baby;
+        // Merge by date/id
+        var mergedBaby = {
+          growth:     mergeById((bd.growth||[]),     (existingBaby.growth||[]),     "date"),
+          medicine:   mergeById((bd.medicine||[]),   (existingBaby.medicine||[]),   "id"),
+          milestones: mergeById((bd.milestones||[]), (existingBaby.milestones||[]), "id"),
+          teeth:      Object.assign({}, existingBaby.teeth||{}, bd.teeth||{})
+        };
+        saveBD(mergedBaby);
+        imported.baby = (mergedBaby.growth.length + mergedBaby.medicine.length + mergedBaby.milestones.length);
+      }
+
+      // ── Settings (non-destructive) ─────────────────────────
+      if (data.secVisible && !storeGet("fl4_secVisible")) storeSet("fl4_secVisible", data.secVisible);
+      if (data.syncPrefs  && !storeGet("fl4_syncPrefs"))  storeSet("fl4_syncPrefs",  data.syncPrefs);
+
       renderList();
-      var msg = "Imported: " + imported.lists + " items";
-      if (imported.notes)  msg += ", " + imported.notes + " notes";
-      if (imported.cats)   msg += ", " + imported.cats + " categories";
+      var msg = "Imported: " + imported.lists + " list items";
+      if (imported.notes)    msg += ", " + imported.notes    + " notes";
+      if (imported.cats)     msg += ", " + imported.cats     + " categories";
+      if (imported.workouts) msg += ", " + imported.workouts + " workouts";
+      if (imported.baby)     msg += ", " + imported.baby     + " baby records";
       statusEl.style.background = "#D6EDDA"; statusEl.style.color = "#1A4A1E";
       statusEl.textContent = "✓ " + msg;
       statusEl.style.display = "block";
@@ -2871,11 +2952,17 @@ document.getElementById("importFile").addEventListener("change", function(e) {
       statusEl.textContent = "✕ Import failed: " + err.message;
       statusEl.style.display = "block";
     }
-    // Reset file input so same file can be re-imported if needed
     e.target.value = "";
   };
   reader.readAsText(file);
 });
+
+function mergeById(incoming, existing, key) {
+  var seen = {};
+  incoming.forEach(function(x){ if(x) seen[x[key]] = true; });
+  var localOnly = existing.filter(function(x){ return x && !seen[x[key]]; });
+  return incoming.filter(Boolean).concat(localOnly);
+}
 
 function mergeHist(existing, incoming) {
   var merged = existing.slice();
