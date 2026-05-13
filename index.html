@@ -337,7 +337,25 @@ body.baby-mode #toast{background:#230D2E}
 .tmbtn-undo{background:#2E1A36;color:#a855f7}
 .tmbtn-cancel{background:none;border:none;font-family:inherit;font-size:13px;color:#6A4A7A;cursor:pointer;width:100%;padding:6px;margin-top:2px}
 
-/* Baby home card */
+/* Bag checklist */
+.bag-tab{padding:7px 14px;border-radius:20px;border:1.5px solid #2E1A36;background:none;color:#6A4A7A;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.bag-tab.active{background:#9333ea;border-color:#9333ea;color:#fff}
+.bag-section-hdr{font-size:11px;font-weight:700;color:#6A4A7A;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px}
+.bag-item{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#1E0D26;border-radius:10px;margin-bottom:5px;touch-action:manipulation}
+.bag-item-check{width:24px;height:24px;border-radius:6px;border:2px solid #6A4A7A;background:none;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.bag-item-check.packed{background:#9333ea;border-color:#9333ea;color:#fff}
+.bag-item-name{flex:1;font-size:14px;font-weight:500;color:#F0E8F2;transition:all .2s}
+.bag-item-name.packed{text-decoration:line-through;color:#6A4A7A}
+.bag-item-del{border:none;background:none;color:#804050;font-size:14px;cursor:pointer;opacity:.45;flex-shrink:0;touch-action:manipulation}
+.bag-empty{text-align:center;padding:24px;color:#4A2A5A;font-size:14px}
+.bag-reset-btn{width:100%;padding:11px;border:1.5px solid #9333ea;background:none;color:#c084fc;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:6px;touch-action:manipulation}
+.bag-progress{height:4px;background:#2E1A36;border-radius:2px;margin-bottom:12px;overflow:hidden}
+.bag-progress-fill{height:100%;background:#9333ea;border-radius:2px;transition:width .3s}
+.bag-packed-hdr{font-size:11px;font-weight:700;color:#9333ea;text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px;display:flex;align-items:center;gap:6px}
+.bag-manage-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #0D0710}
+.bag-manage-row:last-child{border-bottom:none}
+.bag-manage-name{flex:1;font-size:14px;color:#F0E8F2}
+.bag-manage-del{border:none;background:none;color:#804050;font-size:13px;cursor:pointer;opacity:.45;touch-action:manipulation}
 .today-card-baby{background:linear-gradient(135deg,#1A0A24 0%,#220D30 100%);border:1px solid #9333ea40;cursor:pointer}
 .today-card-baby .tc-count{color:#c084fc}
 .today-card-baby .tc-label{color:#7E22CE}
@@ -647,7 +665,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v57</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v58</div>
 
   </div>
 </div>
@@ -839,6 +857,7 @@ body.train-mode #toast{background:#132040}
     <button class="bsn-btn" data-bview="medicine">&#x1F48A; Medicine</button>
     <button class="bsn-btn" data-bview="milestones">&#x2B50; Milestones</button>
     <button class="bsn-btn" data-bview="teeth">&#x1F9B7; Teeth</button>
+    <button class="bsn-btn" data-bview="bags">&#x1F45C; Bags</button>
   </div>
 
   <!-- GROWTH -->
@@ -918,6 +937,38 @@ body.train-mode #toast{background:#132040}
       <div class="teeth-jaw-label" style="margin-top:6px">Lower</div>
       <div class="teeth-count" id="teethCount">0 of 20 teeth</div>
     </div>
+  </div>
+
+  <!-- BAGS -->
+  <div id="babyBagsView" class="baby-content" style="display:none">
+
+    <!-- Bag selector -->
+    <div class="baby-log-card" style="padding:10px 10px 8px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="bagTabRow"></div>
+    </div>
+
+    <!-- Active bag -->
+    <div id="bagContent"></div>
+
+    <!-- Add item to bag -->
+    <div class="baby-log-card">
+      <div class="baby-card-title">&#x2795; Add item</div>
+      <div class="med-full-row">
+        <input id="bagItemInput" class="med-input" type="text" placeholder="e.g. Nappies, Wipes, Dummy…" autocomplete="off" autocorrect="off">
+      </div>
+      <button class="baby-log-btn" id="bagAddItemBtn" style="touch-action:manipulation">Add to bag</button>
+    </div>
+
+    <!-- Manage bags -->
+    <div class="baby-log-card" id="bagManageCard">
+      <div class="baby-card-title">&#x2699;&#xFE0F; Bags</div>
+      <div id="bagManageList"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="bagNameInput" class="med-input" type="text" placeholder="New bag name…" style="flex:1" autocomplete="off">
+        <button class="baby-log-btn" id="bagCreateBtn" style="flex-shrink:0;width:auto;padding:10px 14px;touch-action:manipulation">Create</button>
+      </div>
+    </div>
+
   </div>
 
 </div><!-- end babySection -->
@@ -3044,11 +3095,13 @@ function renderBabyView() {
   document.getElementById("babyMedicineView").style.display   = currentBabyView === "medicine"   ? "" : "none";
   document.getElementById("babyMilestonesView").style.display = currentBabyView === "milestones" ? "" : "none";
   document.getElementById("babyTeethView").style.display      = currentBabyView === "teeth"      ? "" : "none";
+  document.getElementById("babyBagsView").style.display       = currentBabyView === "bags"       ? "" : "none";
 
   if (currentBabyView === "growth")     renderGrowth();
   if (currentBabyView === "medicine")   renderMedicine();
   if (currentBabyView === "milestones") renderMilestones();
   if (currentBabyView === "teeth")      renderTeeth();
+  if (currentBabyView === "bags")       renderBagView();
 }
 
 // ── Baby sub-nav wiring ───────────────────────────────────
@@ -3284,6 +3337,135 @@ function renderMilestones() {
     });
   });
 }
+
+// ── BAGS ──────────────────────────────────────────────────
+
+var DEFAULT_BAGS = [
+  { id:"changing", name:"Changing Bag", icon:"&#x1F45C;", items:["Nappies","Wipes","Nappy sacks","Change mat","Nappy cream","Spare clothes (x2)","Bib (x2)","Dummy","Muslins (x2)","Hand sanitiser"] },
+  { id:"day",      name:"Day Bag",      icon:"&#x1F392;", items:["Nappies (x3)","Wipes","Snacks","Sippy cup","Spare clothes","Bib","Sunscreen","Hat","Dummy","Small toy"] },
+  { id:"holiday",  name:"Holiday Bag",  icon:"&#x1F9F3;", items:["Nappies (x20)","Wipes (x4 packs)","Nappy cream","Nappy sacks","Baby sun cream","Swimsuit","Rash vest","Beach towel","Muslins (x4)","Spare clothes (x5)","Bibs (x5)","Formula/snacks","Baby monitor","Favourite toy","Dummy (x3)","First aid kit","Baby paracetamol","Travel cot sheets"] }
+];
+
+function getBagsData() {
+  var bd = getBD();
+  if (!bd.bags || !bd.bags.length) {
+    bd.bags = DEFAULT_BAGS.map(function(b) {
+      return { id:b.id, name:b.name, icon:b.icon, items:b.items.map(function(name,i){ return { id:b.id+"_"+i, name:name, packed:false }; }) };
+    });
+    saveBD(bd);
+  }
+  return bd.bags;
+}
+
+function saveBagsData(bags) {
+  var bd = getBD();
+  bd.bags = bags;
+  saveBD(bd);
+}
+
+var currentBagId = "changing";
+
+function renderBagView() {
+  var bags = getBagsData();
+  if (!bags.length) return;
+  if (!bags.find(function(b){ return b.id === currentBagId; })) currentBagId = bags[0].id;
+
+  // Tabs
+  document.getElementById("bagTabRow").innerHTML = bags.map(function(b) {
+    return "<button class='bag-tab"+(b.id===currentBagId?" active":"")+"' data-bagid='"+b.id+"'>"+esc(b.name)+"</button>";
+  }).join("");
+
+  var bag     = bags.find(function(b){ return b.id === currentBagId; });
+  if (!bag) return;
+  var unpacked = bag.items.filter(function(x){ return !x.packed; });
+  var packed   = bag.items.filter(function(x){ return  x.packed; });
+  var total    = bag.items.length;
+  var pct      = total ? Math.round(packed.length/total*100) : 0;
+  var html     = "";
+
+  html += "<div class='bag-progress'><div class='bag-progress-fill' style='width:"+pct+"%'></div></div>";
+  html += "<div style='font-size:12px;color:#6A4A7A;text-align:center;margin-bottom:10px'>"+packed.length+" of "+total+" packed"+(pct===100?" &#x1F389;":"")+"</div>";
+
+  if (unpacked.length) {
+    html += "<div class='bag-section-hdr'>To pack ("+unpacked.length+")</div>";
+    unpacked.forEach(function(item) {
+      html += "<div class='bag-item'><button class='bag-item-check' data-action='bagToggle' data-id='"+item.id+"'>&#x00A0;</button><span class='bag-item-name'>"+esc(item.name)+"</span><button class='bag-item-del' data-action='bagDelete' data-id='"+item.id+"'>&#x2715;</button></div>";
+    });
+  } else if (packed.length) {
+    html += "<div class='bag-empty'>&#x1F389; Everything is packed!</div>";
+  }
+
+  if (packed.length) {
+    html += "<div class='bag-packed-hdr'>&#x2705; Packed ("+packed.length+")</div>";
+    packed.forEach(function(item) {
+      html += "<div class='bag-item'><button class='bag-item-check packed' data-action='bagToggle' data-id='"+item.id+"'>&#x2713;</button><span class='bag-item-name packed'>"+esc(item.name)+"</span><button class='bag-item-del' data-action='bagDelete' data-id='"+item.id+"'>&#x2715;</button></div>";
+    });
+    html += "<button class='bag-reset-btn' data-action='bagReset'>&#x21BA; Unpack all</button>";
+  }
+
+  if (!total) html = "<div class='bag-empty'>No items yet — add some below</div>";
+  document.getElementById("bagContent").innerHTML = html;
+
+  // Manage panel
+  document.getElementById("bagManageList").innerHTML = bags.map(function(b) {
+    return "<div class='bag-manage-row'><span class='bag-manage-name'>"+esc(b.name)+"</span>"+(bags.length>1?"<button class='bag-manage-del' data-action='bagRemove' data-bagid='"+b.id+"'>&#x2715;</button>":"")+"</div>";
+  }).join("");
+}
+
+document.getElementById("babyBagsView").addEventListener("click", function(e) {
+  var tab = e.target.closest(".bag-tab");
+  if (tab) { currentBagId = tab.dataset.bagid; renderBagView(); return; }
+  var btn = e.target.closest("[data-action]");
+  if (!btn) return;
+  var bags = getBagsData();
+  var bag  = bags.find(function(b){ return b.id === currentBagId; });
+
+  if (btn.dataset.action === "bagToggle") {
+    var item = bag && bag.items.find(function(x){ return x.id === btn.dataset.id; });
+    if (item) { item.packed = !item.packed; saveBagsData(bags); renderBagView(); }
+  } else if (btn.dataset.action === "bagDelete") {
+    if (!bag) return;
+    bag.items = bag.items.filter(function(x){ return x.id !== btn.dataset.id; });
+    saveBagsData(bags); renderBagView();
+  } else if (btn.dataset.action === "bagReset") {
+    if (!bag || !confirm("Unpack everything in "+bag.name+"?")) return;
+    bag.items.forEach(function(x){ x.packed=false; });
+    saveBagsData(bags); renderBagView(); toast("&#x21BA; "+bag.name+" reset");
+  } else if (btn.dataset.action === "bagRemove") {
+    var b = bags.find(function(x){ return x.id === btn.dataset.bagid; });
+    if (!b || !confirm("Delete \""+b.name+"\"?")) return;
+    bags = bags.filter(function(x){ return x.id !== btn.dataset.bagid; });
+    if (currentBagId === btn.dataset.bagid) currentBagId = bags[0] ? bags[0].id : "";
+    saveBagsData(bags); renderBagView();
+  }
+});
+
+document.getElementById("bagAddItemBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
+  var name = document.getElementById("bagItemInput").value.trim();
+  if (!name) { toast("Enter an item name"); return; }
+  var bags = getBagsData(), bag = bags.find(function(b){ return b.id === currentBagId; });
+  if (!bag) return;
+  bag.items.push({ id: currentBagId+"_"+Date.now(), name:name, packed:false });
+  saveBagsData(bags);
+  document.getElementById("bagItemInput").value = "";
+  renderBagView(); toast("Added: "+name);
+});
+document.getElementById("bagItemInput").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") document.getElementById("bagAddItemBtn").click();
+});
+
+document.getElementById("bagCreateBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
+  var name = document.getElementById("bagNameInput").value.trim();
+  if (!name) { toast("Enter a bag name"); return; }
+  var bags = getBagsData(), id = "bag_"+Date.now();
+  bags.push({ id:id, name:name, icon:"&#x1F45C;", items:[] });
+  currentBagId = id;
+  saveBagsData(bags);
+  document.getElementById("bagNameInput").value = "";
+  renderBagView(); toast("Created: "+name);
+});
 
 // ── TEETH ─────────────────────────────────────────────────
 var UPPER_TEETH = ["UL5","UL4","UL3","UL2","UL1","UR1","UR2","UR3","UR4","UR5"];
