@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v51</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v52</div>
 
   </div>
 </div>
@@ -2106,25 +2106,33 @@ function verifySession() {
 function onLoginSuccess() {
   hideLoginOverlay();
   setLoginSpinner(false);
-  // Load household from user profile if not stored locally
+
+  // Always fetch remote first, THEN push local data
+  // This prevents a device with a stale/empty list from overwriting newer data on another device
+  fetchPersonal(function() {
+    // After fetching remote, push our merged local state back up
+    pushPersonal();
+    startPersonalListening();
+  });
+
+  // Load household code from user profile if not stored locally
   if (!hearthHouse) {
     fetch(userUrl("/household")).then(function(r){ return r.json(); }).then(function(code) {
       if (code && typeof code === "string") {
         hearthHouse = code; storeSet("hearth_household", hearthHouse);
-        startListening();
-        fetchHousehold();
+        fetchHousehold(function() {
+          pushHousehold();
+          startListening();
+        });
       }
     }).catch(function(){});
+  } else {
+    fetchHousehold(function() {
+      pushHousehold();
+      startListening();
+    });
   }
-  // Push local data first so other devices can fetch it, then fetch remote to merge
-  pushPersonal();
-  fetchPersonal();
-  if (isHouseholdSet()) {
-    pushHousehold();
-    fetchHousehold();
-    startListening();
-  }
-  startPersonalListening();
+
   updateSyncStatus();
 }
 
@@ -2464,12 +2472,13 @@ document.getElementById("syncClose").addEventListener("click", function(){ docum
 document.getElementById("syncOverlay").addEventListener("click", function(e){ if(e.target===this) this.classList.remove("open"); });
 
 document.getElementById("syncNowBtn").addEventListener("click", function() {
-  pushPersonal();
-  pushPersonal();
+  if (btnBusy(this)) return;
+  // Fetch remote first, then push merged state back
   fetchPersonal(function() {
+    pushPersonal();
     if (isHouseholdSet()) {
-      pushHousehold();
       fetchHousehold(function() {
+        pushHousehold();
         renderList();
         if (currentSection === "home") renderHomeScreen();
         toast("&#x2705; Synced!");
