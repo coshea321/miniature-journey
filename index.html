@@ -647,7 +647,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v53</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v57</div>
 
   </div>
 </div>
@@ -694,7 +694,10 @@ body.train-mode #toast{background:#132040}
   </div>
   <div id="listPanel">
     <div id="listContent"></div>
-    <button class="clear-btn" id="clearBtn" style="display:none">&#x2715; Clear completed</button>
+    <div style="display:flex;gap:6px">
+      <button class="clear-btn" id="clearBtn" style="display:none">&#x2715; Clear completed</button>
+      <button class="clear-btn" id="reopenBtn" style="display:none;background:#E8F0E8;color:#2D6B35;border-color:#2D6B3540">&#x21BA; Reopen all</button>
+    </div>
   </div>
   <div id="historyPanel">
     <div class="hist-search"><input id="histSearch" type="text" placeholder="Search history..." autocomplete="off"></div>
@@ -1160,6 +1163,18 @@ body.train-mode #toast{background:#132040}
 
 <script>
 // ============================================================
+// PREVIEW MODE — skip login when running in Claude / localhost
+// ============================================================
+var _isPreview = (function() {
+  var h = window.location.hostname || "";
+  var href = window.location.href || "";
+  return !h || h === "localhost" || h === "127.0.0.1" ||
+    h.indexOf("claude.ai") !== -1 || h.indexOf("anthropic") !== -1 ||
+    href.indexOf("blob:") === 0 || href.indexOf("data:") === 0 ||
+    window.self !== window.top; // inside any iframe
+})();
+
+// ============================================================
 // LIST TYPE CONFIG
 // ============================================================
 var LIST_TYPES = {
@@ -1529,6 +1544,7 @@ var elHistoryC  = document.getElementById("historyContent");
 var elHdrBadge  = document.getElementById("hdrBadge");
 var elListBadge = document.getElementById("listBadge");
 var elClearBtn  = document.getElementById("clearBtn");
+var elReopenBtn = document.getElementById("reopenBtn");
 var elToast     = document.getElementById("toast");
 var toastTimer  = null;
 
@@ -1678,7 +1694,8 @@ function renderList() {
   if (active.length) { elHdrBadge.textContent=active.length+" item"+(active.length!==1?"s":""); elHdrBadge.style.display="block"; }
   else { elHdrBadge.style.display="none"; }
   elListBadge.textContent = active.length||"";
-  elClearBtn.style.display = done.length?"block":"none";
+  elClearBtn.style.display  = done.length ? "block" : "none";
+  elReopenBtn.style.display = done.length ? "block" : "none";
   if (!items.length) {
     elListC.innerHTML = "<div class='empty'><div class='empty-ico'>"+lt.emptyIco+"</div><div class='empty-title'>"+lt.emptyTitle+"</div><div class='empty-sub'>"+lt.emptySub+"</div></div>";
     return;
@@ -1749,6 +1766,11 @@ function removeItem(id) {
 elClearBtn.addEventListener("click", function(){
   listData[currentList].items = getItems().filter(function(x){ return !x.done; });
   saveCurrentList(); renderList(); toast("Cleared completed items");
+});
+
+elReopenBtn.addEventListener("click", function(){
+  listData[currentList].items = getItems().map(function(x){ return x.done ? Object.assign({}, x, {done:false}) : x; });
+  saveCurrentList(); renderList(); toast("&#x21BA; All items reopened");
 });
 
 // ============================================================
@@ -2385,6 +2407,7 @@ function inviteUser(username) {
 
 // ── Login overlay UI ──────────────────────────────────────
 function showLoginOverlay() {
+  if (_isPreview) return; // never show login in preview/test mode
   var overlay = document.getElementById("loginOverlay");
   overlay.style.display = "flex";
   document.body.style.overflow = "hidden";
@@ -3357,7 +3380,10 @@ loadListData("todo");
 if (hearthFbId && hearthFbId.indexOf(".") === -1) {
   hearthFbId = ""; storeSet("hearth_fb", "");
 }
-if (isLoggedIn()) { verifySession(); } else { showLoginOverlay(); }
+if (isLoggedIn()) { verifySession(); } else if (_isPreview) {
+  hideLoginOverlay();
+  switchSection(bootSection);
+} else { showLoginOverlay(); }
 
 // ============================================================
 // SECTION SWITCHER  (Home / Lists / Train)
