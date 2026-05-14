@@ -247,6 +247,7 @@ body.home-mode .bn-btn.home-active{color:#7AAAD8}
 .bn-btn.life-active{color:#2D6B35}
 .bn-btn.train-active{color:#3B6FE0}
 .bn-btn.baby-active{color:#c084fc}
+.bn-btn.notes-active{color:#A05A10}
 
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;display:flex;background:#fff;border-top:1px solid #E0DCD4;z-index:350;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -2px 12px rgba(0,0,0,.08)}
 .bn-btn{flex:1;padding:8px 4px 6px;border:none;background:none;font-family:inherit;font-size:10px;font-weight:700;color:#AAA090;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color .2s}
@@ -665,7 +666,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v58</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v59</div>
 
   </div>
 </div>
@@ -674,10 +675,8 @@ body.train-mode #toast{background:#132040}
 <div class="type-bar" id="typeBar">
   <button class="type-btn active" data-lt="grocery">&#x1F6D2; Grocery</button>
   <button class="type-btn" data-lt="todo">&#x2705; General</button>
-  <button class="type-btn" data-lt="baby">&#x1F476; Baby</button>
   <button class="type-btn" data-lt="personal">&#x1F464; Personal</button>
   <button class="type-btn" data-lt="travel">&#x2708;&#xFE0F; Travel</button>
-  <button class="type-btn" data-lt="notes">&#x1F4DD; Notes</button>
 </div>
 
 <div class="content">
@@ -846,6 +845,18 @@ body.train-mode #toast{background:#132040}
   </div>
 
 </div><!-- end trainSection -->
+
+<!-- ============================================================
+     NOTES SECTION
+     ============================================================ -->
+<div id="notesSection" style="display:none">
+  <div style="display:flex;gap:4px;padding:5px 5px 4px;background:#A05A10;box-shadow:0 2px 10px rgba(0,0,0,.15)">
+    <button class="tsn-btn active" data-nview="personal" style="color:#fff;background:rgba(255,255,255,.15)">&#x1F464; Personal</button>
+    <button class="tsn-btn" data-nview="work" style="color:rgba(255,255,255,.6)">&#x1F4BC; Work</button>
+  </div>
+  <div id="notesPersonalView" class="content" style="padding-top:8px"></div>
+  <div id="notesWorkView" class="content" style="padding-top:8px;display:none"></div>
+</div>
 
 <!-- ============================================================
      BABY SECTION
@@ -1180,6 +1191,10 @@ body.train-mode #toast{background:#132040}
         <span class="sync-toggle-label">&#x1F4AA; Train</span>
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="train" checked><span class="toggle-slider"></span></label>
       </div>
+      <div class="sync-toggle-row">
+        <span class="sync-toggle-label">&#x1F4DD; Notes</span>
+        <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="notes" checked><span class="toggle-slider"></span></label>
+      </div>
     </div>
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <div class="sync-section-title" style="margin-bottom:8px">Import / Export</div>
@@ -1203,6 +1218,9 @@ body.train-mode #toast{background:#132040}
   </button>
   <button class="bn-btn" id="bnTrain">
     <span class="bn-ico">&#x1F4AA;</span>Train
+  </button>
+  <button class="bn-btn" id="bnNotes">
+    <span class="bn-ico">&#x1F4DD;</span>Notes
   </button>
   <button class="bn-btn" id="bnBaby">
     <span class="bn-ico">&#x1F476;</span>Baby
@@ -1973,9 +1991,129 @@ document.getElementById("saveCatBtn").addEventListener("click", function() {
 
 // ============================================================
 // ============================================================
-// SECTION VISIBILITY
+// NOTES SECTION — Personal + Work
 // ============================================================
-var HIDEABLE_SECTIONS = ["home", "train"]; // lists and baby are always visible
+var currentNotesView = "personal";
+
+var NOTES_CONTEXTS = {
+  personal: { key:"fl4_notes_global",      label:"Personal notes",  icon:"&#x1F464;" },
+  work:     { key:"fl4_notes_global_work", label:"Work notes",      icon:"&#x1F4BC;" }
+};
+
+function renderNotesSection() {
+  // Sub-nav active state
+  document.querySelectorAll("#notesSection .tsn-btn").forEach(function(b) {
+    var isActive = b.dataset.nview === currentNotesView;
+    b.classList.toggle("active", isActive);
+    b.style.background = isActive ? "rgba(255,255,255,.2)" : "";
+    b.style.color      = isActive ? "#fff" : "rgba(255,255,255,.55)";
+  });
+  document.getElementById("notesPersonalView").style.display = currentNotesView === "personal" ? "" : "none";
+  document.getElementById("notesWorkView").style.display     = currentNotesView === "work"     ? "" : "none";
+
+  var ctx   = NOTES_CONTEXTS[currentNotesView];
+  var notes = storeGet(ctx.key) || [];
+  var viewEl = document.getElementById(currentNotesView === "personal" ? "notesPersonalView" : "notesWorkView");
+
+  if (!notes.length) {
+    viewEl.innerHTML = "<div style='text-align:center;padding:48px 24px;color:#B87A40'>" +
+      "<div style='font-size:40px;margin-bottom:10px'>&#x1F4DD;</div>" +
+      "<div style='font-family:Georgia,serif;font-size:17px;margin-bottom:6px'>" + ctx.label + "</div>" +
+      "<div style='font-size:14px;opacity:.7'>Tap + to write your first note</div></div>" +
+      "<button onclick='openNewNote()' style='position:fixed;bottom:80px;right:20px;width:52px;height:52px;border-radius:50%;background:#A05A10;border:none;color:#fff;font-size:28px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:200;touch-action:manipulation'>+</button>";
+    return;
+  }
+
+  var html = notes.map(function(n, i) {
+    var preview = (n.body || "").split("\n")[0].slice(0, 60) || "(empty)";
+    var dt = n.updatedAt ? new Date(n.updatedAt) : null;
+    var dtStr = dt ? dt.toLocaleDateString("en-IE", {day:"numeric",month:"short"}) + " " + dt.toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"}) : "";
+    return "<div style='background:#fff;border-radius:11px;padding:13px 14px;margin:0 12px 8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.07);touch-action:manipulation' onclick='openNote(" + i + ")'>" +
+      "<div style='font-size:15px;font-weight:700;color:#2A2010;margin-bottom:3px'>" + esc(n.title||"Untitled") + "</div>" +
+      "<div style='font-size:13px;color:#8A7A60;margin-bottom:4px'>" + esc(preview) + "</div>" +
+      "<div style='display:flex;align-items:center;justify-content:space-between'>" +
+        "<span style='font-size:11px;color:#B8A880'>" + dtStr + "</span>" +
+        "<button onclick='event.stopPropagation();deleteNote(" + i + ")' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation'>&#x2715;</button>" +
+      "</div></div>";
+  }).join("");
+
+  html += "<button onclick='openNewNote()' style='position:fixed;bottom:80px;right:20px;width:52px;height:52px;border-radius:50%;background:#A05A10;border:none;color:#fff;font-size:28px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:200;touch-action:manipulation'>+</button>";
+  viewEl.innerHTML = html;
+}
+
+// Sub-tab switching
+document.getElementById("notesSection").addEventListener("click", function(e) {
+  var btn = e.target.closest(".tsn-btn[data-nview]");
+  if (!btn) return;
+  currentNotesView = btn.dataset.nview;
+  renderNotesSection();
+});
+
+function getCurrentNotesKey() {
+  return NOTES_CONTEXTS[currentNotesView].key;
+}
+
+function openNote(idx) {
+  var notes = storeGet(getCurrentNotesKey()) || [];
+  var note  = notes[idx];
+  if (!note) return;
+  openNoteEditor(note.title, note.body, function(title, body) {
+    note.title = title; note.body = body; note.updatedAt = Date.now();
+    storeSet(getCurrentNotesKey(), notes);
+    pushPersonal(); if (isHouseholdSet() && isSynced("notes")) pushHousehold();
+    renderNotesSection();
+  }, function() {
+    deleteNote(idx);
+  });
+}
+
+function openNewNote() {
+  openNoteEditor("", "", function(title, body) {
+    var notes = storeGet(getCurrentNotesKey()) || [];
+    notes.unshift({ id: Date.now(), title: title, body: body, updatedAt: Date.now() });
+    storeSet(getCurrentNotesKey(), notes);
+    pushPersonal(); if (isHouseholdSet() && isSynced("notes")) pushHousehold();
+    renderNotesSection();
+  }, null);
+}
+
+function deleteNote(idx) {
+  if (!confirm("Delete this note?")) return;
+  var notes = storeGet(getCurrentNotesKey()) || [];
+  notes.splice(idx, 1);
+  storeSet(getCurrentNotesKey(), notes);
+  pushPersonal(); if (isHouseholdSet() && isSynced("notes")) pushHousehold();
+  renderNotesSection();
+}
+
+function openNoteEditor(title, body, onSave, onDelete) {
+  var overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:#FDFAF3;z-index:500;display:flex;flex-direction:column;max-width:480px;margin:0 auto";
+  overlay.innerHTML =
+    "<div style='display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #E0D8C0;background:#FDFAF3;flex-shrink:0'>" +
+      "<button id='neBack' style='width:36px;height:36px;border:none;background:#F0EDE8;border-radius:9px;font-size:18px;cursor:pointer;touch-action:manipulation'>&#x2039;</button>" +
+      "<input id='neTitle' type='text' value='" + esc(title) + "' placeholder='Title' style='flex:1;border:none;background:none;font-family:Georgia,serif;font-size:18px;font-weight:600;color:#2A2010;outline:none'>" +
+      (onDelete ? "<button id='neDel' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation'>Delete</button>" : "") +
+    "</div>" +
+    "<textarea id='neBody' placeholder='Start writing…' style='flex:1;border:none;background:#FDFAF3;font-family:inherit;font-size:15px;color:#2A2010;padding:14px;resize:none;outline:none;line-height:1.7'>" + esc(body) + "</textarea>";
+  document.body.appendChild(overlay);
+
+  document.getElementById("neBack").addEventListener("click", function() {
+    var t = document.getElementById("neTitle").value.trim();
+    var b = document.getElementById("neBody").value;
+    document.body.removeChild(overlay);
+    if (t || b) onSave(t || "Untitled", b);
+    else renderNotesSection();
+  });
+  if (onDelete) {
+    document.getElementById("neDel").addEventListener("click", function() {
+      document.body.removeChild(overlay);
+      onDelete();
+    });
+  }
+  document.getElementById("neBody").focus();
+}
+var HIDEABLE_SECTIONS = ["home", "train", "notes"]; // lists and baby are always visible
 
 var sectionVisible = (function() {
   var stored = storeGet("fl4_secVisible") || {};
@@ -1987,7 +2125,7 @@ var sectionVisible = (function() {
 function saveSectionVisible() { storeSet("fl4_secVisible", sectionVisible); }
 
 function applySectionVisibility() {
-  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", baby:"bnBaby" };
+  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", notes:"bnNotes", baby:"bnBaby" };
   HIDEABLE_SECTIONS.forEach(function(sec) {
     var btn = document.getElementById(navIds[sec]);
     if (btn) btn.style.display = sectionVisible[sec] ? "" : "none";
@@ -3575,27 +3713,28 @@ var currentSection = "home";
 function switchSection(section) {
   currentSection = section;
 
-  document.getElementById("homeSection").style.display  = section === "home"  ? "" : "none";
-  document.getElementById("lifeSection").style.display  = section === "lists" ? "" : "none";
-  document.getElementById("trainSection").style.display = section === "train" ? "" : "none";
-  document.getElementById("babySection").style.display  = section === "baby"  ? "" : "none";
+  document.getElementById("homeSection").style.display  = section === "home"   ? "" : "none";
+  document.getElementById("lifeSection").style.display  = section === "lists"  ? "" : "none";
+  document.getElementById("trainSection").style.display = section === "train"  ? "" : "none";
+  document.getElementById("notesSection").style.display = section === "notes"  ? "" : "none";
+  document.getElementById("babySection").style.display  = section === "baby"   ? "" : "none";
 
-  document.getElementById("bnHome").className  = "bn-btn" + (section === "home"  ? " home-active"  : "");
-  document.getElementById("bnLife").className  = "bn-btn" + (section === "lists" ? " life-active"  : "");
-  document.getElementById("bnTrain").className = "bn-btn" + (section === "train" ? " train-active" : "");
-  document.getElementById("bnBaby").className  = "bn-btn" + (section === "baby"  ? " baby-active"  : "");
+  document.getElementById("bnHome").className  = "bn-btn" + (section === "home"   ? " home-active"  : "");
+  document.getElementById("bnLife").className  = "bn-btn" + (section === "lists"  ? " life-active"  : "");
+  document.getElementById("bnTrain").className = "bn-btn" + (section === "train"  ? " train-active" : "");
+  document.getElementById("bnNotes").className = "bn-btn" + (section === "notes"  ? " notes-active" : "");
+  document.getElementById("bnBaby").className  = "bn-btn" + (section === "baby"   ? " baby-active"  : "");
 
   document.body.classList.toggle("home-mode",  section === "home");
   document.body.classList.toggle("train-mode", section === "train");
   document.body.classList.toggle("baby-mode",  section === "baby");
+  document.body.classList.remove("home-mode");
+  if (section === "home") document.body.classList.add("home-mode");
 
-  // Download latest household data when user navigates to a shared section
-  if (isHouseholdSet() && (section === "home" || section === "lists" || section === "baby")) {
+  if (isHouseholdSet() && (section === "home" || section === "lists" || section === "baby" || section === "notes")) {
     fetchHousehold();
   }
-  if (isLoggedIn() && section === "train") {
-    fetchPersonal();
-  }
+  if (isLoggedIn() && section === "train") fetchPersonal();
 
   if (section === "home") {
     document.getElementById("themeColor").setAttribute("content", "#111820");
@@ -3603,7 +3742,6 @@ function switchSection(section) {
     document.getElementById("hdrBadge").style.display = "none";
     renderHomeScreen();
   } else if (section === "lists") {
-    document.body.classList.remove("home-mode");
     applyListTheme();
     renderList();
   } else if (section === "train") {
@@ -3611,6 +3749,11 @@ function switchSection(section) {
     document.getElementById("appTitle").textContent  = "💪 Train";
     document.getElementById("hdrBadge").style.display = "none";
     renderTrainView();
+  } else if (section === "notes") {
+    document.getElementById("themeColor").setAttribute("content", "#7A3A05");
+    document.getElementById("appTitle").innerHTML = "&#x1F4DD; Notes";
+    document.getElementById("hdrBadge").style.display = "none";
+    renderNotesSection();
   } else if (section === "baby") {
     document.getElementById("themeColor").setAttribute("content", "#110A14");
     document.getElementById("appTitle").innerHTML = "&#x1F476; Baby";
@@ -3622,6 +3765,7 @@ function switchSection(section) {
 document.getElementById("bnHome").addEventListener("click",  function(){ switchSection("home");  });
 document.getElementById("bnLife").addEventListener("click",  function(){ switchSection("lists"); });
 document.getElementById("bnTrain").addEventListener("click", function(){ switchSection("train"); });
+document.getElementById("bnNotes").addEventListener("click", function(){ switchSection("notes"); });
 document.getElementById("bnBaby").addEventListener("click",  function(){ switchSection("baby");  });
 
 // Boot into first visible section
