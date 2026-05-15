@@ -248,6 +248,8 @@ body.home-mode .bn-btn.home-active{color:#7AAAD8}
 .bn-btn.train-active{color:#3B6FE0}
 .bn-btn.baby-active{color:#c084fc}
 .bn-btn.notes-active{color:#A05A10}
+.notes-tab-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.notes-tab-btn.active{color:#fff;background:rgba(255,255,255,.2)}
 
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;display:flex;background:#fff;border-top:1px solid #E0DCD4;z-index:350;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -2px 12px rgba(0,0,0,.08)}
 .bn-btn{flex:1;padding:8px 4px 6px;border:none;background:none;font-family:inherit;font-size:10px;font-weight:700;color:#AAA090;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color .2s}
@@ -499,7 +501,7 @@ body.train-mode #toast{background:#132040}
 /* ============================================================
    SESSION OVERLAY  (fullscreen active session)
    ============================================================ */
-#sessionOverlay{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:#0A1018;z-index:800;max-width:480px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
+#sessionOverlay{display:none;position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#0A1018;z-index:800;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
 .ses-prog-bar-wrap{height:3px;background:#1C2A3E;flex-shrink:0}
 .ses-prog-fill{height:3px;transition:width 1s linear}
 .ses-hdr{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:11px 14px;background:#0A1018;border-bottom:1px solid #1C2A3E}
@@ -666,7 +668,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v60</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v61</div>
 
   </div>
 </div>
@@ -850,12 +852,22 @@ body.train-mode #toast{background:#132040}
      NOTES SECTION
      ============================================================ -->
 <div id="notesSection" style="display:none">
-  <div style="display:flex;gap:4px;padding:5px 5px 4px;background:#A05A10;box-shadow:0 2px 10px rgba(0,0,0,.15)">
-    <button class="tsn-btn active" data-nview="personal" style="color:#fff;background:rgba(255,255,255,.15)">&#x1F464; Personal</button>
-    <button class="tsn-btn" data-nview="work" style="color:rgba(255,255,255,.6)">&#x1F4BC; Work</button>
+  <div style="display:flex;gap:4px;padding:5px 5px 4px;background:#A05A10;box-shadow:0 2px 10px rgba(0,0,0,.15)" id="notesSubNav">
+    <button class="notes-tab-btn active" data-nview="personal">&#x1F464; Personal</button>
+    <button class="notes-tab-btn" data-nview="work">&#x1F4BC; Work</button>
+    <button class="notes-tab-btn" data-nview="log">&#x1F4CB; Log</button>
   </div>
   <div id="notesPersonalView" class="content" style="padding-top:8px"></div>
   <div id="notesWorkView" class="content" style="padding-top:8px;display:none"></div>
+  <div id="notesLogView" class="content" style="padding-top:12px;display:none;padding-bottom:90px">
+    <!-- Quick log input -->
+    <div style="display:flex;gap:8px;padding:0 12px;margin-bottom:12px">
+      <input id="logActionInput" type="text" placeholder="e.g. Cut grass, Took shower…" autocomplete="off" autocorrect="off"
+        style="flex:1;border:2px solid #E0D0B0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:15px;outline:none;background:#FDFAF3;color:#2A2010">
+      <button id="logActionBtn" style="padding:11px 16px;background:#A05A10;border:none;border-radius:9px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation">Log</button>
+    </div>
+    <div id="logActionList"></div>
+  </div>
 </div>
 
 <!-- ============================================================
@@ -2002,14 +2014,15 @@ var NOTES_CONTEXTS = {
 
 function renderNotesSection() {
   // Sub-nav active state
-  document.querySelectorAll("#notesSection .tsn-btn").forEach(function(b) {
+  document.querySelectorAll("#notesSection .notes-tab-btn").forEach(function(b) {
     var isActive = b.dataset.nview === currentNotesView;
     b.classList.toggle("active", isActive);
-    b.style.background = isActive ? "rgba(255,255,255,.2)" : "";
-    b.style.color      = isActive ? "#fff" : "rgba(255,255,255,.55)";
   });
   document.getElementById("notesPersonalView").style.display = currentNotesView === "personal" ? "" : "none";
   document.getElementById("notesWorkView").style.display     = currentNotesView === "work"     ? "" : "none";
+  document.getElementById("notesLogView").style.display      = currentNotesView === "log"      ? "" : "none";
+
+  if (currentNotesView === "log") { renderLogView(); return; }
 
   var ctx   = NOTES_CONTEXTS[currentNotesView];
   var notes = storeGet(ctx.key) || [];
@@ -2020,7 +2033,7 @@ function renderNotesSection() {
       "<div style='font-size:40px;margin-bottom:10px'>&#x1F4DD;</div>" +
       "<div style='font-family:Georgia,serif;font-size:17px;margin-bottom:6px'>" + ctx.label + "</div>" +
       "<div style='font-size:14px;opacity:.7'>Tap + to write your first note</div></div>" +
-      "<button onclick='openNewNote()' style='position:fixed;bottom:80px;right:20px;width:52px;height:52px;border-radius:50%;background:#A05A10;border:none;color:#fff;font-size:28px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:200;touch-action:manipulation'>+</button>";
+      "<button data-action='newNote' style='position:fixed;bottom:80px;right:20px;width:52px;height:52px;border-radius:50%;background:#A05A10;border:none;color:#fff;font-size:28px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:200;touch-action:manipulation'>+</button>";
     return;
   }
 
@@ -2028,25 +2041,30 @@ function renderNotesSection() {
     var preview = (n.body || "").split("\n")[0].slice(0, 60) || "(empty)";
     var dt = n.updatedAt ? new Date(n.updatedAt) : null;
     var dtStr = dt ? dt.toLocaleDateString("en-IE", {day:"numeric",month:"short"}) + " " + dt.toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"}) : "";
-    return "<div style='background:#fff;border-radius:11px;padding:13px 14px;margin:0 12px 8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.07);touch-action:manipulation' onclick='openNote(" + i + ")'>" +
+    return "<div style='background:#fff;border-radius:11px;padding:13px 14px;margin:0 12px 8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.07);touch-action:manipulation' data-action='openNote' data-idx='" + i + "'>" +
       "<div style='font-size:15px;font-weight:700;color:#2A2010;margin-bottom:3px'>" + esc(n.title||"Untitled") + "</div>" +
       "<div style='font-size:13px;color:#8A7A60;margin-bottom:4px'>" + esc(preview) + "</div>" +
       "<div style='display:flex;align-items:center;justify-content:space-between'>" +
         "<span style='font-size:11px;color:#B8A880'>" + dtStr + "</span>" +
-        "<button onclick='event.stopPropagation();deleteNote(" + i + ")' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation'>&#x2715;</button>" +
+        "<button data-action='deleteNote' data-idx='" + i + "' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation'>&#x2715;</button>" +
       "</div></div>";
   }).join("");
 
-  html += "<button onclick='openNewNote()' style='position:fixed;bottom:80px;right:20px;width:52px;height:52px;border-radius:50%;background:#A05A10;border:none;color:#fff;font-size:28px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:200;touch-action:manipulation'>+</button>";
+  html += "<button data-action='newNote' style='position:fixed;bottom:80px;right:20px;width:52px;height:52px;border-radius:50%;background:#A05A10;border:none;color:#fff;font-size:28px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:200;touch-action:manipulation'>+</button>";
   viewEl.innerHTML = html;
 }
 
 // Sub-tab switching
 document.getElementById("notesSection").addEventListener("click", function(e) {
-  var btn = e.target.closest(".tsn-btn[data-nview]");
+  var tab = e.target.closest(".notes-tab-btn[data-nview]");
+  if (tab) { currentNotesView = tab.dataset.nview; renderNotesSection(); return; }
+  var btn = e.target.closest("[data-action]");
   if (!btn) return;
-  currentNotesView = btn.dataset.nview;
-  renderNotesSection();
+  var action = btn.getAttribute("data-action");
+  var idx    = parseInt(btn.getAttribute("data-idx"));
+  if (action === "newNote")    openNewNote();
+  if (action === "openNote")   openNote(idx);
+  if (action === "deleteNote") { e.stopPropagation(); deleteNote(idx); }
 });
 
 function getCurrentNotesKey() {
@@ -2113,6 +2131,78 @@ function openNoteEditor(title, body, onSave, onDelete) {
   }
   document.getElementById("neBody").focus();
 }
+
+// ============================================================
+// ACTION LOG
+// ============================================================
+function getActionLog() { return storeGet("fl4_action_log") || []; }
+function saveActionLog(entries) {
+  storeSet("fl4_action_log", entries);
+  pushPersonal();
+}
+
+document.getElementById("logActionBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
+  doLogAction();
+});
+document.getElementById("logActionInput").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") doLogAction();
+});
+
+function doLogAction() {
+  var text = document.getElementById("logActionInput").value.trim();
+  if (!text) { toast("Enter an action to log"); return; }
+  var entries = getActionLog();
+  entries.unshift({ id: Date.now(), text: text, ts: Date.now() });
+  saveActionLog(entries);
+  document.getElementById("logActionInput").value = "";
+  renderLogView();
+  toast("&#x1F4CB; Logged: " + text);
+}
+
+function renderLogView() {
+  var entries = getActionLog();
+  var el = document.getElementById("logActionList");
+  if (!entries.length) {
+    el.innerHTML = "<div style='text-align:center;padding:40px 24px;color:#B87A40'>" +
+      "<div style='font-size:36px;margin-bottom:8px'>&#x1F4CB;</div>" +
+      "<div style='font-size:14px'>Log anything with a timestamp<br><span style='opacity:.6'>Cut grass · Took medication · Fed baby</span></div></div>";
+    return;
+  }
+  var byDate = {}, dateOrder = [];
+  entries.forEach(function(e2) {
+    var d = new Date(e2.ts);
+    var dateKey = d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate();
+    var dateLabel = d.toLocaleDateString("en-IE", { weekday:"long", day:"numeric", month:"long" });
+    if (!byDate[dateKey]) { byDate[dateKey] = { label:dateLabel, items:[] }; dateOrder.push(dateKey); }
+    byDate[dateKey].items.push(e2);
+  });
+  var html = "";
+  dateOrder.forEach(function(dk) {
+    var group = byDate[dk];
+    html += "<div style='font-size:11px;font-weight:700;color:#8A6A40;text-transform:uppercase;letter-spacing:.5px;padding:6px 14px 4px'>" + group.label + "</div>";
+    group.items.forEach(function(e2) {
+      var t = new Date(e2.ts);
+      var timeStr = t.toLocaleTimeString("en-IE", { hour:"2-digit", minute:"2-digit" });
+      html += "<div style='display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;margin:0 12px 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>" +
+        "<span style='font-size:12px;font-weight:700;color:#B87A40;min-width:42px;flex-shrink:0'>" + timeStr + "</span>" +
+        "<span style='flex:1;font-size:14px;color:#2A2010'>" + esc(e2.text) + "</span>" +
+        "<button data-logid='" + e2.id + "' class='log-del-btn' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button>" +
+      "</div>";
+    });
+  });
+  el.innerHTML = html;
+
+  el.querySelectorAll(".log-del-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var id = +btn.dataset.logid;
+      var entries = getActionLog().filter(function(e2){ return e2.id !== id; });
+      saveActionLog(entries);
+      renderLogView();
+    });
+  });
+}
+
 var HIDEABLE_SECTIONS = ["home", "train", "notes"]; // lists and baby are always visible
 
 var sectionVisible = (function() {
@@ -2391,6 +2481,7 @@ function pushPersonal() {
     if (ld) d["list_" + lt] = { items:ld.items, hist:ld.hist, notes:notes, customCats:getCustomCats(lt) };
   });
   d.global_notes = storeGet("fl4_notes_global") || [];
+  d.action_log   = getActionLog();
   d.baby = getBD();
   fetch(userUrl("/data"), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).catch(function(){});
 }
@@ -2416,6 +2507,7 @@ function applyPersonal(d) {
     }
   });
   if (Array.isArray(d.global_notes)) storeSet("fl4_notes_global", d.global_notes.filter(Boolean));
+  if (Array.isArray(d.action_log)) storeSet("fl4_action_log", d.action_log.filter(Boolean));
   if (d.baby && typeof d.baby === "object") {
     var local = getBD();
     var merged = {
