@@ -668,7 +668,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v62</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v63</div>
 
   </div>
 </div>
@@ -2012,6 +2012,17 @@ var NOTES_CONTEXTS = {
   work:     { key:"fl4_notes_global_work", label:"Work notes",      icon:"&#x1F4BC;" }
 };
 
+function normaliseNotes(notes) {
+  // Migrate old format {id, text, html, editedTs} → new {id, title, body, updatedAt}
+  return (notes||[]).map(function(n) {
+    if (n.body !== undefined || n.title !== undefined) return n; // already new format
+    // Old format
+    var body  = n.text || "";
+    var title = body.split("\n")[0].slice(0, 60) || "Note";
+    return { id:n.id, title:title, body:body, updatedAt:n.editedTs || n.ts || n.id };
+  });
+}
+
 function renderNotesSection() {
   // Sub-nav active state
   document.querySelectorAll("#notesSection .notes-tab-btn").forEach(function(b) {
@@ -2025,7 +2036,12 @@ function renderNotesSection() {
   if (currentNotesView === "log") { renderLogView(); return; }
 
   var ctx   = NOTES_CONTEXTS[currentNotesView];
-  var notes = storeGet(ctx.key) || [];
+  var raw   = storeGet(ctx.key) || [];
+  var notes = normaliseNotes(raw);
+  // Save back in new format if we migrated anything
+  if (notes.some(function(n,i){ return raw[i] && raw[i].text !== undefined; })) {
+    storeSet(ctx.key, notes);
+  }
   var viewEl = document.getElementById(currentNotesView === "personal" ? "notesPersonalView" : "notesWorkView");
 
   if (!notes.length) {
@@ -2072,7 +2088,7 @@ function getCurrentNotesKey() {
 }
 
 function openNote(idx) {
-  var notes = storeGet(getCurrentNotesKey()) || [];
+  var notes = normaliseNotes(storeGet(getCurrentNotesKey()) || []);
   var note  = notes[idx];
   if (!note) return;
   openNoteEditor(note.title, note.body, function(title, body) {
