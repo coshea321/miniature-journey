@@ -666,7 +666,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v59</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v60</div>
 
   </div>
 </div>
@@ -4148,6 +4148,14 @@ var PROGRAMMES_TRAIN = [
     {id:'bw_squat',name:'Bodyweight Squat',type:'reps',sets:1,reps:20,note:'20 reps · hips back, knees over feet',cue:'Stand feet shoulder-width, toes turned slightly out. Push your hips back and bend your knees, keeping your chest up and spine neutral. Lower until thighs are parallel to the floor if possible — knees tracking over your second toe throughout. Drive through your heels to stand. 20 reps.',url:'https://www.youtube.com/watch?v=m0GcZ24pK6k'},
     {id:'single_leg_sq',name:'Single Leg Squat',type:'reps',sets:1,reps:10,note:'10 reps each leg · knee over 2nd toe',cue:'Stand on one leg, hands out in front for balance. Slowly bend the standing knee, pushing your hips back as if sitting to a chair. Keep your knee tracking over your second toe — don\'t let it collapse inward. Lower only as far as you can control, then press back up. 10 reps each leg.',url:'https://www.youtube.com/watch?v=Npz-kOxdy9I'},
     {id:'wall_squat',name:'Wall Squat',type:'timed',dur:45,sets:1,note:'Hold 45s · thighs parallel · knees 90°',cue:'Stand with your back flat against a wall. Slide down until your thighs are parallel to the floor and knees are at 90°. Feet should be hip-width, directly below your knees. Press your lower back firmly into the wall. Keep your weight in your heels. Hold for 45 seconds, breathing steadily.',url:'https://www.youtube.com/watch?v=GyncayY3GuY'}
+  ]},
+  {id:'max_physio',name:'Max Physio',icon:'&#x1F33F;',note:'Post-natal · core &amp; glutes · daily',color:'#14b8a6',exercises:[
+    {id:'clamshells',name:'Clamshells',type:'reps',sets:2,reps:15,note:'15 reps x 2 sets',cue:'Lie on your side with hips and knees bent to about 45°. Keeping your feet together, raise your top knee as high as you can without rotating your pelvis backward. Think of it like a clamshell opening. Lower slowly. 15 reps each side, 2 sets.'},
+    {id:'thigh_squeeze',name:'Thigh Squeezes',type:'timed',dur:10,sets:10,note:'10 sec hold x 10 reps',cue:'Lie on your back with knees bent and feet flat. Place a small pillow or folded towel between your knees. Squeeze your knees together into the pillow and hold for 10 seconds. Release fully, then repeat. 10 reps.'},
+    {id:'hip_squeeze',name:'Hip Squeezes',type:'reps',sets:2,reps:15,note:'15 reps x 2 sets',cue:'Lie on your back with knees bent and feet flat. Squeeze your buttocks firmly together and hold for 1–2 seconds, then relax completely. Think "buttcheeks together and relax". 15 reps, 2 sets.'},
+    {id:'tummy_tuck',name:'Tummy Tuck In',type:'timed',dur:5,sets:10,note:'5 sec hold x 10 reps',cue:'Lie on your back with knees bent, feet flat, and hands resting on your lower belly. Breathe in, then as you breathe out gently draw your lower tummy inward — imagine pulling your belly button toward your spine without holding your breath or squeezing your glutes. Hold for 5 seconds, breathe normally, then release. 10 reps.'},
+    {id:'figure4',name:'Figure of 4 Stretch',type:'timed',dur:20,sets:3,note:'20 sec hold x 3 reps',cue:'Lie on your back with knees bent. Cross your right ankle over your left knee, letting your right knee fall out to the side — forming the shape of a 4. Gently press your right knee away from you, or thread your hands behind your left thigh and draw it toward your chest until you feel a stretch in your right hip and glute. Hold 20 seconds. Switch sides.'},
+    {id:'tabletop',name:'Practice Table Top',type:'reps',sets:1,reps:10,note:'10 reps · breathe throughout',cue:'Lie on your back with knees bent and feet flat. Gently engage your core (tummy tuck). Breathe in, and as you breathe out slowly float one knee up to a 90° angle (shin parallel to floor) — keeping your lower back still. Breathe in to lower, breathe out to raise the other leg. Alternate legs. 10 reps each side. If you feel your back arching or stomach doming, reduce the range of movement.'}
   ]}
 ];
 
@@ -4277,7 +4285,8 @@ function renderTrainPrograms() {
     { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", desc:"23 poses · ~18 min", descColor:"#7A5CBF" },
     { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
     { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
-    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" }
+    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
+    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" }
   ];
   var html = "";
   for (var i=0;i<programs.length;i++) {
