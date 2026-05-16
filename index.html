@@ -679,7 +679,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v69</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v70</div>
 
   </div>
 </div>
@@ -2223,8 +2223,34 @@ function openNoteEditor(title, body, onSave, onDelete) {
     btn.addEventListener("click", function() {
       bodyEl.focus();
       var fmt = btn.dataset.fmt;
+
       if (fmt === "h1" || fmt === "h2" || fmt === "h3" || fmt === "p") {
-        document.execCommand("formatBlock", false, fmt === "p" ? "p" : fmt);
+        // Check if selection is inside a list item — formatBlock won't work there
+        var sel = window.getSelection();
+        var inList = sel && sel.anchorNode && (function(node) {
+          while (node && node !== bodyEl) {
+            if (node.nodeName === "LI") return true;
+            node = node.parentNode;
+          }
+          return false;
+        })(sel.anchorNode);
+
+        if (inList) {
+          // Apply font-size via span for text inside list items
+          var sizes = { h1:"1.5em", h2:"1.2em", h3:"1.05em", p:"1em" };
+          var weights = { h1:"700", h2:"700", h3:"600", p:"400" };
+          document.execCommand("fontSize", false, "7"); // placeholder
+          // Replace the browser's font size spans with our styled span
+          bodyEl.querySelectorAll("font[size='7']").forEach(function(f) {
+            var span = document.createElement("span");
+            span.style.fontSize   = sizes[fmt];
+            span.style.fontWeight = weights[fmt];
+            span.innerHTML = f.innerHTML;
+            f.parentNode.replaceChild(span, f);
+          });
+        } else {
+          document.execCommand("formatBlock", false, fmt === "p" ? "p" : fmt);
+        }
       } else if (fmt === "blockquote") {
         document.execCommand("formatBlock", false, "blockquote");
       } else if (fmt === "ul") {
@@ -2242,9 +2268,9 @@ function openNoteEditor(title, body, onSave, onDelete) {
       } else if (fmt === "highlight") {
         document.execCommand("hiliteColor", false, "#FFF176");
       } else if (fmt === "code") {
-        var sel = window.getSelection();
-        if (sel && sel.toString()) {
-          document.execCommand("insertHTML", false, "<code>" + sel.toString() + "</code>");
+        var sel2 = window.getSelection();
+        if (sel2 && sel2.toString()) {
+          document.execCommand("insertHTML", false, "<code>" + sel2.toString() + "</code>");
         }
       } else if (fmt === "clear") {
         document.execCommand("removeFormat", false, null);
@@ -2255,6 +2281,25 @@ function openNoteEditor(title, body, onSave, onDelete) {
       currentBody = bodyEl.innerHTML;
     });
   });
+
+  // Keep toolbar above Android keyboard using visualViewport API
+  var toolbar = overlay.querySelector("#neFmt");
+  function updateToolbarPos() {
+    if (!window.visualViewport || !toolbar) return;
+    var keyboardH = Math.max(0, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop);
+    toolbar.style.position  = "relative"; // stays in flow
+    toolbar.style.marginTop = "auto";
+    // Position overlay inner so body shrinks to fit above keyboard
+    inner.style.height = window.visualViewport.height + "px";
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", updateToolbarPos);
+    window.visualViewport.addEventListener("scroll", updateToolbarPos);
+    overlay.addEventListener("remove", function() {
+      window.visualViewport.removeEventListener("resize", updateToolbarPos);
+      window.visualViewport.removeEventListener("scroll", updateToolbarPos);
+    });
+  }
 
   function doSave() {
     var t = (titleEl.value || currentTitle).trim();
@@ -3131,10 +3176,28 @@ function openListNoteEditor(lt, id, renderFn) {
   overlay.style.display = "flex";
   setTimeout(function(){ area.focus(); }, 100);
   updateFmtButtons();
+
+  // Keep format toolbar above Android keyboard
+  if (window.visualViewport) {
+    function listEditorVpResize() {
+      overlay.style.height = window.visualViewport.height + "px";
+      overlay.style.top    = window.visualViewport.offsetTop + "px";
+    }
+    window.visualViewport.addEventListener("resize", listEditorVpResize);
+    window.visualViewport.addEventListener("scroll", listEditorVpResize);
+    overlay._vpCleanup = function() {
+      window.visualViewport.removeEventListener("resize", listEditorVpResize);
+      window.visualViewport.removeEventListener("scroll", listEditorVpResize);
+      overlay.style.height = "";
+      overlay.style.top    = "";
+    };
+  }
 }
 
 function closeNoteEditor() {
-  document.getElementById("noteEditorOverlay").style.display = "none";
+  var overlay = document.getElementById("noteEditorOverlay");
+  overlay.style.display = "none";
+  if (overlay._vpCleanup) { overlay._vpCleanup(); overlay._vpCleanup = null; }
   noteEditorId = null;
   noteEditorLt = null;
   noteEditorRenderFn = null;
