@@ -151,6 +151,16 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 #noteEditorArea li{margin:2px 0}
 #noteEditorArea hr{border:none;border-top:1px solid #D8D0C0;margin:12px 0}
 #noteEditorArea code,#noteEditorArea pre{background:#F0EDE8;border-radius:5px;padding:2px 6px;font-family:monospace;font-size:14px}
+#noteEditorArea blockquote{border-left:3px solid #C4833A;margin:8px 0 8px 4px;padding:4px 12px;color:#6A5A40;font-style:italic}
+/* Same styles for the new notes section contenteditable */
+[id=neBody] ul,[id=neBody] ol{padding-left:20px;margin:4px 0}
+[id=neBody] li{margin:2px 0}
+[id=neBody] hr{border:none;border-top:1px solid #D8D0C0;margin:12px 0}
+[id=neBody] code{background:#F0EDE8;border-radius:5px;padding:2px 6px;font-family:monospace;font-size:14px}
+[id=neBody] blockquote{border-left:3px solid #C4833A;margin:8px 0 8px 4px;padding:4px 12px;color:#6A5A40;font-style:italic}
+[id=neBody] h1{font-size:1.5em;font-weight:700;margin:8px 0 4px}
+[id=neBody] h2{font-size:1.25em;font-weight:700;margin:8px 0 4px}
+[id=neBody] h3{font-size:1.1em;font-weight:700;margin:6px 0 3px}
 .note-rich{font-size:15px;line-height:1.6;color:#1C2018;word-break:break-word}
 .note-rich h1{font-family:Georgia,serif;font-size:19px;font-weight:600;margin:4px 0 2px}
 .note-rich h2{font-family:Georgia,serif;font-size:15px;font-weight:600;margin:3px 0 2px}
@@ -669,7 +679,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v68</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v69</div>
 
   </div>
 </div>
@@ -2155,20 +2165,31 @@ function openNoteEditor(title, body, onSave, onDelete) {
     : "";
 
   var TOOLBAR_HTML =
-    "<div id='neFmt' style='display:flex;gap:4px;padding:8px 10px;background:#fff;border-top:1px solid #E8E4DC;flex-wrap:wrap;flex-shrink:0;padding-bottom:max(10px,env(safe-area-inset-bottom))'>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='bold'><b>B</b></button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='italic'><i>I</i></button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='underline'><u>U</u></button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='strikethrough'><s>S</s></button>" +
+    "<div id='neFmt' style='display:flex;gap:3px;padding:7px 8px;background:#fff;border-top:1px solid #E8E4DC;flex-wrap:wrap;flex-shrink:0;padding-bottom:max(8px,env(safe-area-inset-bottom))'>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='bold' title='Bold'><b>B</b></button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='italic' title='Italic'><i>I</i></button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='underline' title='Underline'><u>U</u></button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='strikethrough' title='Strikethrough'><s>S</s></button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='highlight' title='Highlight' style='background:#FFF176;color:#555'>H</button>" +
       "<div style='width:1px;background:#E8E4DC;margin:0 2px;align-self:stretch'></div>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='h1'>H1</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='h2'>H2</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='h1' title='Heading 1' style='font-weight:800;font-size:13px'>H1</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='h2' title='Heading 2' style='font-weight:700;font-size:12px'>H2</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='h3' title='Heading 3' style='font-weight:600;font-size:11px'>H3</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='p' title='Normal text'>&#xB6;</button>" +
       "<div style='width:1px;background:#E8E4DC;margin:0 2px;align-self:stretch'></div>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='ul'>&#x2022; List</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='ol'>1. List</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='ul' title='Bullet list'>&#x2022;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='ol' title='Numbered list'>1.</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='indent' title='Indent'>&#x21E5;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='outdent' title='Outdent'>&#x21E4;</button>" +
       "<div style='width:1px;background:#E8E4DC;margin:0 2px;align-self:stretch'></div>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='hr'>&#x2015;</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='code'>{ }</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='justifyLeft' title='Left'>&#x2261;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='justifyCenter' title='Centre'>&#x2263;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='justifyRight' title='Right'>&#x2262;</button>" +
+      "<div style='width:1px;background:#E8E4DC;margin:0 2px;align-self:stretch'></div>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='blockquote' title='Quote'>&#x201C;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='hr' title='Divider'>&#x2015;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='code' title='Code'>{ }</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='clear' title='Clear formatting' style='color:#C06060'>&#x2A2F;</button>" +
     "</div>";
 
   inner.innerHTML =
@@ -2202,19 +2223,32 @@ function openNoteEditor(title, body, onSave, onDelete) {
     btn.addEventListener("click", function() {
       bodyEl.focus();
       var fmt = btn.dataset.fmt;
-      if (fmt === "h1" || fmt === "h2") {
-        document.execCommand("formatBlock", false, fmt);
+      if (fmt === "h1" || fmt === "h2" || fmt === "h3" || fmt === "p") {
+        document.execCommand("formatBlock", false, fmt === "p" ? "p" : fmt);
+      } else if (fmt === "blockquote") {
+        document.execCommand("formatBlock", false, "blockquote");
       } else if (fmt === "ul") {
         document.execCommand("insertUnorderedList", false, null);
       } else if (fmt === "ol") {
         document.execCommand("insertOrderedList", false, null);
+      } else if (fmt === "indent") {
+        document.execCommand("indent", false, null);
+      } else if (fmt === "outdent") {
+        document.execCommand("outdent", false, null);
+      } else if (fmt === "justifyLeft" || fmt === "justifyCenter" || fmt === "justifyRight") {
+        document.execCommand(fmt, false, null);
       } else if (fmt === "hr") {
         document.execCommand("insertHorizontalRule", false, null);
+      } else if (fmt === "highlight") {
+        document.execCommand("hiliteColor", false, "#FFF176");
       } else if (fmt === "code") {
         var sel = window.getSelection();
         if (sel && sel.toString()) {
           document.execCommand("insertHTML", false, "<code>" + sel.toString() + "</code>");
         }
+      } else if (fmt === "clear") {
+        document.execCommand("removeFormat", false, null);
+        document.execCommand("formatBlock", false, "p");
       } else {
         document.execCommand(fmt, false, null);
       }
