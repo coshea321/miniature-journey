@@ -669,7 +669,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v65</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v66</div>
 
   </div>
 </div>
@@ -2942,17 +2942,17 @@ function saveNotes(notes, lt) {
 // Note input boxes now open fullscreen editor on focus/click
 document.getElementById("noteInput").addEventListener("focus", function() {
   this.blur();
-  openNoteEditor(currentList, null, renderNotes);
+  openListNoteEditor(currentList, null, renderNotes);
 });
 document.getElementById("addNoteBtn").addEventListener("click", function(){
-  openNoteEditor(currentList, null, renderNotes);
+  openListNoteEditor(currentList, null, renderNotes);
 });
 document.getElementById("noteInputFull").addEventListener("focus", function() {
   this.blur();
-  openNoteEditor("global", null, renderNotesFull);
+  openListNoteEditor("global", null, renderNotesFull);
 });
 document.getElementById("addNoteFullBtn").addEventListener("click", function(){
-  openNoteEditor("global", null, renderNotesFull);
+  openListNoteEditor("global", null, renderNotesFull);
 });
 
 function addNote(lt, inputId, renderFn) {
@@ -2978,7 +2978,7 @@ var noteEditorLt = null;
 var noteEditorId = null; // null = new note
 var noteEditorRenderFn = null;
 
-function openNoteEditor(lt, id, renderFn) {
+function openListNoteEditor(lt, id, renderFn) {
   noteEditorLt = lt;
   noteEditorId = id;
   noteEditorRenderFn = renderFn;
@@ -3128,7 +3128,7 @@ function renderNotesIn(elId, lt, renderFn) {
   el.querySelectorAll(".note-card").forEach(function(card) {
     var id = +card.dataset.id;
     card.querySelector(".note-edit-btn").addEventListener("click", function() {
-      openNoteEditor(lt, id, renderFn);
+      openListNoteEditor(lt, id, renderFn);
     });
     card.querySelector(".note-del").addEventListener("click", function() {
       if (!confirm("Delete this note?")) return;
