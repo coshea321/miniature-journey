@@ -679,7 +679,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v70</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v73</div>
 
   </div>
 </div>
@@ -867,6 +867,7 @@ body.train-mode #toast{background:#132040}
     <button class="notes-tab-btn active" data-nview="personal">&#x1F464; Personal</button>
     <button class="notes-tab-btn" data-nview="work">&#x1F4BC; Work</button>
     <button class="notes-tab-btn" data-nview="log">&#x1F4CB; Log</button>
+    <button class="notes-tab-btn" data-nview="food">&#x1F35C; Food</button>
   </div>
   <div id="notesPersonalView" class="content" style="padding-top:8px"></div>
   <div id="notesWorkView" class="content" style="padding-top:8px;display:none"></div>
@@ -882,6 +883,45 @@ body.train-mode #toast{background:#132040}
         style="width:100%;border:2px solid #E0D0B0;border-radius:9px;padding:9px 13px;font-family:inherit;font-size:13px;outline:none;background:#FDFAF3;color:#7A5A30;box-sizing:border-box">
     </div>
     <div id="logActionList"></div>
+  </div>
+
+  <!-- FOOD JOURNAL -->
+  <div id="notesFoodView" class="content" style="padding-top:0;display:none;padding-bottom:90px">
+    <!-- Date navigator -->
+    <div style="display:flex;align-items:center;background:#7A3A05;padding:8px 12px;gap:8px">
+      <button id="foodPrevDay" style="width:36px;height:36px;border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;font-size:20px;cursor:pointer;touch-action:manipulation">&#x2039;</button>
+      <div id="foodDateLabel" style="flex:1;text-align:center;font-family:Georgia,serif;font-size:16px;font-weight:600;color:#fff"></div>
+      <button id="foodNextDay" style="width:36px;height:36px;border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;font-size:20px;cursor:pointer;touch-action:manipulation">&#x203A;</button>
+    </div>
+    <!-- Daily calorie summary -->
+    <div id="foodDaySummary" style="background:#fff8f0;padding:12px 16px;border-bottom:1px solid #E8D8C0;text-align:center;font-size:14px;color:#7A3A05;cursor:pointer"></div>
+    <!-- Daily note -->
+    <div style="padding:6px 12px;background:#FDFAF3;border-bottom:1px solid #E8D8C0;display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;color:#A05A10;font-weight:700;white-space:nowrap">&#x1F4DD; Daily note:</span>
+      <input id="foodDailyNote" type="text" placeholder="How do you feel today? Any notes…" autocomplete="off"
+        style="flex:1;border:none;background:none;font-family:inherit;font-size:13px;color:#2A2010;outline:none;padding:4px 0">
+    </div>
+    <!-- Entries -->
+    <div id="foodEntries" style="padding:8px 12px"></div>
+    <!-- Add form -->
+    <div style="padding:10px 12px 6px;background:#FDFAF3;border-top:1px solid #E8D8C0;position:sticky;bottom:55px">
+      <!-- Saved meals row -->
+      <div style="display:flex;gap:5px;margin-bottom:7px;overflow-x:auto;padding-bottom:2px" id="savedMealsRow"></div>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <input id="foodItemInput" type="text" placeholder="What did you eat?" autocomplete="off" autocorrect="off"
+          style="flex:1;border:2px solid #E0D0B0;border-radius:9px;padding:10px 12px;font-family:inherit;font-size:15px;outline:none;background:#FDFAF3;color:#2A2010">
+        <button id="foodMealToggle" style="padding:10px 10px;background:#F5E8D8;border:1.5px solid #C4A07A;border-radius:9px;color:#7A3A05;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;white-space:nowrap">&#x1F31E; Lunch</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:4px">
+        <input id="foodCalInput" type="number" min="0" max="5000" placeholder="kcal (auto-estimated)" inputmode="numeric"
+          style="flex:1;border:2px solid #E0D0B0;border-radius:9px;padding:10px 12px;font-family:inherit;font-size:15px;outline:none;background:#FDFAF3;color:#2A2010">
+        <button id="foodAddBtn" style="padding:10px 16px;background:#A05A10;border:none;border-radius:9px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation">Add</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <div id="foodCalEst" style="flex:1;font-size:11px;color:#A05A10;font-weight:600;min-height:16px"></div>
+        <button id="saveMealBtn" style="padding:5px 10px;background:none;border:1.5px solid #C4A07A;border-radius:7px;color:#A05A10;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation;white-space:nowrap">&#x1F4BE; Save as meal</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2049,8 +2089,10 @@ function renderNotesSection() {
   document.getElementById("notesPersonalView").style.display = currentNotesView === "personal" ? "" : "none";
   document.getElementById("notesWorkView").style.display     = currentNotesView === "work"     ? "" : "none";
   document.getElementById("notesLogView").style.display      = currentNotesView === "log"      ? "" : "none";
+  document.getElementById("notesFoodView").style.display     = currentNotesView === "food"     ? "" : "none";
 
-  if (currentNotesView === "log") { renderLogView(); return; }
+  if (currentNotesView === "log")  { renderLogView();  return; }
+  if (currentNotesView === "food") { renderFoodView(); return; }
 
   // One-time migration: import notes from old list-based notes (fl4_notes_notes) into personal notes
   if (!storeGet("hearth_notes_migrated")) {
@@ -2443,6 +2485,413 @@ function renderLogView() {
   });
 }
 
+// ============================================================
+// FOOD JOURNAL
+// ============================================================
+
+// ── Calorie estimator — ~400 common foods ────────────────
+var FOOD_CAL = (function(){
+  var d = {
+    // Grains & carbs
+    "rice":250,"white rice":250,"brown rice":215,"fried rice":330,
+    "pasta":200,"spaghetti":220,"penne":200,"noodles":210,"ramen":380,
+    "bread":80,"toast":85,"white bread":80,"brown bread":75,"sourdough":90,"baguette":130,
+    "roll":130,"bagel":270,"croissant":230,"wrap":180,"pitta":165,"tortilla":160,
+    "oats":160,"porridge":130,"granola":210,"muesli":190,"cereal":150,"cornflakes":110,
+    "potato":90,"boiled potato":90,"mashed potato":120,"roast potato":150,"chips":300,"crisps":520,
+    "sweet potato":90,"fries":320,"wedges":200,"couscous":175,"quinoa":185,
+    // Proteins
+    "chicken":165,"chicken breast":165,"chicken thigh":210,"fried chicken":280,"roast chicken":190,
+    "beef":250,"steak":270,"mince":230,"burger":300,"meatballs":220,
+    "pork":240,"bacon":540,"sausage":280,"ham":145,"salami":350,
+    "lamb":250,"lamb chop":280,"lamb stew":210,
+    "salmon":200,"tuna":130,"cod":80,"haddock":90,"fish":100,"fish and chips":600,
+    "prawn":90,"shrimp":90,"crab":85,"lobster":95,"mussels":70,
+    "eggs":140,"egg":70,"scrambled eggs":160,"fried egg":90,"boiled egg":70,"omelette":200,
+    "tofu":80,"tempeh":160,"lentils":115,"chickpeas":165,"beans":140,
+    "black beans":130,"kidney beans":140,"edamame":120,
+    // Dairy
+    "milk":60,"full fat milk":60,"skimmed milk":35,"semi skimmed milk":48,
+    "cheese":400,"cheddar":400,"brie":330,"feta":260,"mozzarella":280,
+    "yogurt":60,"greek yogurt":90,"cream":200,"butter":720,"cream cheese":340,
+    "ice cream":200,"gelato":180,
+    // Fruit
+    "apple":80,"banana":90,"orange":60,"grape":70,"strawberry":32,"strawberries":32,
+    "blueberries":55,"raspberries":50,"mango":65,"pineapple":55,"melon":30,
+    "watermelon":30,"peach":40,"pear":55,"kiwi":50,"avocado":160,
+    "cherry":50,"cherries":50,"plum":40,"lemon":30,"lime":20,
+    // Vegetables
+    "salad":20,"lettuce":5,"tomato":20,"cucumber":15,"carrot":35,"broccoli":35,
+    "spinach":23,"peas":80,"corn":90,"mushroom":20,"onion":40,"garlic":5,
+    "pepper":30,"courgette":17,"aubergine":25,"cauliflower":25,"cabbage":25,
+    "kale":35,"celery":6,"asparagus":20,"green beans":25,"leek":30,
+    // Snacks & treats
+    "chocolate":530,"dark chocolate":550,"milk chocolate":520,
+    "biscuit":70,"digestive":70,"cookie":70,"cake":380,"muffin":370,
+    "donut":280,"brownie":340,"waffle":300,"pancake":200,
+    "crisps":520,"popcorn":450,"nuts":600,"peanuts":570,"almonds":580,
+    "cashews":560,"peanut butter":590,"hummus":170,"dip":120,
+    // Fast food
+    "pizza":270,"margherita pizza":250,"pepperoni pizza":290,
+    "kebab":700,"doner kebab":700,"sandwich":300,"sub":350,"panini":350,
+    "hot dog":290,"nuggets":250,"chicken nuggets":250,
+    // Drinks (per 300ml unless noted)
+    "coffee":5,"americano":5,"latte":120,"cappuccino":90,"flat white":100,
+    "tea":5,"green tea":2,"hot chocolate":200,
+    "orange juice":110,"apple juice":120,"smoothie":150,
+    "beer":140,"wine":180,"prosecco":120,"gin":100,"vodka":100,"coke":120,
+    "diet coke":1,"water":0,"sparkling water":0,
+    // Ready meals / common dishes
+    "soup":100,"tomato soup":90,"chicken soup":80,"lentil soup":130,
+    "curry":300,"chicken curry":300,"beef curry":380,"korma":400,"tikka masala":400,
+    "stir fry":200,"noodle stir fry":280,"pad thai":450,"sushi":180,"sashimi":120,
+    "burrito":520,"taco":200,"nachos":480,"quesadilla":400,
+    "lasagne":350,"bolognese":400,"carbonara":450,"risotto":350,
+    "fish finger":55,"fish fingers":165,
+    // Breakfast specific
+    "full irish":850,"full english":850,"fry up":850,
+    "cereal bar":100,"protein bar":200,"crumpet":90,
+  };
+  return d;
+})();
+
+var MEAL_TYPES = [
+  { label:"Breakfast", icon:"&#x1F31E;" },
+  { label:"Lunch",     icon:"&#x1F33F;" },
+  { label:"Dinner",    icon:"&#x1F319;" },
+  { label:"Snack",     icon:"&#x1F370;" }
+];
+var currentFoodMeal = 1; // default Lunch
+var foodDate = (function(){
+  var d = new Date();
+  return d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1)+"-"+(d.getDate()<10?"0":"")+d.getDate();
+})();
+
+function getFoodLog() { return storeGet("fl4_food_log") || []; }
+function saveFoodLog(e) { storeSet("fl4_food_log", e); pushPersonal(); }
+
+function estimateCals(text) {
+  var low = text.toLowerCase().replace(/[^a-z0-9 ]/g," ").trim();
+  var best = 0;
+  // Try longest match first
+  var words = low.split(/\s+/);
+  for (var len = 4; len >= 1; len--) {
+    for (var i = 0; i <= words.length - len; i++) {
+      var phrase = words.slice(i, i+len).join(" ");
+      if (FOOD_CAL[phrase] !== undefined) {
+        best = FOOD_CAL[phrase];
+        // Try to detect quantity multiplier e.g. "2 eggs"
+        if (i > 0 && !isNaN(words[i-1])) {
+          var qty = parseFloat(words[i-1]);
+          if (qty > 0 && qty <= 10) best = Math.round(best * qty);
+        }
+        return best;
+      }
+    }
+  }
+  return 0;
+}
+
+function foodDateStr(date) {
+  var d = new Date(date + "T12:00:00");
+  var today = foodDate;
+  var yest  = (function(){ var d2 = new Date(today+"T12:00:00"); d2.setDate(d2.getDate()-1);
+    return d2.getFullYear()+"-"+(d2.getMonth()<9?"0":"")+(d2.getMonth()+1)+"-"+(d2.getDate()<10?"0":"")+d2.getDate();
+  })();
+  if (date === today) return "Today";
+  if (date === yest)  return "Yesterday";
+  return d.toLocaleDateString("en-IE",{weekday:"short",day:"numeric",month:"short"});
+}
+function foodShiftDay(date, delta) {
+  var d = new Date(date+"T12:00:00");
+  d.setDate(d.getDate()+delta);
+  return d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1)+"-"+(d.getDate()<10?"0":"")+d.getDate();
+}
+
+function renderFoodView() {
+  var today = (function(){ var d=new Date(); return d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1)+"-"+(d.getDate()<10?"0":"")+d.getDate(); })();
+
+  // Date nav
+  document.getElementById("foodDateLabel").textContent = foodDateStr(foodDate);
+  document.getElementById("foodNextDay").disabled = foodDate >= today;
+
+  var entries = getFoodLog().filter(function(e){ return e.date === foodDate; });
+  // Sort by meal order
+  entries.sort(function(a,b){ return (a.meal||0) - (b.meal||0); });
+
+  var totalCal = entries.reduce(function(s,e){ return s+(e.cal||0); }, 0);
+  var goalCal  = storeGet("fl4_cal_goal") || 2000;
+
+  // Summary bar
+  var pct = Math.min(100, Math.round(totalCal/goalCal*100));
+  var barColour = pct < 80 ? "#4CAF7D" : pct < 100 ? "#FFA726" : "#EF5350";
+  document.getElementById("foodDaySummary").innerHTML =
+    "<div style='font-size:15px;font-weight:700;color:#7A3A05;margin-bottom:5px'>" +
+      totalCal.toLocaleString() + " kcal" +
+      "<span style='font-size:12px;font-weight:400;color:#B8805A;margin-left:8px'>of " + goalCal.toLocaleString() + " goal</span>" +
+    "</div>" +
+    "<div style='height:6px;background:#E8D8C0;border-radius:3px;overflow:hidden'>" +
+      "<div style='height:100%;width:"+pct+"%;background:"+barColour+";border-radius:3px;transition:width .3s'></div>" +
+    "</div>" +
+    "<div style='display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:#B8805A'>" +
+      MEAL_TYPES.map(function(m,i){
+        var mCal = entries.filter(function(e){ return e.meal===i; }).reduce(function(s,e){ return s+(e.cal||0);},0);
+        return "<span>" + m.icon + " " + m.label + (mCal ? ": "+mCal : "") + "</span>";
+      }).join("") +
+    "</div>";
+
+  // Entries grouped by meal
+  var html = "";
+  MEAL_TYPES.forEach(function(m, mi) {
+    var meal = entries.filter(function(e){ return e.meal === mi; });
+    if (!meal.length) return;
+    var mCal = meal.reduce(function(s,e){ return s+(e.cal||0);},0);
+    html += "<div style='margin-bottom:10px'>" +
+      "<div style='font-size:11px;font-weight:700;color:#A05A10;text-transform:uppercase;letter-spacing:.5px;padding:4px 0 6px;display:flex;justify-content:space-between'>" +
+        "<span>" + m.icon + " " + m.label + "</span>" +
+        (mCal ? "<span style='color:#B8805A'>" + mCal + " kcal</span>" : "") +
+      "</div>";
+    meal.forEach(function(e) {
+      html += "<div style='display:flex;align-items:center;gap:8px;padding:10px 12px;background:#fff;border-radius:10px;margin-bottom:5px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>" +
+        "<div style='flex:1'>" +
+          "<div style='font-size:14px;color:#2A2010'>" + esc(e.text) + "</div>" +
+          (e.calAuto ? "<div style='font-size:11px;color:#B8805A;margin-top:1px'>~" + e.cal + " kcal (estimated)</div>" : "") +
+          (!e.calAuto && e.cal ? "<div style='font-size:11px;color:#7A5030;margin-top:1px'>" + e.cal + " kcal</div>" : "") +
+        "</div>" +
+        "<button data-foodid='" + e.id + "' class='food-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button>" +
+      "</div>";
+    });
+    html += "</div>";
+  });
+
+  if (!entries.length) {
+    html = "<div style='text-align:center;padding:32px 24px;color:#B8805A'>" +
+      "<div style='font-size:36px;margin-bottom:8px'>&#x1F373;</div>" +
+      "<div style='font-size:14px'>Nothing logged yet for " + foodDateStr(foodDate) + "</div></div>";
+  }
+
+  document.getElementById("foodEntries").innerHTML = html;
+
+  document.getElementById("foodEntries").querySelectorAll(".food-del-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var id = +btn.dataset.foodid;
+      saveFoodLog(getFoodLog().filter(function(e){ return e.id !== id; }));
+      renderFoodView();
+    });
+  });
+
+  // Daily note
+  var noteEl = document.getElementById("foodDailyNote");
+  var dayNotes = storeGet("fl4_food_notes") || {};
+  noteEl.value = dayNotes[foodDate] || "";
+  if (!noteEl._wired) {
+    noteEl._wired = true;
+    noteEl.addEventListener("blur", function() {
+      var dayNotes2 = storeGet("fl4_food_notes") || {};
+      if (noteEl.value.trim()) dayNotes2[foodDate] = noteEl.value.trim();
+      else delete dayNotes2[foodDate];
+      storeSet("fl4_food_notes", dayNotes2);
+      pushPersonal();
+    });
+  }
+
+  // Saved meals chips
+  var savedMeals = storeGet("fl4_saved_meals") || [];
+  var smRow = document.getElementById("savedMealsRow");
+  if (savedMeals.length) {
+    smRow.innerHTML = savedMeals.map(function(m, i) {
+      return "<button class='food-saved-chip' data-midx='" + i + "' style='padding:5px 10px;background:#F5E8D8;border:1.5px solid #C4A07A;border-radius:16px;color:#7A3A05;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;white-space:nowrap;flex-shrink:0'>" +
+        esc(m.name) + (m.cal ? " ~"+m.cal+"kcal" : "") + "</button>";
+    }).join("") +
+    "<button id='manageSavedMealsBtn' style='padding:5px 10px;background:none;border:1.5px dashed #C4A07A;border-radius:16px;color:#B8805A;font-family:inherit;font-size:12px;cursor:pointer;touch-action:manipulation;white-space:nowrap;flex-shrink:0'>&#x2699; Manage</button>";
+  } else {
+    smRow.innerHTML = "<span style='font-size:12px;color:#B8805A;padding:4px 0'>No saved meals yet — add items then tap 💾 Save as meal</span>";
+  }
+
+  smRow.querySelectorAll(".food-saved-chip").forEach(function(chip) {
+    chip.addEventListener("click", function() {
+      var meal = (storeGet("fl4_saved_meals")||[])[+chip.dataset.midx];
+      if (!meal) return;
+      var entries2 = getFoodLog();
+      meal.items.forEach(function(it) {
+        entries2.push({ id:Date.now() + Math.random(), date:foodDate, meal:currentFoodMeal, text:it.text, cal:it.cal, calAuto:it.calAuto });
+      });
+      saveFoodLog(entries2);
+      renderFoodView();
+      toast("&#x1F37D; Added: " + meal.name);
+    });
+  });
+
+  var manageBtn = document.getElementById("manageSavedMealsBtn");
+  if (manageBtn) manageBtn.addEventListener("click", openSavedMealsManager);
+
+  // Update meal toggle button
+  var mt = MEAL_TYPES[currentFoodMeal];
+  document.getElementById("foodMealToggle").innerHTML = mt.icon + " " + mt.label;
+
+  // Auto-estimate as user types
+  var fi = document.getElementById("foodItemInput");
+  if (fi && !fi._wired) {
+    fi._wired = true;
+    fi.addEventListener("input", function() {
+      var est = estimateCals(fi.value);
+      var estEl = document.getElementById("foodCalEst");
+      var calIn = document.getElementById("foodCalInput");
+      if (est && !calIn.value) {
+        estEl.textContent = "Est. ~" + est + " kcal";
+        calIn.placeholder = "~" + est + " kcal (estimated)";
+      } else {
+        estEl.textContent = "";
+        calIn.placeholder = "kcal (auto-estimated)";
+      }
+    });
+    fi.addEventListener("keydown", function(e){ if (e.key==="Enter") document.getElementById("foodAddBtn").click(); });
+  }
+}
+
+// Date nav
+document.getElementById("foodPrevDay").addEventListener("click", function() {
+  foodDate = foodShiftDay(foodDate, -1); renderFoodView();
+});
+document.getElementById("foodNextDay").addEventListener("click", function() {
+  var today = (function(){ var d=new Date(); return d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1)+"-"+(d.getDate()<10?"0":"")+d.getDate(); })();
+  if (foodDate < today) { foodDate = foodShiftDay(foodDate, 1); renderFoodView(); }
+});
+
+// Meal toggle
+document.getElementById("foodMealToggle").addEventListener("click", function() {
+  currentFoodMeal = (currentFoodMeal + 1) % MEAL_TYPES.length;
+  var mt = MEAL_TYPES[currentFoodMeal];
+  this.innerHTML = mt.icon + " " + mt.label;
+});
+
+// Add food entry
+document.getElementById("foodAddBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
+  var text = document.getElementById("foodItemInput").value.trim();
+  if (!text) { toast("Enter what you ate"); return; }
+  var manualCal = parseInt(document.getElementById("foodCalInput").value);
+  var autoCal   = estimateCals(text);
+  var cal = manualCal || autoCal || 0;
+  var calAuto = !manualCal && !!autoCal;
+
+  var entries = getFoodLog();
+  entries.push({ id:Date.now(), date:foodDate, meal:currentFoodMeal, text:text, cal:cal, calAuto:calAuto });
+  saveFoodLog(entries);
+
+  document.getElementById("foodItemInput").value = "";
+  document.getElementById("foodCalInput").value  = "";
+  document.getElementById("foodCalEst").textContent = "";
+  document.getElementById("foodCalInput").placeholder = "kcal (auto-estimated)";
+  renderFoodView();
+  toast("&#x1F373; Logged: " + text + (cal ? " (~" + cal + " kcal)" : ""));
+});
+
+// Goal setting — tap summary
+document.getElementById("foodDaySummary").addEventListener("click", function() {
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.55);z-index:700;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box";
+  var box = document.createElement("div");
+  box.style.cssText = "background:#fff;border-radius:14px;padding:20px;width:100%;max-width:300px";
+  box.innerHTML =
+    "<div style='font-family:Georgia,serif;font-size:16px;font-weight:600;color:#2A2010;margin-bottom:10px'>Daily calorie goal</div>" +
+    "<input id='_calGoalInput' type='number' min='500' max='10000' inputmode='numeric' style='width:100%;border:2px solid #E0D0B0;border-radius:9px;padding:11px 12px;font-family:inherit;font-size:18px;outline:none;box-sizing:border-box;margin-bottom:12px;text-align:center'>" +
+    "<div style='display:flex;gap:8px'>" +
+      "<button id='_goalCancel' style='flex:1;padding:10px;border:1.5px solid #E0D0B0;border-radius:9px;background:none;font-family:inherit;font-size:14px;cursor:pointer;touch-action:manipulation'>Cancel</button>" +
+      "<button id='_goalSave' style='flex:1;padding:10px;border:none;background:#A05A10;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Save</button>" +
+    "</div>";
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  var inp = document.getElementById("_calGoalInput");
+  inp.value = storeGet("fl4_cal_goal") || 2000;
+  setTimeout(function(){ inp.focus(); inp.select(); }, 60);
+  function doSave() {
+    var v = +inp.value;
+    if (v > 0) { storeSet("fl4_cal_goal", v); pushPersonal(); renderFoodView(); }
+    document.body.removeChild(ov);
+  }
+  document.getElementById("_goalSave").addEventListener("click", doSave);
+  document.getElementById("_goalCancel").addEventListener("click", function(){ document.body.removeChild(ov); });
+  inp.addEventListener("keydown", function(e){ if (e.key==="Enter") doSave(); });
+});
+
+// Save as meal
+document.getElementById("saveMealBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
+  var entries = getFoodLog().filter(function(e){ return e.date === foodDate; });
+  if (!entries.length) { toast("No entries today to save as a meal"); return; }
+
+  // prompt() is blocked in sandboxed iframes — use a custom overlay instead
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.55);z-index:700;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box";
+  var box = document.createElement("div");
+  box.style.cssText = "background:#fff;border-radius:14px;padding:20px;width:100%;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.2)";
+  box.innerHTML =
+    "<div style='font-family:Georgia,serif;font-size:17px;font-weight:600;color:#2A2010;margin-bottom:12px'>Name this meal</div>" +
+    "<input id='_mealNameInput' type='text' placeholder='e.g. Sunday fry up' style='width:100%;border:2px solid #E0D0B0;border-radius:9px;padding:11px 12px;font-family:inherit;font-size:15px;outline:none;box-sizing:border-box;margin-bottom:12px'>" +
+    "<div style='display:flex;gap:8px'>" +
+      "<button id='_mealCancel' style='flex:1;padding:11px;border:1.5px solid #E0D0B0;border-radius:9px;background:none;font-family:inherit;font-size:14px;cursor:pointer;touch-action:manipulation;color:#7A5A30'>Cancel</button>" +
+      "<button id='_mealSave' style='flex:1;padding:11px;border:none;background:#A05A10;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Save</button>" +
+    "</div>";
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  var inp = document.getElementById("_mealNameInput");
+  setTimeout(function(){ inp.focus(); }, 60);
+
+  function doSave() {
+    var name = inp.value.trim() || "My meal";
+    var totalCal = entries.reduce(function(s,e){ return s+(e.cal||0);},0);
+    var saved = storeGet("fl4_saved_meals") || [];
+    saved.push({ id:Date.now(), name:name, cal:totalCal,
+      items: entries.map(function(e){ return { text:e.text, cal:e.cal, calAuto:e.calAuto }; }) });
+    storeSet("fl4_saved_meals", saved);
+    pushPersonal();
+    document.body.removeChild(ov);
+    renderFoodView();
+    toast("&#x1F4BE; Meal saved: " + name);
+  }
+
+  document.getElementById("_mealSave").addEventListener("click", doSave);
+  document.getElementById("_mealCancel").addEventListener("click", function(){ document.body.removeChild(ov); });
+  inp.addEventListener("keydown", function(e){ if (e.key === "Enter") doSave(); });
+});
+
+
+function openSavedMealsManager() {
+  var saved = storeGet("fl4_saved_meals") || [];
+  var overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.5);z-index:600;display:flex;align-items:flex-end;justify-content:center";
+  var box = document.createElement("div");
+  box.style.cssText = "background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:20px;max-height:70vh;overflow-y:auto";
+  function render() {
+    saved = storeGet("fl4_saved_meals") || [];
+    box.innerHTML = "<div style='font-family:Georgia,serif;font-size:18px;font-weight:600;color:#2A2010;margin-bottom:14px'>Saved Meals</div>" +
+      (saved.length ? saved.map(function(m,i){
+        return "<div style='display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F0EDE8'>" +
+          "<div style='flex:1'><div style='font-size:14px;font-weight:700;color:#2A2010'>" + esc(m.name) + "</div>" +
+          "<div style='font-size:12px;color:#B8805A'>" + m.items.length + " items" + (m.cal?" · ~"+m.cal+" kcal total":"") + "</div>" +
+          m.items.map(function(it){ return "<div style='font-size:11px;color:#B8805A;padding-left:8px'>• " + esc(it.text) + (it.cal?" ("+it.cal+"kcal)":"") + "</div>"; }).join("") +
+          "</div>" +
+          "<button data-del='" + i + "' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;padding:4px 8px'>&#x2715;</button>" +
+        "</div>";
+      }).join("") : "<p style='color:#B8805A;font-size:14px'>No saved meals yet.</p>") +
+      "<button style='width:100%;margin-top:14px;padding:12px;border:none;background:#F5E8D8;color:#7A3A05;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Close</button>";
+    box.querySelector("button:last-child").addEventListener("click", function(){ document.body.removeChild(overlay); renderFoodView(); });
+    box.querySelectorAll("[data-del]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        saved.splice(+btn.dataset.del, 1);
+        storeSet("fl4_saved_meals", saved);
+        pushPersonal();
+        render();
+      });
+    });
+  }
+  render();
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", function(e){ if(e.target===overlay){ document.body.removeChild(overlay); renderFoodView(); } });
+}
+
 var HIDEABLE_SECTIONS = ["home", "train", "notes"]; // lists and baby are always visible
 
 var sectionVisible = (function() {
@@ -2722,6 +3171,9 @@ function pushPersonal() {
   });
   d.global_notes = storeGet("fl4_notes_global") || [];
   d.action_log   = getActionLog();
+  d.food_log     = getFoodLog();
+  d.food_notes   = storeGet("fl4_food_notes")  || {};
+  d.saved_meals  = storeGet("fl4_saved_meals") || [];
   d.baby = getBD();
   fetch(userUrl("/data"), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).catch(function(){});
 }
@@ -2748,6 +3200,9 @@ function applyPersonal(d) {
   });
   if (Array.isArray(d.global_notes)) storeSet("fl4_notes_global", d.global_notes.filter(Boolean));
   if (Array.isArray(d.action_log)) storeSet("fl4_action_log", d.action_log.filter(Boolean));
+  if (Array.isArray(d.food_log))   storeSet("fl4_food_log",   d.food_log.filter(Boolean));
+  if (d.food_notes  && typeof d.food_notes === "object")  storeSet("fl4_food_notes",  d.food_notes);
+  if (Array.isArray(d.saved_meals)) storeSet("fl4_saved_meals", d.saved_meals.filter(Boolean));
   if (d.baby && typeof d.baby === "object") {
     var local = getBD();
     var merged = {
