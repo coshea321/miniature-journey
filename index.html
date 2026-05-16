@@ -669,7 +669,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v64</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v65</div>
 
   </div>
 </div>
@@ -2072,7 +2072,7 @@ function renderNotesSection() {
     var preview = (n.body || "").split("\n")[0].slice(0, 60) || "(empty)";
     var dt = n.updatedAt ? new Date(n.updatedAt) : null;
     var dtStr = dt ? dt.toLocaleDateString("en-IE", {day:"numeric",month:"short"}) + " " + dt.toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"}) : "";
-    return "<div style='background:#fff;border-radius:11px;padding:13px 14px;margin:0 12px 8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.07);touch-action:manipulation' data-action='openNote' data-idx='" + i + "'>" +
+    return "<div style='background:#fff;border-radius:11px;padding:13px 14px;margin:0 12px 8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.07);touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,.05)' data-action='openNote' data-idx='" + i + "'>" +
       "<div style='font-size:15px;font-weight:700;color:#2A2010;margin-bottom:3px'>" + esc(n.title||"Untitled") + "</div>" +
       "<div style='font-size:13px;color:#8A7A60;margin-bottom:4px'>" + esc(preview) + "</div>" +
       "<div style='display:flex;align-items:center;justify-content:space-between'>" +
@@ -2136,39 +2136,66 @@ function deleteNote(idx) {
 }
 
 function openNoteEditor(title, body, onSave, onDelete) {
+  // Use closure vars — captures input even if Android keyboard dismissal
+  // causes getElementById to be unreliable at click time
+  var currentTitle = title || "";
+  var currentBody  = body  || "";
+
   var overlay = document.createElement("div");
   overlay.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:#FDFAF3;z-index:500;overflow:hidden";
 
   var inner = document.createElement("div");
   inner.style.cssText = "display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto;background:#FDFAF3";
+
+  var delBtn = onDelete
+    ? "<button id='neDel' style='border:none;background:none;color:#C06060;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:8px 12px;white-space:nowrap'>Delete</button>"
+    : "";
+
   inner.innerHTML =
-    "<div style='display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #E0D8C0;background:#FDFAF3;flex-shrink:0'>" +
-      "<button id='neBack' style='width:36px;height:36px;border:none;background:#F0EDE8;border-radius:9px;font-size:18px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent'>&#x2039;</button>" +
-      "<input id='neTitle' type='text' placeholder='Title' style='flex:1;border:none;background:none;font-family:Georgia,serif;font-size:18px;font-weight:600;color:#2A2010;outline:none'>" +
-      (onDelete ? "<button id='neDel' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;white-space:nowrap'>Delete</button>" : "") +
+    "<div style='display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #E0D8C0;background:#FDFAF3;flex-shrink:0'>" +
+      "<button id='neBack' style='min-width:44px;height:44px;border:none;background:#F0EDE8;border-radius:9px;font-size:20px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center'>&#x2039;</button>" +
+      "<input id='neTitle' type='text' placeholder='Title' autocorrect='on' style='flex:1;border:none;background:none;font-family:Georgia,serif;font-size:17px;font-weight:600;color:#2A2010;outline:none;min-width:0'>" +
+      "<button id='neSave' style='min-width:52px;height:44px;border:none;background:#A05A10;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:0 12px'>Save</button>" +
+      delBtn +
     "</div>" +
-    "<textarea id='neBody' placeholder='Start writing…' style='flex:1;border:none;background:#FDFAF3;font-family:inherit;font-size:15px;color:#2A2010;padding:14px;resize:none;outline:none;line-height:1.7;-webkit-overflow-scrolling:touch'></textarea>";
+    "<textarea id='neBody' placeholder='Start writing\u2026' style='flex:1;border:none;background:#FDFAF3;font-family:inherit;font-size:15px;color:#2A2010;padding:14px;resize:none;outline:none;line-height:1.7'></textarea>";
+
   overlay.appendChild(inner);
   document.body.appendChild(overlay);
 
-  // Set values via JS to avoid HTML-encoding issues
-  document.getElementById("neTitle").value = title || "";
-  document.getElementById("neBody").value  = body  || "";
+  var titleEl = document.getElementById("neTitle");
+  var bodyEl  = document.getElementById("neBody");
 
-  document.getElementById("neBack").addEventListener("click", function() {
-    var t = document.getElementById("neTitle").value.trim();
-    var b = document.getElementById("neBody").value;
+  // Set initial values
+  titleEl.value = currentTitle;
+  bodyEl.value  = currentBody;
+
+  // Continuously capture into closure vars so Android keyboard dismissal can't lose them
+  titleEl.addEventListener("input", function(){ currentTitle = titleEl.value; });
+  bodyEl.addEventListener("input",  function(){ currentBody  = bodyEl.value; });
+  titleEl.addEventListener("blur",  function(){ currentTitle = titleEl.value; });
+  bodyEl.addEventListener("blur",   function(){ currentBody  = bodyEl.value; });
+
+  function doSave() {
+    // Read from element first, fall back to closure var
+    var t = (titleEl.value || currentTitle).trim();
+    var b = bodyEl.value || currentBody;
     document.body.removeChild(overlay);
     if (t || b) onSave(t || "Untitled", b);
     else renderNotesSection();
-  });
+  }
+
+  document.getElementById("neSave").addEventListener("click", doSave);
+  document.getElementById("neBack").addEventListener("click", doSave);
+
   if (onDelete) {
     document.getElementById("neDel").addEventListener("click", function() {
       document.body.removeChild(overlay);
       onDelete();
     });
   }
-  setTimeout(function(){ document.getElementById("neBody").focus(); }, 50);
+
+  setTimeout(function(){ bodyEl.focus(); }, 80);
 }
 
 
