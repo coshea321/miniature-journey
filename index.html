@@ -669,7 +669,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v66</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v67</div>
 
   </div>
 </div>
@@ -862,10 +862,14 @@ body.train-mode #toast{background:#132040}
   <div id="notesWorkView" class="content" style="padding-top:8px;display:none"></div>
   <div id="notesLogView" class="content" style="padding-top:12px;display:none;padding-bottom:90px">
     <!-- Quick log input -->
-    <div style="display:flex;gap:8px;padding:0 12px;margin-bottom:12px">
-      <input id="logActionInput" type="text" placeholder="e.g. Cut grass, Took shower…" autocomplete="off" autocorrect="off"
-        style="flex:1;border:2px solid #E0D0B0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:15px;outline:none;background:#FDFAF3;color:#2A2010">
-      <button id="logActionBtn" style="padding:11px 16px;background:#A05A10;border:none;border-radius:9px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation">Log</button>
+    <div style="padding:0 12px;margin-bottom:12px">
+      <div style="display:flex;gap:8px;margin-bottom:6px">
+        <input id="logActionInput" type="text" placeholder="e.g. Cut grass, Took shower…" autocomplete="off" autocorrect="off"
+          style="flex:1;border:2px solid #E0D0B0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:15px;outline:none;background:#FDFAF3;color:#2A2010">
+        <button id="logActionBtn" style="padding:11px 16px;background:#A05A10;border:none;border-radius:9px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation">Log</button>
+      </div>
+      <input id="logActionDt" type="datetime-local"
+        style="width:100%;border:2px solid #E0D0B0;border-radius:9px;padding:9px 13px;font-family:inherit;font-size:13px;outline:none;background:#FDFAF3;color:#7A5A30;box-sizing:border-box">
     </div>
     <div id="logActionList"></div>
   </div>
@@ -2217,17 +2221,34 @@ document.getElementById("logActionInput").addEventListener("keydown", function(e
 });
 
 function doLogAction() {
-  var text = document.getElementById("logActionInput").value.trim();
+  var text  = document.getElementById("logActionInput").value.trim();
   if (!text) { toast("Enter an action to log"); return; }
+  var dtEl  = document.getElementById("logActionDt");
+  var ts    = dtEl && dtEl.value ? new Date(dtEl.value).getTime() : Date.now();
+  if (isNaN(ts)) ts = Date.now();
   var entries = getActionLog();
-  entries.unshift({ id: Date.now(), text: text, ts: Date.now() });
+  entries.unshift({ id: Date.now(), text: text, ts: ts });
+  // Keep sorted newest first
+  entries.sort(function(a,b){ return b.ts - a.ts; });
   saveActionLog(entries);
   document.getElementById("logActionInput").value = "";
+  if (dtEl) dtEl.value = localDatetimeValue(); // reset to now
   renderLogView();
   toast("&#x1F4CB; Logged: " + text);
 }
 
+function localDatetimeValue(ts) {
+  var d = ts ? new Date(ts) : new Date();
+  var pad = function(x){ return x < 10 ? "0"+x : ""+x; };
+  return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()) +
+    "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+
 function renderLogView() {
+  // Reset datetime input to now each time view is shown (if empty)
+  var dtEl = document.getElementById("logActionDt");
+  if (dtEl && !dtEl.value) dtEl.value = localDatetimeValue();
+
   var entries = getActionLog();
   var el = document.getElementById("logActionList");
   if (!entries.length) {
@@ -2252,7 +2273,7 @@ function renderLogView() {
       var t = new Date(e2.ts);
       var timeStr = t.toLocaleTimeString("en-IE", { hour:"2-digit", minute:"2-digit" });
       html += "<div style='display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;margin:0 12px 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>" +
-        "<span style='font-size:12px;font-weight:700;color:#B87A40;min-width:42px;flex-shrink:0'>" + timeStr + "</span>" +
+        "<span class='log-time-btn' data-logid='" + e2.id + "' style='font-size:12px;font-weight:700;color:#B87A40;min-width:42px;flex-shrink:0;cursor:pointer;touch-action:manipulation;text-decoration:underline dotted'>" + timeStr + "</span>" +
         "<span style='flex:1;font-size:14px;color:#2A2010'>" + esc(e2.text) + "</span>" +
         "<button data-logid='" + e2.id + "' class='log-del-btn' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button>" +
       "</div>";
@@ -2266,6 +2287,36 @@ function renderLogView() {
       var entries = getActionLog().filter(function(e2){ return e2.id !== id; });
       saveActionLog(entries);
       renderLogView();
+    });
+  });
+
+  el.querySelectorAll(".log-time-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var id = +btn.dataset.logid;
+      var entries = getActionLog();
+      var entry = entries.find(function(e2){ return e2.id === id; });
+      if (!entry) return;
+      // Show a small inline datetime picker
+      var existing = btn.parentElement.querySelector(".log-dt-edit");
+      if (existing) { existing.remove(); return; }
+      var picker = document.createElement("div");
+      picker.className = "log-dt-edit";
+      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:6px 14px;background:#FFF8F0;border-top:1px solid #E0D0B0;width:100%;box-sizing:border-box;margin-top:4px";
+      picker.innerHTML = "<input type='datetime-local' value='" + localDatetimeValue(entry.ts) + "' style='flex:1;border:1.5px solid #E0D0B0;border-radius:7px;padding:7px 9px;font-family:inherit;font-size:13px;outline:none;background:#FDFAF3;color:#2A2010'>" +
+        "<button style='padding:7px 12px;background:#A05A10;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation'>Save</button>" +
+        "<button style='padding:7px 10px;background:#F0EDE8;border:none;border-radius:7px;color:#7A5A30;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation'>✕</button>";
+      btn.parentElement.after(picker);
+      picker.querySelector("button").addEventListener("click", function() {
+        var val = picker.querySelector("input").value;
+        var newTs = val ? new Date(val).getTime() : entry.ts;
+        if (!isNaN(newTs)) {
+          entry.ts = newTs;
+          entries.sort(function(a,b){ return b.ts - a.ts; });
+          saveActionLog(entries);
+        }
+        renderLogView();
+      });
+      picker.querySelectorAll("button")[1].addEventListener("click", function(){ picker.remove(); });
     });
   });
 }
