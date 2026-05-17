@@ -679,7 +679,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v86 · 2026-05-17 17:21</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v87 · 2026-05-17 17:49</div>
 
   </div>
 </div>
@@ -5415,9 +5415,12 @@ function renderYogaSession() {
       "<div class='ses-done-ico'>&#x1F64F;</div>" +
       "<div class='ses-done-title'>Practice complete</div>" +
       "<div class='ses-done-sub'>Well done. Namaste.<br><small style='color:#2A3A52'>Before rising, roll to your right side first.</small></div>" +
-      "<button class='ses-done-btn' data-action='finishYoga'>Save &amp; finish</button>" +
+      "<button class='ses-done-btn' id='_yogaFinishBtn' style='touch-action:manipulation;-webkit-tap-highlight-color:transparent'>Save &amp; finish</button>" +
       "<button class='ses-done-link' data-action='openYogaSession' data-arg='" + SS.yFlowIdx + "'>Do it again</button>" +
     "</div>";
+    // Direct listener — more reliable than delegation for this critical action
+    var fb = document.getElementById("_yogaFinishBtn");
+    if (fb) fb.addEventListener("click", function(){ finishYoga(); });
     return;
   }
 
@@ -5511,6 +5514,7 @@ function skipYogaPose() {
 }
 function finishYoga() {
   var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
+  if (!flow) { toast("Session error — please try again"); return; }
   saveSession({ id:Date.now(), date:trainTodayStr(), type:'yoga', sessionName:YOGA_TRAIN_NAMES[SS.yFlowIdx], poses:flow.length, duration:YOGA_TRAIN_TOTALS[SS.yFlowIdx], exercises:[] });
   closeSessionOverlay();
   toast("&#x1F64F; Yoga saved!");
@@ -5557,9 +5561,11 @@ function renderPhysioSession() {
       "<div class='ses-done-ico'>&#x2705;</div>" +
       "<div class='ses-done-title'>Physio complete!</div>" +
       "<div class='ses-done-sub'>"+prog.name.replace(/&amp;/g,"&")+" done.</div>" +
-      "<button class='ses-done-btn' data-action='finishPhysio'>Save &amp; finish</button>" +
+      "<button class='ses-done-btn' id='_physioFinishBtn' style='touch-action:manipulation;-webkit-tap-highlight-color:transparent'>Save &amp; finish</button>" +
       "<button class='ses-done-link' data-action='openPhysioSession' data-arg='" + SS.pProgIdx + "'>Do it again</button>" +
     "</div>";
+    var pfb = document.getElementById("_physioFinishBtn");
+    if (pfb) pfb.addEventListener("click", function(){ finishPhysio(); });
     return;
   }
 
