@@ -679,7 +679,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v81 &middot; 2026-05-17 09:41</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v82 &middot; 2026-05-17 10:38</div>
 
   </div>
 </div>
@@ -2085,11 +2085,10 @@ function normaliseNotes(notes) {
 }
 
 function renderNotesSection() {
-  // Scroll list to top
-  var pv = document.getElementById("notesPersonalView"), wv = document.getElementById("notesWorkView");
-  if (pv) pv.scrollTop = 0;
-  if (wv) wv.scrollTop = 0;
-  // Sub-nav active state
+  // Scroll to top — notes live in the page flow so scroll window
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
   document.querySelectorAll("#notesSection .notes-tab-btn").forEach(function(b) {
     var isActive = b.dataset.nview === currentNotesView;
     b.classList.toggle("active", isActive);
