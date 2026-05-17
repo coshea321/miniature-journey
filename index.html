@@ -679,7 +679,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v83 &middot; 2026-05-17 13:27</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v85</div>
 
   </div>
 </div>
@@ -4640,13 +4640,21 @@ document.getElementById("toothModal").addEventListener("click", function(e) {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js").catch(function(){});
+  navigator.serviceWorker.register("./sw.js").then(function() {
+    // Ask the active SW for its version to display on the home screen
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: "GET_VERSION" });
+    }
+  }).catch(function(){});
 
-  // When the service worker activates a new version, it posts SW_UPDATED.
-  // We reload once so the user gets the latest version automatically.
   navigator.serviceWorker.addEventListener("message", function(e) {
     if (e.data && e.data.type === "SW_UPDATED") {
+      // New SW activated — reload to get fresh files, then version will display
       window.location.reload();
+    }
+    if (e.data && e.data.type === "SW_VERSION") {
+      var el = document.getElementById("appVersionLabel");
+      if (el) el.textContent = e.data.version;
     }
   });
 }
@@ -5397,7 +5405,7 @@ function renderYogaSession() {
       "<div class='ses-done-title'>Practice complete</div>" +
       "<div class='ses-done-sub'>Well done. Namaste.<br><small style='color:#2A3A52'>Before rising, roll to your right side first.</small></div>" +
       "<button class='ses-done-btn' data-action='finishYoga'>Save &amp; finish</button>" +
-      "<button class='ses-done-link' data-action='openYogaSession' data-arg='SS.yFlowIdx'>Do it again</button>" +
+      "<button class='ses-done-link' data-action='openYogaSession' data-arg='" + SS.yFlowIdx + "'>Do it again</button>" +
     "</div>";
     return;
   }
@@ -5539,7 +5547,7 @@ function renderPhysioSession() {
       "<div class='ses-done-title'>Physio complete!</div>" +
       "<div class='ses-done-sub'>"+prog.name.replace(/&amp;/g,"&")+" done.</div>" +
       "<button class='ses-done-btn' data-action='finishPhysio'>Save &amp; finish</button>" +
-      "<button class='ses-done-link' data-action='openPhysioSession' data-arg='SS.pProgIdx'>Do it again</button>" +
+      "<button class='ses-done-link' data-action='openPhysioSession' data-arg='" + SS.pProgIdx + "'>Do it again</button>" +
     "</div>";
     return;
   }

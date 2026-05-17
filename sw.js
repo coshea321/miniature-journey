@@ -1,5 +1,7 @@
-const CACHE = 'myhealth-v8';
-// v84 — 2026-05-17
+// ── Single source of truth — bump this and everything updates ──
+const VERSION = 'v85 · 2026-05-17 13:52';
+const CACHE   = 'hearth-' + VERSION;
+
 const ASSETS = [
   './',
   './index.html',
@@ -13,22 +15,29 @@ self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(ASSETS))
   );
-  self.skipWaiting(); // activate new SW without waiting for old one to die
+  self.skipWaiting();
 });
 
-// Activate: delete old caches, take control, then tell all open pages to reload
+// Activate: delete old caches, take control, tell pages to reload + send version
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
         keys.filter(k => k !== CACHE).map(k => caches.delete(k))
       ))
-      .then(() => self.clients.claim()) // take control of all open pages
+      .then(() => self.clients.claim())
       .then(() => self.clients.matchAll({ type: 'window' }))
       .then(clients => {
-        clients.forEach(client => client.postMessage({ type: 'SW_UPDATED' }));
+        clients.forEach(client => client.postMessage({ type: 'SW_UPDATED', version: VERSION }));
       })
   );
+});
+
+// Respond to version requests from the page
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'GET_VERSION') {
+    e.source.postMessage({ type: 'SW_VERSION', version: VERSION });
+  }
 });
 
 // Fetch: cache-first for same-origin assets
