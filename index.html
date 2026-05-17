@@ -584,7 +584,7 @@ body.train-mode #toast{background:#132040}
 .cond-opt:active{opacity:.75}
 .cond-opt-title{font-size:16px;font-weight:700;color:#E8EDF2;margin-bottom:4px}
 .cond-opt-sub{font-size:12px;color:#5A7090}
-.ses-done-wrap{display:flex;flex-direction:column;align-items:center;text-align:center;padding:52px 20px 40px}
+.ses-done-wrap{display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 20px 40px;min-height:100%}
 .ses-done-ico{font-size:72px;margin-bottom:14px}
 .ses-done-title{font-family:Georgia,serif;font-size:26px;font-weight:600;color:#E8EDF2;margin-bottom:6px}
 .ses-done-sub{font-size:14px;color:#5A7090;margin-bottom:28px;line-height:1.5}
@@ -5329,7 +5329,9 @@ document.getElementById("sesBody").addEventListener("click", function(e) {
     "finishWorkoutSession":function(){ finishWorkoutSession(arg === "true"); },
     "goCondOption":       function(){ SS.wPhase="condOption"; renderWorkoutSession(); }
   };
-  if (actions[action]) actions[action]();
+  if (actions[action]) {
+    try { actions[action](); } catch(err) { console.error("Session action error ["+action+"]:", err); toast("Error: " + err.message); }
+  }
 });
 
 document.getElementById("sesBackBtn").addEventListener("click", function(){
@@ -5341,6 +5343,8 @@ document.getElementById("sesBackBtn").addEventListener("click", function(){
     confirmDialog("Exit this session? Progress will be lost.", function(){ closeSessionOverlay(); });
     return;
   }
+  // On intro or done screens — just close
+  closeSessionOverlay();
 });
 
 // ── Timer circle SVG ──────────────────────────────────────
