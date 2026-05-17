@@ -679,7 +679,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v80 &middot; 2026-05-17 09:16</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v81 &middot; 2026-05-17 09:41</div>
 
   </div>
 </div>
@@ -1666,8 +1666,8 @@ var lastPushTs = 0;       // timestamp of our last push to Firebase
 var SSE_GRACE_MS = 3000;  // ignore SSE events for 3s after a local push
 // Per-section sync prefs: default grocery/todo/travel ON, notes OFF
 var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, personal:false, notes:false, baby:false };
-function saveSyncPrefs() { storeSet("fl4_syncPrefs", syncPrefs); }
-function isSynced(key) { return !!(syncPrefs[key]); }
+
+
 
 // ============================================================
 // DOM REFS
@@ -2085,6 +2085,10 @@ function normaliseNotes(notes) {
 }
 
 function renderNotesSection() {
+  // Scroll list to top
+  var pv = document.getElementById("notesPersonalView"), wv = document.getElementById("notesWorkView");
+  if (pv) pv.scrollTop = 0;
+  if (wv) wv.scrollTop = 0;
   // Sub-nav active state
   document.querySelectorAll("#notesSection .notes-tab-btn").forEach(function(b) {
     var isActive = b.dataset.nview === currentNotesView;
@@ -2139,7 +2143,7 @@ function renderNotesSection() {
     // Decode HTML entities using a temporary element
     var tmp = document.createElement("div");
     tmp.innerHTML = previewRaw;
-    var preview = (tmp.textContent || tmp.innerText || "").slice(0, 80) || "(empty)";
+    var preview = (tmp.textContent || tmp.innerText || "").trim().slice(0, 60) || "(empty)";
     var dt = n.updatedAt ? new Date(n.updatedAt) : null;
     var dtMod = dt ? dt.toLocaleDateString("en-IE",{day:"numeric",month:"short"}) + " " + dt.toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"}) : "";
     var dtCreate = n.createdAt && n.createdAt !== n.updatedAt
@@ -2222,11 +2226,12 @@ function toggleNoteHighlightById(id) {
 }
 
 function deleteNoteById(id) {
-  if (!confirm("Delete this note?")) return;
-  var notes = (storeGet(getCurrentNotesKey()) || []).filter(function(n){ return n.id !== id; });
-  storeSet(getCurrentNotesKey(), notes);
-  pushPersonal(); if (isHouseholdSet() && isSynced("notes")) pushHousehold();
-  renderNotesSection();
+  confirmDialog("Delete this note?", function() {
+    var notes = (storeGet(getCurrentNotesKey()) || []).filter(function(n){ return n.id !== id; });
+    storeSet(getCurrentNotesKey(), notes);
+    pushPersonal(); if (isHouseholdSet() && isSynced("notes")) pushHousehold();
+    renderNotesSection();
+  });
 }
 
 function openNoteEditor(title, body, onSave, onDelete) {
@@ -2494,9 +2499,9 @@ function localDatetimeValue(ts) {
 }
 
 function renderLogView() {
-  // Reset datetime input to now each time view is shown (if empty)
+  // Only set datetime if it has never been set (not on every render)
   var dtEl = document.getElementById("logActionDt");
-  if (dtEl && !dtEl.value) dtEl.value = localDatetimeValue();
+  if (dtEl && !dtEl._initialised) { dtEl.value = localDatetimeValue(); dtEl._initialised = true; }
 
   var entries = getActionLog();
   var el = document.getElementById("logActionList");
@@ -3062,13 +3067,14 @@ function renderCustomCatsList() {
 }
 
 document.getElementById("clearAllBtn").addEventListener("click", function() {
-  if (!confirm("Clear ALL lists and history? This cannot be undone.")) return;
+  confirmDialog("Clear ALL lists and history? This cannot be undone.", function() {
   ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
     storeSet(LIST_CONFIG[lt].key, {items:[],hist:[]});
     listData[lt] = null;
   });
   renderList(); toast("All data cleared");
   document.getElementById("settingsOverlay").classList.remove("open");
+  });
 });
 
 // ============================================================
@@ -3259,6 +3265,9 @@ function pushPersonal() {
   d.food_log     = getFoodLog();
   d.food_notes   = storeGet("fl4_food_notes")  || {};
   d.saved_meals  = storeGet("fl4_saved_meals") || [];
+  d.cal_goal     = storeGet("fl4_cal_goal") || 2000;
+  d.cal_goal     = storeGet("fl4_cal_goal") || 2000;
+  d.cal_goal     = storeGet("fl4_cal_goal") || 2000;
   d.baby = getBD();
   fetch(userUrl("/data"), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).catch(function(){});
 }
@@ -3288,6 +3297,7 @@ function applyPersonal(d) {
   if (Array.isArray(d.food_log))   storeSet("fl4_food_log",   d.food_log.filter(Boolean));
   if (d.food_notes  && typeof d.food_notes === "object")  storeSet("fl4_food_notes",  d.food_notes);
   if (Array.isArray(d.saved_meals)) storeSet("fl4_saved_meals", d.saved_meals.filter(Boolean));
+  if (d.cal_goal) storeSet("fl4_cal_goal", d.cal_goal);
   if (d.baby && typeof d.baby === "object") {
     var local = getBD();
     var merged = {
@@ -3596,7 +3606,7 @@ document.getElementById("syncNowBtn").addEventListener("click", function() {
 });
 
 document.getElementById("logoutBtn").addEventListener("click", function() {
-  if (confirm("Log out? You can log back in on any device.")) { logout(); document.getElementById("syncOverlay").classList.remove("open"); }
+  confirmDialog("Log out?", function(){ logout(); document.getElementById("syncOverlay").classList.remove("open"); });
 });
 
 document.getElementById("createHouseholdBtn").addEventListener("click", createHousehold);
@@ -3611,12 +3621,13 @@ document.getElementById("inviteUserBtn").addEventListener("click", function() {
   document.getElementById("inviteUsernameInput").value = "";
 });
 document.getElementById("leaveHouseholdBtn").addEventListener("click", function() {
-  if (!confirm("Leave this household?")) return;
+  confirmDialog("Leave this household?", function() {
   if (hearthSyncES) { hearthSyncES.close(); hearthSyncES = null; }
   fetch(houseUrl("/members/" + hearthUser), { method:"DELETE" }).catch(function(){});
   fetch(userUrl("/household"), { method:"DELETE" }).catch(function(){});
   hearthHouse = ""; storeSet("hearth_household","");
   renderSyncModal(); updateSyncStatus(); toast("Left household");
+  });
 });
 
 document.getElementById("syncToggles").addEventListener("change", function(e) {
@@ -3626,6 +3637,24 @@ document.getElementById("syncToggles").addEventListener("change", function(e) {
   saveSyncPrefs();
   if (isSynced("health")) pushPersonal(); else if (isHouseholdSet()) pushHousehold();
 });
+
+// ── confirmDialog — works in sandboxed iframes (no confirm()) ────────────────
+function confirmDialog(msg, onYes, onNo) {
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.5);z-index:900;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box";
+  var box = document.createElement("div");
+  box.style.cssText = "background:#fff;border-radius:14px;padding:20px;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.2)";
+  box.innerHTML = "<div style='font-size:15px;color:#2A2010;line-height:1.5;margin-bottom:16px'>" + msg + "</div>" +
+    "<div style='display:flex;gap:8px'>" +
+      "<button id='_cfNo' style='flex:1;padding:11px;border:1.5px solid #E0D0B0;border-radius:9px;background:none;font-family:inherit;font-size:14px;cursor:pointer;touch-action:manipulation'>Cancel</button>" +
+      "<button id='_cfYes' style='flex:1;padding:11px;border:none;background:#C03030;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>OK</button>" +
+    "</div>";
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  document.getElementById("_cfYes").addEventListener("click", function(){ document.body.removeChild(ov); if(onYes) onYes(); });
+  document.getElementById("_cfNo").addEventListener("click",  function(){ document.body.removeChild(ov); if(onNo)  onNo();  });
+}
+
 // ============================================================
 // TOAST & HELPERS
 // ============================================================
@@ -3862,7 +3891,7 @@ function renderNotesIn(elId, lt, renderFn) {
       openListNoteEditor(lt, id, renderFn);
     });
     card.querySelector(".note-del").addEventListener("click", function() {
-      if (!confirm("Delete this note?")) return;
+      
       var notes = getNotes(lt).filter(function(n){ return n.id !== id; });
       saveNotes(notes, lt);
       if (isHouseholdSet()) pushHousehold();
@@ -3892,7 +3921,7 @@ document.getElementById("exportBtn").addEventListener("click", function() {
   var localTime = pad(now.getHours())+pad(now.getMinutes());
 
   var exportData = {
-    version:    3,
+    version:    4,
     exportedAt: now.toISOString(),
     exportedAtLocal: localDate + "T" + localTime,
     lists:      {},
@@ -3900,8 +3929,13 @@ document.getElementById("exportBtn").addEventListener("click", function() {
     customCats: {},
     workouts:   getWD(),
     baby:       getBD(),
-    secVisible: storeGet("fl4_secVisible") || {},
-    syncPrefs:  storeGet("fl4_syncPrefs")  || {}
+    action_log:  getActionLog(),
+    food_log:    getFoodLog(),
+    food_notes:  storeGet("fl4_food_notes")  || {},
+    saved_meals: storeGet("fl4_saved_meals") || [],
+    cal_goal:    storeGet("fl4_cal_goal")    || 2000,
+    secVisible:  storeGet("fl4_secVisible")  || {},
+    syncPrefs:   storeGet("fl4_syncPrefs")   || {}
   };
 
   LIST_KEYS.forEach(function(lt) {
@@ -4034,6 +4068,39 @@ document.getElementById("importFile").addEventListener("change", function(e) {
         imported.baby = (mergedBaby.growth.length + mergedBaby.medicine.length + mergedBaby.milestones.length);
       }
 
+      // ── Action log ────────────────────────────────────────────────────────
+      if (Array.isArray(data.action_log) && data.action_log.length) {
+        var existingLog = getActionLog();
+        var logIds = {}; existingLog.forEach(function(e){ logIds[e.id]=true; });
+        var newLog = data.action_log.filter(function(e){ return e && !logIds[e.id]; });
+        if (newLog.length) { storeSet("fl4_action_log", newLog.concat(existingLog)); imported.lists += newLog.length; }
+      }
+      // ── Food journal ──────────────────────────────────────────────────────
+      if (Array.isArray(data.food_log) && data.food_log.length) {
+        var existingFood = getFoodLog();
+        var foodIds = {}; existingFood.forEach(function(e){ foodIds[e.id]=true; });
+        var newFood = data.food_log.filter(function(e){ return e && !foodIds[e.id]; });
+        if (newFood.length) { storeSet("fl4_food_log", newFood.concat(existingFood)); imported.lists += newFood.length; }
+      }
+      if (data.food_notes && typeof data.food_notes === "object") {
+        var existingFN = storeGet("fl4_food_notes") || {};
+        Object.keys(data.food_notes).forEach(function(k){ if (!existingFN[k]) existingFN[k] = data.food_notes[k]; });
+        storeSet("fl4_food_notes", existingFN);
+      }
+      if (Array.isArray(data.saved_meals) && data.saved_meals.length) {
+        var existingSM = storeGet("fl4_saved_meals") || [];
+        var smIds = {}; existingSM.forEach(function(m){ smIds[m.id]=true; });
+        var newSM = data.saved_meals.filter(function(m){ return m && !smIds[m.id]; });
+        storeSet("fl4_saved_meals", existingSM.concat(newSM));
+      }
+      if (data.cal_goal && !storeGet("fl4_cal_goal")) storeSet("fl4_cal_goal", data.cal_goal);
+      // ── Global notes ──────────────────────────────────────────────────────
+      if (data.notes && Array.isArray(data.notes["global"])) {
+        var existingGN = storeGet("fl4_notes_global") || [];
+        var gnIds = {}; existingGN.forEach(function(n){ gnIds[n.id]=true; });
+        var newGN = data.notes["global"].filter(function(n){ return n && !gnIds[n.id]; });
+        if (newGN.length) storeSet("fl4_notes_global", newGN.concat(existingGN));
+      }
       // ── Settings (non-destructive) ─────────────────────────
       if (data.secVisible && !storeGet("fl4_secVisible")) storeSet("fl4_secVisible", data.secVisible);
       if (data.syncPrefs  && !storeGet("fl4_syncPrefs"))  storeSet("fl4_syncPrefs",  data.syncPrefs);
@@ -4456,15 +4523,19 @@ document.getElementById("babyBagsView").addEventListener("click", function(e) {
     bag.items = bag.items.filter(function(x){ return x.id !== btn.dataset.id; });
     saveBagsData(bags); renderBagView();
   } else if (btn.dataset.action === "bagReset") {
-    if (!bag || !confirm("Unpack everything in "+bag.name+"?")) return;
+    if (!bag) return;
+    confirmDialog("Unpack everything in " + bag.name + "?", function() {
     bag.items.forEach(function(x){ x.packed=false; });
     saveBagsData(bags); renderBagView(); toast("&#x21BA; "+bag.name+" reset");
+    });;
   } else if (btn.dataset.action === "bagRemove") {
     var b = bags.find(function(x){ return x.id === btn.dataset.bagid; });
-    if (!b || !confirm("Delete \""+b.name+"\"?")) return;
+    if (!b) return;
+    confirmDialog("Delete \"" + b.name + "\"?", function() {
     bags = bags.filter(function(x){ return x.id !== btn.dataset.bagid; });
     if (currentBagId === btn.dataset.bagid) currentBagId = bags[0] ? bags[0].id : "";
     saveBagsData(bags); renderBagView();
+    });
   }
 });
 
@@ -5259,9 +5330,9 @@ document.getElementById("sesBackBtn").addEventListener("click", function(){
     (SS.type === "yoga"    && SS.yPhase === "running") ||
     (SS.type === "physio"  && SS.pPhase !== "intro" && SS.pPhase !== "done");
   if (inProgress) {
-    if (!confirm("Exit this session? Your progress will be lost.")) return;
+    confirmDialog("Exit this session? Progress will be lost.", function(){ closeSessionOverlay(); });
+    return;
   }
-  closeSessionOverlay();
 });
 
 // ── Timer circle SVG ──────────────────────────────────────
@@ -5355,7 +5426,7 @@ function renderYogaSession() {
 
 // Shared "Are you sure?" exit used by inline onclick buttons
 function exitSession() {
-  if (confirm("Exit this session? Your progress will be lost.")) closeSessionOverlay();
+  confirmDialog("Exit this session? Progress will be lost.", closeSessionOverlay);
 }
 
 function prevYogaPose() {
@@ -6051,35 +6122,39 @@ function renderWorkoutHistory() {
     el.innerHTML="<div class='train-empty'><div class='train-empty-ico'>&#x1F4C5;</div><div class='train-empty-title'>No history yet</div><div class='train-empty-sub'>Log a session or cardio to see it here.</div></div>";
     return;
   }
-  var html="";
+  var html = ""; // unified by date below
+
+  // Build unified list of all activity by date (workouts + cardio merged)
+  var allByDate = {};
   sessions.forEach(function(w) {
-    var icon = w.type==="yoga"?"&#x1F9D8;":w.type==="physio"?"&#x1FAB4;":"&#x1F4AA;";
-    var name = w.sessionName || (w.exercises&&w.exercises.length ? w.exercises[0].name+"..." : "Session");
-    var sub  = w.type==="yoga" ? (w.poses||"?")+" poses" :
-               w.type==="physio" ? "Physio" :
-               (w.exercises&&w.exercises.length ? w.exercises.length+" exercise"+(w.exercises.length!==1?"s":"") : "");
-    html+="<div class='workout-hist-item'>"+
-      "<div class='whi-date'>"+trainFmtDateLong(w.date)+"</div>"+
-      "<div class='whi-row'><span>"+icon+" "+esc(name)+"</span><span class='whi-sets'>"+sub+"</span></div>"+
-    "</div>";
+    if (!allByDate[w.date]) allByDate[w.date] = { workouts:[], cardio:[] };
+    allByDate[w.date].workouts.push(w);
+  });
+  cardioAll.forEach(function(e) {
+    if (!allByDate[e.date]) allByDate[e.date] = { workouts:[], cardio:[] };
+    allByDate[e.date].cardio.push(e);
   });
 
-  // Cardio entries — cardioAll already declared above
-  // Group by date
-  var cardioByDate = {};
-  cardioAll.forEach(function(e){ (cardioByDate[e.date] = cardioByDate[e.date]||[]).push(e); });
-  Object.keys(cardioByDate).sort(function(a,b){ return b.localeCompare(a); }).forEach(function(date) {
-    var entries = cardioByDate[date];
-    var totalMins = entries.reduce(function(s,e){ return s+(e.mins||0);},0);
-    var totalKcal = entries.reduce(function(s,e){ return s+(e.kcal||0);},0);
-    var rows = entries.map(function(e){
-      return "<div class='whi-row'><span>"+e.ico+" "+esc(e.activity)+"</span><span class='whi-sets'>"+e.mins+"min"+(e.kcal?" &middot; "+e.kcal+"kcal":"")+"</span></div>";
-    }).join("");
-    html = "<div class='workout-hist-item'>"+
-      "<div class='whi-date'>&#x1F3C3; "+trainFmtDateLong(date)+"</div>"+
-      rows+
-      "<div class='whi-row' style='color:#0ea5e9;font-size:11px'><span>Total</span><span class='whi-sets'>"+totalMins+" min"+(totalKcal?" &middot; "+totalKcal+" kcal":"")+"</span></div>"+
-    "</div>" + html;
+  html = "";
+  Object.keys(allByDate).sort(function(a,b){ return b.localeCompare(a); }).forEach(function(date) {
+    var day = allByDate[date];
+    html += "<div class='workout-hist-item'><div class='whi-date'>"+trainFmtDateLong(date)+"</div>";
+    day.workouts.forEach(function(w) {
+      var icon = w.type==="yoga"?"&#x1F9D8;":w.type==="physio"?"&#x1FAB4;":"&#x1F4AA;";
+      var name = w.sessionName || (w.exercises&&w.exercises.length ? w.exercises[0].name+"..." : "Session");
+      var sub  = w.type==="yoga"?(w.poses||"?")+" poses":w.type==="physio"?"Physio":(w.exercises&&w.exercises.length?w.exercises.length+" exercise"+(w.exercises.length!==1?"s":""):"");
+      html += "<div class='whi-row'><span>"+icon+" "+esc(name)+"</span><span class='whi-sets'>"+sub+"</span></div>";
+    });
+    if (day.cardio.length) {
+      var totalMins = day.cardio.reduce(function(s,e){ return s+(e.mins||0);},0);
+      var totalKcal = day.cardio.reduce(function(s,e){ return s+(e.kcal||0);},0);
+      day.cardio.forEach(function(e) {
+        html += "<div class='whi-row'><span>"+e.ico+" "+esc(e.activity)+"</span><span class='whi-sets'>"+e.mins+"min"+(e.kcal?" &middot; "+e.kcal+"kcal":"")+"</span></div>";
+      });
+      if (day.cardio.length > 1)
+        html += "<div class='whi-row' style='color:#0ea5e9;font-size:11px'><span>Cardio total</span><span class='whi-sets'>"+totalMins+"min"+(totalKcal?" &middot; "+totalKcal+"kcal":"")+"</span></div>";
+    }
+    html += "</div>";
   });
 
   el.innerHTML = html;
