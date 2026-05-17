@@ -679,7 +679,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v82 &middot; 2026-05-17 10:38</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v83 &middot; 2026-05-17 13:27</div>
 
   </div>
 </div>
@@ -5293,7 +5293,6 @@ function closeSessionOverlay() {
 document.getElementById("sesBody").addEventListener("click", function(e) {
   var btn = e.target.closest("button[data-action]");
   if (!btn) return;
-  e.preventDefault();
   var action = btn.getAttribute("data-action");
   var arg    = btn.getAttribute("data-arg");
   var actions = {
@@ -6063,7 +6062,7 @@ function renderWorkoutLog() {
 
 function wireWorkoutLog() {
   document.querySelectorAll(".set-input").forEach(function(inp) {
-    inp.addEventListener("change", function() {
+    function saveSetValue() {
       var data=getWD();
       for (var i=0;i<data.workouts.length;i++) {
         if (data.workouts[i].date===workoutDate) {
@@ -6072,7 +6071,9 @@ function wireWorkoutLog() {
         }
       }
       saveWD(data);
-    });
+    }
+    inp.addEventListener("change", saveSetValue);
+    inp.addEventListener("blur",   saveSetValue); // catches Android tap-away
   });
   document.querySelectorAll(".set-del").forEach(function(btn) {
     btn.addEventListener("click", function() {
