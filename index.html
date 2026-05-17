@@ -4640,7 +4640,10 @@ document.getElementById("toothModal").addEventListener("click", function(e) {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js").then(function() {
+  // updateViaCache:'none' forces the browser to always fetch sw.js from network
+  navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).then(function(reg) {
+    // Force immediate check for updates
+    reg.update();
     // Ask the active SW for its version to display on the home screen
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: "GET_VERSION" });
@@ -4649,7 +4652,6 @@ if ("serviceWorker" in navigator) {
 
   navigator.serviceWorker.addEventListener("message", function(e) {
     if (e.data && e.data.type === "SW_UPDATED") {
-      // New SW activated — reload to get fresh files, then version will display
       window.location.reload();
     }
     if (e.data && e.data.type === "SW_VERSION") {

@@ -40,9 +40,11 @@ self.addEventListener('message', e => {
   }
 });
 
-// Fetch: cache-first for same-origin assets
+// Fetch: cache-first for same-origin assets, but never cache sw.js itself
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
+  // Never intercept requests for the SW file itself
+  if (url.pathname.endsWith('/sw.js')) return;
   if (url.origin === self.location.origin) {
     e.respondWith(
       caches.match(e.request).then(cached => {
