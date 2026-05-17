@@ -679,7 +679,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v79 &middot; 2026-05-17 09:05</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px">v80 &middot; 2026-05-17 09:16</div>
 
   </div>
 </div>
@@ -2135,8 +2135,11 @@ function renderNotesSection() {
   }
 
   var html = notes.map(function(n, i) {
-    var previewText = (n.body || "").replace(/<[^>]*>/g, " ").replace(/\s+/g," ").trim();
-    var preview = previewText.slice(0, 60) || "(empty)";
+    var previewRaw = (n.body || "").replace(/<[^>]*>/g, " ").replace(/\s+/g," ").trim();
+    // Decode HTML entities using a temporary element
+    var tmp = document.createElement("div");
+    tmp.innerHTML = previewRaw;
+    var preview = (tmp.textContent || tmp.innerText || "").slice(0, 80) || "(empty)";
     var dt = n.updatedAt ? new Date(n.updatedAt) : null;
     var dtMod = dt ? dt.toLocaleDateString("en-IE",{day:"numeric",month:"short"}) + " " + dt.toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"}) : "";
     var dtCreate = n.createdAt && n.createdAt !== n.updatedAt
