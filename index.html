@@ -679,7 +679,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v85</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v86 · 2026-05-17 17:21</div>
 
   </div>
 </div>
@@ -4640,15 +4640,20 @@ document.getElementById("toothModal").addEventListener("click", function(e) {
 });
 
 if ("serviceWorker" in navigator) {
-  // updateViaCache:'none' forces the browser to always fetch sw.js from network
   navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).then(function(reg) {
-    // Force immediate check for updates
     reg.update();
-    // Ask the active SW for its version to display on the home screen
+    // Ask current controller for version (may be old SW - controllerchange will fix it)
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: "GET_VERSION" });
     }
   }).catch(function(){});
+
+  // When a new SW takes control, re-request version from the new one
+  navigator.serviceWorker.addEventListener("controllerchange", function() {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: "GET_VERSION" });
+    }
+  });
 
   navigator.serviceWorker.addEventListener("message", function(e) {
     if (e.data && e.data.type === "SW_UPDATED") {
