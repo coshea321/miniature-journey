@@ -679,7 +679,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v89 · 2026-05-18 07:59</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v90 · 2026-05-18 09:20</div>
 
   </div>
 </div>
@@ -3116,7 +3116,7 @@ var hearthSyncES  = null;
 var hearthHealthES = null;
 var syncPaused    = false;
 var lastPushTs    = 0;
-var SSE_GRACE_MS  = 1500;
+var SSE_GRACE_MS  = 5000;
 
 // Migrate from old keys
 (function() {
@@ -4706,10 +4706,12 @@ function switchSection(section) {
   document.body.classList.remove("home-mode");
   if (section === "home") document.body.classList.add("home-mode");
 
-  if (isHouseholdSet() && (section === "home" || section === "lists" || section === "baby" || section === "notes")) {
+  if (isHouseholdSet() && (section === "home" || section === "lists" || section === "baby" || section === "notes") && (Date.now() - lastPushTs > 5000)) {
     fetchHousehold();
   }
-  if (isLoggedIn() && section === "train") fetchPersonal();
+  if (isLoggedIn() && section === "train" && (Date.now() - lastPushTs > 5000)) {
+    fetchPersonal();
+  }
 
   if (section === "home") {
     document.getElementById("themeColor").setAttribute("content", "#111820");
