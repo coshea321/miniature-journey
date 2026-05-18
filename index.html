@@ -679,7 +679,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v88 · 2026-05-18 00:59</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v89 · 2026-05-18 07:59</div>
 
   </div>
 </div>
@@ -5166,7 +5166,14 @@ function trainFmtDateLong(dateStr) {
   var d = new Date(dateStr + "T12:00:00");
   return d.toLocaleDateString("en-IE", { weekday:"long", day:"numeric", month:"long" });
 }
-function getWD()      { return storeGet("fl4_workouts") || { workouts:[], bodyweight:[] }; }
+function getWD() {
+  var d = storeGet("fl4_workouts") || {};
+  if (!Array.isArray(d.workouts))   d.workouts   = [];
+  if (!Array.isArray(d.bodyweight)) d.bodyweight = [];
+  if (!Array.isArray(d.bp))         d.bp         = [];
+  if (!Array.isArray(d.cardio))     d.cardio     = [];
+  return d;
+}
 function saveWD(data) { storeSet("fl4_workouts", data); pushPersonal(); }
 function getWorkoutForDate(date) {
   var data = getWD();
@@ -5367,6 +5374,7 @@ function timerCircle(time, total, color, paused) {
 // ── Save session to workout log ───────────────────────────
 function saveSession(entry) {
   var data = getWD();
+  if (!Array.isArray(data.workouts)) data.workouts = [];
   data.workouts.unshift(entry);
   data.workouts.sort(function(a,b){ return b.date.localeCompare(a.date); });
   saveWD(data);
