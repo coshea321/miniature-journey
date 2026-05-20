@@ -546,6 +546,8 @@ body.train-mode #toast{background:#132040}
 .ses-pose-next{font-size:11px;color:#3A5070;text-align:center;margin-bottom:14px}
 .ses-ctrl-row{display:flex;gap:10px;justify-content:center;margin-bottom:8px}
 .ses-ctrl-btn{background:#1C2A3E;border:1px solid #2A3A52;color:#C0CCD8;border-radius:10px;padding:10px 22px;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.ses-ctrl-back{padding:10px 16px;opacity:.7}
+.ses-reps-display{text-align:center;padding:20px 0 12px}
 .ses-exit-link{display:block;text-align:center;background:none;border:none;color:#2A3A52;font-family:inherit;font-size:12px;cursor:pointer;margin-top:10px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 
 /* Physio */
@@ -682,7 +684,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v103 · 2026-05-20 10:35</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v104 · 2026-05-20 11:15</div>
 
   </div>
 </div>
@@ -3767,7 +3769,50 @@ function handleHouseholdEvent(e) {
   } catch(err) { console.warn("SSE household event error:", err); }
 }
 
-// ── Sync button opens overlay ─────────────────────────────
+// ── Session body click delegation ─────────────────────────
+document.getElementById("sesBody").addEventListener("click", function(e) {
+  var btn = e.target.closest("[data-action]");
+  if (!btn) return;
+  var action = btn.dataset.action;
+  if (action === "togglePhysioTimer") { togglePhysioTimer(); }
+  else if (action === "physioNext")   { physioNext(); }
+  else if (action === "physioPrev")   { physioPrev(); }
+  else if (action === "skipYogaPose") { skipYogaPose(); }
+  else if (action === "prevYogaPose") { prevYogaPose(); }
+  else if (action === "toggleYogaPause") { toggleYogaPause(); }
+});
+
+// ── prevYogaPose — go back one pose ───────────────────────
+function prevYogaPose() {
+  if (SS.yPoseIdx > 0) {
+    SS.yPoseIdx--;
+    var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
+    SS.yTime = flow[SS.yPoseIdx].dur;
+    SS.yPaused = false;
+    clearST();
+    startYogaTimer();
+    renderYogaSession();
+  }
+}
+
+// ── physioPrev — go back one exercise/set ─────────────────
+function physioPrev() {
+  var prog = PROGRAMMES_TRAIN[SS.pProgIdx];
+  clearST(); SS.pRunning = false;
+  if (SS.pSetNum > 1) {
+    // Go back a set
+    SS.pSetNum--;
+    var ex = prog.exercises[SS.pExIdx];
+    if (ex.type === "timed") SS.pTime = ex.dur;
+  } else if (SS.pExIdx > 0) {
+    // Go back an exercise
+    SS.pExIdx--;
+    var ex2 = prog.exercises[SS.pExIdx];
+    SS.pSetNum = ex2.sets || 1;
+    if (ex2.type === "timed") SS.pTime = ex2.dur;
+  }
+  renderPhysioSession();
+}
 document.getElementById("syncBtn").addEventListener("click", function() {
   renderSyncModal();
   document.getElementById("syncOverlay").classList.add("open");
@@ -4194,10 +4239,11 @@ function renderYogaSession() {
     "<p class='ses-pose-cue'>"+esc(pose.cue)+"</p>" +
     nextPose +
     "<div class='ses-ctrl-row'>" +
-      "<button class='ses-ctrl-btn' onclick='toggleYogaPause()'>"+(SS.yPaused?"Resume":"Pause")+"</button>" +
-      "<button class='ses-ctrl-btn' onclick='skipYogaPose()'>Skip</button>" +
+      "<button class='ses-ctrl-btn ses-ctrl-back' data-action='prevYogaPose'>&#x276E;</button>" +
+      "<button class='ses-ctrl-btn' data-action='toggleYogaPause'>"+(SS.yPaused?"Resume":"Pause")+"</button>" +
+      "<button class='ses-ctrl-btn' data-action='skipYogaPose'>Skip &#x276F;</button>" +
     "</div>" +
-    "<button class='ses-exit-link' onclick=\"if(confirm('Exit?'))closeSessionOverlay()\">Exit practice</button>";
+    "<button class='ses-exit-link' onclick=\"confirmDialog('Exit practice?',function(){closeSessionOverlay()})\">Exit practice</button>";
 }
 
 
@@ -4283,7 +4329,6 @@ function renderPhysioSession() {
   var prog = PROGRAMMES_TRAIN[SS.pProgIdx];
   var body = document.getElementById("sesBody");
   document.getElementById("sesCount").textContent = (SS.pExIdx+1)+" / "+prog.exercises.length;
-  // Progress bar
   document.getElementById("sesProgFill").style.width = ((SS.pExIdx/prog.exercises.length)*100)+"%";
 
   if (SS.pPhase === "intro") {
@@ -4295,7 +4340,7 @@ function renderPhysioSession() {
       "</div>";
     }).join("");
     body.innerHTML = "<div class='ses-intro'>" +
-      "<div class='ses-intro-ico'>&#x1FAB4;</div>" +
+      "<div class='ses-intro-ico'>"+prog.icon+"</div>" +
       "<div class='ses-intro-name'>"+prog.name.replace(/&amp;/g,"&")+"</div>" +
       "<div class='ses-intro-sub'>"+prog.note+"</div>" +
       "<div class='ses-intro-list'>"+exList+"</div>" +
@@ -4309,7 +4354,7 @@ function renderPhysioSession() {
     body.innerHTML = "<div class='ses-done-wrap'>" +
       "<div class='ses-done-ico'>&#x2705;</div>" +
       "<div class='ses-done-title'>Physio complete!</div>" +
-      "<div class='ses-done-sub'>"+prog.name.replace(/&amp;/g,"&")+" done.</div>" +
+      "<div class='ses-done-sub'>"+prog.name.replace(/&amp;/g,"&")+" done. Great work.</div>" +
       "<button class='ses-done-btn' onclick='finishPhysio()'>Save &amp; finish</button>" +
       "<button class='ses-done-link' onclick='openPhysioSession(SS.pProgIdx)'>Do it again</button>" +
     "</div>";
@@ -4317,40 +4362,61 @@ function renderPhysioSession() {
   }
 
   var ex  = prog.exercises[SS.pExIdx];
-  var setLabel = ex.perLeg ? (SS.pSetNum===1?"Right leg":"Left leg") : "Set "+SS.pSetNum+" of "+ex.sets;
-  var videoHtml = ex.url ? "<a class='ses-video-btn' href='"+ex.url+"' target='_blank' rel='noopener'>&#x25B6; Watch video</a>" : "";
-  var isTimedZero = ex.type==="timed" && SS.pTime===0;
-  var timerBlock, ctrlBlock;
+  var totalSets = ex.sets || 1;
 
+  // Set progress dots
+  var dots = "";
+  for (var s = 1; s <= totalSets; s++) {
+    var done   = s < SS.pSetNum;
+    var active = s === SS.pSetNum;
+    dots += "<span style='display:inline-block;width:"+(active?"12px":"8px")+";height:"+(active?"12px":"8px")+";border-radius:50%;background:"+(done?"#14b8a6":active?"#fff":"rgba(255,255,255,.2)")+";margin:0 3px;transition:all .2s'></span>";
+  }
+  var setLabel = ex.perLeg
+    ? (SS.pSetNum === 1 ? "Right side" : "Left side") + (totalSets > 2 ? " · set "+SS.pSetNum+" of "+totalSets : "")
+    : (totalSets > 1 ? "Set "+SS.pSetNum+" of "+totalSets : "");
+
+  var videoHtml = ex.url ? "<a class='ses-video-btn' href='"+ex.url+"' target='_blank' rel='noopener'>&#x25B6; Watch video</a>" : "";
+
+  var timerBlock = "";
   if (ex.type === "timed" && SS.pTime > 0) {
     timerBlock = "<div class='ses-timer-wrap'>" + timerCircle(SS.pTime, ex.dur, "#14b8a6", !SS.pRunning) + "</div>";
-    ctrlBlock  = "<div style='display:flex;gap:10px;justify-content:center;margin-bottom:10px'>" +
-      "<button class='ses-ctrl-btn' onclick='togglePhysioTimer()'>"+(SS.pRunning?"Pause":"Start")+"</button>" +
-      "<button class='ses-ctrl-btn' onclick='physioNext()'>Skip</button>" +
-    "</div>";
-  } else if (ex.type === "reps" || isTimedZero) {
-    timerBlock = "<div class='ses-reps-card'>" +
-      "<div class='ses-reps-label'>"+setLabel+"</div>" +
-      "<div style='font-size:22px;font-weight:700;color:#14b8a6;margin-bottom:14px'>"+
-        (ex.type==="reps" ? ex.reps+" reps" : ex.dur+"s") +
-      "</div>" +
-      "<button class='ses-reps-done-btn' onclick='physioNext()'>"+(SS.pSetNum<ex.sets?'Next set':'Next exercise')+"</button>" +
-    "</div>";
-    ctrlBlock = "";
   } else {
-    timerBlock = "";
-    ctrlBlock  = "<button class='ses-reps-done-btn' style='width:100%;margin-bottom:10px' onclick='physioNext()'>"+(SS.pSetNum<ex.sets?'Next set':'Next exercise')+"</button>";
+    // Reps or timed-zero: big number display
+    timerBlock = "<div class='ses-reps-display'>" +
+      "<div style='font-size:64px;font-weight:800;color:#14b8a6;line-height:1'>" +
+        (ex.type === "reps" ? ex.reps : ex.dur+"s") +
+      "</div>" +
+      "<div style='font-size:15px;color:#8ABFB8;margin-top:6px'>" +
+        (ex.type === "reps" ? "reps" : "hold") +
+      "</div>" +
+    "</div>";
   }
 
+  var isTimedRunning = ex.type === "timed" && SS.pTime > 0;
+  var nextLabel = (SS.pSetNum < totalSets) ? "Next set" : "Next exercise &#x276F;";
+
   body.innerHTML =
-    "<div class='ses-ex-card'>" +
-      "<div class='ses-ex-name'>"+esc(ex.name)+"</div>" +
-      "<div class='ses-ex-note'>"+esc(ex.note)+"</div>" +
-      (ex.cue?"<div class='ses-ex-cue'>"+esc(ex.cue)+"</div>":"") +
-      videoHtml +
-    "</div>" +
+    // Exercise name + set label
+    "<div class='ses-pose-name' style='color:#e2e8f0'>"+esc(ex.name)+"</div>" +
+    (setLabel ? "<div class='ses-pose-sanskrit' style='color:#14b8a6'>"+setLabel+"</div>" : "") +
+    // Set dots (only when >1 set)
+    (totalSets > 1 ? "<div style='text-align:center;margin:8px 0 4px'>"+dots+"</div>" : "") +
+    // Timer circle or reps display
     timerBlock +
-    ctrlBlock;
+    // Cue text
+    (ex.cue ? "<p class='ses-pose-cue'>"+esc(ex.cue)+"</p>" : "") +
+    // Video link
+    videoHtml +
+    // Controls: Back | Pause/Start | Next
+    "<div class='ses-ctrl-row'>" +
+      "<button class='ses-ctrl-btn ses-ctrl-back' data-action='physioPrev'>&#x276E;</button>" +
+      (isTimedRunning
+        ? "<button class='ses-ctrl-btn' data-action='togglePhysioTimer'>"+(SS.pRunning?"Pause":"Start")+"</button>"
+        : "<button class='ses-ctrl-btn' data-action='physioNext'>"+nextLabel+"</button>"
+      ) +
+      "<button class='ses-ctrl-btn' data-action='physioNext'>"+(isTimedRunning ? "Skip &#x276F;" : (SS.pSetNum < totalSets ? "Skip set" : "Skip &#x276F;"))+"</button>" +
+    "</div>" +
+    "<button class='ses-exit-link' onclick=\"confirmDialog('Exit physio?',function(){closeSessionOverlay()})\">Exit</button>";
 }
 
 
@@ -4759,7 +4825,8 @@ function renderTrainPrograms() {
     { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", desc:"23 poses · ~18 min", descColor:"#7A5CBF" },
     { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
     { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
-    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" }
+    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
+    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" }
   ];
   var html = "";
   for (var i=0;i<programs.length;i++) {
@@ -5288,6 +5355,14 @@ var PROGRAMMES_TRAIN = [
     {id:'single_leg_sq',name:'Single Leg Squat',type:'reps',sets:1,reps:10,note:'10 reps each leg · knee over 2nd toe',cue:'Stand on one leg, hands out in front for balance. Slowly bend the standing knee, pushing your hips back as if sitting to a chair. Keep your knee tracking over your second toe — don\'t let it collapse inward. Lower only as far as you can control, then press back up. 10 reps each leg.',url:'https://www.youtube.com/watch?v=Npz-kOxdy9I'},
     {id:'wall_squat',name:'Wall Squat',type:'timed',dur:45,sets:1,note:'Hold 45s · thighs parallel · knees 90°',cue:'Stand with your back flat against a wall. Slide down until your thighs are parallel to the floor and knees are at 90°. Feet should be hip-width, directly below your knees. Press your lower back firmly into the wall. Keep your weight in your heels. Hold for 45 seconds, breathing steadily.',url:'https://www.youtube.com/watch?v=GyncayY3GuY'}
   ]}
+  ,{id:'max_physio',name:'Max Physio',icon:'&#x1F33F;',note:'Post-natal · core & glutes · daily',color:'#14b8a6',exercises:[
+    {id:'clamshells',name:'Clamshells',type:'reps',sets:2,reps:15,note:'15 reps · 2 sets',cue:'Lie on your side with hips and knees bent to about 45°. Keeping your feet together, raise your top knee as high as you can without rotating your pelvis backward. Lower slowly and with control. 15 reps each side, 2 sets.'},
+    {id:'thigh_squeeze',name:'Thigh Squeezes',type:'timed',dur:10,sets:10,note:'10 sec hold · 10 reps',cue:'Lie on your back with knees bent and feet flat. Place a small pillow or folded towel between your knees. Squeeze your knees firmly together and hold for 10 seconds. Release fully, then repeat. 10 reps.'},
+    {id:'hip_squeeze',name:'Hip Squeezes',type:'reps',sets:2,reps:15,note:'15 reps · 2 sets',cue:'Lie on your back with knees bent and feet flat. Squeeze your buttocks firmly together and hold for 1–2 seconds, then relax completely. 15 reps, 2 sets.'},
+    {id:'tummy_tuck',name:'Tummy Tuck In',type:'timed',dur:5,sets:10,note:'5 sec hold · 10 reps',cue:'Lie on your back with knees bent, feet flat. Breathe in, then as you breathe out gently draw your lower tummy inward — belly button toward spine. Hold 5 seconds, breathe normally, then release. 10 reps.'},
+    {id:'figure4',name:'Figure of 4 Stretch',type:'timed',dur:20,sets:3,note:'20 sec hold · 3 reps per side',cue:'Lie on your back with knees bent. Cross your right ankle over your left knee. Gently press your right knee away, or draw your left thigh toward your chest until you feel a stretch in your right hip and glute. Hold 20 seconds. Switch sides.'},
+    {id:'tabletop',name:'Practice Table Top',type:'reps',sets:1,reps:10,note:'10 reps per side · breathe throughout',cue:'Lie on your back with knees bent. Engage your core gently. Breathe in, then as you breathe out slowly float one knee up to 90° — shin parallel to floor, lower back still. Breathe in to lower. Alternate legs. 10 reps each side.'}
+  ]}
 ];
 
 var QUICK_EXERCISES = [
@@ -5409,7 +5484,8 @@ function renderTrainPrograms() {
     { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", desc:"23 poses · ~18 min", descColor:"#7A5CBF" },
     { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
     { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
-    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" }
+    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
+    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" }
   ];
   var html = "";
   for (var i=0;i<programs.length;i++) {
@@ -5548,10 +5624,11 @@ function renderYogaSession() {
     "<p class='ses-pose-cue'>"+esc(pose.cue)+"</p>" +
     nextPose +
     "<div class='ses-ctrl-row'>" +
-      "<button class='ses-ctrl-btn' onclick='toggleYogaPause()'>"+(SS.yPaused?"Resume":"Pause")+"</button>" +
-      "<button class='ses-ctrl-btn' onclick='skipYogaPose()'>Skip</button>" +
+      "<button class='ses-ctrl-btn ses-ctrl-back' data-action='prevYogaPose'>&#x276E;</button>" +
+      "<button class='ses-ctrl-btn' data-action='toggleYogaPause'>"+(SS.yPaused?"Resume":"Pause")+"</button>" +
+      "<button class='ses-ctrl-btn' data-action='skipYogaPose'>Skip &#x276F;</button>" +
     "</div>" +
-    "<button class='ses-exit-link' onclick=\"if(confirm('Exit?'))closeSessionOverlay()\">Exit practice</button>";
+    "<button class='ses-exit-link' onclick=\"confirmDialog('Exit practice?',function(){closeSessionOverlay()})\">Exit practice</button>";
 }
 
 function beginYoga() {
@@ -5663,41 +5740,72 @@ function renderPhysioSession() {
   }
 
   var ex  = prog.exercises[SS.pExIdx];
-  var setLabel = ex.perLeg ? (SS.pSetNum===1?"Right leg":"Left leg") : "Set "+SS.pSetNum+" of "+ex.sets;
+  var totalSets = ex.perLeg ? ex.sets * 2 : ex.sets;
+  var setLabel  = ex.perLeg
+    ? (SS.pSetNum <= ex.sets ? "Right leg · set " + SS.pSetNum + " of " + ex.sets : "Left leg · set " + (SS.pSetNum - ex.sets) + " of " + ex.sets)
+    : (ex.sets > 1 ? "Set " + SS.pSetNum + " of " + ex.sets : (ex.reps ? ex.reps + " reps" : ex.note || ""));
   var videoHtml = ex.url ? "<a class='ses-video-btn' href='"+ex.url+"' target='_blank' rel='noopener'>&#x25B6; Watch video</a>" : "";
   var isTimedZero = ex.type==="timed" && SS.pTime===0;
   var timerBlock, ctrlBlock;
 
+  // Set progress dots
+  var setDots = "";
+  if (totalSets > 1) {
+    setDots = "<div style='display:flex;gap:6px;justify-content:center;margin:0 0 14px'>";
+    for (var s = 1; s <= totalSets; s++) {
+      var done2 = s < SS.pSetNum, active2 = s === SS.pSetNum;
+      setDots += "<div style='width:10px;height:10px;border-radius:50%;background:" +
+        (done2 ? "#14b8a6" : active2 ? "#fff" : "#1C2A3E") +
+        ";border:2px solid " + (done2 || active2 ? "#14b8a6" : "#2A3A52") + ";transition:all .2s'></div>";
+    }
+    setDots += "</div>";
+  }
+
   if (ex.type === "timed" && SS.pTime > 0) {
     timerBlock = "<div class='ses-timer-wrap'>" + timerCircle(SS.pTime, ex.dur, "#14b8a6", !SS.pRunning) + "</div>";
-    ctrlBlock  = "<div style='display:flex;gap:10px;justify-content:center;margin-bottom:10px'>" +
-      "<button class='ses-ctrl-btn' onclick='togglePhysioTimer()'>"+(SS.pRunning?"Pause":"Start")+"</button>" +
-      "<button class='ses-ctrl-btn' onclick='physioNext()'>Skip</button>" +
-    "</div>";
+    ctrlBlock  =
+      setDots +
+      "<div class='ses-ctrl-row'>" +
+        "<button class='ses-ctrl-btn' data-action='physioPrev'>&#x2190; Back</button>" +
+        "<button class='ses-ctrl-btn' data-action='togglePhysioTimer'>"+(SS.pRunning?"Pause":"Start")+"</button>" +
+        "<button class='ses-ctrl-btn' data-action='physioNext'>Skip</button>" +
+      "</div>";
   } else if (ex.type === "reps" || isTimedZero) {
-    timerBlock = "<div class='ses-reps-card'>" +
-      "<div class='ses-reps-label'>"+setLabel+"</div>" +
-      "<div style='font-size:22px;font-weight:700;color:#14b8a6;margin-bottom:14px'>"+
-        (ex.type==="reps" ? ex.reps+" reps" : ex.dur+"s") +
-      "</div>" +
-      "<button class='ses-reps-done-btn' onclick='physioNext()'>"+(SS.pSetNum<ex.sets?'Next set':'Next exercise')+"</button>" +
-    "</div>";
-    ctrlBlock = "";
+    timerBlock =
+      "<div class='ses-reps-card' style='text-align:center'>" +
+        "<div style='font-size:13px;color:#8A9AB0;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px'>" + setLabel + "</div>" +
+        "<div style='font-size:56px;font-weight:800;color:#14b8a6;line-height:1;margin:6px 0'>" + (ex.reps || ex.dur+"s") + "</div>" +
+        "<div style='font-size:14px;color:#5A7A8A;margin-bottom:4px'>" + (ex.reps ? "reps" : "seconds") + "</div>" +
+      "</div>";
+    ctrlBlock =
+      setDots +
+      "<div class='ses-ctrl-row'>" +
+        "<button class='ses-ctrl-btn' data-action='physioPrev'>&#x2190; Back</button>" +
+        "<button class='ses-done-btn' style='flex:1;max-width:160px;margin:0;padding:12px 16px' data-action='physioNext'>" +
+          (SS.pSetNum < totalSets ? "Done · Next set" : "Done &#x2713;") +
+        "</button>" +
+      "</div>";
   } else {
     timerBlock = "";
-    ctrlBlock  = "<button class='ses-reps-done-btn' style='width:100%;margin-bottom:10px' onclick='physioNext()'>"+(SS.pSetNum<ex.sets?'Next set':'Next exercise')+"</button>";
+    ctrlBlock  =
+      setDots +
+      "<div class='ses-ctrl-row'>" +
+        "<button class='ses-ctrl-btn' data-action='physioPrev'>&#x2190; Back</button>" +
+        "<button class='ses-done-btn' style='flex:1;max-width:160px;margin:0' data-action='physioNext'>Done &#x2713;</button>" +
+      "</div>";
   }
 
   body.innerHTML =
     "<div class='ses-ex-card'>" +
-      "<div class='ses-ex-name'>"+esc(ex.name)+"</div>" +
-      "<div class='ses-ex-note'>"+esc(ex.note)+"</div>" +
-      (ex.cue?"<div class='ses-ex-cue'>"+esc(ex.cue)+"</div>":"") +
+      "<div class='ses-ex-name'>" + esc(ex.name) + "</div>" +
+      "<div class='ses-ex-note' style='color:#14b8a6'>" + esc(ex.note) + "</div>" +
+      (ex.cue ? "<div class='ses-ex-cue'>" + esc(ex.cue) + "</div>" : "") +
       videoHtml +
     "</div>" +
     timerBlock +
     ctrlBlock;
 }
+
 
 function beginPhysio() {
   SS.pPhase = "exercise";
