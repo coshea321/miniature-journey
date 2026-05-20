@@ -599,6 +599,7 @@ body.train-mode #toast{background:#132040}
 <header>
   <div class="app-title" id="appTitle">🔥 Hearth</div>
   <div class="hdr-badge" id="hdrBadge"></div>
+  <span id="hdrUser" style="font-size:11px;color:rgba(255,255,255,.55);font-weight:600;letter-spacing:.3px;white-space:nowrap;overflow:hidden;max-width:80px;text-overflow:ellipsis"></span>
   <button class="hdr-btn" id="syncBtn" title="Sync">&#128257;</button>
   <button class="hdr-btn" id="settingsBtn" title="Settings">&#9881;&#65039;</button>
 </header>
@@ -681,7 +682,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v101 · 2026-05-20 09:52</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v102 · 2026-05-20 10:15</div>
 
   </div>
 </div>
@@ -3703,13 +3704,14 @@ function switchSection(section) {
 
 
 function updateSyncStatus() {
-  var el = document.getElementById("syncStatus");
-  if (!el) return; // guard against missing element
   var btn = document.getElementById("syncBtn");
+  var userEl = document.getElementById("hdrUser");
   if (isLoggedIn()) {
-    if (btn) btn.style.color = "#4CAF7D";
+    if (btn) { btn.style.color = "#4CAF7D"; btn.title = hearthUser + " — synced"; }
+    if (userEl) userEl.textContent = hearthUser;
   } else {
-    if (btn) btn.style.color = "";
+    if (btn) { btn.style.color = ""; btn.title = "Sync"; }
+    if (userEl) userEl.textContent = "";
   }
 }
 
@@ -3718,7 +3720,7 @@ var hearthHealthES = null;
 function startPersonalListening() {
   if (!isLoggedIn()) return;
   if (hearthHealthES) { hearthHealthES.close(); hearthHealthES = null; }
-  hearthHealthES = new EventSource(userUrl("/data") + "?ns=hearth");
+  hearthHealthES = new EventSource(userUrl("/data"));
   hearthHealthES.addEventListener("put",   handlePersonalEvent);
   hearthHealthES.addEventListener("patch", handlePersonalEvent);
   hearthHealthES.onerror = function() {
@@ -3743,7 +3745,7 @@ var hearthSyncES = null;
 function startListening() {
   if (!isHouseholdSet()) return;
   if (hearthSyncES) { hearthSyncES.close(); hearthSyncES = null; }
-  hearthSyncES = new EventSource(houseUrl("/shared") + "?ns=hearth");
+  hearthSyncES = new EventSource(houseUrl("/shared"));
   hearthSyncES.addEventListener("put",   handleHouseholdEvent);
   hearthSyncES.addEventListener("patch", handleHouseholdEvent);
   hearthSyncES.onerror = function() {
