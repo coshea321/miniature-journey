@@ -681,7 +681,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v100 · 2026-05-20 09:30</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v101 · 2026-05-20 09:52</div>
 
   </div>
 </div>
@@ -3489,47 +3489,97 @@ var d = {};
 
 function applyPersonal(d) {
   if (!d || typeof d !== "object") return;
-  // Last-write-wins — same principle as applyHousehold, no local merging
   if (d.health && typeof d.health === "object") storeSet("fl4_workouts", d.health);
+
+  // ── Lists: merge remote + local by item ID (union, no overwrites) ─────────
   ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
     var ld = d["list_" + lt];
     if (!ld || typeof ld !== "object") return;
+    loadListData(lt);
+    var local   = listData[lt] || { items:[], hist:[] };
+    var remote  = { items: Array.isArray(ld.items) ? ld.items.filter(Boolean) : [],
+                    hist:  Array.isArray(ld.hist)  ? ld.hist.filter(Boolean)  : [] };
+    // Build index of local items so we don't lose anything added offline
+    var localIndex = {};
+    local.items.forEach(function(x){ if(x) localIndex[x.id] = x; });
+    // Remote items take precedence (they may have been ticked/edited on another device)
+    remote.items.forEach(function(x){ if(x) localIndex[x.id] = x; });
+    // Result: every item that exists on either device
     listData[lt] = {
-      items: Array.isArray(ld.items) ? ld.items.filter(Boolean) : [],
-      hist:  Array.isArray(ld.hist)  ? ld.hist.filter(Boolean)  : []
+      items: Object.values(localIndex),
+      hist:  mergeHist(local.hist, remote.hist)
     };
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
     if (Array.isArray(ld.notes)) storeSet("fl4_notes_" + lt, ld.notes.filter(Boolean));
     if (Array.isArray(ld.customCats) && ld.customCats.length) {
-      var existing = getCustomCats(lt), existingIds = {};
-      existing.forEach(function(c){ existingIds[c.id]=true; });
-      var newCats = ld.customCats.filter(function(c){ return c && !existingIds[c.id]; });
-      if (newCats.length) saveCustomCats(lt, existing.concat(newCats));
+      var existingCats = getCustomCats(lt), existingCatIds = {};
+      existingCats.forEach(function(c){ existingCatIds[c.id]=true; });
+      var newCats = ld.customCats.filter(function(c){ return c && !existingCatIds[c.id]; });
+      if (newCats.length) saveCustomCats(lt, existingCats.concat(newCats));
     }
   });
-  if (Array.isArray(d.global_notes)) storeSet("fl4_notes_global", d.global_notes.filter(Boolean));
-  if (Array.isArray(d.action_log)) storeSet("fl4_action_log", d.action_log.filter(Boolean));
-  if (Array.isArray(d.food_log))   storeSet("fl4_food_log",   d.food_log.filter(Boolean));
-  if (d.food_notes  && typeof d.food_notes === "object")  storeSet("fl4_food_notes",  d.food_notes);
-  if (Array.isArray(d.saved_meals)) storeSet("fl4_saved_meals", d.saved_meals.filter(Boolean));
+
+  // ── Notes: merge by note ID ───────────────────────────────────────────────
+  if (Array.isArray(d.global_notes)) {
+    var localNotes = storeGet("fl4_notes_global") || [];
+    var noteIndex  = {};
+    localNotes.forEach(function(n){ if(n) noteIndex[n.id] = n; });
+    d.global_notes.filter(Boolean).forEach(function(n){ noteIndex[n.id] = n; }); // remote wins on conflict
+    storeSet("fl4_notes_global", Object.values(noteIndex));
+  }
+
+  // ── Action log: merge by entry ID ────────────────────────────────────────
+  if (Array.isArray(d.action_log)) {
+    var localLog = getActionLog(), logIndex = {};
+    localLog.forEach(function(e){ if(e) logIndex[e.id]=e; });
+    d.action_log.filter(Boolean).forEach(function(e){ logIndex[e.id]=e; });
+    storeSet("fl4_action_log", Object.values(logIndex).sort(function(a,b){return b.ts-a.ts;}));
+  }
+
+  // ── Food log: merge by entry ID ───────────────────────────────────────────
+  if (Array.isArray(d.food_log)) {
+    var localFood = getFoodLog(), foodIndex = {};
+    localFood.forEach(function(e){ if(e) foodIndex[e.id]=e; });
+    d.food_log.filter(Boolean).forEach(function(e){ foodIndex[e.id]=e; });
+    storeSet("fl4_food_log", Object.values(foodIndex).sort(function(a,b){return b.id-a.id;}));
+  }
+
+  if (d.food_notes  && typeof d.food_notes === "object") {
+    var localFN = storeGet("fl4_food_notes") || {};
+    storeSet("fl4_food_notes", Object.assign({}, d.food_notes, localFN)); // local daily notes win
+  }
+  if (Array.isArray(d.saved_meals)) {
+    var localSM = storeGet("fl4_saved_meals") || [], smIndex = {};
+    localSM.forEach(function(m){ if(m) smIndex[m.id]=m; });
+    d.saved_meals.filter(Boolean).forEach(function(m){ smIndex[m.id]=m; });
+    storeSet("fl4_saved_meals", Object.values(smIndex));
+  }
   if (d.cal_goal) storeSet("fl4_cal_goal", d.cal_goal);
+
+  // ── Baby: merge arrays by date/id, merge teeth object ────────────────────
   if (d.baby && typeof d.baby === "object") {
-    var local = getBD();
-    var merged = {
-      growth:     (d.baby.growth||[]).length     >= (local.growth||[]).length     ? d.baby.growth     : local.growth,
-      medicine:   (d.baby.medicine||[]).length   >= (local.medicine||[]).length   ? d.baby.medicine   : local.medicine,
-      milestones: (d.baby.milestones||[]).length >= (local.milestones||[]).length ? d.baby.milestones : local.milestones,
-      teeth:      Object.keys(d.baby.teeth||{}).length >= Object.keys(local.teeth||{}).length ? d.baby.teeth : local.teeth
-    };
-    storeSet("fl4_baby", merged);
+    var local = getBD(), rb = d.baby;
+    function mergeByKey(a, b, key) {
+      var idx = {};
+      (a||[]).forEach(function(x){ if(x) idx[x[key]]=x; });
+      (b||[]).forEach(function(x){ if(x) idx[x[key]]=x; }); // remote wins on same key
+      return Object.values(idx);
+    }
+    storeSet("fl4_baby", {
+      growth:     mergeByKey(local.growth,     rb.growth,     "date"),
+      medicine:   mergeByKey(local.medicine,   rb.medicine,   "id"),
+      milestones: mergeByKey(local.milestones, rb.milestones, "id"),
+      teeth:      Object.assign({}, local.teeth||{}, rb.teeth||{}),
+      bags:       rb.bags || local.bags
+    });
     if (currentSection === "baby") renderBabyView();
   }
+
   syncPaused = false;
   renderList();
   if (currentSection === "home") renderHomeScreen();
   if (currentSection === "train") renderTrainView();
 }
-
 function fetchPersonal(cb) {
   if (!isLoggedIn()) { if(cb)cb(); return; }
   fetch(userUrl("/data"))
