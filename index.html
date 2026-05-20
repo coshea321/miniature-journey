@@ -684,7 +684,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v105 · 2026-05-20 11:45</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v106 · 2026-05-20 12:10</div>
 
   </div>
 </div>
@@ -3500,7 +3500,21 @@ var d = {};
 
 function applyPersonal(d) {
   if (!d || typeof d !== "object") return;
-  if (d.health && typeof d.health === "object") storeSet("fl4_workouts", d.health);
+
+  // ── Workouts: merge by workout ID, not last-write-wins ───────────────────
+  if (d.health && typeof d.health === "object") {
+    var localWD  = getWD();
+    var remoteWD = d.health;
+    var localWkts  = Array.isArray(localWD.workouts)  ? localWD.workouts  : [];
+    var remoteWkts = Array.isArray(remoteWD.workouts) ? remoteWD.workouts : [];
+    var wIdx = {};
+    // Remote first, then local overwrites (local is more recent if push is in-flight)
+    remoteWkts.forEach(function(w){ if(w) wIdx[w.id] = w; });
+    localWkts.forEach(function(w){  if(w) wIdx[w.id] = w; });
+    storeSet("fl4_workouts", Object.assign({}, remoteWD, {
+      workouts: Object.values(wIdx).sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); })
+    }));
+  }
 
   // ── Lists: merge remote + local by item ID (union, no overwrites) ─────────
   ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
@@ -3679,10 +3693,10 @@ function switchSection(section) {
   document.body.classList.toggle("train-mode", section === "train");
   document.body.classList.toggle("baby-mode",  section === "baby");
 
-  if (isHouseholdSet() && (section === "home" || section === "lists" || section === "baby" || section === "notes") && (Date.now() - lastPushTs > 5000)) {
+  if (isHouseholdSet() && (section === "home" || section === "lists" || section === "baby" || section === "notes") && (Date.now() - lastPushTs > 15000)) {
     fetchHousehold();
   }
-  if (isLoggedIn() && section === "train" && (Date.now() - lastPushTs > 5000)) {
+  if (isLoggedIn() && section === "train" && (Date.now() - lastPushTs > 15000)) {
     fetchPersonal();
   }
 
