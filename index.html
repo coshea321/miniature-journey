@@ -684,7 +684,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v104 · 2026-05-20 11:15</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v105 · 2026-05-20 11:45</div>
 
   </div>
 </div>
@@ -1302,6 +1302,11 @@ body.train-mode #toast{background:#132040}
 </nav>
 
 <div id="toast"></div>
+<div id="updateBanner" style="display:none;position:fixed;bottom:70px;left:12px;right:12px;z-index:800;background:#1C3A5C;border:1px solid #3A6A9C;border-radius:12px;padding:12px 16px;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.4)">
+  <span style="flex:1;font-size:13px;color:#C0D8F0">&#x1F504; Update available</span>
+  <button onclick="window.location.reload()" style="background:#3A8FE0;border:none;color:#fff;border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation">Refresh</button>
+  <button onclick="document.getElementById('updateBanner').style.display='none'" style="background:none;border:none;color:#8AAAC0;font-size:18px;cursor:pointer;padding:0 4px;touch-action:manipulation">&#x2715;</button>
+</div>
 <div class="ver">v14</div>
 
 <script>
@@ -3729,7 +3734,11 @@ function startPersonalListening() {
   hearthHealthES.addEventListener("put",   handlePersonalEvent);
   hearthHealthES.addEventListener("patch", handlePersonalEvent);
   hearthHealthES.onerror = function() {
-    setTimeout(function(){ if (isLoggedIn()) startPersonalListening(); }, 5000);
+    // Browser retries automatically on transient drops (readyState 0→connecting).
+    // Only force a new connection if the stream is permanently closed (readyState 2).
+    if (hearthHealthES && hearthHealthES.readyState === 2) {
+      setTimeout(function(){ if (isLoggedIn()) startPersonalListening(); }, 5000);
+    }
   };
 }
 function handlePersonalEvent(e) {
@@ -3754,7 +3763,9 @@ function startListening() {
   hearthSyncES.addEventListener("put",   handleHouseholdEvent);
   hearthSyncES.addEventListener("patch", handleHouseholdEvent);
   hearthSyncES.onerror = function() {
-    setTimeout(function(){ if (isHouseholdSet()) startListening(); }, 5000);
+    if (hearthSyncES && hearthSyncES.readyState === 2) {
+      setTimeout(function(){ if (isHouseholdSet()) startListening(); }, 5000);
+    }
   };
 }
 function handleHouseholdEvent(e) {
@@ -6641,7 +6652,9 @@ if ("serviceWorker" in navigator && !_isPreview) {
 
   navigator.serviceWorker.addEventListener("message", function(e) {
     if (e.data && e.data.type === "SW_UPDATED") {
-      window.location.reload();
+      // Don't force-reload — user may be mid-session. Show a tap-to-update banner.
+      var banner = document.getElementById("updateBanner");
+      if (banner) banner.style.display = "flex";
     }
     if (e.data && e.data.type === "SW_VERSION") {
       var el = document.getElementById("appVersionLabel");
