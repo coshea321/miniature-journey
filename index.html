@@ -681,7 +681,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v99 · 2026-05-20 09:02</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v100 · 2026-05-20 09:30</div>
 
   </div>
 </div>
@@ -3077,6 +3077,138 @@ function renderCustomCatsList() {
     });
   });
 }
+
+// ── Logout ────────────────────────────────────────────────
+document.getElementById("logoutBtn").addEventListener("click", function() {
+  confirmDialog("Log out?", function() {
+    logout(); document.getElementById("syncOverlay").classList.remove("open");
+  });
+});
+
+// ── Leave household ───────────────────────────────────────
+document.getElementById("leaveHouseholdBtn").addEventListener("click", function() {
+  confirmDialog("Leave this household?", function() {
+    if (hearthSyncES) { hearthSyncES.close(); hearthSyncES = null; }
+    fetch(houseUrl("/members/" + hearthUser), { method:"DELETE" }).catch(function(){});
+    fetch(userUrl("/household"), { method:"DELETE" }).catch(function(){});
+    hearthHouse = ""; storeSet("hearth_household","");
+    renderSyncModal(); updateSyncStatus(); toast("Left household");
+  });
+});
+
+// ── Join household ────────────────────────────────────────
+document.getElementById("joinHouseholdBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
+  var code = document.getElementById("joinHouseholdInput").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if (code.length < 4) { toast("Enter a valid code"); return; }
+  hearthHouse = code; storeSet("hearth_household", code);
+  fetch(houseUrl("/members/"+hearthUser), {method:"PUT",body:JSON.stringify(true),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  fetch(userUrl("/household"), {method:"PUT",body:JSON.stringify(code),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  fetchHousehold(function(){ pushHousehold(); startListening(); });
+  renderSyncModal(); toast("Joined: " + code);
+});
+
+// ── Create household ──────────────────────────────────────
+document.getElementById("createHouseholdBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
+  var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", code = "";
+  for (var i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
+  hearthHouse = code; storeSet("hearth_household", code);
+  fetch(houseUrl("/members/"+hearthUser), {method:"PUT",body:JSON.stringify(true),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  fetch(userUrl("/household"), {method:"PUT",body:JSON.stringify(code),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  pushHousehold(); startListening();
+  var inp = document.getElementById("joinHouseholdInput"); if(inp) inp.value = code;
+  renderSyncModal(); toast("Household created: " + code);
+});
+
+// ── Sync toggles ──────────────────────────────────────────
+document.getElementById("syncToggles").addEventListener("change", function(e) {
+  var chk = e.target; if (!chk.classList.contains("sync-chk")) return;
+  syncPrefs[chk.dataset.key] = chk.checked; saveSyncPrefs();
+  if (isSynced("health")) pushPersonal(); else if (isHouseholdSet()) pushHousehold();
+});
+
+// ── Section visibility toggles ────────────────────────────
+document.querySelectorAll(".section-chk").forEach(function(chk) {
+  chk.addEventListener("change", function() {
+    sectionVisible[chk.dataset.sec] = chk.checked;
+    saveSectionVisible(); applySectionVisibility();
+  });
+});
+
+// ── Export ────────────────────────────────────────────────
+document.getElementById("exportBtn").addEventListener("click", function() {
+  ["grocery","todo","travel","personal","baby"].forEach(function(lt){ loadListData(lt); });
+  var now=new Date(), pad=function(x){return x<10?"0"+x:""+x;};
+  var localDate=now.getFullYear()+"-"+pad(now.getMonth()+1)+"-"+pad(now.getDate());
+  var exportData = {
+    version:4, exportedAt:now.toISOString(),
+    lists:{}, notes:{}, customCats:{},
+    workouts:getWD(), baby:getBD(),
+    action_log:getActionLog(), food_log:getFoodLog(),
+    food_notes:storeGet("fl4_food_notes")||{},
+    saved_meals:storeGet("fl4_saved_meals")||[],
+    cal_goal:storeGet("fl4_cal_goal")||2000,
+    secVisible:storeGet("fl4_secVisible")||{},
+    syncPrefs:storeGet("fl4_syncPrefs")||{}
+  };
+  ["grocery","todo","travel","personal","baby"].forEach(function(lt){
+    var d=listData[lt]||{items:[],hist:[]};
+    exportData.lists[lt]={items:d.items,hist:d.hist};
+    exportData.notes[lt]=getNotes(lt);
+    exportData.customCats[lt]=getCustomCats(lt);
+  });
+  exportData.notes["global"]=storeGet("fl4_notes_global")||[];
+  exportData.notes["global_work"]=storeGet("fl4_notes_global_work")||[];
+  var blob=new Blob([JSON.stringify(exportData,null,2)],{type:"application/json"});
+  var url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download="hearth-backup-"+localDate+".json";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast("Exported!");
+});
+
+// ── Import ────────────────────────────────────────────────
+document.getElementById("importFile").addEventListener("change", function(e) {
+  var file=e.target.files[0]; if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try {
+      var data=JSON.parse(ev.target.result); if(!data) throw new Error("Invalid file");
+      var imported={lists:0};
+      if(data.lists){
+        ["grocery","todo","travel","personal","baby"].forEach(function(lt){
+          if(!data.lists[lt]) return;
+          var d=data.lists[lt]; loadListData(lt);
+          var ex=listData[lt]||{items:[],hist:[]}, exIds={};
+          ex.items.forEach(function(x){exIds[x.id]=true;});
+          var newItems=(d.items||[]).filter(function(x){return x&&!exIds[x.id];});
+          listData[lt]={items:newItems.concat(ex.items),hist:mergeHist(ex.hist,d.hist||[])};
+          storeSet(LIST_CONFIG[lt].key,listData[lt]); imported.lists+=newItems.length;
+        });
+      }
+      if(data.workouts&&typeof data.workouts==="object"){
+        var wd=getWD(); var wIds={}; wd.workouts.forEach(function(w){wIds[w.id]=true;});
+        var newW=(data.workouts.workouts||[]).filter(function(w){return w&&!wIds[w.id];});
+        wd.workouts=newW.concat(wd.workouts); saveWD(wd);
+      }
+      if(data.baby&&typeof data.baby==="object"){
+        var bd=getBD(),bd2=data.baby;
+        function mArr(a,b,key){var s={};a.forEach(function(x){if(x)s[x[key]]=true;});return a.concat((b||[]).filter(function(x){return x&&!s[x[key]];}));}
+        bd.growth=mArr(bd.growth||[],bd2.growth,"date"); bd.medicine=mArr(bd.medicine||[],bd2.medicine,"id");
+        bd.milestones=mArr(bd.milestones||[],bd2.milestones,"id"); bd.teeth=Object.assign({},bd2.teeth||{},bd.teeth||{});
+        saveBD(bd);
+      }
+      if(Array.isArray(data.action_log)){var al=getActionLog(),alIds={};al.forEach(function(x){alIds[x.id]=true;});var newAl=data.action_log.filter(function(x){return x&&!alIds[x.id];});if(newAl.length)storeSet("fl4_action_log",newAl.concat(al));}
+      if(Array.isArray(data.food_log)){var fl=getFoodLog(),flIds={};fl.forEach(function(x){flIds[x.id]=true;});var newFl=data.food_log.filter(function(x){return x&&!flIds[x.id];});if(newFl.length)storeSet("fl4_food_log",newFl.concat(fl));}
+      if(data.food_notes){var fn=storeGet("fl4_food_notes")||{};Object.keys(data.food_notes).forEach(function(k){if(!fn[k])fn[k]=data.food_notes[k];});storeSet("fl4_food_notes",fn);}
+      if(Array.isArray(data.saved_meals)){var sm=storeGet("fl4_saved_meals")||[],smIds={};sm.forEach(function(m){smIds[m.id]=true;});storeSet("fl4_saved_meals",sm.concat(data.saved_meals.filter(function(m){return m&&!smIds[m.id];})));}
+      if(data.cal_goal&&!storeGet("fl4_cal_goal"))storeSet("fl4_cal_goal",data.cal_goal);
+      renderList(); toast("Imported: "+imported.lists+" list items");
+    } catch(err){ toast("Import failed: "+err.message); }
+    e.target.value="";
+  };
+  reader.readAsText(file);
+});
 
 document.getElementById("clearAllBtn").addEventListener("click", function() {
   confirmDialog("Clear ALL lists and history? This cannot be undone.", function() {
