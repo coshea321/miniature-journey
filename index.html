@@ -682,7 +682,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v102 · 2026-05-20 10:15</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v103 · 2026-05-20 10:35</div>
 
   </div>
 </div>
@@ -3423,13 +3423,16 @@ function verifySession() {
 function onLoginSuccess() {
   hideLoginOverlay();
   setLoginSpinner(false);
+  updateSyncStatus();
 
-  // Always fetch remote first, THEN push local data
-  // This prevents a device with a stale/empty list from overwriting newer data on another device
+  // Show home immediately with local data, then re-render once remote data arrives
+  switchSection("home");
+
   fetchPersonal(function() {
-    // After fetching remote, push our merged local state back up
     pushPersonal();
     startPersonalListening();
+    // Re-render home with fresh remote data
+    if (currentSection === "home") renderHomeScreen();
   });
 
   // Load household code from user profile if not stored locally
@@ -3932,7 +3935,7 @@ function renderWeekStrip() {
     var isToday = dateStr === today;
 
     var wkt    = getWorkoutForDate(dateStr);
-    var hasWkt = wkt && wkt.exercises.length > 0;
+    var hasWkt = wkt && Array.isArray(wkt.exercises) && wkt.exercises.length > 0;
 
     // Check if any list had items added or completed on this day (rough: items whose id date matches)
     loadListData("grocery"); loadListData("todo");
@@ -5065,7 +5068,7 @@ function renderWeekStrip() {
     var isToday = dateStr === today;
 
     var wkt    = getWorkoutForDate(dateStr);
-    var hasWkt = wkt && wkt.exercises.length > 0;
+    var hasWkt = wkt && Array.isArray(wkt.exercises) && wkt.exercises.length > 0;
 
     // Check if any list had items added or completed on this day (rough: items whose id date matches)
     loadListData("grocery"); loadListData("todo");
