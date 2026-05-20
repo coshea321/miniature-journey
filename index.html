@@ -6,6 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <meta name="theme-color" content="#1C0A04" id="themeColor">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Hearth">
@@ -680,7 +681,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v98 · 2026-05-20 02:48</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v99 · 2026-05-20 09:02</div>
 
   </div>
 </div>
@@ -3521,17 +3522,62 @@ function switchSection(section) {
 
 function updateSyncStatus() {
   var el = document.getElementById("syncStatus");
-  if (syncRoom && fbUrl) {
-    el.className = "sync-status on";
-    el.innerHTML = "<span class='sync-indicator live'></span>Syncing room: <strong>"+syncRoom+"</strong>";
+  if (!el) return; // guard against missing element
+  var btn = document.getElementById("syncBtn");
+  if (isLoggedIn()) {
+    if (btn) btn.style.color = "#4CAF7D";
   } else {
-    el.className = "sync-status";
-    el.style.display = "none";
-    return;
+    if (btn) btn.style.color = "";
   }
-  el.style.display = "block";
-  // Update sync indicator in header
-  document.getElementById("syncBtn").title = "Syncing: " + syncRoom;
+}
+
+// ── SSE: personal sync listener ───────────────────────────
+var hearthHealthES = null;
+function startPersonalListening() {
+  if (!isLoggedIn()) return;
+  if (hearthHealthES) { hearthHealthES.close(); hearthHealthES = null; }
+  hearthHealthES = new EventSource(userUrl("/data") + "?ns=hearth");
+  hearthHealthES.addEventListener("put",   handlePersonalEvent);
+  hearthHealthES.addEventListener("patch", handlePersonalEvent);
+  hearthHealthES.onerror = function() {
+    setTimeout(function(){ if (isLoggedIn()) startPersonalListening(); }, 5000);
+  };
+}
+function handlePersonalEvent(e) {
+  if (Date.now() - lastPushTs < SSE_GRACE_MS) return; // ignore echo of our own push
+  try {
+    var p = JSON.parse(e.data);
+    if (e.type === "put" && p.data && typeof p.data === "object") {
+      syncPaused = false;
+      applyPersonal(p.data);
+    } else if (e.type === "patch") {
+      fetchPersonal();
+    }
+  } catch(err) { console.warn("SSE personal event error:", err); }
+}
+
+// ── SSE: household sync listener ──────────────────────────
+var hearthSyncES = null;
+function startListening() {
+  if (!isHouseholdSet()) return;
+  if (hearthSyncES) { hearthSyncES.close(); hearthSyncES = null; }
+  hearthSyncES = new EventSource(houseUrl("/shared") + "?ns=hearth");
+  hearthSyncES.addEventListener("put",   handleHouseholdEvent);
+  hearthSyncES.addEventListener("patch", handleHouseholdEvent);
+  hearthSyncES.onerror = function() {
+    setTimeout(function(){ if (isHouseholdSet()) startListening(); }, 5000);
+  };
+}
+function handleHouseholdEvent(e) {
+  if (Date.now() - lastPushTs < SSE_GRACE_MS) return;
+  try {
+    var p = JSON.parse(e.data);
+    if (e.type === "put" && p.data && typeof p.data === "object") {
+      applyHousehold(p.data);
+    } else if (e.type === "patch") {
+      fetchHousehold();
+    }
+  } catch(err) { console.warn("SSE household event error:", err); }
 }
 
 // ── Sync button opens overlay ─────────────────────────────
