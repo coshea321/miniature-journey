@@ -684,7 +684,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v106 · 2026-05-20 12:10</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v107 · 2026-05-22 15:20</div>
 
   </div>
 </div>
@@ -4005,7 +4005,18 @@ function renderWeekStrip() {
     var isToday = dateStr === today;
 
     var wkt    = getWorkoutForDate(dateStr);
-    var hasWkt = wkt && Array.isArray(wkt.exercises) && wkt.exercises.length > 0;
+    var hasWkt = !!(wkt && (
+      (Array.isArray(wkt.exercises) && wkt.exercises.length > 0) ||
+      wkt.type === "yoga" || wkt.type === "physio"
+    ));
+    if (!hasWkt) {
+      var alog = getActionLog();
+      hasWkt = alog.some(function(e) {
+        if (!e || !e.ts) return false;
+        var ed = new Date(e.ts), eds = ed.getFullYear()+"-"+t2(ed.getMonth()+1)+"-"+t2(ed.getDate());
+        return eds === dateStr && (e.type==="yoga"||e.type==="physio"||e.type==="workout");
+      });
+    }
 
     // Check if any list had items added or completed on this day (rough: items whose id date matches)
     loadListData("grocery"); loadListData("todo");
@@ -4327,9 +4338,12 @@ function startYogaTimer() {
 
 function finishYoga() {
   var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
-  saveSession({ id:Date.now(), date:trainTodayStr(), type:'yoga', sessionName:YOGA_TRAIN_NAMES[SS.yFlowIdx], poses:flow.length, duration:YOGA_TRAIN_TOTALS[SS.yFlowIdx], exercises:[] });
+  var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'yoga', sessionName:YOGA_TRAIN_NAMES[SS.yFlowIdx], poses:flow.length, exercises:[] };
+  saveSession(entry);
+  var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
+  pushPersonal();
   closeSessionOverlay();
-  toast("&#x1F64F; Yoga saved!");
+  toast("\u{1F64F} Yoga saved!");
 }
 
 
@@ -4491,9 +4505,12 @@ function physioNext() {
 
 function finishPhysio() {
   var prog = PROGRAMMES_TRAIN[SS.pProgIdx];
-  saveSession({ id:Date.now(), date:trainTodayStr(), type:'physio', sessionName:prog.name.replace(/&amp;/g,"&"), exercises:[] });
+  var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'physio', sessionName:prog.name.replace(/&amp;/g,"&"), exercises:[] };
+  saveSession(entry);
+  var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
+  pushPersonal();
   closeSessionOverlay();
-  toast("&#x1FAB4; Physio saved!");
+  toast("\u{1FAB4} Physio saved!");
 }
 
 
@@ -5160,7 +5177,18 @@ function renderWeekStrip() {
     var isToday = dateStr === today;
 
     var wkt    = getWorkoutForDate(dateStr);
-    var hasWkt = wkt && Array.isArray(wkt.exercises) && wkt.exercises.length > 0;
+    var hasWkt = !!(wkt && (
+      (Array.isArray(wkt.exercises) && wkt.exercises.length > 0) ||
+      wkt.type === "yoga" || wkt.type === "physio"
+    ));
+    if (!hasWkt) {
+      var alog = getActionLog();
+      hasWkt = alog.some(function(e) {
+        if (!e || !e.ts) return false;
+        var ed = new Date(e.ts), eds = ed.getFullYear()+"-"+t2(ed.getMonth()+1)+"-"+t2(ed.getDate());
+        return eds === dateStr && (e.type==="yoga"||e.type==="physio"||e.type==="workout");
+      });
+    }
 
     // Check if any list had items added or completed on this day (rough: items whose id date matches)
     loadListData("grocery"); loadListData("todo");
@@ -5715,12 +5743,15 @@ function finishYoga() {
   saveSession({ id:Date.now(), date:trainTodayStr(), type:'yoga', sessionName:YOGA_TRAIN_NAMES[SS.yFlowIdx], poses:flow.length, duration:YOGA_TRAIN_TOTALS[SS.yFlowIdx], exercises:[] });
   closeSessionOverlay();
   toast("&#x1F64F; Yoga saved!");
+function finishYoga() {
+  var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
+  var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'yoga', sessionName:YOGA_TRAIN_NAMES[SS.yFlowIdx], poses:flow.length, exercises:[] };
+  saveSession(entry);
+  var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
+  pushPersonal();
+  closeSessionOverlay();
+  toast("\u{1F64F} Yoga saved!");
 }
-
-// ============================================================
-// PHYSIO SESSION
-// ============================================================
-function openPhysioSession(progIdx) {
   SS = { type:"physio", pProgIdx:progIdx, pExIdx:0, pSetNum:1, pTime:0, pRunning:false, pPhase:"intro" };
   openSessionOverlay(PROGRAMMES_TRAIN[progIdx].name.replace(/&amp;/g,"&"));
   document.getElementById("sesProgFill").style.background = "#14b8a6";
@@ -5881,9 +5912,12 @@ function physioNext() {
 }
 function finishPhysio() {
   var prog = PROGRAMMES_TRAIN[SS.pProgIdx];
-  saveSession({ id:Date.now(), date:trainTodayStr(), type:'physio', sessionName:prog.name.replace(/&amp;/g,"&"), exercises:[] });
+  var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'physio', sessionName:prog.name.replace(/&amp;/g,"&"), exercises:[] };
+  saveSession(entry);
+  var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
+  pushPersonal();
   closeSessionOverlay();
-  toast("&#x1FAB4; Physio saved!");
+  toast("\u{1FAB4} Physio saved!");
 }
 
 // ============================================================
