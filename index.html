@@ -684,7 +684,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v108 · 2026-05-22 15:35</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v109 · 22/05/2026 16:00</div>
 
   </div>
 </div>
@@ -3149,8 +3149,12 @@ document.getElementById("exportBtn").addEventListener("click", function() {
   ["grocery","todo","travel","personal","baby"].forEach(function(lt){ loadListData(lt); });
   var now=new Date(), pad=function(x){return x<10?"0"+x:""+x;};
   var localDate=now.getFullYear()+"-"+pad(now.getMonth()+1)+"-"+pad(now.getDate());
+  var localTime=pad(now.getHours())+":"+pad(now.getMinutes())+":"+pad(now.getSeconds());
+  var tzOffset=now.getTimezoneOffset(), tzSign=tzOffset<=0?"+":"-", tzAbs=Math.abs(tzOffset);
+  var tzStr=tzSign+pad(Math.floor(tzAbs/60))+":"+pad(tzAbs%60);
+  var localIso=localDate+"T"+localTime+tzStr;
   var exportData = {
-    version:4, exportedAt:now.toISOString(),
+    version:4, exportedAt:localIso,
     lists:{}, notes:{}, customCats:{},
     workouts:getWD(), baby:getBD(),
     action_log:getActionLog(), food_log:getFoodLog(),
