@@ -684,7 +684,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v107 · 2026-05-22 15:20</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v108 · 2026-05-22 15:35</div>
 
   </div>
 </div>
@@ -4241,7 +4241,7 @@ function renderYogaSession() {
       (flow.length>5 ? "<div style='padding:7px 0;font-size:12px;color:#3A5070'>+ "+(flow.length-5)+" more poses</div>" : "");
     body.innerHTML = "<div class='ses-intro'>" +
       "<div class='ses-intro-ico'>&#x1F9D8;</div>" +
-      "<div class='ses-intro-name'>"+YOGA_TRAIN_NAMES[SS.yFlowIdx]+"</div>" +
+      "<div class='ses-intro-name'>"+esc(YOGA_TRAIN_NAMES[SS.yFlowIdx])+"</div>" +
       "<div class='ses-intro-sub'>"+flow.length+" poses &middot; ~"+Math.round(YOGA_TRAIN_TOTALS[SS.yFlowIdx]/60)+" min</div>" +
       "<div style='width:100%;max-width:320px;background:#132040;border-radius:12px;padding:12px 14px;margin-bottom:28px;text-align:left'>"+exList+"</div>" +
       "<button class='ses-begin-btn' style='background:#8b5cf6' onclick='beginYoga()'>Begin practice</button>" +
@@ -5358,7 +5358,7 @@ var YOGA_FLOWS_TRAIN = [
   {name:'Windshield Wipers',sanskrit:'Supta variation',dur:90,cue:'Feet flat, knees bent, feet wider than hips. Let knees drop right then sweep to left. Slow and fluid.'},
   {name:'Savasana',sanskrit:'Savasana',dur:120,cue:'Legs long, feet falling open. Arms by sides, palms up. Eyes fully closed. Every muscle releases.'}]
 ];
-var YOGA_TRAIN_NAMES   = ['Full Body Flow','Hips &amp; Lower Back'];
+var YOGA_TRAIN_NAMES   = ['Full Body Flow','Hips & Lower Back'];
 var YOGA_TRAIN_DESCS   = ['23 poses · ~18 min','18 poses · ~22 min'];
 var YOGA_TRAIN_TOTALS  = YOGA_FLOWS_TRAIN.map(function(f){return f.reduce(function(s,p){return s+p.dur;},0);});
 
@@ -5643,7 +5643,7 @@ function renderYogaSession() {
       (flow.length>5 ? "<div style='padding:7px 0;font-size:12px;color:#3A5070'>+ "+(flow.length-5)+" more poses</div>" : "");
     body.innerHTML = "<div class='ses-intro'>" +
       "<div class='ses-intro-ico'>&#x1F9D8;</div>" +
-      "<div class='ses-intro-name'>"+YOGA_TRAIN_NAMES[SS.yFlowIdx]+"</div>" +
+      "<div class='ses-intro-name'>"+esc(YOGA_TRAIN_NAMES[SS.yFlowIdx])+"</div>" +
       "<div class='ses-intro-sub'>"+flow.length+" poses &middot; ~"+Math.round(YOGA_TRAIN_TOTALS[SS.yFlowIdx]/60)+" min</div>" +
       "<div style='width:100%;max-width:320px;background:#132040;border-radius:12px;padding:12px 14px;margin-bottom:28px;text-align:left'>"+exList+"</div>" +
       "<button class='ses-begin-btn' style='background:#8b5cf6' onclick='beginYoga()'>Begin practice</button>" +
