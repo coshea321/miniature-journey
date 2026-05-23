@@ -685,7 +685,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v111 · 23/05/2026 22:55</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v112 · 23/05/2026 23:05</div>
 
   </div>
 </div>
@@ -3921,186 +3921,18 @@ function renderSyncModal() {
 }
 
 
-function renderHomeScreen() {
-  // ── Greeting ──────────────────────────────────────────────
-  var hour = new Date().getHours();
-  var greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  document.getElementById("homeGreeting").textContent = greet;
-  var d = new Date();
-  var days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  var months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  document.getElementById("homeDateBig").textContent = days[d.getDay()] + ", " + d.getDate() + " " + months[d.getMonth()];
-
-  // ── Life today-card ───────────────────────────────────────
-  loadListData("grocery"); loadListData("todo");
-  var gItems  = (listData.grocery||{items:[]}).items.filter(function(x){ return !x.done; });
-  var tdItems = (listData.todo   ||{items:[]}).items.filter(function(x){ return !x.done; });
-  var lifeTotal = gItems.length + tdItems.length;
-  document.getElementById("tcLifeCount").textContent = lifeTotal;
-  document.getElementById("tcLifeSub").innerHTML =
-    (gItems.length  ? "<span>&#x1F6D2; "+gItems.length+"</span> " : "") +
-    (tdItems.length ? "<span>&#x2705; "+tdItems.length+"</span>"   : "") ||
-    "<span>All clear!</span>";
-
-  // ── Train today-card ──────────────────────────────────────
-  var todayWkt = getWorkoutForDate(trainTodayStr());
-  if (todayWkt && todayWkt.exercises.length) {
-    var exCount = todayWkt.exercises.length;
-    var setCount = 0;
-    for (var i = 0; i < todayWkt.exercises.length; i++) setCount += todayWkt.exercises[i].sets.length;
-    document.getElementById("tcTrainCount").textContent = exCount;
-    document.getElementById("tcTrainLabel").textContent = "exercise" + (exCount !== 1 ? "s" : "");
-    document.getElementById("tcTrainSub").textContent   = setCount + " set" + (setCount !== 1 ? "s" : "") + " logged";
-  } else {
-    document.getElementById("tcTrainCount").textContent = "—";
-    document.getElementById("tcTrainLabel").textContent = "today";
-    document.getElementById("tcTrainSub").textContent   = "No session yet";
-  }
-
-  // ── Grocery spotlight (top 5 undone) ─────────────────────
-  renderSpotlight("homeGrocerySpot", "grocery", 5);
-
-  // ── Todo spotlight (top 4 undone) ────────────────────────
-  renderSpotlight("homeTodoSpot", "todo", 4);
-
-  // ── Week strip ────────────────────────────────────────────
-  renderWeekStrip();
-}
 
 
-function renderSpotlight(elId, lt, maxItems) {
-  loadListData(lt);
-  var items = (listData[lt]||{items:[]}).items.filter(function(x){ return !x.done; }).slice(0, maxItems);
-  var el = document.getElementById(elId);
-  if (!items.length) {
-    el.innerHTML = "<div class='home-empty-spot'>" +
-      (lt === "grocery" ? "&#x1F389; Grocery list is clear" : "&#x1F389; No pending tasks") + "</div>";
-    return;
-  }
-  var cats = getAllCats(lt);
-  var catMap = {};
-  for (var i = 0; i < cats.length; i++) catMap[cats[i].id] = cats[i];
-  var html = "";
-  for (var j = 0; j < items.length; j++) {
-    var item = items[j];
-    var cat  = catMap[item.catId] || catMap["other"] || { emoji:"&#x1F4E6;", name:"Other", bg:"#EDEAE4", fg:"#4A4A3A" };
-    html += "<div class='home-item'>" +
-      "<span class='home-item-emoji'>"+cat.emoji+"</span>" +
-      "<span class='home-item-name'>"+esc(item.name)+"</span>" +
-      "<span class='home-item-cat' style='background:"+cat.bg+";color:"+cat.fg+"'>"+cat.name+"</span>" +
-    "</div>";
-  }
-  el.innerHTML = html;
-}
 
 
-function renderWeekStrip() {
-  var el = document.getElementById("homeWeekStrip");
-  var today = trainTodayStr();
-  var dayLabels = ["Su","Mo","Tu","We","Th","Fr","Sa"];
-  var d = new Date();
-  var todayDow = d.getDay(); // 0=Sun
-  var html = "";
-
-  for (var i = 6; i >= 0; i--) {
-    var date = new Date(d); date.setDate(d.getDate() - i);
-    var dateStr = date.getFullYear() + "-" + t2(date.getMonth()+1) + "-" + t2(date.getDate());
-    var dow  = date.getDay();
-    var label = dayLabels[dow];
-    var isToday = dateStr === today;
-
-    var wkt    = getWorkoutForDate(dateStr);
-    var hasWkt = !!(wkt && (
-      (Array.isArray(wkt.exercises) && wkt.exercises.length > 0) ||
-      wkt.type === "yoga" || wkt.type === "physio"
-    ));
-    if (!hasWkt) {
-      var alog = getActionLog();
-      hasWkt = alog.some(function(e) {
-        if (!e || !e.ts) return false;
-        var ed = new Date(e.ts), eds = ed.getFullYear()+"-"+t2(ed.getMonth()+1)+"-"+t2(ed.getDate());
-        return eds === dateStr && (e.type==="yoga"||e.type==="physio"||e.type==="workout");
-      });
-    }
-
-    // Check if any list had items added or completed on this day (rough: items whose id date matches)
-    loadListData("grocery"); loadListData("todo");
-    var hasListActivity = false;
-    ["grocery","todo"].forEach(function(lt) {
-      var hist = (listData[lt]||{hist:[]}).hist;
-      for (var h = 0; h < hist.length; h++) {
-        if (hist[h].lastUsed) {
-          var hd = new Date(hist[h].lastUsed);
-          var hdStr = hd.getFullYear() + "-" + t2(hd.getMonth()+1) + "-" + t2(hd.getDate());
-          if (hdStr === dateStr) { hasListActivity = true; break; }
-        }
-      }
-    });
-
-    var dotClass = "wk-dot";
-    var dotInner = "";
-    if (hasWkt && hasListActivity) { dotClass += " worked has-list"; dotInner = "&#x2605;"; }
-    else if (hasWkt)               { dotClass += " worked";          dotInner = "&#x2714;"; }
-    else if (hasListActivity)      { dotClass += " has-list";        dotInner = "&#x2714;"; }
-    if (isToday)                   { dotClass += " today-ring"; }
-
-    html += "<div class='wk-day'>" +
-      "<span class='wk-label"+(isToday?" today":"")+"'>"+label+"</span>" +
-      "<div class='"+dotClass+"'>"+dotInner+"</div>" +
-    "</div>";
-  }
-  el.innerHTML = html;
-}
 
 
-function addToHistFor(lt, name, catId) {
-  var hist = loadListData(lt).hist, found = null;
-  for (var i = 0; i < hist.length; i++) { if (hist[i].name.toLowerCase() === name.toLowerCase()) { found = hist[i]; break; } }
-  if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); }
-  else { hist.unshift({ name:name, catId:catId, count:1, lastUsed:Date.now() }); }
-  if (hist.length > 150) listData[lt].hist = hist.slice(0,150);
-}
 
 
-function openHqp(mode, labelText, btnClass, placeholder) {
-  hqpMode = mode;
-  document.getElementById("hqpLabel").textContent   = labelText;
-  document.getElementById("hqpAddBtn").className    = "hqp-add " + btnClass;
-  document.getElementById("homeQuickInput").placeholder = placeholder;
-  document.getElementById("homeQuickInput").value   = "";
-  document.getElementById("homeQuickPanel").style.display = "";
-  setTimeout(function(){ document.getElementById("homeQuickInput").focus(); }, 50);
-}
 
 
-function closeHqp() {
-  document.getElementById("homeQuickPanel").style.display = "none";
-  hqpMode = null;
-}
 
 
-function doHqpAdd() {
-  var name = document.getElementById("homeQuickInput").value.trim();
-  if (!name) return;
-  if (hqpMode === "grocery" || hqpMode === "todo") {
-    var lt = hqpMode;
-    loadListData(lt);
-    var catId = (function(){
-      var low = name.toLowerCase(), kw = LIST_CONFIG[lt].kw;
-      for (var i = 0; i < kw.length; i++) { if (low.indexOf(kw[i][0]) !== -1) return kw[i][1]; }
-      return "other";
-    })();
-    listData[lt].items.unshift({ id: Date.now(), name: name, catId: catId, done: false });
-    addToHistFor(lt, name, catId);
-    storeSet(LIST_CONFIG[lt].key, listData[lt]);
-    toast("Added to " + (lt === "grocery" ? "Grocery" : "To-do") + ": " + name);
-  } else if (hqpMode === "exercise") {
-    doAddExercise(name);
-  }
-  document.getElementById("homeQuickInput").value = "";
-  closeHqp();
-  renderHomeScreen();
-}
 
 
 function doAddExercise(name) {
@@ -4211,13 +4043,6 @@ function closeSessionOverlay() {
 }
 
 
-function openYogaSession(flowIdx) {
-  SS = { type:"yoga", yFlowIdx:flowIdx, yPoseIdx:0, yTime:0, yStarted:false, yPaused:false, yPhase:"intro" };
-  var flow = YOGA_FLOWS_TRAIN[flowIdx];
-  openSessionOverlay(YOGA_TRAIN_NAMES[flowIdx]);
-  document.getElementById("sesProgFill").style.background = "#8b5cf6";
-  renderYogaSession();
-}
 
 
 function beginYoga() {
@@ -4229,79 +4054,10 @@ function beginYoga() {
 }
 
 
-function renderYogaSession() {
-  var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
-  var body = document.getElementById("sesBody");
-
-  // Progress bar
-  if (SS.yPhase === "running") {
-    var elapsed = flow.slice(0,SS.yPoseIdx).reduce(function(a,p){return a+p.dur;},0) + (flow[SS.yPoseIdx].dur - SS.yTime);
-    var total   = YOGA_TRAIN_TOTALS[SS.yFlowIdx];
-    document.getElementById("sesProgFill").style.width = Math.min(elapsed/total*100,100)+"%";
-    document.getElementById("sesCount").textContent = (SS.yPoseIdx+1)+" / "+flow.length;
-  }
-
-  if (SS.yPhase === "intro") {
-    var exList = flow.slice(0,5).map(function(p){ return "<div style='padding:7px 0;border-bottom:1px solid #1C2A3E;font-size:13px;color:#8A9AB0'>"+p.name+"</div>"; }).join("") +
-      (flow.length>5 ? "<div style='padding:7px 0;font-size:12px;color:#3A5070'>+ "+(flow.length-5)+" more poses</div>" : "");
-    body.innerHTML = "<div class='ses-intro'>" +
-      "<div class='ses-intro-ico'>&#x1F9D8;</div>" +
-      "<div class='ses-intro-name'>"+esc(YOGA_TRAIN_NAMES[SS.yFlowIdx])+"</div>" +
-      "<div class='ses-intro-sub'>"+flow.length+" poses &middot; ~"+Math.round(YOGA_TRAIN_TOTALS[SS.yFlowIdx]/60)+" min</div>" +
-      "<div style='width:100%;max-width:320px;background:#132040;border-radius:12px;padding:12px 14px;margin-bottom:28px;text-align:left'>"+exList+"</div>" +
-      "<button class='ses-begin-btn' style='background:#8b5cf6' onclick='beginYoga()'>Begin practice</button>" +
-      "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
-    "</div>";
-    return;
-  }
-
-  if (SS.yPhase === "done") {
-    var dur = YOGA_TRAIN_TOTALS[SS.yFlowIdx];
-    body.innerHTML = "<div class='ses-done-wrap'>" +
-      "<div class='ses-done-ico'>&#x1F64F;</div>" +
-      "<div class='ses-done-title'>Practice complete</div>" +
-      "<div class='ses-done-sub'>Well done. Namaste.<br><small style='color:#2A3A52'>Before rising, roll to your right side first.</small></div>" +
-      "<button class='ses-done-btn' onclick='finishYoga()'>Save &amp; finish</button>" +
-      "<button class='ses-done-link' onclick='openYogaSession(SS.yFlowIdx)'>Do it again</button>" +
-    "</div>";
-    return;
-  }
-
-  // Running
-  var pose = flow[SS.yPoseIdx];
-  var photo = getPosePhoto(pose.name);
-  var photoHtml = photo ? "<img src='"+photo+"' class='ses-pose-photo' alt='"+esc(pose.name)+"'>" : "";
-  var nextPose  = SS.yPoseIdx < flow.length-1 ? "<div class='ses-pose-next'>Next: "+flow[SS.yPoseIdx+1].name+"</div>" : "";
-  body.innerHTML =
-    "<div class='ses-timer-wrap'>" + timerCircle(SS.yTime, pose.dur, "#8b5cf6", SS.yPaused) + "</div>" +
-    "<div class='ses-pose-name'>"+esc(pose.name)+"</div>" +
-    "<div class='ses-pose-sanskrit'>"+pose.sanskrit+"</div>" +
-    photoHtml +
-    "<p class='ses-pose-cue'>"+esc(pose.cue)+"</p>" +
-    nextPose +
-    "<div class='ses-ctrl-row'>" +
-      "<button class='ses-ctrl-btn ses-ctrl-back' data-action='prevYogaPose'>&#x276E;</button>" +
-      "<button class='ses-ctrl-btn' data-action='toggleYogaPause'>"+(SS.yPaused?"Resume":"Pause")+"</button>" +
-      "<button class='ses-ctrl-btn' data-action='skipYogaPose'>Skip &#x276F;</button>" +
-    "</div>" +
-    "<button class='ses-exit-link' onclick=\"confirmDialog('Exit practice?',function(){closeSessionOverlay()})\">Exit practice</button>";
-}
 
 
-function skipYogaPose() {
-  clearST(); playChime();
-  var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx], next = SS.yPoseIdx+1;
-  if (next >= flow.length) { SS.yPhase="done"; renderYogaSession(); }
-  else { SS.yPoseIdx=next; SS.yTime=flow[next].dur; renderYogaSession(); startYogaTimer(); }
-}
 
 
-function toggleYogaPause() {
-  SS.yPaused = !SS.yPaused;
-  if (SS.yPaused) { clearST(); }
-  else { startYogaTimer(); }
-  renderYogaSession();
-}
 
 
 function startYogaTimer() {
@@ -4341,15 +4097,6 @@ function startYogaTimer() {
 }
 
 
-function finishYoga() {
-  var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
-  var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'yoga', sessionName:YOGA_TRAIN_NAMES[SS.yFlowIdx], poses:flow.length, exercises:[] };
-  saveSession(entry);
-  var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
-  pushPersonal();
-  closeSessionOverlay();
-  toast("&#x1F64F; Yoga saved!");
-}
 
 
 function openPhysioSession(progIdx) {
@@ -4369,154 +4116,12 @@ function beginPhysio() {
 }
 
 
-function renderPhysioSession() {
-  var prog = PROGRAMMES_TRAIN[SS.pProgIdx];
-  var body = document.getElementById("sesBody");
-  document.getElementById("sesCount").textContent = (SS.pExIdx+1)+" / "+prog.exercises.length;
-  document.getElementById("sesProgFill").style.width = ((SS.pExIdx/prog.exercises.length)*100)+"%";
-
-  if (SS.pPhase === "intro") {
-    var exList = prog.exercises.map(function(ex,i){
-      return "<div class='ses-intro-ex'>" +
-        "<div class='ses-intro-ex-num' style='background:#14b8a620;color:#14b8a6'>"+(i+1)+"</div>" +
-        "<span class='ses-intro-ex-name'>"+esc(ex.name)+"</span>" +
-        "<span class='ses-intro-ex-note'>"+esc(ex.note)+"</span>" +
-      "</div>";
-    }).join("");
-    body.innerHTML = "<div class='ses-intro'>" +
-      "<div class='ses-intro-ico'>"+prog.icon+"</div>" +
-      "<div class='ses-intro-name'>"+prog.name.replace(/&amp;/g,"&")+"</div>" +
-      "<div class='ses-intro-sub'>"+prog.note+"</div>" +
-      "<div class='ses-intro-list'>"+exList+"</div>" +
-      "<button class='ses-begin-btn' style='background:#14b8a6' onclick='beginPhysio()'>Begin</button>" +
-      "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
-    "</div>";
-    return;
-  }
-
-  if (SS.pPhase === "done") {
-    body.innerHTML = "<div class='ses-done-wrap'>" +
-      "<div class='ses-done-ico'>&#x2705;</div>" +
-      "<div class='ses-done-title'>Physio complete!</div>" +
-      "<div class='ses-done-sub'>"+prog.name.replace(/&amp;/g,"&")+" done. Great work.</div>" +
-      "<button class='ses-done-btn' onclick='finishPhysio()'>Save &amp; finish</button>" +
-      "<button class='ses-done-link' onclick='openPhysioSession(SS.pProgIdx)'>Do it again</button>" +
-    "</div>";
-    return;
-  }
-
-  var ex  = prog.exercises[SS.pExIdx];
-  var totalSets = ex.sets || 1;
-
-  // Set progress dots
-  var dots = "";
-  for (var s = 1; s <= totalSets; s++) {
-    var done   = s < SS.pSetNum;
-    var active = s === SS.pSetNum;
-    dots += "<span style='display:inline-block;width:"+(active?"12px":"8px")+";height:"+(active?"12px":"8px")+";border-radius:50%;background:"+(done?"#14b8a6":active?"#fff":"rgba(255,255,255,.2)")+";margin:0 3px;transition:all .2s'></span>";
-  }
-  var setLabel = ex.perLeg
-    ? (SS.pSetNum === 1 ? "Right side" : "Left side") + (totalSets > 2 ? " · set "+SS.pSetNum+" of "+totalSets : "")
-    : (totalSets > 1 ? "Set "+SS.pSetNum+" of "+totalSets : "");
-
-  var videoHtml = ex.url ? "<a class='ses-video-btn' href='"+ex.url+"' target='_blank' rel='noopener'>&#x25B6; Watch video</a>" : "";
-
-  var timerBlock = "";
-  if (ex.type === "timed" && SS.pTime > 0) {
-    timerBlock = "<div class='ses-timer-wrap'>" + timerCircle(SS.pTime, ex.dur, "#14b8a6", !SS.pRunning) + "</div>";
-  } else {
-    // Reps or timed-zero: big number display
-    timerBlock = "<div class='ses-reps-display'>" +
-      "<div style='font-size:64px;font-weight:800;color:#14b8a6;line-height:1'>" +
-        (ex.type === "reps" ? ex.reps : ex.dur+"s") +
-      "</div>" +
-      "<div style='font-size:15px;color:#8ABFB8;margin-top:6px'>" +
-        (ex.type === "reps" ? "reps" : "hold") +
-      "</div>" +
-    "</div>";
-  }
-
-  var isTimedRunning = ex.type === "timed" && SS.pTime > 0;
-  var nextLabel = (SS.pSetNum < totalSets) ? "Next set" : "Next exercise &#x276F;";
-
-  body.innerHTML =
-    // Exercise name + set label
-    "<div class='ses-pose-name' style='color:#e2e8f0'>"+esc(ex.name)+"</div>" +
-    (setLabel ? "<div class='ses-pose-sanskrit' style='color:#14b8a6'>"+setLabel+"</div>" : "") +
-    // Set dots (only when >1 set)
-    (totalSets > 1 ? "<div style='text-align:center;margin:8px 0 4px'>"+dots+"</div>" : "") +
-    // Timer circle or reps display
-    timerBlock +
-    // Cue text
-    (ex.cue ? "<p class='ses-pose-cue'>"+esc(ex.cue)+"</p>" : "") +
-    // Video link
-    videoHtml +
-    // Controls: Back | Pause/Start | Next
-    "<div class='ses-ctrl-row'>" +
-      "<button class='ses-ctrl-btn ses-ctrl-back' data-action='physioPrev'>&#x276E;</button>" +
-      (isTimedRunning
-        ? "<button class='ses-ctrl-btn' data-action='togglePhysioTimer'>"+(SS.pRunning?"Pause":"Start")+"</button>"
-        : "<button class='ses-ctrl-btn' data-action='physioNext'>"+nextLabel+"</button>"
-      ) +
-      "<button class='ses-ctrl-btn' data-action='physioNext'>"+(isTimedRunning ? "Skip &#x276F;" : (SS.pSetNum < totalSets ? "Skip set" : "Skip &#x276F;"))+"</button>" +
-    "</div>" +
-    "<button class='ses-exit-link' onclick=\"confirmDialog('Exit physio?',function(){closeSessionOverlay()})\">Exit</button>";
-}
 
 
-function togglePhysioTimer() {
-  SS.pRunning = !SS.pRunning;
-  if (SS.pRunning) {
-    clearST();
-    ST = setInterval(function(){
-      SS.pTime--;
-      var svg = document.querySelector("#sesBody svg");
-      if (svg) {
-        var txt = svg.querySelector("text"); if (txt) txt.textContent = SS.pTime;
-        var ex=PROGRAMMES_TRAIN[SS.pProgIdx].exercises[SS.pExIdx];
-        var R=54,circ=2*Math.PI*R,pct=SS.pTime/ex.dur;
-        var circle=svg.querySelectorAll("circle")[1]; if(circle) circle.setAttribute("stroke-dashoffset",circ*(1-pct));
-      }
-      if (SS.pTime<=0) { clearST(); SS.pRunning=false; playChime(); renderPhysioSession(); }
-    },1000);
-  } else {
-    clearST();
-  }
-  // Update button text in place
-  var btn = document.querySelector(".ses-ctrl-btn");
-  if (btn) btn.textContent = SS.pRunning ? "Pause" : "Start";
-}
 
 
-function physioNext() {
-  clearST(); SS.pRunning = false;
-  var prog = PROGRAMMES_TRAIN[SS.pProgIdx], ex = prog.exercises[SS.pExIdx];
-  if (SS.pSetNum < ex.sets) {
-    SS.pSetNum++;
-    SS.pTime = ex.type==="timed" ? ex.dur : 0;
-  } else {
-    var nextEx = SS.pExIdx+1;
-    if (nextEx >= prog.exercises.length) { SS.pPhase="done"; }
-    else {
-      SS.pExIdx  = nextEx;
-      SS.pSetNum = 1;
-      var nex    = prog.exercises[nextEx];
-      SS.pTime   = nex.type==="timed" ? nex.dur : 0;
-    }
-  }
-  renderPhysioSession();
-}
 
 
-function finishPhysio() {
-  var prog = PROGRAMMES_TRAIN[SS.pProgIdx];
-  var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'physio', sessionName:prog.name.replace(/&amp;/g,"&"), exercises:[] };
-  saveSession(entry);
-  var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
-  pushPersonal();
-  closeSessionOverlay();
-  toast("&#x1FAB4; Physio saved!");
-}
 
 
 function openWorkoutSession(wType) {
@@ -5751,25 +5356,6 @@ function skipYogaPose() {
   var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx], next = SS.yPoseIdx+1;
   if (next >= flow.length) { SS.yPhase="done"; renderYogaSession(); }
   else { SS.yPoseIdx=next; SS.yTime=flow[next].dur; renderYogaSession(); startYogaTimer(); }
-}
-function finishYoga() {
-  var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
-  saveSession({ id:Date.now(), date:trainTodayStr(), type:'yoga', sessionName:YOGA_TRAIN_NAMES[SS.yFlowIdx], poses:flow.length, duration:YOGA_TRAIN_TOTALS[SS.yFlowIdx], exercises:[] });
-  closeSessionOverlay();
-  toast("&#x1F64F; Yoga saved!");
-function finishYoga() {
-  var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
-  var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'yoga', sessionName:YOGA_TRAIN_NAMES[SS.yFlowIdx], poses:flow.length, exercises:[] };
-  saveSession(entry);
-  var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
-  pushPersonal();
-  closeSessionOverlay();
-  toast("&#x1F64F; Yoga saved!");
-}
-  SS = { type:"physio", pProgIdx:progIdx, pExIdx:0, pSetNum:1, pTime:0, pRunning:false, pPhase:"intro" };
-  openSessionOverlay(PROGRAMMES_TRAIN[progIdx].name.replace(/&amp;/g,"&"));
-  document.getElementById("sesProgFill").style.background = "#14b8a6";
-  renderPhysioSession();
 }
 
 function renderPhysioSession() {
