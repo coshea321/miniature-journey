@@ -225,6 +225,7 @@ body.home-mode .bn-btn{color:#4A6080}
 .hqp-add{padding:10px 16px;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
 .hqp-add.life{background:#2D6B35;color:#fff}
 .hqp-add.train{background:#3B6FE0;color:#fff}
+.hqp-add.med{background:#6B21A8;color:#fff}
 .hqp-cancel{width:38px;height:38px;border:none;background:rgba(255,255,255,.05);color:#4A6080;border-radius:8px;font-size:16px;cursor:pointer}
 
 /* Section headers */
@@ -684,7 +685,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v109 · 22/05/2026 16:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v111 · 23/05/2026 12:00</div>
 
   </div>
 </div>
@@ -4347,7 +4348,7 @@ function finishYoga() {
   var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
   pushPersonal();
   closeSessionOverlay();
-  toast("\u{1F64F} Yoga saved!");
+  toast("&#x1F64F; Yoga saved!");
 }
 
 
@@ -4514,7 +4515,7 @@ function finishPhysio() {
   var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
   pushPersonal();
   closeSessionOverlay();
-  toast("\u{1FAB4} Physio saved!");
+  toast("&#x1FAB4; Physio saved!");
 }
 
 
@@ -5248,9 +5249,10 @@ function closeHqp() {
   document.getElementById("homeQuickPanel").style.display = "none";
   hqpMode = null;
 }
-document.getElementById("hqGrocery").addEventListener("click",  function(){ openHqp("grocery","Add to Grocery",  "life",  "e.g. Milk, Bread..."); });
-document.getElementById("hqTask").addEventListener("click",     function(){ openHqp("todo",   "Add to To-do",    "life",  "e.g. Call the doctor..."); });
-document.getElementById("hqExercise").addEventListener("click", function(){ openHqp("exercise","Log an Exercise","train", "e.g. Bench Press..."); });
+document.getElementById("hqGrocery").addEventListener("click",  function(){ openHqp("grocery",  "Add to Grocery",   "life",  "e.g. Milk, Bread..."); });
+document.getElementById("hqTask").addEventListener("click",     function(){ openHqp("todo",     "Add to To-do",     "life",  "e.g. Call the doctor..."); });
+document.getElementById("hqExercise").addEventListener("click", function(){ openHqp("exercise", "Log an Exercise",  "train", "e.g. Bench Press..."); });
+document.getElementById("hqMed").addEventListener("click",      function(){ openHqp("medicine", "Log Medicine",     "med",   "Medicine name..."); });
 document.getElementById("hqpCancel").addEventListener("click",  closeHqp);
 
 document.getElementById("hqpAddBtn").addEventListener("click",  doHqpAdd);
@@ -5272,7 +5274,12 @@ function doHqpAdd() {
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
     toast("Added to " + (lt === "grocery" ? "Grocery" : "To-do") + ": " + name);
   } else if (hqpMode === "exercise") {
+  } else if (hqpMode === "exercise") {
     doAddExercise(name);
+  } else if (hqpMode === "medicine") {
+    var bd2 = getBD(); bd2.medicine = bd2.medicine || [];
+    bd2.medicine.unshift({ id:Date.now(), ts:Date.now(), name:name, dose:"", notes:"" });
+    saveBD(bd2); toast("&#x1F48A; Logged: " + name);
   }
   document.getElementById("homeQuickInput").value = "";
   closeHqp();
@@ -5754,7 +5761,7 @@ function finishYoga() {
   var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
   pushPersonal();
   closeSessionOverlay();
-  toast("\u{1F64F} Yoga saved!");
+  toast("&#x1F64F; Yoga saved!");
 }
   SS = { type:"physio", pProgIdx:progIdx, pExIdx:0, pSetNum:1, pTime:0, pRunning:false, pPhase:"intro" };
   openSessionOverlay(PROGRAMMES_TRAIN[progIdx].name.replace(/&amp;/g,"&"));
@@ -5921,7 +5928,7 @@ function finishPhysio() {
   var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
   pushPersonal();
   closeSessionOverlay();
-  toast("\u{1FAB4} Physio saved!");
+  toast("&#x1FAB4; Physio saved!");
 }
 
 // ============================================================
