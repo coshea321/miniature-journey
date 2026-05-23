@@ -685,7 +685,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v111 · 23/05/2026 12:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v111 · 23/05/2026 22:55</div>
 
   </div>
 </div>
@@ -5272,19 +5272,22 @@ function doHqpAdd() {
     listData[lt].items.unshift({ id: Date.now(), name: name, catId: catId, done: false });
     addToHistFor(lt, name, catId);
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
+    saveCurrentList();
     toast("Added to " + (lt === "grocery" ? "Grocery" : "To-do") + ": " + name);
-  } else if (hqpMode === "exercise") {
   } else if (hqpMode === "exercise") {
     doAddExercise(name);
   } else if (hqpMode === "medicine") {
-    var bd2 = getBD(); bd2.medicine = bd2.medicine || [];
-    bd2.medicine.unshift({ id:Date.now(), ts:Date.now(), name:name, dose:"", notes:"" });
-    saveBD(bd2); toast("&#x1F48A; Logged: " + name);
+    var bd2 = getBD();
+    bd2.medicine = bd2.medicine || [];
+    bd2.medicine.unshift({ id: Date.now(), ts: Date.now(), name: name, dose: "", notes: "" });
+    saveBD(bd2);
+    toast("&#x1F48A; Logged: " + name);
   }
   document.getElementById("homeQuickInput").value = "";
   closeHqp();
   renderHomeScreen();
 }
+
 
 function addToHistFor(lt, name, catId) {
   var hist = loadListData(lt).hist, found = null;
