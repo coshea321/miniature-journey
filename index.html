@@ -685,7 +685,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v113 · 23/05/2026 23:46</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v114 · 24/05/2026 08:38</div>
 
   </div>
 </div>
@@ -4723,10 +4723,10 @@ function renderHomeScreen() {
 
   // ── Train today-card ──────────────────────────────────────
   var todayWkt = getWorkoutForDate(trainTodayStr());
-  if (todayWkt && todayWkt.exercises.length) {
+  if (todayWkt && Array.isArray(todayWkt.exercises) && todayWkt.exercises.length) {
     var exCount = todayWkt.exercises.length;
     var setCount = 0;
-    for (var i = 0; i < todayWkt.exercises.length; i++) setCount += todayWkt.exercises[i].sets.length;
+    for (var i = 0; i < todayWkt.exercises.length; i++) setCount += Array.isArray(todayWkt.exercises[i].sets) ? todayWkt.exercises[i].sets.length : 0;
     document.getElementById("tcTrainCount").textContent = exCount;
     document.getElementById("tcTrainLabel").textContent = "exercise" + (exCount !== 1 ? "s" : "");
     document.getElementById("tcTrainSub").textContent   = setCount + " set" + (setCount !== 1 ? "s" : "") + " logged";
@@ -4737,13 +4737,13 @@ function renderHomeScreen() {
   }
 
   // ── Grocery spotlight (top 5 undone) ─────────────────────
-  renderSpotlight("homeGrocerySpot", "grocery", 5);
+  try { renderSpotlight("homeGrocerySpot", "grocery", 5); } catch(e){ console.error("renderSpotlight grocery: "+e.message); }
 
   // ── Todo spotlight (top 4 undone) ────────────────────────
-  renderSpotlight("homeTodoSpot", "todo", 4);
+  try { renderSpotlight("homeTodoSpot", "todo", 4); } catch(e){ console.error("renderSpotlight todo: "+e.message); }
 
   // ── Week strip ────────────────────────────────────────────
-  renderWeekStrip();
+  try { renderWeekStrip(); } catch(e){ console.error("renderWeekStrip: "+e.message); }
 }
 
 function renderSpotlight(elId, lt, maxItems) {
