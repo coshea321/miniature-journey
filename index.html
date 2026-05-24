@@ -685,7 +685,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v114 · 24/05/2026 08:38</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v115 · 24/05/2026 08:55</div>
 
   </div>
 </div>
@@ -4847,7 +4847,7 @@ function openHqp(mode, labelText, btnClass, placeholder) {
   document.getElementById("hqpAddBtn").className    = "hqp-add " + btnClass;
   document.getElementById("homeQuickInput").placeholder = placeholder;
   document.getElementById("homeQuickInput").value   = "";
-  document.getElementById("homeQuickPanel").style.display = "";
+  document.getElementById("homeQuickPanel").style.display = "block";
   setTimeout(function(){ document.getElementById("homeQuickInput").focus(); }, 50);
 }
 function closeHqp() {
@@ -6327,6 +6327,18 @@ if ("serviceWorker" in navigator && !_isPreview) {
     badge.textContent = errors.length;
     badge.style.display = 'block';
   }
+  // Show immediately so user knows debug is active
+  setTimeout(function(){
+    var badge = document.getElementById('dbgBadge');
+    var log = document.getElementById('dbgLog');
+    if (badge && log) {
+      log.innerHTML = '<div style="border-bottom:1px solid #440000;padding:4px 0">&#x2705; Debug active — tap buttons now</div>';
+      badge.textContent = "?";
+      badge.style.background = "#2266cc";
+      badge.style.display = "block";
+    }
+  }, 1500);
+
   window.addEventListener('error', function(e) {
     showDbg('<b>' + (e.message||'Error') + '</b><br>' +
       (e.filename ? e.filename.split('/').pop() + ':' + e.lineno : '') );
