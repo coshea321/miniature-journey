@@ -412,6 +412,15 @@ body.train-mode #toast{background:#132040}
 .set-input:focus{border-color:#3B6FE0}
 .set-del{border:none;background:none;color:#A05050;font-size:14px;cursor:pointer;text-align:center;opacity:.6}
 .set-del:active{opacity:1}
+
+.set-pills-row{display:flex;flex-wrap:wrap;gap:7px;padding:8px 12px 10px}
+.set-pill{min-width:64px;padding:8px 10px;border-radius:9px;border:1.5px solid #1E3050;background:#0A1018;cursor:pointer;text-align:center;touch-action:manipulation;transition:border-color .15s}
+.set-pill:active{border-color:#3B6FE0}
+.set-pill-done{border-color:#2A5090;background:#0F1F38}
+.set-pill-num{font-size:10px;font-weight:700;color:#3A5070;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.set-pill-val{font-size:15px;font-weight:700;color:#C8D8E8;line-height:1}
+.set-pill-reps{font-size:11px;color:#5A7090;margin-top:2px}
+.set-pill-done .set-pill-val{color:#5A9AF8}
 .add-set-btn{margin:2px 12px 10px;padding:7px;border:1.5px dashed #1E3050;border-radius:8px;background:none;color:#5A7090;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;width:calc(100% - 24px);transition:all .15s}
 .add-set-btn:active{border-color:#3B6FE0;color:#3B6FE0}
 
@@ -685,7 +694,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v115 · 24/05/2026 08:55</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v120 · 24/05/2026 10:04</div>
 
   </div>
 </div>
@@ -1309,6 +1318,8 @@ body.train-mode #toast{background:#132040}
   <button onclick="document.getElementById('updateBanner').style.display='none'" style="background:none;border:none;color:#8AAAC0;font-size:18px;cursor:pointer;padding:0 4px;touch-action:manipulation">&#x2715;</button>
 </div>
 <div class="ver">v14</div>
+
+
 
 <script>
 // ============================================================
@@ -3682,11 +3693,11 @@ function playChime(){
 function switchSection(section) {
   currentSection = section;
 
-  document.getElementById("homeSection").style.display  = section === "home"   ? "" : "none";
-  document.getElementById("lifeSection").style.display  = section === "lists"  ? "" : "none";
-  document.getElementById("trainSection").style.display = section === "train"  ? "" : "none";
-  document.getElementById("notesSection").style.display = section === "notes"  ? "" : "none";
-  document.getElementById("babySection").style.display  = section === "baby"   ? "" : "none";
+  document.getElementById("homeSection").style.display  = section === "home"   ? "block" : "none";
+  document.getElementById("lifeSection").style.display  = section === "lists"  ? "block" : "none";
+  document.getElementById("trainSection").style.display = section === "train"  ? "block" : "none";
+  document.getElementById("notesSection").style.display = section === "notes"  ? "block" : "none";
+  document.getElementById("babySection").style.display  = section === "baby"   ? "block" : "none";
 
   document.getElementById("bnHome").className  = "bn-btn" + (section === "home"   ? " home-active"  : "");
   document.getElementById("bnLife").className  = "bn-btn" + (section === "lists"  ? " life-active"  : "");
@@ -3843,6 +3854,85 @@ function physioPrev() {
   }
   renderPhysioSession();
 }
+// ── Cardio log ────────────────────────────────────────────
+var cardioActivity = null;
+
+document.getElementById("cardioChips").addEventListener("click", function(e) {
+  var chip = e.target.closest(".cardio-chip");
+  if (!chip) return;
+  document.querySelectorAll(".cardio-chip").forEach(function(c){ c.classList.remove("sel"); });
+  chip.classList.add("sel");
+  cardioActivity = { name: chip.dataset.activity, met: parseFloat(chip.dataset.met), ico: chip.dataset.ico };
+  document.getElementById("cardioCustomName").value = "";
+  updateCardioEst();
+});
+
+document.getElementById("cardioCustomName").addEventListener("input", function() {
+  if (this.value.trim()) {
+    document.querySelectorAll(".cardio-chip").forEach(function(c){ c.classList.remove("sel"); });
+    cardioActivity = { name: this.value.trim(), met: 5.0, ico: "&#x1F3C3;" };
+  }
+  updateCardioEst();
+});
+
+document.getElementById("cardioDuration").addEventListener("input", updateCardioEst);
+document.getElementById("cardioCalories").addEventListener("input", updateCardioEst);
+
+function updateCardioEst() {
+  var dur = parseFloat(document.getElementById("cardioDuration").value) || 0;
+  var calEl = document.getElementById("cardioCalories");
+  var estEl = document.getElementById("cardioEst");
+  if (cardioActivity && dur > 0 && !calEl.value) {
+    var est = Math.round(cardioActivity.met * 70 * dur / 60);
+    estEl.textContent = "Est. ~" + est + " kcal";
+    calEl.placeholder = "~" + est;
+  } else { estEl.textContent = ""; calEl.placeholder = ""; }
+}
+
+document.getElementById("cardioLogBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
+  var name = (cardioActivity && cardioActivity.name) || document.getElementById("cardioCustomName").value.trim();
+  if (!name) { toast("Select or type an activity"); return; }
+  var dur = parseFloat(document.getElementById("cardioDuration").value) || 0;
+  var cal = parseFloat(document.getElementById("cardioCalories").value) ||
+            (cardioActivity && dur ? Math.round(cardioActivity.met * 70 * dur / 60) : 0);
+  if (!dur && !cal) { toast("Enter duration or calories"); return; }
+  var entry = { id:Date.now(), ts:Date.now(), date:workoutDate, type:"cardio",
+    activity:name, ico:(cardioActivity&&cardioActivity.ico)||"&#x1F3C3;",
+    duration:dur, calories:cal };
+  var al = getActionLog(); al.unshift(entry); storeSet("fl4_action_log", al);
+  pushPersonal();
+  document.getElementById("cardioDuration").value = "";
+  document.getElementById("cardioCalories").value = "";
+  document.getElementById("cardioEst").textContent = "";
+  document.querySelectorAll(".cardio-chip").forEach(function(c){ c.classList.remove("sel"); });
+  cardioActivity = null;
+  renderCardioLog();
+  toast((entry.ico||"&#x1F3C3;")+" "+name+" logged!");
+});
+
+function renderCardioLog() {
+  var el = document.getElementById("cardioHistory"); if (!el) return;
+  var entries = getActionLog().filter(function(e){ return e&&e.type==="cardio"&&e.date===workoutDate; });
+  if (!entries.length) { el.innerHTML = ""; return; }
+  var html = "<div style=\'margin-top:10px\'>";
+  entries.forEach(function(e) {
+    html += "<div class=\'cardio-entry\'><span class=\'cardio-entry-ico\'>"+(e.ico||"&#x1F3C3;")+"</span>" +
+      "<div style=\'flex:1\'><div style=\'font-size:14px;font-weight:600;color:#C8D8E8\'>"+esc(e.activity||"")+"</div>" +
+      "<div style=\'font-size:12px;color:#5A7090\'>"+(e.duration?e.duration+" min":"")+
+      (e.duration&&e.calories?" · ":"")+(e.calories?e.calories+" kcal":"")+"</div></div>" +
+      "<button data-cardio-id=\'"+e.id+"\' style=\'border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;opacity:.5\'>&#x2715;</button></div>";
+  });
+  html += "</div>";
+  el.innerHTML = html;
+  el.querySelectorAll("[data-cardio-id]").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      storeSet("fl4_action_log", getActionLog().filter(function(e){ return e&&e.id!==+btn.dataset.cardioId; }));
+      pushPersonal(); renderCardioLog();
+    });
+  });
+}
+
 document.getElementById("syncBtn").addEventListener("click", function() {
   renderSyncModal();
   document.getElementById("syncOverlay").classList.add("open");
@@ -3944,15 +4034,16 @@ function doAddExercise(name) {
       for (var j=0;j<data.workouts[i].exercises.length;j++) {
         if (data.workouts[i].exercises[j].name.toLowerCase()===name.toLowerCase()) { toast("Already added!"); return; }
       }
-      data.workouts[i].exercises.push({ name:name, sets:[{weight:0,reps:10}] });
-      break;
+      data.workouts[i].exercises.push({ name:name, sets:[{weight:0,reps:0}] });
+      saveWD(data);
+      document.getElementById("exerciseInput").value = "";
+      renderWorkoutLog();
+      openSetSheet(data.workouts[i].exercises.length-1, 0);
+      return;
     }
   }
-  saveWD(data);
-  document.getElementById("exerciseInput").value = "";
-  renderWorkoutLog();
-  toast("Added: "+name);
 }
+
 
 
 function mergeHist(existing, incoming) {
@@ -4343,74 +4434,127 @@ function renderWorkoutLog() {
   for (var ei=0;ei<workout.exercises.length;ei++) {
     var ex=workout.exercises[ei], vol=0;
     for (var si2=0;si2<ex.sets.length;si2++) vol+=(ex.sets[si2].weight||0)*(ex.sets[si2].reps||0);
-    var volStr = vol>0 ? vol.toLocaleString()+" kg vol" : ex.sets.length+" set"+(ex.sets.length!==1?"s":"");
-    var setsHtml="<div class='sets-wrap'><div class='sets-row'><span class='sets-label'>#</span><span class='sets-label'>kg</span><span class='sets-label'>reps</span><span></span></div>";
+    var totalSets = ex.sets.length;
+    var volStr = vol>0 ? vol.toLocaleString()+" kg vol" : "";
+    // Sets summary pills
+    var pillsHtml = "";
     for (var si=0;si<ex.sets.length;si++) {
       var s=ex.sets[si];
-      setsHtml+="<div class='sets-row'><span class='set-num'>"+(si+1)+"</span>" +
-        "<input class='set-input' type='number' min='0' step='0.5' value='"+(s.weight||0)+"' data-ei='"+ei+"' data-si='"+si+"' data-field='weight' inputmode='decimal'>" +
-        "<input class='set-input' type='number' min='0' value='"+(s.reps||0)+"' data-ei='"+ei+"' data-si='"+si+"' data-field='reps' inputmode='numeric'>" +
-        "<button class='set-del' data-ei='"+ei+"' data-si='"+si+"'>&#x2715;</button></div>";
+      var logged = s.reps > 0;
+      pillsHtml += "<div class='set-pill"+(logged?" set-pill-done":"")+"' data-ei='"+ei+"' data-si='"+si+"'>" +
+        "<div class='set-pill-num'>"+(si+1)+"</div>" +
+        (logged
+          ? "<div class='set-pill-val'>"+(s.weight>0?s.weight+"kg":""+(s.reps)+" reps")+"</div><div class='set-pill-reps'>"+(s.weight>0?s.reps+" reps":"")+"</div>"
+          : "<div class='set-pill-val' style='color:#3A5070'>—</div>") +
+        "</div>";
     }
-    setsHtml+="</div>";
-    html+="<div class='exercise-card'>" +
-      "<div class='ex-header'><div class='ex-num'>"+(ei+1)+"</div><span class='ex-name-txt'>"+esc(ex.name)+"</span><span class='ex-vol'>"+volStr+"</span><button class='ex-del' data-ei='"+ei+"'>&#x2715;</button></div>" +
-      setsHtml+"<button class='add-set-btn' data-ei='"+ei+"'>+ Add set</button></div>";
+    html += "<div class='exercise-card'>" +
+      "<div class='ex-header'><div class='ex-num'>"+(ei+1)+"</div><span class='ex-name-txt'>"+esc(ex.name)+"</span>" +
+      (volStr?"<span class='ex-vol'>"+volStr+"</span>":"") +
+      "<button class='ex-del' data-ei='"+ei+"' style='margin-left:auto'>&#x2715;</button></div>" +
+      "<div class='set-pills-row'>"+pillsHtml+"</div>" +
+      "<button class='add-set-btn' data-ei='"+ei+"'>+ Add set</button></div>";
   }
   el.innerHTML = html;
   wireWorkoutLog();
 }
 
 
+// ── Set sheet state ───────────────────────────────────────
+var _ssEi = 0, _ssSi = 0;
+
+function openSetSheet(ei, si) {
+  var workout = getWorkoutForDate(workoutDate);
+  if (!workout) return;
+  var ex = workout.exercises[ei];
+  var set = ex.sets[si] || { weight: 0, reps: 0 };
+  _ssEi = ei; _ssSi = si;
+  document.getElementById("setSheetExName").textContent = ex.name;
+  document.getElementById("setSheetSetLabel").textContent = "Set " + (si+1) + " of " + ex.sets.length;
+  document.getElementById("setSheetWeight").value = set.weight || 0;
+  document.getElementById("setSheetReps").value   = set.reps   || 0;
+  document.getElementById("setSheet").style.display = "block";
+  document.getElementById("setSheetBackdrop").style.display = "block";
+  document.body.style.overflow = "hidden";
+  setTimeout(function(){ document.getElementById("setSheetWeight").focus(); }, 100);
+}
+
+function closeSetSheet() {
+  document.getElementById("setSheet").style.display = "none";
+  document.getElementById("setSheetBackdrop").style.display = "none";
+  document.body.style.overflow = "";
+}
+
+// Wire sheet buttons once — runs after DOM is ready
+window.addEventListener("DOMContentLoaded", function() {
+  function adj(id, delta) {
+    var inp = document.getElementById(id);
+    var step = id === "setSheetWeight" ? 0.5 : 1;
+    var val = (parseFloat(inp.value) || 0) + delta * step;
+    inp.value = Math.max(0, val);
+  }
+  document.getElementById("setSheetWtMinus").addEventListener("click", function(){ adj("setSheetWeight", -1); });
+  document.getElementById("setSheetWtPlus").addEventListener("click",  function(){ adj("setSheetWeight",  1); });
+  document.getElementById("setSheetRepMinus").addEventListener("click", function(){ adj("setSheetReps", -1); });
+  document.getElementById("setSheetRepPlus").addEventListener("click",  function(){ adj("setSheetReps",  1); });
+  document.getElementById("setSheetCancel").addEventListener("click", closeSetSheet);
+  document.getElementById("setSheetBackdrop").addEventListener("click", closeSetSheet);
+  document.getElementById("setSheetLogBtn").addEventListener("click", function() {
+    var wt  = parseFloat(document.getElementById("setSheetWeight").value) || 0;
+    var rep = parseInt(document.getElementById("setSheetReps").value)     || 0;
+    var data = getWD();
+    for (var i=0;i<data.workouts.length;i++) {
+      if (data.workouts[i].date===workoutDate) {
+        data.workouts[i].exercises[_ssEi].sets[_ssSi] = { weight: wt, reps: rep };
+        break;
+      }
+    }
+    saveWD(data);
+    closeSetSheet();
+    renderWorkoutLog();
+    var ex = getWorkoutForDate(workoutDate).exercises[_ssEi];
+    toast("&#x2713; " + ex.name + " — set "+(_ssSi+1)+": "+(wt>0?wt+"kg × ":"")+rep+" reps");
+  });
+});
+
 function wireWorkoutLog() {
-  document.querySelectorAll(".set-input").forEach(function(inp) {
-    inp.addEventListener("change", function() {
-      var data=getWD();
-      for (var i=0;i<data.workouts.length;i++) {
-        if (data.workouts[i].date===workoutDate) {
-          data.workouts[i].exercises[+inp.dataset.ei].sets[+inp.dataset.si][inp.dataset.field]=parseFloat(inp.value)||0;
-          break;
-        }
-      }
-      saveWD(data);
+  // Set pills → open sheet to edit
+  document.querySelectorAll(".set-pill").forEach(function(pill) {
+    pill.addEventListener("click", function() {
+      openSetSheet(+pill.dataset.ei, +pill.dataset.si);
     });
   });
-  document.querySelectorAll(".set-del").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      var data=getWD(),ei=+btn.dataset.ei,si=+btn.dataset.si;
-      for (var i=0;i<data.workouts.length;i++) {
-        if (data.workouts[i].date===workoutDate) {
-          data.workouts[i].exercises[ei].sets.splice(si,1);
-          if (!data.workouts[i].exercises[ei].sets.length) data.workouts[i].exercises.splice(ei,1);
-          break;
-        }
-      }
-      saveWD(data); renderWorkoutLog();
-    });
-  });
+  // Delete exercise
   document.querySelectorAll(".ex-del").forEach(function(btn) {
     btn.addEventListener("click", function() {
-      var data=getWD();
-      for (var i=0;i<data.workouts.length;i++) {
-        if (data.workouts[i].date===workoutDate) { data.workouts[i].exercises.splice(+btn.dataset.ei,1); break; }
-      }
-      saveWD(data); renderWorkoutLog();
+      confirmDialog("Remove " + (getWorkoutForDate(workoutDate).exercises[+btn.dataset.ei]||{}).name + "?", function() {
+        var data=getWD();
+        for (var i=0;i<data.workouts.length;i++) {
+          if (data.workouts[i].date===workoutDate) { data.workouts[i].exercises.splice(+btn.dataset.ei,1); break; }
+        }
+        saveWD(data); renderWorkoutLog();
+      });
     });
   });
+  // Add set → open sheet on the new (empty) set
   document.querySelectorAll(".add-set-btn").forEach(function(btn) {
     btn.addEventListener("click", function() {
-      var data=getWD(),ei=+btn.dataset.ei;
+      var ei = +btn.dataset.ei;
+      var data=getWD();
       for (var i=0;i<data.workouts.length;i++) {
         if (data.workouts[i].date===workoutDate) {
           var sets=data.workouts[i].exercises[ei].sets;
-          var prev=sets.length?sets[sets.length-1]:{weight:0,reps:10};
-          sets.push({weight:prev.weight,reps:prev.reps});
-          break;
+          var prev=sets.length?sets[sets.length-1]:{weight:0,reps:0};
+          sets.push({weight:prev.weight, reps:0});
+          saveWD(data);
+          renderWorkoutLog();
+          openSetSheet(ei, sets.length-1);
+          return;
         }
       }
-      saveWD(data); renderWorkoutLog();
     });
   });
+  renderCardioLog();
 }
 
 
@@ -4723,10 +4867,10 @@ function renderHomeScreen() {
 
   // ── Train today-card ──────────────────────────────────────
   var todayWkt = getWorkoutForDate(trainTodayStr());
-  if (todayWkt && Array.isArray(todayWkt.exercises) && todayWkt.exercises.length) {
+  if (todayWkt && Array.isArray(todayWkt.exercises) && todayWkt.exercises.length && todayWkt.type !== "yoga" && todayWkt.type !== "physio") {
     var exCount = todayWkt.exercises.length;
     var setCount = 0;
-    for (var i = 0; i < todayWkt.exercises.length; i++) setCount += Array.isArray(todayWkt.exercises[i].sets) ? todayWkt.exercises[i].sets.length : 0;
+    for (var i = 0; i < todayWkt.exercises.length; i++) { var ex2 = todayWkt.exercises[i]; setCount += (ex2 && Array.isArray(ex2.sets)) ? ex2.sets.length : 0; }
     document.getElementById("tcTrainCount").textContent = exCount;
     document.getElementById("tcTrainLabel").textContent = "exercise" + (exCount !== 1 ? "s" : "");
     document.getElementById("tcTrainSub").textContent   = setCount + " set" + (setCount !== 1 ? "s" : "") + " logged";
@@ -5122,15 +5266,16 @@ function doAddExercise(name) {
       for (var j=0;j<data.workouts[i].exercises.length;j++) {
         if (data.workouts[i].exercises[j].name.toLowerCase()===name.toLowerCase()) { toast("Already added!"); return; }
       }
-      data.workouts[i].exercises.push({ name:name, sets:[{weight:0,reps:10}] });
-      break;
+      data.workouts[i].exercises.push({ name:name, sets:[{weight:0,reps:0}] });
+      saveWD(data);
+      document.getElementById("exerciseInput").value = "";
+      renderWorkoutLog();
+      openSetSheet(data.workouts[i].exercises.length-1, 0);
+      return;
     }
   }
-  saveWD(data);
-  document.getElementById("exerciseInput").value = "";
-  renderWorkoutLog();
-  toast("Added: "+name);
 }
+
 
 (function buildChips(){
   var el = document.getElementById("quickChips"), html="";
@@ -5752,73 +5897,126 @@ function renderWorkoutLog() {
   for (var ei=0;ei<workout.exercises.length;ei++) {
     var ex=workout.exercises[ei], vol=0;
     for (var si2=0;si2<ex.sets.length;si2++) vol+=(ex.sets[si2].weight||0)*(ex.sets[si2].reps||0);
-    var volStr = vol>0 ? vol.toLocaleString()+" kg vol" : ex.sets.length+" set"+(ex.sets.length!==1?"s":"");
-    var setsHtml="<div class='sets-wrap'><div class='sets-row'><span class='sets-label'>#</span><span class='sets-label'>kg</span><span class='sets-label'>reps</span><span></span></div>";
+    var totalSets = ex.sets.length;
+    var volStr = vol>0 ? vol.toLocaleString()+" kg vol" : "";
+    // Sets summary pills
+    var pillsHtml = "";
     for (var si=0;si<ex.sets.length;si++) {
       var s=ex.sets[si];
-      setsHtml+="<div class='sets-row'><span class='set-num'>"+(si+1)+"</span>" +
-        "<input class='set-input' type='number' min='0' step='0.5' value='"+(s.weight||0)+"' data-ei='"+ei+"' data-si='"+si+"' data-field='weight' inputmode='decimal'>" +
-        "<input class='set-input' type='number' min='0' value='"+(s.reps||0)+"' data-ei='"+ei+"' data-si='"+si+"' data-field='reps' inputmode='numeric'>" +
-        "<button class='set-del' data-ei='"+ei+"' data-si='"+si+"'>&#x2715;</button></div>";
+      var logged = s.reps > 0;
+      pillsHtml += "<div class='set-pill"+(logged?" set-pill-done":"")+"' data-ei='"+ei+"' data-si='"+si+"'>" +
+        "<div class='set-pill-num'>"+(si+1)+"</div>" +
+        (logged
+          ? "<div class='set-pill-val'>"+(s.weight>0?s.weight+"kg":""+(s.reps)+" reps")+"</div><div class='set-pill-reps'>"+(s.weight>0?s.reps+" reps":"")+"</div>"
+          : "<div class='set-pill-val' style='color:#3A5070'>—</div>") +
+        "</div>";
     }
-    setsHtml+="</div>";
-    html+="<div class='exercise-card'>" +
-      "<div class='ex-header'><div class='ex-num'>"+(ei+1)+"</div><span class='ex-name-txt'>"+esc(ex.name)+"</span><span class='ex-vol'>"+volStr+"</span><button class='ex-del' data-ei='"+ei+"'>&#x2715;</button></div>" +
-      setsHtml+"<button class='add-set-btn' data-ei='"+ei+"'>+ Add set</button></div>";
+    html += "<div class='exercise-card'>" +
+      "<div class='ex-header'><div class='ex-num'>"+(ei+1)+"</div><span class='ex-name-txt'>"+esc(ex.name)+"</span>" +
+      (volStr?"<span class='ex-vol'>"+volStr+"</span>":"") +
+      "<button class='ex-del' data-ei='"+ei+"' style='margin-left:auto'>&#x2715;</button></div>" +
+      "<div class='set-pills-row'>"+pillsHtml+"</div>" +
+      "<button class='add-set-btn' data-ei='"+ei+"'>+ Add set</button></div>";
   }
   el.innerHTML = html;
   wireWorkoutLog();
 }
 
+// ── Set sheet state ───────────────────────────────────────
+var _ssEi = 0, _ssSi = 0;
+
+function openSetSheet(ei, si) {
+  var workout = getWorkoutForDate(workoutDate);
+  if (!workout) return;
+  var ex = workout.exercises[ei];
+  var set = ex.sets[si] || { weight: 0, reps: 0 };
+  _ssEi = ei; _ssSi = si;
+  document.getElementById("setSheetExName").textContent = ex.name;
+  document.getElementById("setSheetSetLabel").textContent = "Set " + (si+1) + " of " + ex.sets.length;
+  document.getElementById("setSheetWeight").value = set.weight || 0;
+  document.getElementById("setSheetReps").value   = set.reps   || 0;
+  document.getElementById("setSheet").style.display = "block";
+  document.getElementById("setSheetBackdrop").style.display = "block";
+  document.body.style.overflow = "hidden";
+  setTimeout(function(){ document.getElementById("setSheetWeight").focus(); }, 100);
+}
+
+function closeSetSheet() {
+  document.getElementById("setSheet").style.display = "none";
+  document.getElementById("setSheetBackdrop").style.display = "none";
+  document.body.style.overflow = "";
+}
+
+// Wire sheet buttons once — runs after DOM is ready
+window.addEventListener("DOMContentLoaded", function() {
+  function adj(id, delta) {
+    var inp = document.getElementById(id);
+    var step = id === "setSheetWeight" ? 0.5 : 1;
+    var val = (parseFloat(inp.value) || 0) + delta * step;
+    inp.value = Math.max(0, val);
+  }
+  document.getElementById("setSheetWtMinus").addEventListener("click", function(){ adj("setSheetWeight", -1); });
+  document.getElementById("setSheetWtPlus").addEventListener("click",  function(){ adj("setSheetWeight",  1); });
+  document.getElementById("setSheetRepMinus").addEventListener("click", function(){ adj("setSheetReps", -1); });
+  document.getElementById("setSheetRepPlus").addEventListener("click",  function(){ adj("setSheetReps",  1); });
+  document.getElementById("setSheetCancel").addEventListener("click", closeSetSheet);
+  document.getElementById("setSheetBackdrop").addEventListener("click", closeSetSheet);
+  document.getElementById("setSheetLogBtn").addEventListener("click", function() {
+    var wt  = parseFloat(document.getElementById("setSheetWeight").value) || 0;
+    var rep = parseInt(document.getElementById("setSheetReps").value)     || 0;
+    var data = getWD();
+    for (var i=0;i<data.workouts.length;i++) {
+      if (data.workouts[i].date===workoutDate) {
+        data.workouts[i].exercises[_ssEi].sets[_ssSi] = { weight: wt, reps: rep };
+        break;
+      }
+    }
+    saveWD(data);
+    closeSetSheet();
+    renderWorkoutLog();
+    var ex = getWorkoutForDate(workoutDate).exercises[_ssEi];
+    toast("&#x2713; " + ex.name + " — set "+(_ssSi+1)+": "+(wt>0?wt+"kg × ":"")+rep+" reps");
+  });
+});
+
 function wireWorkoutLog() {
-  document.querySelectorAll(".set-input").forEach(function(inp) {
-    inp.addEventListener("change", function() {
-      var data=getWD();
-      for (var i=0;i<data.workouts.length;i++) {
-        if (data.workouts[i].date===workoutDate) {
-          data.workouts[i].exercises[+inp.dataset.ei].sets[+inp.dataset.si][inp.dataset.field]=parseFloat(inp.value)||0;
-          break;
-        }
-      }
-      saveWD(data);
+  // Set pills → open sheet to edit
+  document.querySelectorAll(".set-pill").forEach(function(pill) {
+    pill.addEventListener("click", function() {
+      openSetSheet(+pill.dataset.ei, +pill.dataset.si);
     });
   });
-  document.querySelectorAll(".set-del").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      var data=getWD(),ei=+btn.dataset.ei,si=+btn.dataset.si;
-      for (var i=0;i<data.workouts.length;i++) {
-        if (data.workouts[i].date===workoutDate) {
-          data.workouts[i].exercises[ei].sets.splice(si,1);
-          if (!data.workouts[i].exercises[ei].sets.length) data.workouts[i].exercises.splice(ei,1);
-          break;
-        }
-      }
-      saveWD(data); renderWorkoutLog();
-    });
-  });
+  // Delete exercise
   document.querySelectorAll(".ex-del").forEach(function(btn) {
     btn.addEventListener("click", function() {
-      var data=getWD();
-      for (var i=0;i<data.workouts.length;i++) {
-        if (data.workouts[i].date===workoutDate) { data.workouts[i].exercises.splice(+btn.dataset.ei,1); break; }
-      }
-      saveWD(data); renderWorkoutLog();
+      confirmDialog("Remove " + (getWorkoutForDate(workoutDate).exercises[+btn.dataset.ei]||{}).name + "?", function() {
+        var data=getWD();
+        for (var i=0;i<data.workouts.length;i++) {
+          if (data.workouts[i].date===workoutDate) { data.workouts[i].exercises.splice(+btn.dataset.ei,1); break; }
+        }
+        saveWD(data); renderWorkoutLog();
+      });
     });
   });
+  // Add set → open sheet on the new (empty) set
   document.querySelectorAll(".add-set-btn").forEach(function(btn) {
     btn.addEventListener("click", function() {
-      var data=getWD(),ei=+btn.dataset.ei;
+      var ei = +btn.dataset.ei;
+      var data=getWD();
       for (var i=0;i<data.workouts.length;i++) {
         if (data.workouts[i].date===workoutDate) {
           var sets=data.workouts[i].exercises[ei].sets;
-          var prev=sets.length?sets[sets.length-1]:{weight:0,reps:10};
-          sets.push({weight:prev.weight,reps:prev.reps});
-          break;
+          var prev=sets.length?sets[sets.length-1]:{weight:0,reps:0};
+          sets.push({weight:prev.weight, reps:0});
+          saveWD(data);
+          renderWorkoutLog();
+          openSetSheet(ei, sets.length-1);
+          return;
         }
       }
-      saveWD(data); renderWorkoutLog();
     });
   });
+  renderCardioLog();
 }
 
 // ── History ───────────────────────────────────────────────
@@ -6165,7 +6363,7 @@ function renderTeeth() {
       var id=btn.dataset.tooth; toothPending=id;
       var bd2=getBD(), erupted2=!!(bd2.teeth&&bd2.teeth[id]);
       var modal=document.getElementById("toothModal");
-      var nameEl=document.getElementById("toothName"), eruptBtn=document.getElementById("toothEruptBtn");
+      var nameEl=document.getElementById("toothModalName"), eruptBtn=document.getElementById("toothEruptBtn");
       if(nameEl) nameEl.textContent=TOOTH_NAMES[id]||id;
       if(eruptBtn) eruptBtn.textContent=erupted2?"✓ Mark as not yet erupted":"Mark as erupted";
       if(modal) modal.classList.add("open");
@@ -6315,45 +6513,40 @@ if ("serviceWorker" in navigator && !_isPreview) {
 // ── Debug overlay (temporary) ─────────────────────────────
 (function() {
   var errors = [];
-  function showDbg(msg) {
-    errors.push(msg);
-    var log = document.getElementById('dbgLog');
+  function showDbg(type, msg) {
+    errors.push({ type: type, msg: msg.substring(0, 300) });
+    var log   = document.getElementById('dbgLog');
     var badge = document.getElementById('dbgBadge');
-    var box = document.getElementById('dbgBox');
     if (!log || !badge) return;
-    log.innerHTML = errors.map(function(e,i) {
-      return '<div style="border-bottom:1px solid #440000;padding:4px 0">' + (i+1) + '. ' + e + '</div>';
+    log.innerHTML = errors.map(function(e, i) {
+      var col = e.type==='error' ? '#ff6666' : e.type==='warn' ? '#ffaa44' : '#88ddff';
+      return '<div style="border-bottom:1px solid #440000;padding:4px 0;color:'+col+'">'+(i+1)+'. '+e.msg+'</div>';
     }).join('');
     badge.textContent = errors.length;
+    badge.style.background = errors.some(function(e){ return e.type==='error'; }) ? '#ff4444' : '#ffaa44';
     badge.style.display = 'block';
   }
-  // Show immediately so user knows debug is active
-  setTimeout(function(){
-    var badge = document.getElementById('dbgBadge');
-    var log = document.getElementById('dbgLog');
-    if (badge && log) {
-      log.innerHTML = '<div style="border-bottom:1px solid #440000;padding:4px 0">&#x2705; Debug active — tap buttons now</div>';
-      badge.textContent = "?";
-      badge.style.background = "#2266cc";
-      badge.style.display = "block";
-    }
-  }, 1500);
-
   window.addEventListener('error', function(e) {
-    showDbg('<b>' + (e.message||'Error') + '</b><br>' +
-      (e.filename ? e.filename.split('/').pop() + ':' + e.lineno : '') );
+    showDbg('error', '<b>'+(e.message||'Error')+'</b> '+(e.filename?e.filename.split('/').pop()+':'+e.lineno:''));
   });
   window.addEventListener('unhandledrejection', function(e) {
-    var msg = e.reason ? (e.reason.message || String(e.reason)) : 'Unhandled promise rejection';
-    showDbg('<b>' + msg + '</b>');
+    showDbg('error', '<b>'+((e.reason&&e.reason.message)||String(e.reason)||'Promise rejection')+'</b>');
   });
-  // Patch console.error too
   var _ce = console.error.bind(console);
-  console.error = function() {
-    var msg = Array.from(arguments).join(' ');
-    showDbg(msg.substring(0, 200));
-    _ce.apply(console, arguments);
-  };
+  console.error = function() { showDbg('error', Array.from(arguments).join(' ')); _ce.apply(console, arguments); };
+  var _cw = console.warn.bind(console);
+  console.warn  = function() { showDbg('warn',  Array.from(arguments).join(' ')); _cw.apply(console, arguments); };
+  setTimeout(function() {
+    var badge = document.getElementById('dbgBadge');
+    var log   = document.getElementById('dbgLog');
+    if (!badge) return;
+    if (errors.length === 0) {
+      log.innerHTML = '<div style="padding:4px 0">&#x2705; No errors yet</div>';
+      badge.textContent = '0';
+      badge.style.background = '#2266cc';
+      badge.style.display = 'block';
+    }
+  }, 2000);
 })();
 
 </script>
@@ -6367,6 +6560,35 @@ if ("serviceWorker" in navigator && !_isPreview) {
   <div id="dbgLog"></div>
 </div>
 <div id="dbgBadge" style="display:none;position:fixed;bottom:75px;right:8px;z-index:10000;background:#ff4444;color:#fff;border-radius:50%;width:28px;height:28px;font-size:12px;font-weight:700;text-align:center;line-height:28px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5)" onclick="document.getElementById('dbgBox').style.display='block';this.style.display='none'">!</div>
+
+
+<!-- Set logging bottom sheet -->
+<div id="setSheet" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:700;background:#0D1B2E;border-top:1.5px solid #1E3050;border-radius:18px 18px 0 0;padding:18px 16px 32px;box-shadow:0 -8px 32px rgba(0,0,0,.6);max-width:480px;margin:0 auto">
+  <div style="width:36px;height:4px;background:#1E3050;border-radius:2px;margin:0 auto 16px"></div>
+  <div id="setSheetExName" style="font-size:16px;font-weight:700;color:#E8EDF2;margin-bottom:4px"></div>
+  <div id="setSheetSetLabel" style="font-size:12px;color:#5A7090;margin-bottom:16px"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+    <div>
+      <div style="font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Weight (kg)</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button id="setSheetWtMinus" style="width:36px;height:36px;border:1.5px solid #1E3050;border-radius:8px;background:none;color:#C8D8E8;font-size:18px;cursor:pointer;touch-action:manipulation;flex-shrink:0">−</button>
+        <input id="setSheetWeight" type="number" min="0" step="0.5" inputmode="decimal" style="flex:1;padding:8px;border:1.5px solid #1E3050;border-radius:8px;background:#0A1018;color:#E8EDF2;font-size:18px;font-weight:700;text-align:center;font-family:inherit;outline:none;min-width:0">
+        <button id="setSheetWtPlus" style="width:36px;height:36px;border:1.5px solid #1E3050;border-radius:8px;background:none;color:#C8D8E8;font-size:18px;cursor:pointer;touch-action:manipulation;flex-shrink:0">+</button>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Reps</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button id="setSheetRepMinus" style="width:36px;height:36px;border:1.5px solid #1E3050;border-radius:8px;background:none;color:#C8D8E8;font-size:18px;cursor:pointer;touch-action:manipulation;flex-shrink:0">−</button>
+        <input id="setSheetReps" type="number" min="0" step="1" inputmode="numeric" style="flex:1;padding:8px;border:1.5px solid #1E3050;border-radius:8px;background:#0A1018;color:#E8EDF2;font-size:18px;font-weight:700;text-align:center;font-family:inherit;outline:none;min-width:0">
+        <button id="setSheetRepPlus" style="width:36px;height:36px;border:1.5px solid #1E3050;border-radius:8px;background:none;color:#C8D8E8;font-size:18px;cursor:pointer;touch-action:manipulation;flex-shrink:0">+</button>
+      </div>
+    </div>
+  </div>
+  <button id="setSheetLogBtn" style="width:100%;padding:14px;border:none;background:#3B6FE0;color:#fff;border-radius:11px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation">&#x2713; Log set</button>
+  <button id="setSheetCancel" style="width:100%;padding:10px;border:none;background:none;color:#5A7090;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;margin-top:6px">Cancel</button>
+</div>
+<div id="setSheetBackdrop" style="display:none;position:fixed;inset:0;z-index:699;background:rgba(0,0,0,.4)"></div>
 
 </body>
 </html>
