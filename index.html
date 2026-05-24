@@ -685,7 +685,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v112 · 23/05/2026 23:05</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v113 · 23/05/2026 23:46</div>
 
   </div>
 </div>
@@ -6311,6 +6311,50 @@ if ("serviceWorker" in navigator && !_isPreview) {
   });
 }
 
+
+// ── Debug overlay (temporary) ─────────────────────────────
+(function() {
+  var errors = [];
+  function showDbg(msg) {
+    errors.push(msg);
+    var log = document.getElementById('dbgLog');
+    var badge = document.getElementById('dbgBadge');
+    var box = document.getElementById('dbgBox');
+    if (!log || !badge) return;
+    log.innerHTML = errors.map(function(e,i) {
+      return '<div style="border-bottom:1px solid #440000;padding:4px 0">' + (i+1) + '. ' + e + '</div>';
+    }).join('');
+    badge.textContent = errors.length;
+    badge.style.display = 'block';
+  }
+  window.addEventListener('error', function(e) {
+    showDbg('<b>' + (e.message||'Error') + '</b><br>' +
+      (e.filename ? e.filename.split('/').pop() + ':' + e.lineno : '') );
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    var msg = e.reason ? (e.reason.message || String(e.reason)) : 'Unhandled promise rejection';
+    showDbg('<b>' + msg + '</b>');
+  });
+  // Patch console.error too
+  var _ce = console.error.bind(console);
+  console.error = function() {
+    var msg = Array.from(arguments).join(' ');
+    showDbg(msg.substring(0, 200));
+    _ce.apply(console, arguments);
+  };
+})();
+
 </script>
+
+<!-- DEBUG OVERLAY (temporary) -->
+<div id="dbgBox" style="display:none;position:fixed;bottom:70px;right:8px;z-index:9999;background:#1a0000;border:1.5px solid #ff4444;border-radius:10px;max-width:calc(100vw - 16px);max-height:50vh;overflow-y:auto;font-size:11px;font-family:monospace;color:#ff9999;padding:8px 10px;box-shadow:0 4px 20px rgba(0,0,0,.8)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+    <strong style="color:#ff4444">&#x1F41B; Errors</strong>
+    <button onclick="document.getElementById('dbgBox').style.display='none'" style="background:none;border:none;color:#ff9999;font-size:16px;cursor:pointer;padding:0 4px">&#x2715;</button>
+  </div>
+  <div id="dbgLog"></div>
+</div>
+<div id="dbgBadge" style="display:none;position:fixed;bottom:75px;right:8px;z-index:10000;background:#ff4444;color:#fff;border-radius:50%;width:28px;height:28px;font-size:12px;font-weight:700;text-align:center;line-height:28px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5)" onclick="document.getElementById('dbgBox').style.display='block';this.style.display='none'">!</div>
+
 </body>
 </html>
