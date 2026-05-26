@@ -171,6 +171,33 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 .note-rich hr{border:none;border-top:1px solid #D8D0C0;margin:8px 0}
 .note-rich s{text-decoration:line-through;opacity:.7}
 .ver{text-align:center;padding:6px;font-size:10px;color:#ccc;position:fixed;bottom:0;left:0;right:0;pointer-events:none;z-index:1}
+/* ============================================================
+   FLARE / RECOVERY MODE
+   ============================================================ */
+.flare-banner{border-radius:13px;padding:14px 14px 12px;margin-bottom:12px;border:1px solid transparent}
+.flare-banner-title{font-family:Georgia,serif;font-size:16px;font-weight:600;margin-bottom:3px}
+.flare-banner-sub{font-size:12px;line-height:1.6;opacity:.85;margin-bottom:10px}
+.flare-btn-row{display:flex;gap:8px;flex-wrap:wrap}
+.flare-action-btn{flex:1;min-width:100px;padding:10px 12px;border:none;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;white-space:nowrap}
+.recovery-dots{display:flex;gap:8px;align-items:center;margin-bottom:4px}
+.recovery-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;border:2px solid transparent}
+.flare-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:none;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent;margin-bottom:12px}
+.flare-enter-row{display:flex;justify-content:flex-end;margin-bottom:12px}
+.prog-rest-card{border-radius:12px;padding:13px;margin-bottom:10px;border:1px solid #3A1A0040;background:linear-gradient(135deg,#1A0A00,#2A1408);text-align:center}
+.prog-rest-icon{font-size:28px;margin-bottom:6px}
+.prog-rest-label{font-size:13px;color:#A07050;line-height:1.5}
+/* Flare mode modal */
+#flareModeOverlay{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.55);z-index:600;align-items:flex-end}
+#flareModeOverlay.open{display:flex}
+.flare-modal{background:#0D1B2E;width:100%;max-width:480px;margin:0 auto;border-radius:18px 18px 0 0;padding:20px 16px 36px;max-height:85vh;overflow-y:auto}
+.flare-modal-title{font-family:Georgia,serif;font-size:19px;color:#E8EDF2;text-align:center;margin-bottom:4px}
+.flare-modal-sub{font-size:13px;color:#5A7090;text-align:center;margin-bottom:18px;line-height:1.5}
+.flare-opt{padding:14px;border-radius:12px;border:1.5px solid #1E3050;background:#132040;margin-bottom:10px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;width:100%;text-align:left;font-family:inherit}
+.flare-opt:active{opacity:.75}
+.flare-opt-title{font-size:15px;font-weight:700;color:#E8EDF2;margin-bottom:2px}
+.flare-opt-sub{font-size:12px;color:#5A7090;line-height:1.5}
+.flare-opt.selected{border-color:#f59e0b;background:#1A1408}
+.flare-cancel-btn{width:100%;padding:11px;border:none;background:none;color:#3A5070;font-family:inherit;font-size:13px;cursor:pointer;margin-top:8px;touch-action:manipulation}
 
 /* ============================================================
    HOME SECTION — unified dark dashboard
@@ -694,7 +721,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v122 · 26/05/2026 12:29</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v123 · 26/05/2026 14:45</div>
 
   </div>
 </div>
@@ -777,6 +804,12 @@ body.train-mode #toast{background:#132040}
 
   <!-- PROGRAMS VIEW -->
   <div id="trainProgramsView" class="train-content">
+    <!-- Flare/recovery status banner (hidden in normal mode) -->
+    <div id="flareBanner" style="display:none"></div>
+    <!-- Enter flare mode row (shown in normal mode) -->
+    <div class="flare-enter-row" id="flareEnterRow">
+      <button class="flare-chip" id="flareModeChip" onclick="openFlareModeModal()" style="background:#1A1408;color:#d97706;border:1.5px solid #d9770640">🟢 Normal mode</button>
+    </div>
     <div class="prog-grid" id="progGrid"></div>
   </div>
   <div id="trainLogView" class="train-content" style="display:none">
@@ -4599,36 +4632,7 @@ function renderTrainView() {
 }
 
 
-function renderTrainPrograms() {
-  var el = document.getElementById("progGrid");
-  var programs = [
-    { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#0F1F3A,#162B52)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Rows · Split Squats · Pull-ups · Glute Bridge", descColor:"#4A7AB8" },
-    { type:"workout", key:"push",  bg:"linear-gradient(135deg,#2A1010,#3A1818)", border:"#ef444440", icon:"&#x1F534;", name:"Push Day", desc:"Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B85050" },
-    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", desc:"23 poses · ~18 min", descColor:"#7A5CBF" },
-    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
-    { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
-    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
-    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" }
-  ];
-  var html = "";
-  for (var i=0;i<programs.length;i++) {
-    var p = programs[i];
-    html += "<button class='prog-card' style='background:"+p.bg+";border:1px solid "+p.border+"' data-type='"+p.type+"' data-key='"+p.key+"'>" +
-      "<div class='prog-card-icon'>"+p.icon+"</div>" +
-      "<div class='prog-card-name'>"+p.name+"</div>" +
-      "<div class='prog-card-desc' style='color:"+p.descColor+"'>"+p.desc+"</div>" +
-    "</button>";
-  }
-  el.innerHTML = html;
-  el.querySelectorAll(".prog-card").forEach(function(card) {
-    card.addEventListener("click", function(){
-      var type = card.dataset.type, key = card.dataset.key;
-      if (type==="yoga")    openYogaSession(+key);
-      if (type==="physio")  openPhysioSession(+key);
-      if (type==="workout") openWorkoutSession(key);
-    });
-  });
-}
+// renderTrainPrograms — defined later, after PROGRAMMES_TRAIN data
 
 
 function trainTodayStr() {
@@ -5167,6 +5171,157 @@ var PROGRAMMES_TRAIN = [
   ]}
 ];
 
+// ── Decompression programme (flare/recovery mode) ────────────
+PROGRAMMES_TRAIN.push({
+  id:'decompression',
+  name:'Decompression',
+  icon:'&#x1F30A;',
+  note:'Gentle spinal decompression · stenosis-safe · flare mode',
+  color:'#f59e0b',
+  exercises:[
+    {id:'pelvic_tilt',name:'Pelvic Tilts',type:'reps',sets:2,reps:10,note:'2 sets · 10 reps',
+     cue:'Lie on your back, knees bent, feet flat. Gently flatten your lower back against the floor by tightening your abdominals — do not hold your breath. Hold 2 seconds, release fully. This movement is small and deliberate. 10 reps.'},
+    {id:'ktc_single',name:'Single Knee-to-Chest',type:'timed',dur:30,sets:2,perLeg:true,note:'30s each leg',
+     cue:'Lie on your back. Bring one knee gently toward your chest and hold it with both hands just below the knee. Keep the other leg flat on the floor and your lower back relaxed into the mat. You should feel a gentle stretch in your lower back and hip. Hold 30 seconds, switch sides.'},
+    {id:'ktc_double',name:'Double Knee-to-Chest',type:'timed',dur:60,sets:1,note:'60s · rock gently side to side',
+     cue:'Lie on your back and bring both knees to your chest. Hold gently just below the knees. Rock slowly side to side to massage the lower back. Breathe slowly and let gravity do the work. Stay here for 60 seconds.'},
+    {id:'cat_cow_slow',name:'Cat-Cow (slow)',type:'timed',dur:60,sets:2,note:'2 sets · 1 min',
+     cue:'Tabletop on hands and knees, wrists under shoulders. Inhale: let your belly drop toward the floor, lift chest and tailbone gently (Cow). Exhale: round your entire spine toward the ceiling, tuck chin and pelvis (Cat). Move slowly — 4 to 5 seconds each position. The Cat/rounding phase decompresses the stenotic segments.'},
+    {id:'childs_pose',name:"Child's Pose",type:'timed',dur:90,sets:1,note:'90s · breathe into lower back',
+     cue:'Kneel and sit your hips back toward your heels. Extend your arms forward on the mat and let your forehead rest on the floor. Breathe slowly into your lower back — feel space open between each vertebra on every inhale. If hips do not reach heels, place a folded blanket behind your knees.'},
+    {id:'seated_flex',name:'Seated Lumbar Flexion',type:'timed',dur:60,sets:2,note:'2 sets · 1 min',
+     cue:'Sit toward the front of a chair with feet flat on the floor. Slowly roll your entire upper body forward — chin to chest, shoulders rounding, lower back following — until your elbows rest on your thighs. Breathe steadily. This forward flexion position opens the spinal canal and provides relief from stenosis symptoms. Hold 60 seconds, then slowly roll back up.'}
+  ]
+});
+
+// ── Flare / Recovery mode ─────────────────────────────────────
+// Modes: "normal" | "flare" | "recovery_1" | "recovery_2" | "recovery_3"
+var FLARE_DECOMP_IDX = PROGRAMMES_TRAIN.length - 1; // index of decompression programme
+
+function getFlareMode()    { return storeGet('fl4_flare_mode') || 'normal'; }
+function setFlareMode(m)   { storeSet('fl4_flare_mode', m); }
+
+function openFlareModeModal() {
+  var mode = getFlareMode();
+  var title, sub, opts;
+  if (mode === 'normal') {
+    title = '🟢 All Good';
+    sub   = 'Having a flare-up? Switch to flare mode to dial back to gentle decompression only.';
+    opts  = [
+      { label:'🟠 Enter Flare Mode', sub:'Dial back to decompression exercises only. Strength & yoga paused.', action:'flare', highlight:true },
+      { label:'🟡 Start Recovery (Stage 1)', sub:'If you are coming out of a flare — begin gradual reintroduction.', action:'recovery_1' }
+    ];
+  } else if (mode === 'flare') {
+    title = '🟠 Flare Mode Active';
+    sub   = 'When ready, begin the recovery programme to gradually reintroduce exercises.';
+    opts  = [
+      { label:'🟡 Begin Recovery — Stage 1', sub:'Add nerve glides alongside decompression.', action:'recovery_1', highlight:true },
+      { label:'🟢 Exit — Feeling Better', sub:'Return immediately to the full programme.', action:'normal' }
+    ];
+  } else if (mode === 'recovery_1') {
+    title = '🟡 Recovery — Stage 1';
+    sub   = 'Complete 2–3 sessions at this stage before moving on.';
+    opts  = [
+      { label:'→ Advance to Stage 2', sub:'Add Lower Limb programme alongside decompression & nerve glides.', action:'recovery_2', highlight:true },
+      { label:'← Back to Flare Mode', sub:'Still not ready — dial back again.', action:'flare' },
+      { label:'🟢 Skip to Normal', sub:'Feeling fully recovered.', action:'normal' }
+    ];
+  } else if (mode === 'recovery_2') {
+    title = '🟡 Recovery — Stage 2';
+    sub   = 'Two sessions here before advancing. Strength workouts still paused.';
+    opts  = [
+      { label:'→ Advance to Stage 3', sub:'All physio returns. Strength workouts still resting.', action:'recovery_3', highlight:true },
+      { label:'← Back to Stage 1', sub:'Too much too soon.', action:'recovery_1' },
+      { label:'🟢 Skip to Normal', sub:'Feeling fully recovered.', action:'normal' }
+    ];
+  } else if (mode === 'recovery_3') {
+    title = '🟡 Recovery — Stage 3';
+    sub   = 'All physio & yoga available. Try a workout session when this feels easy.';
+    opts  = [
+      { label:'🟢 Return to Normal', sub:'Re-enable all strength workouts. Recovery complete!', action:'normal', highlight:true },
+      { label:'← Back to Stage 2', sub:'Not quite ready for strength yet.', action:'recovery_2' }
+    ];
+  }
+  var html = '';
+  for (var i=0;i<opts.length;i++) {
+    var o = opts[i];
+    html += '<button class="flare-opt'+(o.highlight?' selected':'')+'" onclick="applyFlareMode(\''+o.action+'\')">'+
+      '<div class="flare-opt-title">'+o.label+'</div>'+
+      '<div class="flare-opt-sub">'+o.sub+'</div>'+
+    '</button>';
+  }
+  document.getElementById('flareModalTitle').textContent = title;
+  document.getElementById('flareModalSub').textContent   = sub;
+  document.getElementById('flareModalOptions').innerHTML = html;
+  document.getElementById('flareModeOverlay').classList.add('open');
+}
+
+function closeFlareModeModal() {
+  document.getElementById('flareModeOverlay').classList.remove('open');
+}
+
+function applyFlareMode(mode) {
+  setFlareMode(mode);
+  closeFlareModeModal();
+  renderTrainPrograms();
+  var msgs = { normal:'🟢 Returned to full programme', flare:'🟠 Flare mode on — rest up', recovery_1:'🟡 Recovery Stage 1', recovery_2:'🟡 Recovery Stage 2', recovery_3:'🟡 Recovery Stage 3' };
+  toast(msgs[mode] || 'Mode updated');
+}
+
+function renderFlareBanner(mode) {
+  var el = document.getElementById('flareBanner');
+  var chip = document.getElementById('flareModeChip');
+  var enterRow = document.getElementById('flareEnterRow');
+  if (!el) return;
+  if (mode === 'normal') {
+    el.style.display = 'none';
+    if (chip) { chip.textContent = '🟢 Normal mode'; chip.style.color='#4CAF7D'; chip.style.borderColor='#4CAF7D40'; chip.style.background='#0A180F'; }
+    if (enterRow) enterRow.style.display = 'flex';
+    return;
+  }
+  if (chip)     { chip.style.display='none'; }
+  if (enterRow) enterRow.style.display = 'flex';
+  el.style.display = 'block';
+  var cfg = {
+    flare:       { bg:'linear-gradient(135deg,#2A0800,#3A1005)', border:'#d9770660', dot:'#f59e0b', icon:'🟠', label:'Flare Mode',     stageHtml:'', chipColor:'#f59e0b',
+      sub:'Showing decompression exercises only. Strength &amp; yoga paused. Rest up, keep moving gently.',
+      next:'Begin Recovery →', nextAction:'recovery_1', exit:'Exit', exitAction:'normal' },
+    recovery_1:  { bg:'linear-gradient(135deg,#1A1400,#261E00)', border:'#eab30860', dot:'#eab308', icon:'🟡', label:'Recovery',  stageHtml:_stageDotsHtml(1), chipColor:'#eab308',
+      sub:'Stage 1 of 3 · Decompression + Nerve &amp; Hip exercises. 2–3 sessions before advancing.',
+      next:'→ Stage 2', nextAction:'recovery_2', exit:'Exit to Normal', exitAction:'normal' },
+    recovery_2:  { bg:'linear-gradient(135deg,#1A1400,#261E00)', border:'#eab30860', dot:'#eab308', icon:'🟡', label:'Recovery',  stageHtml:_stageDotsHtml(2), chipColor:'#eab308',
+      sub:'Stage 2 of 3 · Decompression + Nerve &amp; Hip + Lower Limb. Strength still paused.',
+      next:'→ Stage 3', nextAction:'recovery_3', exit:'Exit to Normal', exitAction:'normal' },
+    recovery_3:  { bg:'linear-gradient(135deg,#0A1A0A,#102010)', border:'#4CAF7D60', dot:'#4CAF7D', icon:'🟡', label:'Recovery',  stageHtml:_stageDotsHtml(3), chipColor:'#a3e635',
+      sub:'Stage 3 of 3 · All physio &amp; yoga available. Try a workout when this feels comfortable.',
+      next:'🟢 Return to Normal', nextAction:'normal', exit:null, exitAction:null }
+  };
+  var c = cfg[mode];
+  if (!c) return;
+  if (chip) { chip.textContent = c.icon+' '+c.label; chip.style.color=c.chipColor; chip.style.borderColor=c.chipColor+'40'; chip.style.background='#0D1405'; chip.style.display='inline-flex'; }
+  el.innerHTML =
+    '<div class="flare-banner" style="background:'+c.bg+';border-color:'+c.border+'">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+
+        (c.stageHtml ? c.stageHtml : '')+
+        '<span class="flare-banner-title" style="color:'+(mode==='flare'?'#fb923c':'#fbbf24')+'">'+c.icon+' '+c.label+'</span>'+
+      '</div>'+
+      '<div class="flare-banner-sub" style="color:#9A9080">'+c.sub+'</div>'+
+      '<div class="flare-btn-row">'+
+        '<button class="flare-action-btn" onclick="openFlareModeModal()" style="background:'+(mode==='flare'?'#7C2D12':'#713F12')+';color:#fde68a">'+c.next+'</button>'+
+        (c.exit ? '<button class="flare-action-btn" onclick="applyFlareMode(\''+c.exitAction+'\')" style="background:#132040;color:#5A7090">'+c.exit+'</button>' : '')+
+      '</div>'+
+    '</div>';
+}
+
+function _stageDotsHtml(active) {
+  var html = '<div class="recovery-dots">';
+  for (var i=1;i<=3;i++) {
+    var col = i < active ? '#4CAF7D' : i === active ? '#eab308' : '#1E3050';
+    html += '<div class="recovery-dot" style="background:'+col+';border-color:'+(i===active?'#fbbf24':'transparent')+'"></div>';
+  }
+  return html + '</div>';
+}
+
 var QUICK_EXERCISES = [
   "Bench Press","Squat","Deadlift","Overhead Press","Pull-ups",
   "Barbell Row","Dips","Leg Press","Lat Pulldown","Bicep Curl",
@@ -5280,25 +5435,68 @@ function renderTrainView() {
 
 // ── Programs grid ─────────────────────────────────────────
 function renderTrainPrograms() {
-  var el = document.getElementById("progGrid");
-  var programs = [
-    { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#0F1F3A,#162B52)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Rows · Split Squats · Pull-ups · Glute Bridge", descColor:"#4A7AB8" },
-    { type:"workout", key:"push",  bg:"linear-gradient(135deg,#2A1010,#3A1818)", border:"#ef444440", icon:"&#x1F534;", name:"Push Day", desc:"Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B85050" },
-    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", desc:"23 poses · ~18 min", descColor:"#7A5CBF" },
-    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
-    { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
-    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
-    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" }
+  var mode = getFlareMode();
+  renderFlareBanner(mode);
+
+  var allPrograms = [
+    { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#0F1F3A,#162B52)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day",            desc:"Rows · Split Squats · Pull-ups · Glute Bridge",  descColor:"#4A7AB8" },
+    { type:"workout", key:"push",  bg:"linear-gradient(135deg,#2A1010,#3A1818)", border:"#ef444440", icon:"&#x1F534;", name:"Push Day",            desc:"Dips · Single-leg DL · Push-ups · Side Plank",   descColor:"#B85050" },
+    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow",       desc:"23 poses · ~18 min",                             descColor:"#7A5CBF" },
+    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", desc:"18 poses · ~22 min",                            descColor:"#7A5CBF" },
+    { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip",      desc:"4 exercises · nerve mobility",                   descColor:"#14b8a6" },
+    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb",           desc:"9 exercises · glutes · quad · calf",             descColor:"#14b8a6" },
+    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio",           desc:"6 exercises · post-natal · core &amp; glutes",  descColor:"#14b8a6" },
+    { type:"physio",  key:FLARE_DECOMP_IDX, bg:"linear-gradient(135deg,#1A0E00,#2A1800)", border:"#f59e0b60", icon:"&#x1F30A;", name:"Decompression", desc:"6 exercises · spinal decompression · flare-safe", descColor:"#f59e0b" }
   ];
+
+  // Visibility rules per mode
+  var showWorkout = true, showYoga = true;
+  var showPhysioKeys = { 0:true, 1:true, 2:true };
+  var showDecomp  = false;
+  var restMsg     = null;
+
+  if (mode === 'flare') {
+    showWorkout = false; showYoga = false; showPhysioKeys = {};
+    showDecomp  = true;
+    restMsg = '&#x1F6CC; Strength &amp; yoga paused during flare — focus on decompression and rest.';
+  } else if (mode === 'recovery_1') {
+    showWorkout = false; showYoga = false;
+    showPhysioKeys = { 0:true };
+    showDecomp  = true;
+    restMsg = '&#x1F6CC; Strength &amp; yoga still paused — advance to Stage 2 when ready.';
+  } else if (mode === 'recovery_2') {
+    showWorkout = false; showYoga = false;
+    showPhysioKeys = { 0:true, 1:true };
+    showDecomp  = true;
+    restMsg = '&#x1F6CC; Strength workouts still paused — advance to Stage 3 when comfortable.';
+  } else if (mode === 'recovery_3') {
+    showWorkout = false;
+    showPhysioKeys = { 0:true, 1:true, 2:true };
+    showDecomp  = true;
+    restMsg = '&#x1F4AA; Try a workout session when physio feels easy — then return to Normal.';
+  }
+
+  var el   = document.getElementById("progGrid");
   var html = "";
-  for (var i=0;i<programs.length;i++) {
-    var p = programs[i];
+  for (var i=0; i<allPrograms.length; i++) {
+    var p = allPrograms[i];
+    if (p.type === "workout" && !showWorkout) continue;
+    if (p.type === "yoga"    && !showYoga)    continue;
+    if (p.type === "physio"  && p.key === FLARE_DECOMP_IDX && !showDecomp)     continue;
+    if (p.type === "physio"  && p.key !== FLARE_DECOMP_IDX && !showPhysioKeys[p.key]) continue;
     html += "<button class='prog-card' style='background:"+p.bg+";border:1px solid "+p.border+"' data-type='"+p.type+"' data-key='"+p.key+"'>" +
       "<div class='prog-card-icon'>"+p.icon+"</div>" +
       "<div class='prog-card-name'>"+p.name+"</div>" +
       "<div class='prog-card-desc' style='color:"+p.descColor+"'>"+p.desc+"</div>" +
     "</button>";
   }
+
+  if (restMsg) {
+    html += "<div class='prog-rest-card' style='grid-column:span 2'>" +
+      "<div class='prog-rest-label'>"+restMsg+"</div>" +
+    "</div>";
+  }
+
   el.innerHTML = html;
   el.querySelectorAll(".prog-card").forEach(function(card) {
     card.addEventListener("click", function(){
@@ -6548,6 +6746,16 @@ if ("serviceWorker" in navigator && !_isPreview) {
 })();
 
 </script>
+
+<!-- FLARE MODE MODAL -->
+<div id="flareModeOverlay" onclick="if(event.target===this)closeFlareModeModal()">
+  <div class="flare-modal">
+    <div class="flare-modal-title" id="flareModalTitle">Back Mode</div>
+    <div class="flare-modal-sub" id="flareModalSub">How is your back feeling today?</div>
+    <div id="flareModalOptions"></div>
+    <button class="flare-cancel-btn" onclick="closeFlareModeModal()">Cancel</button>
+  </div>
+</div>
 
 <!-- DEBUG OVERLAY (temporary) -->
 <div id="dbgBox" style="display:none;position:fixed;bottom:70px;right:8px;z-index:9999;background:#1a0000;border:1.5px solid #ff4444;border-radius:10px;max-width:calc(100vw - 16px);max-height:50vh;overflow-y:auto;font-size:11px;font-family:monospace;color:#ff9999;padding:8px 10px;box-shadow:0 4px 20px rgba(0,0,0,.8)">
