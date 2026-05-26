@@ -1,5 +1,5 @@
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v121 · 26/05/2026 11:43';
+const VERSION = 'v122 · 26/05/2026 12:29';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
@@ -44,7 +44,9 @@ self.addEventListener('message', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // Never intercept requests for the SW file itself
+  // Never cache sw.js or index.html — always fetch fresh
   if (url.pathname.endsWith('/sw.js')) return;
+  if (url.pathname.endsWith('/') || url.pathname.endsWith('/index.html')) return;
   if (url.origin === self.location.origin) {
     e.respondWith(
       caches.match(e.request).then(cached => {

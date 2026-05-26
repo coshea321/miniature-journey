@@ -694,7 +694,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v121 · 26/05/2026 11:43</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v122 · 26/05/2026 12:29</div>
 
   </div>
 </div>
@@ -6481,7 +6481,7 @@ applySectionVisibility();
 
 // ── Service worker ─────────────────────────────────────────
 if ("serviceWorker" in navigator && !_isPreview) {
-  navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).then(function(reg) {
+  navigator.serviceWorker.register("./sw.js?v=121", { updateViaCache: "none" }).then(function(reg) {
     reg.update();
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: "GET_VERSION" });
