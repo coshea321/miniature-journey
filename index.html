@@ -694,7 +694,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v120 · 24/05/2026 10:04</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v121 · 26/05/2026 11:43</div>
 
   </div>
 </div>
@@ -4136,13 +4136,6 @@ function closeSessionOverlay() {
 
 
 
-function beginYoga() {
-  SS.yStarted = true;
-  SS.yPhase   = "running";
-  SS.yTime    = YOGA_FLOWS_TRAIN[SS.yFlowIdx][0].dur;
-  renderYogaSession();
-  startYogaTimer();
-}
 
 
 
@@ -4198,13 +4191,6 @@ function openPhysioSession(progIdx) {
 }
 
 
-function beginPhysio() {
-  SS.pPhase = "exercise";
-  var ex = PROGRAMMES_TRAIN[SS.pProgIdx].exercises[0];
-  SS.pTime    = ex.type==="timed" ? ex.dur : 0;
-  SS.pRunning = false;
-  renderPhysioSession();
-}
 
 
 
@@ -5655,6 +5641,18 @@ function physioNext() {
   }
   renderPhysioSession();
 }
+function finishYoga() {
+  var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
+  var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'yoga',
+    sessionName:esc(YOGA_TRAIN_NAMES[SS.yFlowIdx]), poses:flow.length, exercises:[] };
+  saveSession(entry);
+  var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
+  pushPersonal();
+  closeSessionOverlay();
+  renderTrainView();
+  toast("&#x1F64F; Yoga saved!");
+}
+
 function finishPhysio() {
   var prog = PROGRAMMES_TRAIN[SS.pProgIdx];
   var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'physio', sessionName:prog.name.replace(/&amp;/g,"&"), exercises:[] };
