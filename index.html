@@ -694,7 +694,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v128 · 27/05/2026 22:14</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v130 · 27/05/2026 22:53</div>
 
   </div>
 </div>
@@ -5582,9 +5582,9 @@ function beginPhysio() {
   SS.pSetNum  = 1;
   var ex = PROGRAMMES_TRAIN[SS.pProgIdx].exercises[0];
   SS.pTime    = ex.type === "timed" ? ex.dur : 0;
-  SS.pRunning = false;  // togglePhysioTimer will flip to true
-  renderPhysioSession();
-  if (ex.type === "timed") togglePhysioTimer();
+  SS.pRunning = false;
+  if (ex.type === "timed") togglePhysioTimer(); // flips pRunning→true, starts interval
+  renderPhysioSession(); // now renders with pRunning=true → coloured ring
 }
 function togglePhysioTimer() {
   SS.pRunning = !SS.pRunning;
@@ -5594,7 +5594,7 @@ function togglePhysioTimer() {
       SS.pTime--;
       var svg = document.querySelector("#sesBody svg");
       if (svg) {
-        var txt = svg.querySelector("text"); if (txt) txt.textContent = SS.pTime;
+        var txt = svg.querySelector("text"); if (txt) { txt.textContent = SS.pTime; txt.setAttribute("fill", "#fff"); }
         var ex=PROGRAMMES_TRAIN[SS.pProgIdx].exercises[SS.pExIdx];
         var R=54,circ=2*Math.PI*R,pct=SS.pTime/ex.dur;
         var circle=svg.querySelectorAll("circle")[1]; if(circle) circle.setAttribute("stroke-dashoffset",circ*(1-pct));
@@ -5604,9 +5604,16 @@ function togglePhysioTimer() {
   } else {
     clearST();
   }
-  // Update toggle button label directly
   var btn = document.querySelector("[data-action='togglePhysioTimer']");
   if (btn) btn.textContent = SS.pRunning ? "Pause" : "Resume";
+  var svg = document.querySelector("#sesBody svg");
+  if (svg) {
+    var prog = PROGRAMMES_TRAIN[SS.pProgIdx];
+    var ring = svg.querySelectorAll("circle")[1];
+    var txt  = svg.querySelector("text");
+    if (ring) ring.setAttribute("stroke", SS.pRunning ? (prog.color || "#818cf8") : "#333");
+    if (txt)  txt.setAttribute("fill", SS.pRunning ? "#fff" : "#666");
+  }
 }
 function physioNext() {
   clearST(); SS.pRunning = false;
