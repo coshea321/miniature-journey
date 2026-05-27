@@ -694,7 +694,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v126 · 27/05/2026 20:44</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v128 · 27/05/2026 22:14</div>
 
   </div>
 </div>
@@ -4664,13 +4664,14 @@ function trainFmtDateLong(dateStr) {
 
 
 function timerCircle(time, total, color, paused) {
-  var R=54, circ=2*Math.PI*R, pct=total>0?time/total:1;
-  return '<svg width="130" height="130" style="display:block;margin:0 auto">' +
-    '<circle cx="65" cy="65" r="'+R+'" fill="none" stroke="#1e1e1e" stroke-width="8"/>' +
-    '<circle cx="65" cy="65" r="'+R+'" fill="none" stroke="'+(paused?'#333':color)+'" stroke-width="8"' +
+  var R=58, circ=2*Math.PI*R, pct=total>0?time/total:1;
+  var ringColor = paused ? '#333' : (color || '#818cf8');
+  return '<svg width="140" height="140" style="display:block;margin:0 auto 8px">' +
+    '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="#1a1a2e" stroke-width="10"/>' +
+    '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+ringColor+'" stroke-width="10"' +
     ' stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-pct))+'"' +
-    ' stroke-linecap="round" transform="rotate(-90 65 65)" style="transition:stroke-dashoffset 0.95s linear"/>' +
-    '<text x="65" y="72" text-anchor="middle" fill="'+(paused?'#555':'#fff')+'" font-size="34" font-weight="bold">'+time+'</text>' +
+    ' stroke-linecap="round" transform="rotate(-90 70 70)" style="transition:stroke-dashoffset 0.95s linear"/>' +
+    '<text x="70" y="78" text-anchor="middle" fill="'+(paused?'#666':'#fff')+'" font-size="38" font-weight="800" font-family="inherit">'+time+'</text>' +
     '</svg>';
 }
 
@@ -5358,15 +5359,17 @@ document.getElementById("sesBackBtn").addEventListener("click", function(){
 
 // ── Timer circle SVG ──────────────────────────────────────
 function timerCircle(time, total, color, paused) {
-  var R=54, circ=2*Math.PI*R, pct=total>0?time/total:1;
-  return '<svg width="130" height="130" style="display:block;margin:0 auto">' +
-    '<circle cx="65" cy="65" r="'+R+'" fill="none" stroke="#1e1e1e" stroke-width="8"/>' +
-    '<circle cx="65" cy="65" r="'+R+'" fill="none" stroke="'+(paused?'#333':color)+'" stroke-width="8"' +
+  var R=58, circ=2*Math.PI*R, pct=total>0?time/total:1;
+  var ringColor = paused ? '#333' : (color || '#818cf8');
+  return '<svg width="140" height="140" style="display:block;margin:0 auto 8px">' +
+    '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="#1a1a2e" stroke-width="10"/>' +
+    '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+ringColor+'" stroke-width="10"' +
     ' stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-pct))+'"' +
-    ' stroke-linecap="round" transform="rotate(-90 65 65)" style="transition:stroke-dashoffset 0.95s linear"/>' +
-    '<text x="65" y="72" text-anchor="middle" fill="'+(paused?'#555':'#fff')+'" font-size="34" font-weight="bold">'+time+'</text>' +
+    ' stroke-linecap="round" transform="rotate(-90 70 70)" style="transition:stroke-dashoffset 0.95s linear"/>' +
+    '<text x="70" y="78" text-anchor="middle" fill="'+(paused?'#666':'#fff')+'" font-size="38" font-weight="800" font-family="inherit">'+time+'</text>' +
     '</svg>';
 }
+
 
 // ── Save session to workout log ───────────────────────────
 function saveSession(entry) {
@@ -5574,11 +5577,14 @@ function renderPhysioSession() {
 
 
 function beginPhysio() {
-  SS.pPhase = "exercise";
+  SS.pPhase   = "running";
+  SS.pExIdx   = 0;
+  SS.pSetNum  = 1;
   var ex = PROGRAMMES_TRAIN[SS.pProgIdx].exercises[0];
-  SS.pTime    = ex.type==="timed" ? ex.dur : 0;
-  SS.pRunning = false;
+  SS.pTime    = ex.type === "timed" ? ex.dur : 0;
+  SS.pRunning = false;  // togglePhysioTimer will flip to true
   renderPhysioSession();
+  if (ex.type === "timed") togglePhysioTimer();
 }
 function togglePhysioTimer() {
   SS.pRunning = !SS.pRunning;
