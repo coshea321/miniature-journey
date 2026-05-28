@@ -694,7 +694,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v131 · 27/05/2026 23:15</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v132 · 28/05/2026 23:46</div>
 
   </div>
 </div>
@@ -4604,7 +4604,7 @@ function renderTrainPrograms() {
   var programs = [
     { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#0F1F3A,#162B52)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Rows · Split Squats · Pull-ups · Glute Bridge", descColor:"#4A7AB8" },
     { type:"workout", key:"push",  bg:"linear-gradient(135deg,#2A1010,#3A1818)", border:"#ef444440", icon:"&#x1F534;", name:"Push Day", desc:"Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B85050" },
-    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", desc:"23 poses · ~18 min", descColor:"#7A5CBF" },
+    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", desc:"25 poses · ~19 min", descColor:"#7A5CBF" },
     { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
     { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
     { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
@@ -5069,6 +5069,7 @@ var COND_TRAIN = {rounds:2,exercises:[{id:'step_ups',name:'Step-ups',type:'reps'
 var YOGA_FLOWS_TRAIN = [
   [{name:'Seated Centering',sanskrit:'Sukhasana',dur:60,cue:'Sit cross-legged, using a folded blanket under your hips if needed to tilt the pelvis forward. Rest hands on knees, palms up. Close your eyes. Inhale slowly for 4 counts, filling from the belly upward. Exhale for 6 counts, letting the shoulders soften. Set an intention for your practice.'},
   {name:'Neck and Shoulder Rolls',sanskrit:'Seated Mobilisation',dur:45,cue:'Sitting tall, drop your right ear toward your shoulder — don\'t force it. Slowly roll your chin to your chest, then your left ear to the left shoulder. Reverse the direction. Then roll both shoulders forward 3 times, backward 3 times. Move slowly and follow your breath.'},
+  {name:'Pelvic Tilts',sanskrit:'Lumbar warm-up',dur:40,cue:"Lie on your back with knees bent and feet flat. Gently flatten your lower back against the mat by tightening your deep abdominals and tilting your pelvis upward slightly. Hold 2 seconds, then release back to neutral. Move slowly and with control. This gently mobilises the lumbar spine before movement and is one of the most effective warm-ups for spinal stenosis.",url:'https://www.youtube.com/watch?v=GKz3q3-12-g'},
   {name:'Cat-Cow',sanskrit:'Marjaryasana-Bitilasana',dur:60,cue:'Tabletop — wrists under shoulders, knees under hips. Inhale: let the belly drop, tail lifts, gaze softens forward (Cow). Exhale: press the floor away, round the spine to the ceiling, tuck chin and tailbone (Cat). Flow continuously with your breath for 6–8 rounds.'},
   {name:'Bird Dog',sanskrit:'Dandayamna Bharmanasana',dur:50,cue:'From tabletop, draw your navel in gently. Extend your right arm forward and left leg back — both parallel to the floor. Keep hips level, don\'t let them rotate. Hold 3 steady breaths, lower slowly. Switch sides. 3 rounds each.'},
   {name:'Dead Bug',sanskrit:'Urdhva Prasarita Padasana',dur:50,cue:'On your back, knees bent to 90° above hips, arms reaching up to the ceiling. Press your lower back firmly into the mat and keep it there throughout. Slowly lower your right arm overhead and left leg toward the floor. Return, switch sides. 4–5 reps each.'},
@@ -5077,6 +5078,7 @@ var YOGA_FLOWS_TRAIN = [
   {name:'Half Splits Right',sanskrit:'Ardha Hanumanasana',dur:45,cue:'From Low Lunge, shift hips back over your left knee and straighten the right leg — flex the foot. Hinge forward from the hips with a long, flat back rather than rounding. Rest hands on the mat or your shin. Breathe into the back of the right leg.'},
   {name:'Low Lunge Left',sanskrit:'Anjaneyasana',dur:45,cue:'Step left foot forward, right knee lowers to mat. Shift hips gently forward to open the right hip flexor. Hands to your left thigh, chest open, shoulders relaxed away from ears. Torso stays upright.'},
   {name:'Half Splits Left',sanskrit:'Ardha Hanumanasana',dur:45,cue:'Shift hips back over your right knee, straighten the left leg — flex the foot. Hinge forward from the hips with a long spine, not a rounded back. Hands to the floor or shin for support. Breathe into the back of the left leg.'},
+  {name:'Sciatic Nerve Floss',sanskrit:'Nerve mobility',dur:45,cue:"Sit tall in a chair or on the floor with knees hip-width apart and feet flat. Extend the affected leg with toes pointing firmly toward you. Synchronise: look up at the ceiling as you extend your knee, then flex both your head and knee together simultaneously. The movement should feel like a gentle oscillation, not a stretch. Perform slowly — about 10 reps each leg. This mobilises the sciatic nerve along its full length.",url:'https://www.youtube.com/watch?v=OMbKv94Bu_U'},
   {name:'Mountain and Arm Raises',sanskrit:'Tadasana',dur:30,cue:'Stand feet hip-width, rooting through all four corners of both feet. Inhale and sweep both arms out and up overhead. As arms rise, let shoulder blades slide down your back. Exhale and lower. Repeat 3–4 times, finding more length with each inhale.'},
   {name:'Side Stretch Right',sanskrit:'Parsva Urdhva Hastasana',dur:30,cue:'Right arm sweeps overhead. Lean gently to the left — keep both hips square and grounded. Feel a long line from your right hip to your fingertips. Left hand rests on your thigh for support. Hold 4 slow breaths.'},
   {name:'Side Stretch Left',sanskrit:'Parsva Urdhva Hastasana',dur:30,cue:'Left arm sweeps overhead. Lean gently to the right. Both feet grounded equally. Create length through the entire left side of the body. Right hand rests lightly on your thigh. 4 breaths.'},
@@ -5110,7 +5112,7 @@ var YOGA_FLOWS_TRAIN = [
   {name:'Savasana',sanskrit:'Savasana',dur:120,cue:'Legs long, feet falling open. Arms by sides, palms up. Eyes fully closed. Every muscle releases.'}]
 ];
 var YOGA_TRAIN_NAMES   = ['Full Body Flow','Hips & Lower Back'];
-var YOGA_TRAIN_DESCS   = ['23 poses · ~18 min','18 poses · ~22 min'];
+var YOGA_TRAIN_DESCS   = ['25 poses · ~19 min','18 poses · ~22 min'];
 var YOGA_TRAIN_TOTALS  = YOGA_FLOWS_TRAIN.map(function(f){return f.reduce(function(s,p){return s+p.dur;},0);});
 
 var POSE_PHOTOS_TRAIN = {
@@ -5295,7 +5297,7 @@ function renderTrainPrograms() {
   var programs = [
     { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#0F1F3A,#162B52)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Rows · Split Squats · Pull-ups · Glute Bridge", descColor:"#4A7AB8" },
     { type:"workout", key:"push",  bg:"linear-gradient(135deg,#2A1010,#3A1818)", border:"#ef444440", icon:"&#x1F534;", name:"Push Day", desc:"Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B85050" },
-    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", desc:"23 poses · ~18 min", descColor:"#7A5CBF" },
+    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", desc:"25 poses · ~19 min", descColor:"#7A5CBF" },
     { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
     { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
     { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
