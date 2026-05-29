@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v140 · 29/05/2026 16:35</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v142 · 29/05/2026 16:52</div>
 
   </div>
 </div>
@@ -1988,21 +1988,14 @@ function calLink(item) {
     end   = "" + y + mo + dy;
   }
   var url = "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + title + "&dates=" + start + "/" + end;
-  return "<a class='cal-link' href='" + url + "' target='_blank' title='Add to calendar'>&#x1F4C5;</a>";
+  return "<a class='cal-link' href='" + url + "' target='_blank' title='Add to calendar' style='display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:#1E3A5E;color:#60a5fa;font-size:12px;font-weight:600;text-decoration:none'>&#x1F4C5; Calendar</a>";
 }
 
 function alarmLink(item) {
   if (!item.dueTime) return "";
   var h = parseInt(item.dueTime.split(":")[0]);
   var m = parseInt(item.dueTime.split(":")[1]);
-  var msg = encodeURIComponent(item.name);
-  var intent = "intent:#Intent;action=android.intent.action.SET_ALARM" +
-    ";i.android.intent.extra.alarm.HOUR=" + h +
-    ";i.android.intent.extra.alarm.MINUTES=" + m +
-    ";S.android.intent.extra.alarm.MESSAGE=" + msg +
-    ";B.android.intent.extra.alarm.SKIP_UI=false" +
-    ";end";
-  return "<button class='alarm-link' onclick=\"try{window.location.href='" + intent + "'}catch(e){toast('Alarm not supported on this device')}\" title='Set alarm' style='border:none;background:none;font-size:13px;margin-left:4px;cursor:pointer;padding:0;opacity:.7;vertical-align:middle;touch-action:manipulation'>&#x23F0;</button>";
+  return "<button class='alarm-link' data-alarmh='" + h + "' data-alarmm='" + m + "' data-alarmname='" + esc(item.name) + "' title='Set alarm' style='display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:#1E2A3E;color:#a78bfa;font-size:12px;font-weight:600;border:none;cursor:pointer;touch-action:manipulation'>&#x23F0; Alarm</button>";
 }
 
 function cardHTML(item, c) {
@@ -2018,7 +2011,8 @@ function cardHTML(item, c) {
     "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>" +
     "<div style='flex:1;min-width:0;" + (isDetail?"cursor:pointer":"") + "'>" +
       "<span class='item-name'>" + esc(item.name) + "</span>" +
-      (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + calBtn + alarmBtn + "</div>" : "") +
+      (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + "</div>" : "") +
+      ((calBtn || alarmBtn) ? "<div style='margin-top:4px;display:flex;gap:8px'>" + calBtn + alarmBtn + "</div>" : "") +
       noteSnip +
     "</div>" +
     "<span class='item-pill' style='background:" + c.bg + ";color:" + c.fg + "' title='Tap to change category'>" + c.emoji + " " + c.name + "</span>" +
@@ -4069,6 +4063,24 @@ window.addEventListener("DOMContentLoaded", function() {
     item.notes = document.getElementById("itemSheetNotes").value.trim();
     listData[currentList].items = items; saveCurrentList(); renderList(); closeItemSheet(); toast("Saved");
   });
+});
+
+// ── Alarm button handler ──────────────────────────────────
+document.getElementById("listPanel").addEventListener("click", function(e) {
+  var btn = e.target.closest(".alarm-link");
+  if (!btn) return;
+  e.stopPropagation();
+  var h    = btn.dataset.alarmh;
+  var m    = btn.dataset.alarmm;
+  var name = btn.dataset.alarmname || "Reminder";
+  var url  = "intent://alarm#Intent;" +
+    "action=android.intent.action.SET_ALARM;" +
+    "i.android.intent.extra.alarm.HOUR=" + h + ";" +
+    "i.android.intent.extra.alarm.MINUTES=" + m + ";" +
+    "S.android.intent.extra.alarm.MESSAGE=" + encodeURIComponent(name) + ";" +
+    "B.android.intent.extra.alarm.SKIP_UI=false;" +
+    "end";
+  window.location.href = url;
 });
 
 document.getElementById("syncBtn").addEventListener("click", function() {
