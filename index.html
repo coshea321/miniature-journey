@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v142 · 29/05/2026 16:52</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v147 · 29/05/2026 18:24</div>
 
   </div>
 </div>
@@ -735,9 +735,9 @@ body.train-mode #toast{background:#132040}
     <div class="ac" id="ac"></div>
     <div id="dueDateRow" style="display:none;margin-top:6px">
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:11px;color:#8A9AB0;font-weight:600;letter-spacing:.3px">DUE DATE</label>
-        <input id="dueDateInput" type="date" style="flex:1;padding:5px 8px;border:1.5px solid #1E3050;border-radius:7px;background:#0A1018;color:#C8D8E8;font-family:inherit;font-size:13px;outline:none">
-        <input id="dueTimeInput" type="time" style="width:90px;padding:5px 8px;border:1.5px solid #1E3050;border-radius:7px;background:#0A1018;color:#C8D8E8;font-family:inherit;font-size:13px;outline:none">
+        <label style="font-size:12px;color:#C8D8E8;font-weight:700;letter-spacing:.3px">&#x1F4C5; Due date</label>
+        <input id="dueDateInput" type="date" style="flex:1;padding:5px 8px;border:1.5px solid #2A4060;border-radius:7px;background:#1C2E44;color:#E0EAF4;font-family:inherit;font-size:13px;outline:none">
+
         <button id="dueClearBtn" style="border:none;background:none;color:#5A7090;font-size:12px;cursor:pointer;padding:2px 4px;touch-action:manipulation">✕ Clear</button>
       </div>
     </div>
@@ -1856,8 +1856,7 @@ function doAdd() {
     }
   }
   var dueD = (currentList === "todo" || currentList === "personal" || currentList === "testdue") ? (document.getElementById("dueDateInput").value || null) : null;
-  var dueT = dueD ? (document.getElementById("dueTimeInput").value || null) : null;
-  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false, dueDate:dueD, dueTime:dueT });
+  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false, dueDate:dueD });
   addToHist(name, catId);
   saveCurrentList(); resetInput(); renderList(); switchTab("list");
   toast("Added: "+name);
@@ -1865,7 +1864,7 @@ function doAdd() {
 function resetInput() {
   elInput.value = ""; hideCatRow(); hideAC(); currentCatId = null; manualCatId = null;
   var dd = document.getElementById("dueDateInput"); if (dd) dd.value = "";
-  var dt = document.getElementById("dueTimeInput"); if (dt) dt.value = "";
+
 }
 function addToHist(name, catId) {
   var hist = getHist(), found = null;
@@ -1988,14 +1987,16 @@ function calLink(item) {
     end   = "" + y + mo + dy;
   }
   var url = "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + title + "&dates=" + start + "/" + end;
-  return "<a class='cal-link' href='" + url + "' target='_blank' title='Add to calendar' style='display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:#1E3A5E;color:#60a5fa;font-size:12px;font-weight:600;text-decoration:none'>&#x1F4C5; Calendar</a>";
+  return "<a class='cal-link' href='" + url + "' target='_blank' title='Add to calendar' style='display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:5px;background:#1E3A5E;color:#60a5fa;font-size:11px;font-weight:600;text-decoration:none;vertical-align:middle'>&#x1F4C5;</a>";
 }
 
 function alarmLink(item) {
   if (!item.dueTime) return "";
   var h = parseInt(item.dueTime.split(":")[0]);
   var m = parseInt(item.dueTime.split(":")[1]);
-  return "<button class='alarm-link' data-alarmh='" + h + "' data-alarmm='" + m + "' data-alarmname='" + esc(item.name) + "' title='Set alarm' style='display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:#1E2A3E;color:#a78bfa;font-size:12px;font-weight:600;border:none;cursor:pointer;touch-action:manipulation'>&#x23F0; Alarm</button>";
+  var pad = function(x){ return x < 10 ? "0"+x : ""+x; };
+  var label = pad(h) + ":" + pad(m);
+  return "<button class='alarm-link' data-alarmh='" + h + "' data-alarmm='" + m + "' data-alarmname='" + esc(item.name) + "' title='Set alarm' style='display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:#1E2A3E;color:#a78bfa;font-size:12px;font-weight:600;border:none;cursor:pointer;touch-action:manipulation'>&#x23F0; " + label + "</button>";
 }
 
 function cardHTML(item, c) {
@@ -2003,7 +2004,7 @@ function cardHTML(item, c) {
   var isDetail = currentList === "testdue";
   var dueLabel = isTask ? dueDateLabel(item) : "";
   var calBtn   = isTask && item.dueDate ? calLink(item) : "";
-  var alarmBtn = isTask && item.dueTime  ? alarmLink(item) : "";
+  var alarmBtn = "";
   var noteSnip = isDetail && item.notes
     ? "<div style='font-size:11px;color:#8A9AB0;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>&#x1F4DD; " + esc(item.notes.substring(0,40)) + (item.notes.length>40?"…":"") + "</div>"
     : "";
@@ -2011,8 +2012,8 @@ function cardHTML(item, c) {
     "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>" +
     "<div style='flex:1;min-width:0;" + (isDetail?"cursor:pointer":"") + "'>" +
       "<span class='item-name'>" + esc(item.name) + "</span>" +
-      (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + "</div>" : "") +
-      ((calBtn || alarmBtn) ? "<div style='margin-top:4px;display:flex;gap:8px'>" + calBtn + alarmBtn + "</div>" : "") +
+      (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + (calBtn ? "&nbsp;" + calBtn : "") + "</div>" : "") +
+
       noteSnip +
     "</div>" +
     "<span class='item-pill' style='background:" + c.bg + ";color:" + c.fg + "' title='Tap to change category'>" + c.emoji + " " + c.name + "</span>" +
@@ -4063,24 +4064,6 @@ window.addEventListener("DOMContentLoaded", function() {
     item.notes = document.getElementById("itemSheetNotes").value.trim();
     listData[currentList].items = items; saveCurrentList(); renderList(); closeItemSheet(); toast("Saved");
   });
-});
-
-// ── Alarm button handler ──────────────────────────────────
-document.getElementById("listPanel").addEventListener("click", function(e) {
-  var btn = e.target.closest(".alarm-link");
-  if (!btn) return;
-  e.stopPropagation();
-  var h    = btn.dataset.alarmh;
-  var m    = btn.dataset.alarmm;
-  var name = btn.dataset.alarmname || "Reminder";
-  var url  = "intent://alarm#Intent;" +
-    "action=android.intent.action.SET_ALARM;" +
-    "i.android.intent.extra.alarm.HOUR=" + h + ";" +
-    "i.android.intent.extra.alarm.MINUTES=" + m + ";" +
-    "S.android.intent.extra.alarm.MESSAGE=" + encodeURIComponent(name) + ";" +
-    "B.android.intent.extra.alarm.SKIP_UI=false;" +
-    "end";
-  window.location.href = url;
 });
 
 document.getElementById("syncBtn").addEventListener("click", function() {
