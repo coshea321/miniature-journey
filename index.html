@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v139 · 29/05/2026 15:58</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v140 · 29/05/2026 16:35</div>
 
   </div>
 </div>
@@ -1967,26 +1967,42 @@ function dueDateLabel(item) {
 
 function calLink(item) {
   if (!item.dueDate) return "";
-  var title  = encodeURIComponent(item.name);
-  var date   = item.dueDate.replace(/-/g,"");
-  var time   = item.dueTime ? item.dueTime.replace(":","") + "00" : "";
-  var start  = time ? date + "T" + time : date;
-  var end    = time ? date + "T" + (item.dueTime.split(":")[0].padStart(2,"0") + String(parseInt(item.dueTime.split(":")[1]||"0") + 30).padStart(2,"0") + "00") : date;
-  var url    = "https://calendar.google.com/calendar/r/eventedit?text=" + title + "&dates=" + start + "/" + end;
+  var title = encodeURIComponent(item.name);
+  var date  = item.dueDate.replace(/-/g,"");
+  var start, end;
+  if (item.dueTime) {
+    var h = item.dueTime.split(":")[0].padStart(2,"0");
+    var m = item.dueTime.split(":")[1].padStart(2,"0");
+    start = date + "T" + h + m + "00";
+    // end = 30 mins later
+    var endMin = parseInt(m) + 30;
+    var endH   = parseInt(h) + Math.floor(endMin/60);
+    endMin     = endMin % 60;
+    end = date + "T" + String(endH).padStart(2,"0") + String(endMin).padStart(2,"0") + "00";
+  } else {
+    // All-day: end must be next calendar day
+    var d = new Date(item.dueDate);
+    d.setDate(d.getDate() + 1);
+    var y = d.getFullYear(), mo = String(d.getMonth()+1).padStart(2,"0"), dy = String(d.getDate()).padStart(2,"0");
+    start = date;
+    end   = "" + y + mo + dy;
+  }
+  var url = "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + title + "&dates=" + start + "/" + end;
   return "<a class='cal-link' href='" + url + "' target='_blank' title='Add to calendar'>&#x1F4C5;</a>";
 }
 
 function alarmLink(item) {
-  if (!item.dueDate || !item.dueTime) return "";
-  // Opens Android clock app with pre-filled alarm via intent URL
-  var h = item.dueTime.split(":")[0];
-  var m = item.dueTime.split(":")[1];
-  var url = "intent://alarm#Intent;action=android.intent.action.SET_ALARM;S.android.intent.extra.alarm.MESSAGE=" +
-    encodeURIComponent(item.name) +
-    ";i.android.intent.extra.alarm.HOUR=" + parseInt(h) +
-    ";i.android.intent.extra.alarm.MINUTES=" + parseInt(m) +
+  if (!item.dueTime) return "";
+  var h = parseInt(item.dueTime.split(":")[0]);
+  var m = parseInt(item.dueTime.split(":")[1]);
+  var msg = encodeURIComponent(item.name);
+  var intent = "intent:#Intent;action=android.intent.action.SET_ALARM" +
+    ";i.android.intent.extra.alarm.HOUR=" + h +
+    ";i.android.intent.extra.alarm.MINUTES=" + m +
+    ";S.android.intent.extra.alarm.MESSAGE=" + msg +
+    ";B.android.intent.extra.alarm.SKIP_UI=false" +
     ";end";
-  return "<a class='alarm-link' href='" + url + "' title='Set alarm' style='font-size:13px;margin-left:4px;text-decoration:none;opacity:.7;vertical-align:middle'>&#x23F0;</a>";
+  return "<button class='alarm-link' onclick=\"try{window.location.href='" + intent + "'}catch(e){toast('Alarm not supported on this device')}\" title='Set alarm' style='border:none;background:none;font-size:13px;margin-left:4px;cursor:pointer;padding:0;opacity:.7;vertical-align:middle;touch-action:manipulation'>&#x23F0;</button>";
 }
 
 function cardHTML(item, c) {
