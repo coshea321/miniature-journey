@@ -423,6 +423,8 @@ body.train-mode #toast{background:#132040}
 .set-pill-done .set-pill-val{color:#5A9AF8}
 .add-set-btn{margin:2px 12px 10px;padding:7px;border:1.5px dashed #1E3050;border-radius:8px;background:none;color:#5A7090;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;width:calc(100% - 24px);transition:all .15s}
 .add-set-btn:active{border-color:#3B6FE0;color:#3B6FE0}
+.due-chip{font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px;display:inline-block;letter-spacing:.2px}
+.cal-link{font-size:13px;margin-left:5px;text-decoration:none;opacity:.7;vertical-align:middle}
 
 /* Add exercise card */
 .add-ex-card{background:#132040;border-radius:12px;padding:12px;margin-bottom:13px;border:1px solid #1E3050}
@@ -694,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v132 · 28/05/2026 23:46</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v139 · 29/05/2026 15:58</div>
 
   </div>
 </div>
@@ -705,6 +707,7 @@ body.train-mode #toast{background:#132040}
   <button class="type-btn" data-lt="todo">&#x2705; General</button>
   <button class="type-btn" data-lt="personal">&#x1F464; Personal</button>
   <button class="type-btn" data-lt="travel">&#x2708;&#xFE0F; Travel</button>
+  <button class="type-btn" data-lt="testdue">&#x1F9EA; Test</button>
 </div>
 
 <div class="content">
@@ -730,6 +733,14 @@ body.train-mode #toast{background:#132040}
       <span class="cat-hint" id="catHint">tap to change</span>
     </div>
     <div class="ac" id="ac"></div>
+    <div id="dueDateRow" style="display:none;margin-top:6px">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:11px;color:#8A9AB0;font-weight:600;letter-spacing:.3px">DUE DATE</label>
+        <input id="dueDateInput" type="date" style="flex:1;padding:5px 8px;border:1.5px solid #1E3050;border-radius:7px;background:#0A1018;color:#C8D8E8;font-family:inherit;font-size:13px;outline:none">
+        <input id="dueTimeInput" type="time" style="width:90px;padding:5px 8px;border:1.5px solid #1E3050;border-radius:7px;background:#0A1018;color:#C8D8E8;font-family:inherit;font-size:13px;outline:none">
+        <button id="dueClearBtn" style="border:none;background:none;color:#5A7090;font-size:12px;cursor:pointer;padding:2px 4px;touch-action:manipulation">✕ Clear</button>
+      </div>
+    </div>
   </div>
 
   <div class="tabs">
@@ -1341,6 +1352,7 @@ var LIST_TYPES = {
   grocery:{ name:"&#x1F6D2; Grocery", placeholder:"Add an item...", color:"#2D6B35", emptyIco:"&#x1F6D2;", emptyTitle:"Your list is empty",  emptySub:"Start typing - categories detect automatically." },
   todo:   { name:"&#x2705; General",  placeholder:"Add a task...",   color:"#5A3AA0", emptyIco:"&#x2705;", emptyTitle:"No tasks yet",         emptySub:"Add a task - it'll be categorised automatically." },
   personal:{ name:"&#x1F464; Personal", placeholder:"Add a task...",   color:"#A0205A", emptyIco:"&#x1F464;", emptyTitle:"No personal tasks yet", emptySub:"Add a personal task - it'll be categorised automatically." },
+  testdue: { name:"&#x1F9EA; Test (due dates)", placeholder:"Add a test task...", color:"#0891b2", emptyIco:"&#x1F9EA;", emptyTitle:"Test list", emptySub:"Testing due date feature." },
   baby:    { name:"&#x1F476; Baby list", placeholder:"Add baby item...",  color:"#7E22CE", emptyIco:"&#x1F476;", emptyTitle:"Baby list is empty", emptySub:"Add nappies, formula, clothing and more." },
   travel: { name:"&#x2708; Travel",   placeholder:"Add to pack...",  color:"#1A5A8A", emptyIco:"&#x2708;", emptyTitle:"Nothing packed yet",  emptySub:"Add items to pack - categories detect automatically." },
   notes:  { name:"&#x1F4DD; Notes",   placeholder:"",                color:"#A05A10", emptyIco:"&#x1F4DD;", emptyTitle:"No notes yet",        emptySub:"" },
@@ -1600,6 +1612,7 @@ var LIST_CONFIG = {
   travel:   { cats:TRAVEL_CATS, kw:TRAVEL_KW,  key:"fl4_travel"   },
   personal: { cats:TODO_CATS,   kw:TODO_KW,    key:"fl4_personal"  },
   baby:     { cats:BABY_CATS,   kw:BABY_KW,    key:"fl4_babylist"   },
+  testdue:  { cats:TODO_CATS,   kw:TODO_KW,    key:"fl4_testdue"    },
 };
 
 // ============================================================
@@ -1746,6 +1759,7 @@ document.getElementById("typeBar").addEventListener("click", function(e) {
   resetInput();
   if (currentList !== "notes") { loadListData(currentList); switchTab("list"); renderList(); }
   applyListTheme();
+  updateDueDateRowVisibility();
 });
 
 // ============================================================
@@ -1753,6 +1767,12 @@ document.getElementById("typeBar").addEventListener("click", function(e) {
 // ============================================================
 document.getElementById("tabList").addEventListener("click",    function(){ switchTab("list"); });
 document.getElementById("tabHistory").addEventListener("click", function(){ switchTab("history"); });
+function updateDueDateRowVisibility() {
+  var row = document.getElementById("dueDateRow");
+  if (!row) return;
+  row.style.display = (currentList === "todo" || currentList === "personal" || currentList === "testdue") ? "block" : "none";
+}
+
 function switchTab(t) {
   document.getElementById("listPanel").style.display    = t==="list"    ? "block" : "none";
   document.getElementById("historyPanel").style.display = t==="history" ? "block" : "none";
@@ -1835,13 +1855,17 @@ function doAdd() {
       toast("Already in your list!"); resetInput(); return;
     }
   }
-  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false });
+  var dueD = (currentList === "todo" || currentList === "personal" || currentList === "testdue") ? (document.getElementById("dueDateInput").value || null) : null;
+  var dueT = dueD ? (document.getElementById("dueTimeInput").value || null) : null;
+  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false, dueDate:dueD, dueTime:dueT });
   addToHist(name, catId);
   saveCurrentList(); resetInput(); renderList(); switchTab("list");
   toast("Added: "+name);
 }
 function resetInput() {
   elInput.value = ""; hideCatRow(); hideAC(); currentCatId = null; manualCatId = null;
+  var dd = document.getElementById("dueDateInput"); if (dd) dd.value = "";
+  var dt = document.getElementById("dueTimeInput"); if (dt) dt.value = "";
 }
 function addToHist(name, catId) {
   var hist = getHist(), found = null;
@@ -1906,10 +1930,20 @@ function renderList() {
     });
   }
 
-  elListC.querySelectorAll(".item-card").forEach(function(card) {
+   elListC.querySelectorAll(".item-card").forEach(function(card) {
     var id = +card.dataset.id;
     card.addEventListener("click", function(e){
-      if (e.target.closest(".del-btn")||e.target.closest(".item-pill")) return;
+      // Zone 1: delete button
+      if (e.target.closest(".del-btn")) return;
+      // Zone 2: category pill → change category
+      if (e.target.closest(".item-pill")) return;
+      // Zone 3: circle/chk → toggle done
+      if (e.target.closest(".chk")) { toggleItem(id); return; }
+      // Zone 4: due chip or cal link → let them navigate naturally
+      if (e.target.closest(".due-chip") || e.target.closest(".cal-link") || e.target.closest(".alarm-link")) return;
+      // Zone 5: everything else on testdue → open notes sheet
+      if (currentList === "testdue") { openItemSheet(id); return; }
+      // Default: toggle done
       toggleItem(id);
     });
     card.querySelector(".del-btn").addEventListener("click", function(e){ e.stopPropagation(); removeItem(id); });
@@ -1917,11 +1951,61 @@ function renderList() {
   });
 }
 
+function dueDateLabel(item) {
+  if (!item.dueDate) return "";
+  var now   = new Date(); now.setHours(0,0,0,0);
+  var due   = new Date(item.dueDate); due.setHours(0,0,0,0);
+  var diff  = Math.round((due - now) / 86400000);
+  var label, color;
+  if (diff < 0)       { label = "Overdue " + Math.abs(diff) + "d"; color = "#ff6b6b"; }
+  else if (diff === 0){ label = "Today";    color = "#fbbf24"; }
+  else if (diff === 1){ label = "Tomorrow"; color = "#60a5fa"; }
+  else if (diff <= 7) { label = "In " + diff + " days"; color = "#a78bfa"; }
+  else                { label = due.toLocaleDateString("en-IE",{day:"numeric",month:"short"}); color = "#6b7280"; }
+  return "<span class='due-chip' style='background:" + color + "20;color:" + color + ";border:1px solid " + color + "40'>" + label + "</span>";
+}
+
+function calLink(item) {
+  if (!item.dueDate) return "";
+  var title  = encodeURIComponent(item.name);
+  var date   = item.dueDate.replace(/-/g,"");
+  var time   = item.dueTime ? item.dueTime.replace(":","") + "00" : "";
+  var start  = time ? date + "T" + time : date;
+  var end    = time ? date + "T" + (item.dueTime.split(":")[0].padStart(2,"0") + String(parseInt(item.dueTime.split(":")[1]||"0") + 30).padStart(2,"0") + "00") : date;
+  var url    = "https://calendar.google.com/calendar/r/eventedit?text=" + title + "&dates=" + start + "/" + end;
+  return "<a class='cal-link' href='" + url + "' target='_blank' title='Add to calendar'>&#x1F4C5;</a>";
+}
+
+function alarmLink(item) {
+  if (!item.dueDate || !item.dueTime) return "";
+  // Opens Android clock app with pre-filled alarm via intent URL
+  var h = item.dueTime.split(":")[0];
+  var m = item.dueTime.split(":")[1];
+  var url = "intent://alarm#Intent;action=android.intent.action.SET_ALARM;S.android.intent.extra.alarm.MESSAGE=" +
+    encodeURIComponent(item.name) +
+    ";i.android.intent.extra.alarm.HOUR=" + parseInt(h) +
+    ";i.android.intent.extra.alarm.MINUTES=" + parseInt(m) +
+    ";end";
+  return "<a class='alarm-link' href='" + url + "' title='Set alarm' style='font-size:13px;margin-left:4px;text-decoration:none;opacity:.7;vertical-align:middle'>&#x23F0;</a>";
+}
+
 function cardHTML(item, c) {
-  return "<div class='item-card"+(item.done?" done":"")+"' data-id='"+item.id+"' style='border-left-color:"+c.fg+"33'>" +
-    "<div class='chk'>"+(item.done?"&#10003;":"")+"</div>" +
-    "<span class='item-name'>"+esc(item.name)+"</span>" +
-    "<span class='item-pill' style='background:"+c.bg+";color:"+c.fg+"' title='Tap to change category'>"+c.emoji+" "+c.name+"</span>" +
+  var isTask   = currentList === "todo" || currentList === "personal" || currentList === "testdue";
+  var isDetail = currentList === "testdue";
+  var dueLabel = isTask ? dueDateLabel(item) : "";
+  var calBtn   = isTask && item.dueDate ? calLink(item) : "";
+  var alarmBtn = isTask && item.dueTime  ? alarmLink(item) : "";
+  var noteSnip = isDetail && item.notes
+    ? "<div style='font-size:11px;color:#8A9AB0;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>&#x1F4DD; " + esc(item.notes.substring(0,40)) + (item.notes.length>40?"…":"") + "</div>"
+    : "";
+  return "<div class='item-card" + (item.done?" done":"") + "' data-id='" + item.id + "' style='border-left-color:" + c.fg + "33'>" +
+    "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>" +
+    "<div style='flex:1;min-width:0;" + (isDetail?"cursor:pointer":"") + "'>" +
+      "<span class='item-name'>" + esc(item.name) + "</span>" +
+      (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + calBtn + alarmBtn + "</div>" : "") +
+      noteSnip +
+    "</div>" +
+    "<span class='item-pill' style='background:" + c.bg + ";color:" + c.fg + "' title='Tap to change category'>" + c.emoji + " " + c.name + "</span>" +
     "<button class='del-btn'>&#x2715;</button></div>";
 }
 
@@ -3724,6 +3808,7 @@ function switchSection(section) {
   } else if (section === "lists") {
     applyListTheme();
     renderList();
+    updateDueDateRowVisibility();
   } else if (section === "train") {
     document.getElementById("themeColor").setAttribute("content", "#132040");
     document.getElementById("appTitle").textContent  = "💪 Train";
@@ -3932,6 +4017,43 @@ function renderCardioLog() {
     });
   });
 }
+
+// ── Item detail sheet ─────────────────────────────────────
+var _sheetItemId = null;
+
+function openItemSheet(itemId) {
+  var items = getItems();
+  var item  = items.find(function(x){ return x.id === itemId; });
+  if (!item) return;
+  _sheetItemId = itemId;
+  document.getElementById("itemSheetName").textContent = item.name;
+  document.getElementById("itemSheetNotes").value      = item.notes || "";
+
+  document.getElementById("itemSheet").style.display         = "block";
+  document.getElementById("itemSheetBackdrop").style.display = "block";
+  document.body.style.overflow = "hidden";
+  setTimeout(function(){ document.getElementById("itemSheetNotes").focus(); }, 150);
+}
+
+
+function closeItemSheet() {
+  document.getElementById("itemSheet").style.display         = "none";
+  document.getElementById("itemSheetBackdrop").style.display = "none";
+  document.body.style.overflow = "";
+  _sheetItemId = null;
+}
+
+window.addEventListener("DOMContentLoaded", function() {
+  document.getElementById("itemSheetClose").addEventListener("click", closeItemSheet);
+  document.getElementById("itemSheetBackdrop").addEventListener("click", closeItemSheet);
+  document.getElementById("itemSheetSave").addEventListener("click", function() {
+    if (!_sheetItemId) return;
+    var items = getItems(), item = items.find(function(x){ return x.id === _sheetItemId; });
+    if (!item) return;
+    item.notes = document.getElementById("itemSheetNotes").value.trim();
+    listData[currentList].items = items; saveCurrentList(); renderList(); closeItemSheet(); toast("Saved");
+  });
+});
 
 document.getElementById("syncBtn").addEventListener("click", function() {
   renderSyncModal();
@@ -5006,7 +5128,9 @@ function doHqpAdd() {
       for (var i = 0; i < kw.length; i++) { if (low.indexOf(kw[i][0]) !== -1) return kw[i][1]; }
       return "other";
     })();
-    listData[lt].items.unshift({ id: Date.now(), name: name, catId: catId, done: false });
+    var dueD = (currentList === "todo" || currentList === "personal" || currentList === "testdue") ? document.getElementById("dueDateInput").value : "";
+    var dueT = dueD ? (document.getElementById("dueTimeInput").value || "") : "";
+    listData[lt].items.unshift({ id: Date.now(), name: name, catId: catId, done: false, dueDate: dueD || null, dueTime: dueT || null });
     addToHistFor(lt, name, catId);
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
     saveCurrentList();
@@ -6581,6 +6705,23 @@ if ("serviceWorker" in navigator && !_isPreview) {
   <button id="setSheetCancel" style="width:100%;padding:10px;border:none;background:none;color:#5A7090;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;margin-top:6px">Cancel</button>
 </div>
 <div id="setSheetBackdrop" style="display:none;position:fixed;inset:0;z-index:699;background:rgba(0,0,0,.4)"></div>
+
+
+<!-- Item detail sheet -->
+<div id="itemSheet" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:700;background:#1C2A3E;border-top:1.5px solid #2A3A52;border-radius:18px 18px 0 0;padding:18px 16px 36px;box-shadow:0 -8px 32px rgba(0,0,0,.6);max-width:480px;margin:0 auto;max-height:85vh;overflow-y:auto">
+  <div style="width:36px;height:4px;background:#2A3A52;border-radius:2px;margin:0 auto 14px"></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <div id="itemSheetName" style="flex:1;font-size:16px;font-weight:700;color:#E8EDF2"></div>
+    <button id="itemSheetClose" style="border:none;background:none;color:#5A7090;font-size:20px;cursor:pointer;padding:0 4px;touch-action:manipulation">&#x2715;</button>
+  </div>
+  <div style="margin-bottom:12px">
+    <div style="font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Notes</div>
+    <textarea id="itemSheetNotes" placeholder="Add notes..." rows="4" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #2A3A52;border-radius:10px;background:#0D1B2E;color:#C8D8E8;font-family:inherit;font-size:14px;resize:vertical;outline:none;line-height:1.5"></textarea>
+  </div>
+
+  <button id="itemSheetSave" style="width:100%;padding:13px;border:none;background:#3B6FE0;color:#fff;border-radius:11px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation">Save</button>
+</div>
+<div id="itemSheetBackdrop" style="display:none;position:fixed;inset:0;z-index:699;background:rgba(0,0,0,.5)"></div>
 
 </body>
 </html>
