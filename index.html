@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v158 · 30/05/2026 14:36</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v159 · 30/05/2026 14:52</div>
 
   </div>
 </div>
@@ -1242,28 +1242,45 @@ body.train-mode #toast{background:#132040}
     <!-- Household -->
     <div class="sync-section">
       <div class="sync-section-title">Household</div>
-      <div id="syncHouseholdConnected" style="display:none">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <div style="font-family:monospace;font-size:22px;font-weight:700;letter-spacing:4px;color:#2D6B35;flex:1" id="syncHouseholdCode"></div>
-          <button class="sync-btn outline" id="copyHouseholdCodeBtn" style="margin:0;padding:8px 12px;font-size:12px">Copy</button>
-        </div>
-        <div id="syncMembersList" style="margin-bottom:10px;font-size:13px;color:#4A4A3A"></div>
-        <div style="display:flex;gap:8px">
-          <input class="sync-input" id="inviteUsernameInput" placeholder="Invite by username" style="flex:1;margin:0;font-size:14px">
-          <button class="sync-btn" id="inviteUserBtn" style="margin:0;padding:10px 14px;white-space:nowrap;font-size:13px">Invite</button>
-        </div>
-        <button class="sync-btn outline" id="leaveHouseholdBtn" style="margin-top:8px;border-color:#C03030;color:#C03030">Leave household</button>
-      </div>
-      <div id="syncHouseholdSetup">
-        <!-- Join — shown prominently at top -->
-        <div style="background:#F0F7F0;border-radius:12px;padding:16px;margin-bottom:10px">
-          <div style="font-size:12px;font-weight:700;color:#4A7A4A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Join an existing household</div>
-          <input class="sync-input" id="joinHouseholdInput" placeholder="Enter code e.g. ABC123" style="margin-bottom:8px;font-family:monospace;font-size:22px;letter-spacing:6px;text-transform:uppercase;font-weight:700;text-align:center;padding:14px">
-          <button class="sync-btn" id="joinHouseholdBtn" style="background:#2D6B35">Join household</button>
-        </div>
-        <div style="text-align:center;font-size:13px;color:#7A8772;margin:10px 0">or</div>
-        <button class="sync-btn outline" id="createHouseholdBtn">Create a new household</button>
-      </div>
+       <div id="syncHouseholdConnected" style="display:none">
+         <div style="background:#E8F5E9;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+           <span style="font-size:20px">&#x1F3E0;</span>
+           <div>
+             <div style="font-size:12px;font-weight:700;color:#2D6B35;text-transform:uppercase;letter-spacing:.4px">Household active</div>
+             <div style="font-size:11px;color:#4A7A4A;margin-top:1px">You are syncing with household members</div>
+           </div>
+         </div>
+         <div style="margin-bottom:10px">
+           <div style="font-size:11px;font-weight:700;color:#7A8772;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Your household code</div>
+           <div style="display:flex;align-items:center;gap:8px">
+             <div id="syncHouseholdCodeDisplay" style="flex:1;font-family:monospace;font-size:24px;font-weight:700;letter-spacing:6px;color:#2D6B35;background:#F0F7F0;border-radius:8px;padding:10px 14px;text-align:center"></div>
+             <button class="sync-btn outline" id="copyHouseholdCodeBtn" aria-label="Copy household code" style="margin:0;padding:10px 12px;white-space:nowrap">&#x1F4CB; Copy</button>
+           </div>
+           <div style="font-size:11px;color:#7A8772;margin-top:4px;text-align:center">Share this code with family members so they can join</div>
+         </div>
+         <div id="syncMembersList" style="margin-bottom:10px;font-size:13px;color:#4A4A3A"></div>
+         <div style="display:flex;gap:8px;margin-bottom:8px">
+           <input class="sync-input" id="inviteUsernameInput" placeholder="Invite by username" style="flex:1;margin:0">
+           <button class="sync-btn" id="inviteUserBtn" aria-label="Invite user" style="margin:0;padding:10px 14px;white-space:nowrap">Invite</button>
+         </div>
+         <button class="sync-btn outline" id="leaveHouseholdBtn" aria-label="Leave household" style="margin-top:4px;border-color:#C05050;color:#C05050;width:100%">Leave household</button>
+       </div>
+       <div id="syncHouseholdSetup">
+         <div style="background:#F5F5F5;border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+           <span style="font-size:20px">&#x1F465;</span>
+           <div>
+             <div style="font-size:12px;font-weight:700;color:#7A8772;text-transform:uppercase;letter-spacing:.4px">No household yet</div>
+             <div style="font-size:11px;color:#9A9A8A;margin-top:1px">Join an existing one or create a new one</div>
+           </div>
+         </div>
+         <div style="background:#F0F7F0;border-radius:12px;padding:16px;margin-bottom:10px">
+           <div style="font-size:11px;font-weight:700;color:#4A7A4A;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Join existing household</div>
+           <input class="sync-input" id="joinHouseholdInput" placeholder="Enter code e.g. ABC123" style="margin-bottom:8px;font-family:monospace;font-size:22px;letter-spacing:6px;text-transform:uppercase;font-weight:700;text-align:center;padding:14px">
+           <button class="sync-btn" id="joinHouseholdBtn" style="background:#2D6B35;width:100%">Join household</button>
+         </div>
+         <div style="text-align:center;font-size:13px;color:#7A8772;margin:10px 0">or</div>
+         <button class="sync-btn outline" id="createHouseholdBtn" style="width:100%">&#x2795; Create a new household</button>
+       </div>
     </div>
 
     <!-- What to sync -->
@@ -4392,6 +4409,8 @@ function renderSyncModal() {
     if (inHousehold) {
       hhConnected.style.display = "block";
       hhSetup.style.display     = "none";
+      var codeDisplay = document.getElementById("syncHouseholdCodeDisplay");
+      if (codeDisplay) codeDisplay.textContent = hearthHouse;
       var hhInput = document.getElementById("joinHouseholdInput");
       if (hhInput) hhInput.value = hearthHouse;
     } else {
