@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v157 · 30/05/2026 10:45</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v158 · 30/05/2026 14:36</div>
 
   </div>
 </div>
@@ -4099,16 +4099,17 @@ function startSSEFallback() {
 function startPersonalListening() {
   if (!isLoggedIn()) return;
   if (hearthHealthES) { hearthHealthES.close(); hearthHealthES = null; }
-  hearthHealthES = new EventSource(userUrl("/data"));
-  hearthHealthES.addEventListener("put",   handlePersonalEvent);
-  hearthHealthES.addEventListener("patch", handlePersonalEvent);
-  hearthHealthES.onerror = function() {
-    // Browser retries automatically on transient drops (readyState 0→connecting).
-    // Only force a new connection if the stream is permanently closed (readyState 2).
-    if (hearthHealthES && hearthHealthES.readyState === 2) {
-      setTimeout(function(){ if (isLoggedIn()) startPersonalListening(); }, 5000);
-    }
-  };
+  getAuthToken(function(token) {
+    var url = userUrl("/data") + (token ? "?auth=" + token : "");
+    hearthHealthES = new EventSource(url);
+    hearthHealthES.addEventListener("put",   handlePersonalEvent);
+    hearthHealthES.addEventListener("patch", handlePersonalEvent);
+    hearthHealthES.onerror = function() {
+      if (hearthHealthES && hearthHealthES.readyState === 2) {
+        setTimeout(function(){ if (isLoggedIn()) startPersonalListening(); }, 5000);
+      }
+    };
+  });
 }
 function handlePersonalEvent(e) {
   if (Date.now() - lastPushTs < SSE_GRACE_MS) return; // ignore echo of our own push
@@ -4128,14 +4129,17 @@ var hearthSyncES = null;
 function startListening() {
   if (!isHouseholdSet()) return;
   if (hearthSyncES) { hearthSyncES.close(); hearthSyncES = null; }
-  hearthSyncES = new EventSource(houseUrl("/shared"));
-  hearthSyncES.addEventListener("put",   handleHouseholdEvent);
-  hearthSyncES.addEventListener("patch", handleHouseholdEvent);
-  hearthSyncES.onerror = function() {
-    if (hearthSyncES && hearthSyncES.readyState === 2) {
-      setTimeout(function(){ if (isHouseholdSet()) startListening(); }, 5000);
-    }
-  };
+  getAuthToken(function(token) {
+    var url = houseUrl("/shared") + (token ? "?auth=" + token : "");
+    hearthSyncES = new EventSource(url);
+    hearthSyncES.addEventListener("put",   handleHouseholdEvent);
+    hearthSyncES.addEventListener("patch", handleHouseholdEvent);
+    hearthSyncES.onerror = function() {
+      if (hearthSyncES && hearthSyncES.readyState === 2) {
+        setTimeout(function(){ if (isHouseholdSet()) startListening(); }, 5000);
+      }
+    };
+  });
 }
 function handleHouseholdEvent(e) {
   if (Date.now() - lastPushTs < SSE_GRACE_MS) return;
@@ -4382,17 +4386,17 @@ function renderSyncModal() {
   }
 
   // Household section
-  var hhSection = document.getElementById("householdSection");
-  if (hhSection) {
-    hhSection.style.display = loggedIn ? "" : "none";
-    if (loggedIn) {
-      var hhInput = document.getElementById("householdCodeInput");
-      if (hhInput && hearthHouse) hhInput.value = hearthHouse;
-      var hhStatus = document.getElementById("householdStatus");
-      if (hhStatus) {
-        hhStatus.textContent = inHousehold ? "Household: " + hearthHouse : "No household";
-        hhStatus.style.color = inHousehold ? "#2D6B35" : "#8A7A60";
-      }
+  var hhConnected = document.getElementById("syncHouseholdConnected");
+  var hhSetup     = document.getElementById("syncHouseholdSetup");
+  if (hhConnected && hhSetup) {
+    if (inHousehold) {
+      hhConnected.style.display = "block";
+      hhSetup.style.display     = "none";
+      var hhInput = document.getElementById("joinHouseholdInput");
+      if (hhInput) hhInput.value = hearthHouse;
+    } else {
+      hhConnected.style.display = "none";
+      hhSetup.style.display     = "block";
     }
   }
 
