@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v149 · 30/05/2026 06:17</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v150 · 30/05/2026 07:10</div>
 
   </div>
 </div>
@@ -3384,6 +3384,9 @@ var hearthFbId    = storeGet("hearth_fb")       || "";
 var hearthUser    = storeGet("hearth_user")      || "";
 var hearthToken   = storeGet("hearth_token")     || ""; // stored pw hash
 var hearthHouse   = storeGet("hearth_household") || "";
+var hearthApiKey      = storeGet("hearth_apikey")   || "";
+var hearthIdToken     = "";
+var hearthTokenExpiry = 0;
 var hearthSyncES  = null;
 var hearthHealthES = null;
 var syncPaused    = false;
