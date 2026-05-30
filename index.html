@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v155 · 30/05/2026 08:35</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v156 · 30/05/2026 10:29</div>
 
   </div>
 </div>
@@ -3521,6 +3521,15 @@ function showLoginOverlay() {
     if (fi) fi.value = hearthFbId;
     if (ok) ok.style.display = "block";
     if (st) { st.style.opacity = "1"; st.style.pointerEvents = "auto"; }
+    // Show API key row if FB URL is set
+    var akRow = document.getElementById("loginApiKeyRow");
+    if (akRow) akRow.style.display = "block";
+    if (hearthApiKey) {
+      var akInput = document.getElementById("loginApiKeyInput");
+      var akOk    = document.getElementById("loginApiKeyOk");
+      if (akInput) akInput.value = hearthApiKey;
+      if (akOk)    akOk.style.display = "block";
+    }
   }
 }
 function hideLoginOverlay() {
