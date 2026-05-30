@@ -614,8 +614,8 @@ body.train-mode #toast{background:#132040}
   <div class="app-title" id="appTitle">🔥 Hearth</div>
   <div class="hdr-badge" id="hdrBadge"></div>
   <span id="hdrUser" style="font-size:11px;color:rgba(255,255,255,.55);font-weight:600;letter-spacing:.3px;white-space:nowrap;overflow:hidden;max-width:80px;text-overflow:ellipsis"></span>
-  <button class="hdr-btn" id="syncBtn" title="Sync">&#128257;</button>
-  <button class="hdr-btn" id="settingsBtn" title="Settings">&#9881;&#65039;</button>
+  <button class="hdr-btn" id="syncBtn" title="Sync" aria-label="Open sync settings">&#128257;</button>
+  <button class="hdr-btn" id="settingsBtn" title="Settings" aria-label="Open app settings">&#9881;&#65039;</button>
 </header>
 
 <div id="homeSection">
@@ -672,7 +672,7 @@ body.train-mode #toast{background:#132040}
       <div class="hqp-row">
         <input id="homeQuickInput" class="hqp-input" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Item name...">
         <button class="hqp-add life" id="hqpAddBtn">Add</button>
-        <button class="hqp-cancel" id="hqpCancel">&#x2715;</button>
+        <button class="hqp-cancel" id="hqpCancel" aria-label="Cancel">&#x2715;</button>
       </div>
     </div>
 
@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v147 · 29/05/2026 18:24</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v149 · 30/05/2026 06:17</div>
 
   </div>
 </div>
@@ -725,7 +725,7 @@ body.train-mode #toast{background:#132040}
   <div class="input-card">
     <div class="input-row">
       <input id="itemInput" type="text" placeholder="Add an item..." autocomplete="off" autocorrect="off" spellcheck="false">
-      <button class="add-btn" id="addBtn">+</button>
+      <button class="add-btn" id="addBtn" aria-label="Add item">+</button>
     </div>
     <div class="cat-row" id="catRow">
       <span class="cat-label">Category:</span>
@@ -738,7 +738,7 @@ body.train-mode #toast{background:#132040}
         <label style="font-size:12px;color:#C8D8E8;font-weight:700;letter-spacing:.3px">&#x1F4C5; Due date</label>
         <input id="dueDateInput" type="date" style="flex:1;padding:5px 8px;border:1.5px solid #2A4060;border-radius:7px;background:#1C2E44;color:#E0EAF4;font-family:inherit;font-size:13px;outline:none">
 
-        <button id="dueClearBtn" style="border:none;background:none;color:#5A7090;font-size:12px;cursor:pointer;padding:2px 4px;touch-action:manipulation">✕ Clear</button>
+        <button id="dueClearBtn" aria-label="Clear due date" style="border:none;background:none;color:#5A7090;font-size:12px;cursor:pointer;padding:2px 4px;touch-action:manipulation">✕ Clear</button>
       </div>
     </div>
   </div>
@@ -792,9 +792,9 @@ body.train-mode #toast{background:#132040}
   </div>
   <div id="trainLogView" class="train-content" style="display:none">
     <div class="workout-date-bar">
-      <button class="wdb-btn" id="prevDayBtn">&#x2039;</button>
+      <button class="wdb-btn" id="prevDayBtn" aria-label="Previous day">&#x2039;</button>
       <span class="wdb-label" id="workoutDateLabel">Today</span>
-      <button class="wdb-btn" id="nextDayBtn">&#x203A;</button>
+      <button class="wdb-btn" id="nextDayBtn" aria-label="Next day">&#x203A;</button>
     </div>
 
     <!-- Exercises rendered here -->
@@ -1092,7 +1092,7 @@ body.train-mode #toast{background:#132040}
   <div class="ses-inner">
     <div class="ses-prog-bar-wrap"><div class="ses-prog-fill" id="sesProgFill"></div></div>
     <div class="ses-hdr">
-      <button class="ses-back" id="sesBackBtn">&#x2039;</button>
+      <button class="ses-back" id="sesBackBtn" aria-label="Back to programmes">&#x2039;</button>
       <span class="ses-title" id="sesTitle"></span>
       <span class="ses-count" id="sesCount"></span>
     </div>
@@ -1135,7 +1135,7 @@ body.train-mode #toast{background:#132040}
 <!-- CATEGORY PICKER MODAL -->
 <div class="overlay" id="pickerOverlay">
   <div class="modal-box" style="position:relative">
-    <button class="modal-close" id="pickerClose">&#x2715;</button>
+    <button class="modal-close" id="pickerClose" aria-label="Close">&#x2715;</button>
     <div class="modal-title" id="pickerTitle">Choose a category</div>
     <div class="picker-grid" id="pickerGrid"></div>
     <button class="picker-add-cat" id="addCatBtn">&#x2795; Add custom category</button>
@@ -1173,7 +1173,15 @@ body.train-mode #toast{background:#132040}
         <input id="loginFbInput" style="flex:1;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.15);border-radius:9px;padding:11px 13px;color:#fff;font-size:15px;font-family:inherit;outline:none" placeholder="Paste your database URL or project ID">
         <button id="loginFbSaveBtn" style="padding:11px 16px;background:#C4833A;border:none;border-radius:9px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap">Set</button>
       </div>
-      <div id="loginFbOk" style="display:none;font-size:12px;color:#6BCF86;margin-top:6px">✓ Connected</div>
+      <div id="loginFbOk" style="display:none;font-size:12px;color:#6BCF86;margin-top:6px">✓ Database connected</div>
+      <div id="loginApiKeyRow" style="display:none;margin-top:10px">
+        <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:5px">Web API Key <span style="opacity:.5">(Project Settings → General)</span></div>
+        <div style="display:flex;gap:8px">
+          <input id="loginApiKeyInput" type="password" placeholder="AIza..." style="flex:1;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.15);border-radius:9px;color:#fff;padding:10px 12px;font-family:inherit;font-size:13px;outline:none">
+          <button id="loginApiKeySaveBtn" style="padding:11px 16px;background:#C4833A;border:none;border-radius:9px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap">Set</button>
+        </div>
+        <div id="loginApiKeyOk" style="display:none;font-size:12px;color:#6BCF86;margin-top:6px">✓ API key set</div>
+      </div>
       <details style="margin-top:10px">
         <summary style="font-size:12px;color:rgba(255,255,255,.4);cursor:pointer">How to get a free project →</summary>
         <ol style="font-size:12px;color:rgba(255,255,255,.4);line-height:1.8;margin:8px 0 0 16px;padding:0">
@@ -1184,7 +1192,7 @@ body.train-mode #toast{background:#132040}
         </ol>
         <div style="background:rgba(255,255,255,.06);border-radius:8px;padding:10px;margin-top:8px;font-size:11px;color:rgba(255,255,255,.5);line-height:1.7">
           Rules tab → paste:<br>
-          <code style="color:#6BCF86">{"rules":{"hearth":{".read":true,".write":true}}}</code>
+          <code style="color:#6BCF86">{"rules":{"hearth":{".read":"auth != null",".write":"auth != null"}}}</code>
         </div>
       </details>
     </div>
@@ -1206,7 +1214,7 @@ body.train-mode #toast{background:#132040}
 <!-- SYNC MODAL -->
 <div class="overlay" id="syncOverlay">
   <div class="modal-box" style="position:relative">
-    <button class="modal-close" id="syncClose">&#x2715;</button>
+    <button class="modal-close" id="syncClose" aria-label="Close sync settings">&#x2715;</button>
     <div class="modal-title">&#x1F504; Sync</div>
 
     <!-- Logged-in profile -->
@@ -1270,7 +1278,7 @@ body.train-mode #toast{background:#132040}
 <!-- SETTINGS MODAL -->
 <div class="overlay" id="settingsOverlay">
   <div class="modal-box" style="position:relative">
-    <button class="modal-close" id="settingsClose">&#x2715;</button>
+    <button class="modal-close" id="settingsClose" aria-label="Close settings">&#x2715;</button>
     <div class="modal-title">&#9881;&#65039; Settings</div>
     <div style="font-size:14px;color:#7A8772;text-align:center;margin-bottom:18px">Manage your custom categories</div>
     <div id="customCatsList"></div>
@@ -1305,19 +1313,19 @@ body.train-mode #toast{background:#132040}
 </div>
 
 <nav class="bottom-nav">
-  <button class="bn-btn home-active" id="bnHome">
+  <button class="bn-btn home-active" id="bnHome" aria-label="Home">
     <span class="bn-ico">&#x1F3E0;</span>Home
   </button>
-  <button class="bn-btn" id="bnLife">
+  <button class="bn-btn" id="bnLife" aria-label="Lists">
     <span class="bn-ico">&#x1F6D2;</span>Lists
   </button>
-  <button class="bn-btn" id="bnTrain">
+  <button class="bn-btn" id="bnTrain" aria-label="Train">
     <span class="bn-ico">&#x1F4AA;</span>Train
   </button>
-  <button class="bn-btn" id="bnNotes">
+  <button class="bn-btn" id="bnNotes" aria-label="Notes">
     <span class="bn-ico">&#x1F4DD;</span>Notes
   </button>
-  <button class="bn-btn" id="bnBaby">
+  <button class="bn-btn" id="bnBaby" aria-label="Baby">
     <span class="bn-ico">&#x1F476;</span>Baby
   </button>
 </nav>
@@ -3204,8 +3212,8 @@ document.getElementById("logoutBtn").addEventListener("click", function() {
 document.getElementById("leaveHouseholdBtn").addEventListener("click", function() {
   confirmDialog("Leave this household?", function() {
     if (hearthSyncES) { hearthSyncES.close(); hearthSyncES = null; }
-    fetch(houseUrl("/members/" + hearthUser), { method:"DELETE" }).catch(function(){});
-    fetch(userUrl("/household"), { method:"DELETE" }).catch(function(){});
+    fetch(authUrl(houseUrl("/members/" + hearthUser)), { method:"DELETE" }).catch(function(){});
+    fetch(authUrl(userUrl("/household")), { method:"DELETE" }).catch(function(){});
     hearthHouse = ""; storeSet("hearth_household","");
     renderSyncModal(); updateSyncStatus(); toast("Left household");
   });
@@ -3217,8 +3225,8 @@ document.getElementById("joinHouseholdBtn").addEventListener("click", function()
   var code = document.getElementById("joinHouseholdInput").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
   if (code.length < 4) { toast("Enter a valid code"); return; }
   hearthHouse = code; storeSet("hearth_household", code);
-  fetch(houseUrl("/members/"+hearthUser), {method:"PUT",body:JSON.stringify(true),headers:{"Content-Type":"application/json"}}).catch(function(){});
-  fetch(userUrl("/household"), {method:"PUT",body:JSON.stringify(code),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  fetch(authUrl(houseUrl("/members/"+hearthUser)), {method:"PUT",body:JSON.stringify(true),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  fetch(authUrl(userUrl("/household")), {method:"PUT",body:JSON.stringify(code),headers:{"Content-Type":"application/json"}}).catch(function(){});
   fetchHousehold(function(){ pushHousehold(); startListening(); });
   renderSyncModal(); toast("Joined: " + code);
 });
@@ -3229,8 +3237,8 @@ document.getElementById("createHouseholdBtn").addEventListener("click", function
   var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", code = "";
   for (var i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
   hearthHouse = code; storeSet("hearth_household", code);
-  fetch(houseUrl("/members/"+hearthUser), {method:"PUT",body:JSON.stringify(true),headers:{"Content-Type":"application/json"}}).catch(function(){});
-  fetch(userUrl("/household"), {method:"PUT",body:JSON.stringify(code),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  fetch(authUrl(houseUrl("/members/"+hearthUser)), {method:"PUT",body:JSON.stringify(true),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  fetch(authUrl(userUrl("/household")), {method:"PUT",body:JSON.stringify(code),headers:{"Content-Type":"application/json"}}).catch(function(){});
   pushHousehold(); startListening();
   var inp = document.getElementById("joinHouseholdInput"); if(inp) inp.value = code;
   renderSyncModal(); toast("Household created: " + code);
@@ -3410,6 +3418,84 @@ function hearthBase()   { return hearthFbId.replace(/\/+$/, ""); } // hearthFbId
 function userUrl(path)  { return hearthBase() + "/hearth/users/" + hearthUser + (path||"") + ".json"; }
 function houseUrl(path) { return hearthBase() + "/hearth/households/" + hearthHouse + (path||"") + ".json"; }
 
+
+// ── Firebase Auth REST API ────────────────────────────────
+function getAuthToken(cb) {
+  // Return cached token if still valid (with 5-min buffer)
+  if (hearthIdToken && Date.now() < hearthTokenExpiry - 300000) {
+    cb(hearthIdToken); return;
+  }
+  // Re-authenticate using stored credentials
+  if (!hearthApiKey || !hearthUser || !hearthToken) { cb(null); return; }
+  // hearthToken stores the password hash — we need the actual password
+  // Since we can't reverse the hash, we use a refresh token approach
+  // Fall back to storing refresh token
+  var rt = storeGet("hearth_refresh_token");
+  if (rt) {
+    fetch("https://securetoken.googleapis.com/v1/token?key=" + hearthApiKey, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "grant_type=refresh_token&refresh_token=" + encodeURIComponent(rt)
+    }).then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (d.id_token) {
+        hearthIdToken = d.id_token;
+        hearthTokenExpiry = Date.now() + (parseInt(d.expires_in)||3600) * 1000;
+        storeSet("hearth_refresh_token", d.refresh_token);
+        cb(hearthIdToken);
+      } else { cb(null); }
+    }).catch(function(){ cb(null); });
+  } else {
+    cb(null);
+  }
+}
+
+function firebaseSignIn(email, password, cb) {
+  fetch("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + hearthApiKey, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email, password: password, returnSecureToken: true })
+  }).then(function(r){ return r.json(); })
+  .then(function(d) {
+    if (d.idToken) {
+      hearthIdToken = d.idToken;
+      hearthTokenExpiry = Date.now() + (parseInt(d.expiresIn)||3600) * 1000;
+      storeSet("hearth_refresh_token", d.refreshToken);
+      cb(null, d);
+    } else {
+      cb(d.error ? d.error.message : "Sign in failed");
+    }
+  }).catch(function(e){ cb("Network error"); });
+}
+
+function firebaseSignUp(email, password, cb) {
+  fetch("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + hearthApiKey, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email, password: password, returnSecureToken: true })
+  }).then(function(r){ return r.json(); })
+  .then(function(d) {
+    if (d.idToken) {
+      hearthIdToken = d.idToken;
+      hearthTokenExpiry = Date.now() + (parseInt(d.expiresIn)||3600) * 1000;
+      storeSet("hearth_refresh_token", d.refreshToken);
+      cb(null, d);
+    } else {
+      var msg = d.error ? d.error.message : "Sign up failed";
+      if (msg === "EMAIL_EXISTS") msg = "Account already exists — try logging in";
+      if (msg === "WEAK_PASSWORD : Password should be at least 6 characters") msg = "Password must be at least 6 characters";
+      cb(msg);
+    }
+  }).catch(function(e){ cb("Network error"); });
+}
+
+// Append auth token to Firebase REST URLs
+function authUrl(url) {
+  if (!hearthIdToken) return url;
+  var sep = url.indexOf("?") >= 0 ? "&" : "?";
+  return url + sep + "auth=" + hearthIdToken;
+}
+
 // ── Login overlay functions ───────────────────────────────
 function showLoginOverlay() {
   if (_isPreview) return;
@@ -3448,6 +3534,15 @@ function enableAccountStep() {
 }
 
 // ── Login button wiring ───────────────────────────────────
+document.getElementById("loginApiKeySaveBtn").addEventListener("click", function() {
+  var key = document.getElementById("loginApiKeyInput").value.trim();
+  if (!key || !key.startsWith("AIza")) { showLoginError("Enter a valid Web API Key (starts with AIza)"); return; }
+  hearthApiKey = key;
+  storeSet("hearth_apikey", hearthApiKey);
+  document.getElementById("loginApiKeyOk").style.display = "block";
+  enableAccountStep();
+});
+
 document.getElementById("loginFbSaveBtn").addEventListener("click", function() {
   var raw = document.getElementById("loginFbInput").value.trim();
   if (!raw) return;
@@ -3462,6 +3557,8 @@ document.getElementById("loginFbSaveBtn").addEventListener("click", function() {
   storeSet("hearth_fb", hearthFbId);
   document.getElementById("loginFbInput").value = hearthFbId;
   document.getElementById("loginFbOk").style.display = "block";
+  document.getElementById("loginApiKeyRow").style.display = "block";
+  if (hearthApiKey) { document.getElementById("loginApiKeyInput").value = hearthApiKey; document.getElementById("loginApiKeyOk").style.display = "block"; }
   enableAccountStep();
 });
 document.getElementById("loginBtn").addEventListener("click", function() {
@@ -3490,38 +3587,72 @@ function hashPw(password) {
 // ── Account management ────────────────────────────────────
 function doCreateAccount(username, password) {
   setLoginSpinner(true);
-  hashPw(password).then(function(hash) {
-    return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json")
-      .then(function(r){ return r.json(); })
-      .then(function(existing) {
-        if (existing && existing.hash) { showLoginError("Username already taken"); setLoginSpinner(false); throw new Error("taken"); }
-        return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json", {
-          method:"PUT", body:JSON.stringify({ hash:hash, createdAt:Date.now() }), headers:{"Content-Type":"application/json"}
-        }).then(function(resp) {
-          if (!resp.ok) throw new Error("HTTP " + resp.status);
-          hearthUser = username; hearthToken = hash;
-          storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
-          onLoginSuccess();
+  if (!hearthApiKey) {
+    // Legacy mode
+    hashPw(password).then(function(hash) {
+      return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json")
+        .then(function(r){ return r.json(); })
+        .then(function(existing) {
+          if (existing && existing.hash) { showLoginError("Username already taken"); setLoginSpinner(false); throw new Error("taken"); }
+          return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json", {
+            method:"PUT", body:JSON.stringify({ hash:hash, createdAt:Date.now() }), headers:{"Content-Type":"application/json"}
+          }).then(function(resp) {
+            if (!resp.ok) throw new Error("HTTP " + resp.status);
+            hearthUser = username; hearthToken = hash;
+            storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
+            onLoginSuccess();
+          });
         });
-      });
-  }).catch(function(e) {
-    if (e.message !== "taken") { showLoginError("Could not create account. Check your Firebase URL and rules."); }
-    setLoginSpinner(false);
-  });
+    }).catch(function(e) {
+      if (e.message !== "taken") { showLoginError("Could not create account. Check your Firebase URL and rules."); }
+      setLoginSpinner(false);
+    });
+  } else {
+    // Firebase Auth mode
+    var email = username + "@hearth.app";
+    firebaseSignUp(email, password, function(err, data) {
+      if (err) { showLoginError(err); setLoginSpinner(false); return; }
+      // Store username→uid mapping so we can find their data path
+      hearthUser = username; hearthToken = data.idToken;
+      storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
+      // Write username record so verifySession works
+      fetch(authUrl(hearthBase() + "/hearth/users/" + username + "/auth.json"), {
+        method:"PUT", body:JSON.stringify({ uid:data.localId, createdAt:Date.now() }),
+        headers:{"Content-Type":"application/json"}
+      }).catch(function(){});
+      onLoginSuccess();
+    });
+  }
 }
 
 function doLogin(username, password) {
   setLoginSpinner(true);
-  hashPw(password).then(function(hash) {
-    return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json")
-      .then(function(r){ return r.json(); })
-      .then(function(authRec) {
-        if (!authRec || authRec.hash !== hash) { showLoginError("Incorrect username or password"); setLoginSpinner(false); return; }
-        hearthUser = username; hearthToken = hash;
-        storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
-        onLoginSuccess();
-      });
-  }).catch(function(e) { showLoginError("Could not reach Firebase. Check your database URL and rules."); setLoginSpinner(false); });
+  if (!hearthApiKey) {
+    // Legacy mode — no API key set, use old hash method
+    hashPw(password).then(function(hash) {
+      return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json")
+        .then(function(r){ return r.json(); })
+        .then(function(authRec) {
+          if (!authRec || authRec.hash !== hash) { showLoginError("Incorrect username or password"); setLoginSpinner(false); return; }
+          hearthUser = username; hearthToken = hash;
+          storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
+          onLoginSuccess();
+        });
+    }).catch(function(e) { showLoginError("Could not reach Firebase. Check your database URL and rules."); setLoginSpinner(false); });
+  } else {
+    // Firebase Auth mode
+    var email = username + "@hearth.app";
+    firebaseSignIn(email, password, function(err, data) {
+      if (err) {
+        var msg = err === "EMAIL_NOT_FOUND" || err === "INVALID_PASSWORD" || err === "INVALID_LOGIN_CREDENTIALS"
+          ? "Incorrect username or password" : "Login failed: " + err;
+        showLoginError(msg); setLoginSpinner(false); return;
+      }
+      hearthUser = username; hearthToken = data.idToken;
+      storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
+      onLoginSuccess();
+    });
+  }
 }
 
 function verifySession() {
@@ -3549,13 +3680,14 @@ function onLoginSuccess() {
   fetchPersonal(function() {
     pushPersonal();
     startPersonalListening();
+    startSSEFallback();
     // Re-render home with fresh remote data
     if (currentSection === "home") renderHomeScreen();
   });
 
   // Load household code from user profile if not stored locally
   if (!hearthHouse) {
-    fetch(userUrl("/household")).then(function(r){ return r.json(); }).then(function(code) {
+    fetch(authUrl(userUrl("/household"))).then(function(r){ return r.json(); }).then(function(code) {
       if (code && typeof code === "string") {
         hearthHouse = code; storeSet("hearth_household", hearthHouse);
         fetchHousehold(function() {
@@ -3605,7 +3737,7 @@ var d = {};
   d.saved_meals  = storeGet("fl4_saved_meals") || [];
   d.cal_goal     = storeGet("fl4_cal_goal") || 2000;
   d.baby = getBD();
-  fetch(userUrl("/data"), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).catch(function(){});
+  fetch(authUrl(userUrl("/data")), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).catch(function(){});
   }, 800);
 }
 
@@ -3718,13 +3850,20 @@ function applyPersonal(d) {
 }
 function fetchPersonal(cb) {
   if (!isLoggedIn()) { if(cb)cb(); return; }
-  fetch(userUrl("/data"))
+  // Show subtle loading indicator on sync button
+  var btn = document.getElementById("syncBtn");
+  if (btn) { btn._origColor = btn.style.color; btn.style.opacity = "0.5"; }
+  fetch(authUrl(userUrl("/data")))
     .then(function(r){ return r.json(); })
     .then(function(d) {
+      if (btn) { btn.style.opacity = ""; }
       if (d && typeof d === "object") applyPersonal(d);
       if (cb) cb();
     })
-    .catch(function(){ if(cb)cb(); });
+    .catch(function(){
+      if (btn) { btn.style.opacity = ""; }
+      if(cb)cb();
+    });
 }
 
 var _pushHouseholdTimer = null;
@@ -3747,7 +3886,7 @@ var data = {};
       data["baby"] = bd;
   }
   lastPushTs = Date.now();
-  fetch(houseUrl("/shared"), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).catch(function(){});
+  fetch(authUrl(houseUrl("/shared")), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).catch(function(){});
   }, 800);
 }
 
@@ -3853,6 +3992,28 @@ function updateSyncStatus() {
 
 // ── SSE: personal sync listener ───────────────────────────
 var hearthHealthES = null;
+// ── SSE stale-connection fallback — full fetch every 5 minutes ───────────────
+var _sseFallbackTimer = null;
+function startSSEFallback() {
+  if (_sseFallbackTimer) clearInterval(_sseFallbackTimer);
+  _sseFallbackTimer = setInterval(function() {
+    if (!isLoggedIn()) return;
+    // Only fetch if SSE appears stale (not connected or no recent events)
+    var personalStale = !hearthHealthES || hearthHealthES.readyState !== 1;
+    var householdStale = isHouseholdSet() && (!hearthSyncES || hearthSyncES.readyState !== 1);
+    if (personalStale) {
+      console.warn("SSE personal stale — falling back to fetch");
+      fetchPersonal();
+      startPersonalListening();
+    }
+    if (householdStale) {
+      console.warn("SSE household stale — falling back to fetch");
+      fetchHousehold();
+      startListening();
+    }
+  }, 5 * 60 * 1000); // every 5 minutes
+}
+
 function startPersonalListening() {
   if (!isLoggedIn()) return;
   if (hearthHealthES) { hearthHealthES.close(); hearthHealthES = null; }
@@ -4966,7 +5127,11 @@ document.getElementById("bnBaby").addEventListener("click",  function(){ switchS
 var homeQuickMode = null; // "grocery" | "todo" | "exercise"
 
 function renderHomeScreen() {
-  // ── Greeting ──────────────────────────────────────────────
+  // Show placeholder while data loads
+  var tcLife  = document.getElementById("tcLifeCount");
+  var tcTrain = document.getElementById("tcTrainCount");
+  if (tcLife  && tcLife.textContent  === "0") tcLife.textContent  = "—";
+  if (tcTrain && tcTrain.textContent === "—") tcTrain.style.opacity = "0.4";
   var hour = new Date().getHours();
   var greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   document.getElementById("homeGreeting").textContent = greet;
@@ -6221,7 +6386,7 @@ function saveBD(data) { storeSet("fl4_baby", data); pushPersonal(); if (isHouseh
 // ── Household fetch/apply ─────────────────────────────────
 function fetchHousehold(cb) {
   if (!isHouseholdSet()) { if(cb)cb(); return; }
-  fetch(houseUrl("/shared"))
+  fetch(authUrl(houseUrl("/shared")))
     .then(function(r){ return r.json(); })
     .then(function(data) {
       if (data && typeof data === "object") applyHousehold(data);
@@ -6713,7 +6878,7 @@ if ("serviceWorker" in navigator && !_isPreview) {
     </div>
   </div>
   <button id="setSheetLogBtn" style="width:100%;padding:14px;border:none;background:#3B6FE0;color:#fff;border-radius:11px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation">&#x2713; Log set</button>
-  <button id="setSheetCancel" style="width:100%;padding:10px;border:none;background:none;color:#5A7090;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;margin-top:6px">Cancel</button>
+  <button id="setSheetCancel" aria-label="Cancel set" style="width:100%;padding:10px;border:none;background:none;color:#5A7090;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;margin-top:6px">Cancel</button>
 </div>
 <div id="setSheetBackdrop" style="display:none;position:fixed;inset:0;z-index:699;background:rgba(0,0,0,.4)"></div>
 
@@ -6723,7 +6888,7 @@ if ("serviceWorker" in navigator && !_isPreview) {
   <div style="width:36px;height:4px;background:#2A3A52;border-radius:2px;margin:0 auto 14px"></div>
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
     <div id="itemSheetName" style="flex:1;font-size:16px;font-weight:700;color:#E8EDF2"></div>
-    <button id="itemSheetClose" style="border:none;background:none;color:#5A7090;font-size:20px;cursor:pointer;padding:0 4px;touch-action:manipulation">&#x2715;</button>
+    <button id="itemSheetClose" aria-label="Close" style="border:none;background:none;color:#5A7090;font-size:20px;cursor:pointer;padding:0 4px;touch-action:manipulation">&#x2715;</button>
   </div>
   <div style="margin-bottom:12px">
     <div style="font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Notes</div>
