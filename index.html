@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v152 · 30/05/2026 07:34</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v153 · 30/05/2026 07:56</div>
 
   </div>
 </div>
@@ -3643,14 +3643,24 @@ function doLogin(username, password) {
     // Legacy mode — no API key set, use old hash method
     hashPw(password).then(function(hash) {
       return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json")
-        .then(function(r){ return r.json(); })
+        .then(function(r){
+          if (r.status === 401 || r.status === 403) {
+            showLoginError("Database rules are locked. Please set your Web API Key first, or temporarily open your Firebase rules.");
+            setLoginSpinner(false);
+            throw new Error("locked");
+          }
+          return r.json();
+        })
         .then(function(authRec) {
           if (!authRec || authRec.hash !== hash) { showLoginError("Incorrect username or password"); setLoginSpinner(false); return; }
           hearthUser = username; hearthToken = hash;
           storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
           onLoginSuccess();
         });
-    }).catch(function(e) { showLoginError("Could not reach Firebase. Check your database URL and rules."); setLoginSpinner(false); });
+    }).catch(function(e) {
+      if (e.message !== "locked") { showLoginError("Could not reach Firebase. Check your database URL and rules."); }
+      setLoginSpinner(false);
+    });
   } else {
     // Firebase Auth mode
     var email = username + "@hearth.app";
