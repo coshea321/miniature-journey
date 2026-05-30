@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v151 · 30/05/2026 07:17</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v152 · 30/05/2026 07:34</div>
 
   </div>
 </div>
@@ -1217,7 +1217,16 @@ body.train-mode #toast{background:#132040}
     <button class="modal-close" id="syncClose" aria-label="Close sync settings">&#x2715;</button>
     <div class="modal-title">&#x1F504; Sync</div>
 
-    <!-- Logged-in profile -->
+    <!-- Firebase Auth setup -->
+    <div class="sync-section" id="syncApiKeySection">
+      <div class="sync-section-title">Firebase Auth (optional)</div>
+      <div style="font-size:12px;color:#7A8772;margin-bottom:8px">Add your Web API Key to secure your data. Found in Firebase Console → Project Settings → General → Your Apps → Config</div>
+      <div style="display:flex;gap:8px;margin-bottom:6px">
+        <input id="syncApiKeyInput" type="password" placeholder="AIza..." class="sync-input" style="flex:1">
+        <button id="syncApiKeySaveBtn" class="sync-btn" style="margin:0;padding:10px 14px;white-space:nowrap">Set</button>
+      </div>
+      <div id="syncApiKeyStatus" style="font-size:12px;margin-bottom:4px"></div>
+    </div>
     <div id="syncProfile" style="display:none;background:#F0F7F0;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
       <div id="syncAvatarCircle" style="width:36px;height:36px;border-radius:50%;background:#2D6B35;color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0"></div>
       <div style="flex:1">
@@ -4254,6 +4263,16 @@ document.getElementById("syncBtn").addEventListener("click", function() {
   document.getElementById("syncOverlay").classList.add("open");
 });
 
+document.getElementById("syncApiKeySaveBtn").addEventListener("click", function() {
+  var key = document.getElementById("syncApiKeyInput").value.trim();
+  if (!key || !key.startsWith("AIza")) { toast("Enter a valid Web API Key (starts with AIza)"); return; }
+  hearthApiKey = key;
+  storeSet("hearth_apikey", hearthApiKey);
+  var apiStatus = document.getElementById("syncApiKeyStatus");
+  if (apiStatus) { apiStatus.textContent = "✓ API key saved — log out and back in to activate"; apiStatus.style.color = "#2D6B35"; }
+  toast("API key saved — log out and back in to activate Firebase Auth");
+});
+
 document.getElementById("syncClose").addEventListener("click", function() {
   document.getElementById("syncOverlay").classList.remove("open");
 });
@@ -4265,6 +4284,15 @@ document.getElementById("syncOverlay").addEventListener("click", function(e) {
 function renderSyncModal() {
   var loggedIn   = isLoggedIn();
   var inHousehold = isHouseholdSet();
+
+  // API key section
+  var apiInput = document.getElementById("syncApiKeyInput");
+  var apiStatus = document.getElementById("syncApiKeyStatus");
+  if (apiInput && hearthApiKey) apiInput.value = hearthApiKey;
+  if (apiStatus) {
+    apiStatus.textContent = hearthApiKey ? "✓ API key set — Firebase Auth enabled" : "No API key — using legacy login";
+    apiStatus.style.color  = hearthApiKey ? "#2D6B35" : "#8A7A60";
+  }
 
   // Firebase URL section
   var fbSection = document.getElementById("loginFbSection");
