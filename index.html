@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v154 · 30/05/2026 08:08</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v155 · 30/05/2026 08:35</div>
 
   </div>
 </div>
@@ -3665,14 +3665,41 @@ function doLogin(username, password) {
     // Firebase Auth mode
     var email = username + "@hearth.app";
     firebaseSignIn(email, password, function(err, data) {
-      if (err) {
-        var msg = err === "EMAIL_NOT_FOUND" || err === "INVALID_PASSWORD" || err === "INVALID_LOGIN_CREDENTIALS"
-          ? "Incorrect username or password" : "Login failed: " + err;
-        showLoginError(msg); setLoginSpinner(false); return;
+      if (err === "EMAIL_NOT_FOUND" || err === "INVALID_LOGIN_CREDENTIALS" || (err && err.indexOf("EMAIL_NOT_FOUND") >= 0)) {
+        // Account doesn't exist in Firebase Auth yet — verify with legacy hash then auto-migrate
+        hashPw(password).then(function(hash) {
+          return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json")
+            .then(function(r){ return r.json(); })
+            .then(function(authRec) {
+              if (!authRec || authRec.hash !== hash) {
+                showLoginError("Incorrect username or password"); setLoginSpinner(false); return;
+              }
+              // Legacy credentials valid — create Firebase Auth account
+              firebaseSignUp(email, password, function(err2, data2) {
+                if (err2 && err2.indexOf("EMAIL_EXISTS") < 0) {
+                  // Signup failed — fall back to legacy login anyway
+                  hearthUser = username; hearthToken = hash;
+                  storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
+                  onLoginSuccess(); return;
+                }
+                // Success — use new Firebase Auth token
+                var d = data2 || {};
+                hearthUser = username; hearthToken = d.idToken || hash;
+                storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
+                if (d.refreshToken) storeSet("hearth_refresh_token", d.refreshToken);
+                toast("Account migrated to Firebase Auth ✓");
+                onLoginSuccess();
+              });
+            });
+        }).catch(function(){ showLoginError("Could not reach Firebase."); setLoginSpinner(false); });
+      } else if (err) {
+        showLoginError("Login failed: " + err); setLoginSpinner(false);
+      } else {
+        hearthUser = username; hearthToken = data.idToken;
+        storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
+        if (data.refreshToken) storeSet("hearth_refresh_token", data.refreshToken);
+        onLoginSuccess();
       }
-      hearthUser = username; hearthToken = data.idToken;
-      storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
-      onLoginSuccess();
     });
   }
 }
