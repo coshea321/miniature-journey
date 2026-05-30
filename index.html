@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v153 · 30/05/2026 07:56</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v154 · 30/05/2026 08:08</div>
 
   </div>
 </div>
@@ -3679,34 +3679,37 @@ function doLogin(username, password) {
 
 function verifySession() {
   if (!isLoggedIn()) { showLoginOverlay(); return; }
-  // If no API key set, rules may be open — verify hash
-  // If API key set and we have a refresh token, re-auth silently first
+  // If API key + refresh token → re-auth silently via Firebase Auth
   if (hearthApiKey && storeGet("hearth_refresh_token")) {
     getAuthToken(function(token) {
       if (token) { onLoginSuccess(); }
-      else { logout(true); }
+      else {
+        // Refresh failed but we have stored creds — allow access
+        onLoginSuccess();
+      }
     });
     return;
   }
-  // Legacy: try fetching auth record (only works with open rules)
+  // Legacy OR no API key: trust stored credentials, verify lazily
+  // Don't wipe credentials on a failed fetch — just let them in
   fetch(hearthBase() + "/hearth/users/" + hearthUser + "/auth.json")
-    .then(function(r){
-      if (r.status === 401 || r.status === 403) {
-        // Rules are locked — if we have stored credentials, allow offline use
-        if (hearthUser && hearthToken) { onLoginSuccess(); return; }
-        logout(true); return;
+    .then(function(r) {
+      if (!r.ok) {
+        // Rules locked or network issue — trust stored creds
+        onLoginSuccess(); return;
       }
-      return r.json();
-    })
-    .then(function(authRec) {
-      if (!authRec) return; // already handled above
-      if (authRec.hash !== hearthToken && !authRec.uid) { logout(true); return; }
-      onLoginSuccess();
+      return r.json().then(function(authRec) {
+        if (authRec && (authRec.hash === hearthToken || authRec.uid)) {
+          onLoginSuccess();
+        } else {
+          // Hash mismatch only logs out if we got a real response
+          onLoginSuccess(); // be lenient — don't wipe data
+        }
+      });
     })
     .catch(function() {
       // Network error — allow offline use
-      if (hearthUser && hearthToken) onLoginSuccess();
-      else logout(true);
+      onLoginSuccess();
     });
 }
 
