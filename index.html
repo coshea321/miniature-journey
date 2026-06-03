@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v159 · 30/05/2026 14:52</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v160 · 03/06/2026 13:34</div>
 
   </div>
 </div>
@@ -3417,6 +3417,7 @@ var hearthSyncES  = null;
 var hearthHealthES = null;
 var syncPaused    = false;
 var lastPushTs    = 0;
+var _personalFetchOk = false; // becomes true after first successful remote fetch
 var SSE_GRACE_MS  = 5000;
 
 // Migrate from old keys
@@ -3820,6 +3821,7 @@ function logout(silent) {
 var _pushPersonalTimer = null;
 function pushPersonal() {
   if (!isLoggedIn() || syncPaused) return;
+  if (!_personalFetchOk) return; // never push until we've successfully pulled remote data
   lastPushTs = Date.now(); // set immediately so tab-switch guard works
   clearTimeout(_pushPersonalTimer);
   _pushPersonalTimer = setTimeout(function() {
@@ -3953,9 +3955,19 @@ function fetchPersonal(cb) {
   var btn = document.getElementById("syncBtn");
   if (btn) { btn._origColor = btn.style.color; btn.style.opacity = "0.5"; }
   fetch(authUrl(userUrl("/data")))
-    .then(function(r){ return r.json(); })
-    .then(function(d) {
+    .then(function(r){
       if (btn) { btn.style.opacity = ""; }
+      if (r.status === 401 || r.status === 403) {
+        // Auth failed — token likely expired. Don't mark fetch OK (prevents stale push)
+        toast("Sync needs re-login — please log out and back in");
+        if (cb) cb();
+        return null;
+      }
+      return r.json();
+    })
+    .then(function(d) {
+      if (d === null) return;
+      _personalFetchOk = true;
       if (d && typeof d === "object") applyPersonal(d);
       if (cb) cb();
     })
