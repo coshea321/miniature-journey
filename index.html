@@ -697,7 +697,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v163 · 04/06/2026 18:21</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v164 · 04/06/2026 19:20</div>
 
   </div>
 </div>
@@ -5003,42 +5003,6 @@ function renderTrainView() {
   if (currentTrainView==="history")  renderWorkoutHistory();
   if (currentTrainView==="body")     renderBodyView();
 }
-
-
-function renderTrainPrograms() {
-  var el = document.getElementById("progGrid");
-  var programs = [
-    { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#0F1F3A,#162B52)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Rows · Split Squats · Pull-ups · Glute Bridge", descColor:"#4A7AB8" },
-    { type:"workout", key:"push",  bg:"linear-gradient(135deg,#2A1010,#3A1818)", border:"#ef444440", icon:"&#x1F534;", name:"Push Day", desc:"Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B85050" },
-    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", tag:"Physio", desc:"25 poses · ~19 min", descColor:"#7A5CBF" },
-    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", tag:"Physio", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
-    { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", tag:"Physio", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
-    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", tag:"Fitness", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
-    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", tag:"Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" },
-    { type:"physio",  key:3,       bg:"linear-gradient(135deg,#0A0A1A,#0A1A2A)", border:"#6366f140", icon:"&#x1F9D8;", name:"Decompression", tag:"Physio", desc:"7 exercises · spine · hips · shoulders", descColor:"#818cf8" },
-    { type:"physio",  key:4,       bg:"linear-gradient(135deg,#021A2A,#053040)", border:"#0ea5e940", icon:"&#x1F9D8;", name:"Max Pilates Core", tag:"Physio", desc:"6 exercises · core stability · Pilates", descColor:"#0ea5e9" }
-  ];
-  var html = "";
-  for (var i=0;i<programs.length;i++) {
-    var p = programs[i];
-    html += "<button class='prog-card' style='background:"+p.bg+";border:1px solid "+p.border+"' data-type='"+p.type+"' data-key='"+p.key+"'>" +
-      "<div class='prog-card-icon'>"+p.icon+"</div>" +
-      (p.tag ? "<div class='prog-card-tag' style='background:"+(p.tag==='Physio'?'#14532d':'#3a3320')+";color:"+(p.tag==='Physio'?'#6BCF86':'#d4c45a')+"'>"+(p.tag==='Physio'?'&#x2713; Physio-approved':'General fitness')+"</div>" : "") +
-      "<div class='prog-card-name'>"+p.name+"</div>" +
-      "<div class='prog-card-desc' style='color:"+p.descColor+"'>"+p.desc+"</div>" +
-    "</button>";
-  }
-  el.innerHTML = html;
-  el.querySelectorAll(".prog-card").forEach(function(card) {
-    card.addEventListener("click", function(){
-      var type = card.dataset.type, key = card.dataset.key;
-      if (type==="yoga")    openYogaSession(+key);
-      if (type==="physio")  openPhysioSession(+key);
-      if (type==="workout") openWorkoutSession(key);
-    });
-  });
-}
-
 
 function trainTodayStr() {
   var d = new Date();
