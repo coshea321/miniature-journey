@@ -619,6 +619,10 @@ body.train-mode #toast{background:#132040}
   <button class="hdr-btn" id="settingsBtn" title="Settings" aria-label="Open app settings">&#9881;&#65039;</button>
 </header>
 
+<div id="staleDataBanner" style="display:none;background:#7a2a10;color:#ffd0a0;padding:9px 14px;font-size:12.5px;font-weight:600;text-align:center;line-height:1.4;cursor:pointer">
+  &#x26A0;&#xFE0F; Showing offline data — sync needs re-login. Tap to fix.
+</div>
+
 <div id="homeSection">
   <div class="home-content">
 
@@ -697,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v164 · 04/06/2026 19:20</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v165 · 04/06/2026 19:43</div>
 
   </div>
 </div>
@@ -708,7 +712,7 @@ body.train-mode #toast{background:#132040}
   <button class="type-btn" data-lt="todo">&#x2705; General</button>
   <button class="type-btn" data-lt="personal">&#x1F464; Personal</button>
   <button class="type-btn" data-lt="travel">&#x2708;&#xFE0F; Travel</button>
-  <button class="type-btn" data-lt="testdue">&#x1F9EA; Test</button>
+  <button class="type-btn" data-lt="testdue" id="testListTab">&#x1F9EA; Test</button>
 </div>
 
 <div class="content">
@@ -3750,6 +3754,20 @@ function onLoginSuccess() {
   setLoginSpinner(false);
   updateSyncStatus();
 
+  // Test list is owner-only (development feature) — hide for everyone else
+  var testTab = document.getElementById("testListTab");
+  if (testTab) testTab.style.display = (hearthUser === "cathal1") ? "" : "none";
+
+  // Stale-data banner: tapping it triggers re-login
+  var sb2 = document.getElementById("staleDataBanner");
+  if (sb2 && !sb2._wired) {
+    sb2._wired = true;
+    sb2.addEventListener("click", function() {
+      sb2.style.display = "none";
+      logout(false); // shows login overlay, keeps data
+    });
+  }
+
   // Show home immediately with local data, then re-render once remote data arrives
   switchSection("home");
 
@@ -3935,6 +3953,8 @@ function fetchPersonal(cb) {
       if (btn) { btn.style.opacity = ""; }
       if (r.status === 401 || r.status === 403) {
         // Auth failed — token likely expired. Don't mark fetch OK (prevents stale push)
+        var banner = document.getElementById("staleDataBanner");
+        if (banner) banner.style.display = "block";
         toast("Sync needs re-login — please log out and back in");
         if (cb) cb();
         return null;
@@ -3944,6 +3964,8 @@ function fetchPersonal(cb) {
     .then(function(d) {
       if (d === null) return;
       _personalFetchOk = true;
+      var sb = document.getElementById("staleDataBanner");
+      if (sb) sb.style.display = "none";
       if (d && typeof d === "object") applyPersonal(d);
       if (cb) cb();
     })
