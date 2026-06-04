@@ -619,7 +619,7 @@ body.train-mode #toast{background:#132040}
   <button class="hdr-btn" id="settingsBtn" title="Settings" aria-label="Open app settings">&#9881;&#65039;</button>
 </header>
 
-<div id="staleDataBanner" style="display:none;background:#7a2a10;color:#ffd0a0;padding:9px 14px;font-size:12.5px;font-weight:600;text-align:center;line-height:1.4;cursor:pointer">
+<div id="staleDataBanner" role="alert" aria-live="assertive" style="display:none;background:#7a2a10;color:#ffd0a0;padding:9px 14px;font-size:12.5px;font-weight:600;text-align:center;line-height:1.4;cursor:pointer">
   &#x26A0;&#xFE0F; Showing offline data — sync needs re-login. Tap to fix.
 </div>
 
@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v166 · 04/06/2026 19:58</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v167 · 04/06/2026 20:16</div>
 
   </div>
 </div>
@@ -1364,7 +1364,7 @@ body.train-mode #toast{background:#132040}
   </button>
 </nav>
 
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <div id="updateBanner" style="display:none;position:fixed;bottom:70px;left:12px;right:12px;z-index:800;background:#1C3A5C;border:1px solid #3A6A9C;border-radius:12px;padding:12px 16px;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.4)">
   <span style="flex:1;font-size:13px;color:#C0D8F0">&#x1F504; Update available</span>
   <button onclick="window.location.reload()" style="background:#3A8FE0;border:none;color:#fff;border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation">Refresh</button>
@@ -3375,6 +3375,9 @@ document.getElementById("clearAllBtn").addEventListener("click", function() {
   // Multi-step safeguarded deletion — requires typing DELETE
   var ov = document.createElement("div");
   ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:950;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box";
+  ov.setAttribute("role", "dialog");
+  ov.setAttribute("aria-modal", "true");
+  ov.setAttribute("aria-label", "Delete all data confirmation");
   ov.innerHTML =
     "<div style='background:#fff;border-radius:16px;padding:22px 20px;width:100%;max-width:340px'>" +
       "<div style='font-size:17px;font-weight:800;color:#C03030;margin-bottom:10px'>&#x26A0;&#xFE0F; Delete all my data?</div>" +
@@ -6652,6 +6655,9 @@ function openListNoteEditor(lt, id, renderFn) {
 function confirmDialog(msg, onYes, onNo) {
   var ov = document.createElement("div");
   ov.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.5);z-index:900;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box";
+  ov.setAttribute("role", "alertdialog");
+  ov.setAttribute("aria-modal", "true");
+  ov.setAttribute("aria-label", msg);
   var box = document.createElement("div");
   box.style.cssText = "background:#fff;border-radius:14px;padding:20px;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.2)";
   box.innerHTML = "<div style='font-size:15px;color:#2A2010;line-height:1.5;margin-bottom:16px'>" + msg + "</div>" +
