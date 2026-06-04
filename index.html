@@ -697,7 +697,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v162 · 04/06/2026 16:46</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v163 · 04/06/2026 18:21</div>
 
   </div>
 </div>
@@ -3696,43 +3696,15 @@ function doLogin(username, password) {
     // Firebase Auth mode
     var email = username + "@hearth.app";
     firebaseSignIn(email, password, function(err, data) {
-      if (err === "EMAIL_NOT_FOUND" || err === "INVALID_LOGIN_CREDENTIALS" || (err && err.indexOf("EMAIL_NOT_FOUND") >= 0)) {
-        // Account doesn't exist in Firebase Auth yet — create it directly
-        // We trust the user because if the legacy hash check fails (e.g. different URL format),
-        // we fall through to create Firebase Auth account and verify on next login
-        firebaseSignUp(email, password, function(err2, data2) {
-          if (err2 && err2.indexOf("EMAIL_EXISTS") < 0) {
-            // Signup failed — try legacy hash as last resort
-            hashPw(password).then(function(hash) {
-              fetch(hearthBase() + "/hearth/users/" + username + "/auth.json")
-                .then(function(r){ return r.json(); })
-                .then(function(authRec) {
-                  if (!authRec || authRec.hash !== hash) {
-                    showLoginError("Incorrect username or password"); setLoginSpinner(false); return;
-                  }
-                  hearthUser = username; hearthToken = hash;
-                  storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
-                  onLoginSuccess();
-                });
-            }).catch(function(){ showLoginError("Could not reach Firebase."); setLoginSpinner(false); });
-            return;
-          }
-          // Firebase Auth account created or already exists
-          var d = data2 || {};
-          hearthUser = username; hearthToken = d.idToken || "";
-          storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
-          if (d.refreshToken) storeSet("hearth_refresh_token", d.refreshToken);
-          toast("Account migrated to Firebase Auth ✓");
-          onLoginSuccess();
-        });
-      } else if (err) {
-        showLoginError("Login failed: " + err); setLoginSpinner(false);
-      } else {
-        hearthUser = username; hearthToken = data.idToken;
-        storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
-        if (data.refreshToken) storeSet("hearth_refresh_token", data.refreshToken);
-        onLoginSuccess();
+      if (err) {
+        var msg = (err === "EMAIL_NOT_FOUND" || err === "INVALID_PASSWORD" || err === "INVALID_LOGIN_CREDENTIALS" || (err && err.indexOf("INVALID_LOGIN_CREDENTIALS") >= 0))
+          ? "Incorrect username or password" : "Login failed: " + err;
+        showLoginError(msg); setLoginSpinner(false); return;
       }
+      hearthUser = username; hearthToken = data.idToken;
+      storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
+      if (data.refreshToken) storeSet("hearth_refresh_token", data.refreshToken);
+      onLoginSuccess();
     });
   }
 }
