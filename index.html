@@ -519,6 +519,7 @@ body.train-mode #toast{background:#132040}
 .prog-card:active{opacity:.75}
 .prog-card-icon{font-size:28px;margin-bottom:9px;line-height:1}
 .prog-card-name{font-family:Georgia,serif;font-size:15px;font-weight:600;color:#E8EDF2;margin-bottom:3px}
+.prog-card-tag{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:10px;margin-bottom:6px}
 .prog-card-desc{font-size:11px;line-height:1.5;font-weight:500}
 
 /* ============================================================
@@ -696,7 +697,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v161 · 04/06/2026 13:17</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v162 · 04/06/2026 16:46</div>
 
   </div>
 </div>
@@ -788,6 +789,9 @@ body.train-mode #toast{background:#132040}
 
   <!-- PROGRAMS VIEW -->
   <div id="trainProgramsView" class="train-content">
+    <div style="background:#1a2535;border:1px solid #2a3a52;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#8A9AB0;line-height:1.5">
+      &#x2139;&#xFE0F; <strong style="color:#A8B8C8">Physio-approved</strong> programmes were prescribed for your diagnosis. <strong style="color:#d4c45a">General fitness</strong> programmes predate it — check with your physio before doing these, especially during a flare-up.
+    </div>
     <div class="prog-grid" id="progGrid"></div>
   </div>
   <div id="trainLogView" class="train-content" style="display:none">
@@ -5034,19 +5038,20 @@ function renderTrainPrograms() {
   var programs = [
     { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#0F1F3A,#162B52)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Rows · Split Squats · Pull-ups · Glute Bridge", descColor:"#4A7AB8" },
     { type:"workout", key:"push",  bg:"linear-gradient(135deg,#2A1010,#3A1818)", border:"#ef444440", icon:"&#x1F534;", name:"Push Day", desc:"Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B85050" },
-    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", desc:"25 poses · ~19 min", descColor:"#7A5CBF" },
-    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
-    { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
-    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
-    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" },
-    { type:"physio",  key:3,       bg:"linear-gradient(135deg,#0A0A1A,#0A1A2A)", border:"#6366f140", icon:"&#x1F9D8;", name:"Decompression", desc:"7 exercises · spine · hips · shoulders", descColor:"#818cf8" },
-    { type:"physio",  key:4,       bg:"linear-gradient(135deg,#021A2A,#053040)", border:"#0ea5e940", icon:"&#x1F9D8;", name:"Max Pilates Core", desc:"6 exercises · core stability · Pilates", descColor:"#0ea5e9" }
+    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", tag:"Physio", desc:"25 poses · ~19 min", descColor:"#7A5CBF" },
+    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", tag:"Physio", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
+    { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", tag:"Physio", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
+    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", tag:"Fitness", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
+    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", tag:"Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" },
+    { type:"physio",  key:3,       bg:"linear-gradient(135deg,#0A0A1A,#0A1A2A)", border:"#6366f140", icon:"&#x1F9D8;", name:"Decompression", tag:"Physio", desc:"7 exercises · spine · hips · shoulders", descColor:"#818cf8" },
+    { type:"physio",  key:4,       bg:"linear-gradient(135deg,#021A2A,#053040)", border:"#0ea5e940", icon:"&#x1F9D8;", name:"Max Pilates Core", tag:"Physio", desc:"6 exercises · core stability · Pilates", descColor:"#0ea5e9" }
   ];
   var html = "";
   for (var i=0;i<programs.length;i++) {
     var p = programs[i];
     html += "<button class='prog-card' style='background:"+p.bg+";border:1px solid "+p.border+"' data-type='"+p.type+"' data-key='"+p.key+"'>" +
       "<div class='prog-card-icon'>"+p.icon+"</div>" +
+      (p.tag ? "<div class='prog-card-tag' style='background:"+(p.tag==='Physio'?'#14532d':'#3a3320')+";color:"+(p.tag==='Physio'?'#6BCF86':'#d4c45a')+"'>"+(p.tag==='Physio'?'&#x2713; Physio-approved':'General fitness')+"</div>" : "") +
       "<div class='prog-card-name'>"+p.name+"</div>" +
       "<div class='prog-card-desc' style='color:"+p.descColor+"'>"+p.desc+"</div>" +
     "</button>";
@@ -5587,7 +5592,7 @@ var PROGRAMMES_TRAIN = [
     {id:'hip_flexor',name:'Leg Raise Over Kettlebell',type:'reps',sets:3,reps:6,note:'3 sets · 6 reps each side',cue:'Sit on the floor with your legs spread in a wide V shape and a kettlebell placed between them. Keeping your leg straight, lift one leg up and over the kettlebell to the other side, then return. Maintain an upright torso and use your core to stabilise as you lift. 6 reps each side.',url:'https://www.youtube.com/shorts/BVB2dIf5T2E'},
     {id:'one_leg',name:'Pilates One Leg Stretch',type:'timed',dur:60,sets:3,note:'3 sets · 1 min each',cue:'Start on your back and exhale as you bring both legs into a tabletop position one at a time, knees hip-distance apart. Exhale as you lengthen one leg forward and upward to a diagonal; inhale as you return it to tabletop. Alternate legs while maintaining a stable spine and keeping your lower back connected to the mat throughout.',url:'https://www.youtube.com/watch?v=fOhKim3hKvI'}
   ]},
-  {id:'lower_limb',name:'Lower Limb',icon:'&#x1F9B5;',note:'Glutes · hamstring · quad · calf · knee · daily',color:'#14b8a6',exercises:[
+  {id:'lower_limb',name:'Lower Limb',icon:'&#x1F9B5;',note:'Glutes · hamstring · quad · calf · knee · daily',color:'#14b8a6',warning:'This programme predates your spinal stenosis diagnosis. The squats and lunges load the spine — keep a neutral or slightly forward torso, never arch backward, and skip on flare-up days. Check with your physio.',exercises:[
     {id:'hamstring_str',name:'Hamstring Stretch',type:'timed',dur:30,sets:2,perLeg:true,note:'30s each leg',cue:'Lie on your back. Loop a towel or band around your right foot and straighten the leg toward the ceiling. Keep the opposite leg flat on the floor. Gently pull the towel to increase the stretch — stop before any pain. Hold 30 seconds, breathing steadily. Switch legs.',url:'https://www.youtube.com/watch?v=QL8FK8CsGc8'},
     {id:'quad_str_side',name:'Quad Stretch Side-lying',type:'timed',dur:30,sets:2,perLeg:true,note:'30s each side',cue:'Lie on your side with your body in a straight line. Bend your top knee, reaching back to hold your ankle or foot. Gently draw the heel toward your glutes — keep your knees together and your hips forward. Avoid arching your lower back. Hold 30 seconds, then roll over and repeat on the other side.',url:'https://www.youtube.com/watch?v=599Tvr-JrBc'},
     {id:'sl_glute_bridge',name:'Single Leg Glute Bridge',type:'reps',sets:1,reps:20,note:'20 reps each side',cue:'Lie on your back, knees bent, feet flat. Extend one leg straight. Press through the grounded foot to lift your hips — squeeze the glute at the top. Keep hips level throughout; don\'t let the lifted side drop. Lower slowly. Complete 20 reps, then switch legs.',url:'https://www.youtube.com/watch?v=p-XVfkvtUPY'},
@@ -5742,19 +5747,20 @@ function renderTrainPrograms() {
   var programs = [
     { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#0F1F3A,#162B52)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Rows · Split Squats · Pull-ups · Glute Bridge", descColor:"#4A7AB8" },
     { type:"workout", key:"push",  bg:"linear-gradient(135deg,#2A1010,#3A1818)", border:"#ef444440", icon:"&#x1F534;", name:"Push Day", desc:"Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B85050" },
-    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", desc:"25 poses · ~19 min", descColor:"#7A5CBF" },
-    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
-    { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
-    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
-    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" },
-    { type:"physio",  key:3,       bg:"linear-gradient(135deg,#0A0A1A,#0A1A2A)", border:"#6366f140", icon:"&#x1F9D8;", name:"Decompression", desc:"7 exercises · spine · hips · shoulders", descColor:"#818cf8" },
-    { type:"physio",  key:4,       bg:"linear-gradient(135deg,#021A2A,#053040)", border:"#0ea5e940", icon:"&#x1F9D8;", name:"Max Pilates Core", desc:"6 exercises · core stability · Pilates", descColor:"#0ea5e9" }
+    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", tag:"Physio", desc:"25 poses · ~19 min", descColor:"#7A5CBF" },
+    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", tag:"Physio", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
+    { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", tag:"Physio", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
+    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", tag:"Fitness", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
+    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", tag:"Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" },
+    { type:"physio",  key:3,       bg:"linear-gradient(135deg,#0A0A1A,#0A1A2A)", border:"#6366f140", icon:"&#x1F9D8;", name:"Decompression", tag:"Physio", desc:"7 exercises · spine · hips · shoulders", descColor:"#818cf8" },
+    { type:"physio",  key:4,       bg:"linear-gradient(135deg,#021A2A,#053040)", border:"#0ea5e940", icon:"&#x1F9D8;", name:"Max Pilates Core", tag:"Physio", desc:"6 exercises · core stability · Pilates", descColor:"#0ea5e9" }
   ];
   var html = "";
   for (var i=0;i<programs.length;i++) {
     var p = programs[i];
     html += "<button class='prog-card' style='background:"+p.bg+";border:1px solid "+p.border+"' data-type='"+p.type+"' data-key='"+p.key+"'>" +
       "<div class='prog-card-icon'>"+p.icon+"</div>" +
+      (p.tag ? "<div class='prog-card-tag' style='background:"+(p.tag==='Physio'?'#14532d':'#3a3320')+";color:"+(p.tag==='Physio'?'#6BCF86':'#d4c45a')+"'>"+(p.tag==='Physio'?'&#x2713; Physio-approved':'General fitness')+"</div>" : "") +
       "<div class='prog-card-name'>"+p.name+"</div>" +
       "<div class='prog-card-desc' style='color:"+p.descColor+"'>"+p.desc+"</div>" +
     "</button>";
@@ -5967,6 +5973,7 @@ function renderPhysioSession() {
       "<div class='ses-intro-ico'>"+prog.icon+"</div>" +
       "<div class='ses-intro-name'>"+prog.name.replace(/&amp;/g,"&")+"</div>" +
       "<div class='ses-intro-sub'>"+prog.exercises.length+" exercises &middot; "+prog.note+"</div>" +
+      (prog.warning ? "<div style='width:100%;max-width:320px;background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#e0c060;line-height:1.5;text-align:left'>&#x26A0;&#xFE0F; "+prog.warning+"</div>" : "") +
       "<div style='width:100%;max-width:320px;background:#132040;border-radius:12px;padding:12px 14px;margin-bottom:28px;text-align:left'>"+exList+"</div>" +
       "<button class='ses-begin-btn' style='background:"+col+"' onclick='beginPhysio()'>Begin</button>" +
       "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
