@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v165 · 04/06/2026 19:43</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v166 · 04/06/2026 19:58</div>
 
   </div>
 </div>
@@ -1342,7 +1342,7 @@ body.train-mode #toast{background:#132040}
     </label>
     <div id="importStatus" style="font-size:13px;padding:8px 12px;border-radius:8px;display:none;margin-bottom:10px"></div>
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
-    <button class="sync-btn outline" id="clearAllBtn" style="border-color:#C03030;color:#C03030">Clear all data</button>
+    <button class="sync-btn outline" id="clearAllBtn" style="border-color:#C03030;color:#C03030">&#x1F5D1;&#xFE0F; Delete all my data</button>
   </div>
 </div>
 
@@ -3372,13 +3372,53 @@ document.getElementById("importFile").addEventListener("change", function(e) {
 });
 
 document.getElementById("clearAllBtn").addEventListener("click", function() {
-  confirmDialog("Clear ALL lists and history? This cannot be undone.", function() {
-  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
-    storeSet(LIST_CONFIG[lt].key, {items:[],hist:[]});
-    listData[lt] = null;
+  // Multi-step safeguarded deletion — requires typing DELETE
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:950;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box";
+  ov.innerHTML =
+    "<div style='background:#fff;border-radius:16px;padding:22px 20px;width:100%;max-width:340px'>" +
+      "<div style='font-size:17px;font-weight:800;color:#C03030;margin-bottom:10px'>&#x26A0;&#xFE0F; Delete all my data?</div>" +
+      "<div style='font-size:13px;color:#5A5A4A;line-height:1.55;margin-bottom:6px'>This permanently deletes <strong>your personal lists, history, training logs, baby tracking and notes</strong> from this device and from the cloud.</div>" +
+      "<div style='font-size:12px;color:#7A8772;line-height:1.5;margin-bottom:14px'>Household data shared by other members is not affected. This cannot be undone.</div>" +
+      "<div style='font-size:12px;font-weight:700;color:#5A5A4A;margin-bottom:6px'>Type DELETE to confirm:</div>" +
+      "<input id='_delConfirmInput' type='text' autocomplete='off' autocapitalize='characters' placeholder='DELETE' style='width:100%;box-sizing:border-box;padding:11px 13px;border:1.5px solid #D0C8B8;border-radius:9px;font-family:inherit;font-size:15px;letter-spacing:2px;text-align:center;text-transform:uppercase;outline:none;margin-bottom:14px'>" +
+      "<button id='_delConfirmBtn' disabled style='width:100%;padding:13px;border:none;background:#D0A0A0;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:not-allowed;margin-bottom:8px'>Delete everything</button>" +
+      "<button id='_delCancelBtn' style='width:100%;padding:11px;border:none;background:none;color:#7A8772;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer'>Cancel</button>" +
+    "</div>";
+  document.body.appendChild(ov);
+
+  var input = ov.querySelector("#_delConfirmInput");
+  var btn   = ov.querySelector("#_delConfirmBtn");
+  var cancel = ov.querySelector("#_delCancelBtn");
+  setTimeout(function(){ input.focus(); }, 100);
+
+  input.addEventListener("input", function() {
+    var ok = input.value.trim().toUpperCase() === "DELETE";
+    btn.disabled = !ok;
+    btn.style.background = ok ? "#C03030" : "#D0A0A0";
+    btn.style.cursor = ok ? "pointer" : "not-allowed";
   });
-  renderList(); toast("All data cleared");
-  document.getElementById("settingsOverlay").classList.remove("open");
+
+  cancel.addEventListener("click", function(){ document.body.removeChild(ov); });
+  ov.addEventListener("click", function(e){ if (e.target === ov) document.body.removeChild(ov); });
+
+  btn.addEventListener("click", function() {
+    if (input.value.trim().toUpperCase() !== "DELETE") return;
+    // Clear local data
+    ["grocery","todo","travel","personal","baby","testdue"].forEach(function(lt) {
+      var cfg = LIST_CONFIG[lt]; if (cfg) storeSet(cfg.key, {items:[],hist:[]});
+      listData[lt] = null;
+      storeSet("fl4_notes_" + lt, []);
+    });
+    storeSet("fl4_notes_global", []);
+    // Clear cloud personal data
+    if (isLoggedIn()) {
+      fetch(authUrl(userUrl("/data")), { method:"DELETE" }).catch(function(){});
+    }
+    document.body.removeChild(ov);
+    document.getElementById("settingsOverlay").classList.remove("open");
+    renderList();
+    toast("All your data has been deleted");
   });
 });
 
