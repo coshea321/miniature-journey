@@ -696,7 +696,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v160 · 03/06/2026 13:34</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v161 · 04/06/2026 13:17</div>
 
   </div>
 </div>
@@ -5039,7 +5039,8 @@ function renderTrainPrograms() {
     { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
     { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
     { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" },
-    { type:"physio",  key:3,       bg:"linear-gradient(135deg,#0A0A1A,#0A1A2A)", border:"#6366f140", icon:"&#x1F9D8;", name:"Decompression", desc:"7 exercises · spine · hips · shoulders", descColor:"#818cf8" }
+    { type:"physio",  key:3,       bg:"linear-gradient(135deg,#0A0A1A,#0A1A2A)", border:"#6366f140", icon:"&#x1F9D8;", name:"Decompression", desc:"7 exercises · spine · hips · shoulders", descColor:"#818cf8" },
+    { type:"physio",  key:4,       bg:"linear-gradient(135deg,#021A2A,#053040)", border:"#0ea5e940", icon:"&#x1F9D8;", name:"Max Pilates Core", desc:"6 exercises · core stability · Pilates", descColor:"#0ea5e9" }
   ];
   var html = "";
   for (var i=0;i<programs.length;i++) {
@@ -5613,6 +5614,14 @@ var PROGRAMMES_TRAIN = [
     {id:'cat_cow_flex',name:'Cat Stretch (flexion only)',type:'reps',sets:1,reps:10,note:'10 reps · flex only',cue:'Start on all fours. Only perform the Cat (rounding) phase — exhale and press the floor away, round your spine to the ceiling, tuck your chin and tailbone. Then return to neutral. Avoid the Cow (back arch / extension) phase as this can compress the spinal canal. Focus entirely on the gentle flexion and spinal decompression.',url:'https://www.youtube.com/watch?v=kqnua4rHVVA'},
     {id:'seated_flexion',name:'Seated Forward Lean',type:'timed',dur:40,sets:2,note:'40s · seated flexion',cue:'Sit at the edge of a chair with feet flat and slightly apart. Slowly lean forward, resting your forearms on your thighs. Let your lower back gently round. Breathe deeply. This flexion position relieves stenosis by widening the spinal canal. Avoid bending from the waist — let the whole spine round gently from the base.',url:'https://www.youtube.com/watch?v=Q5RBH0gR5xQ'},
     {id:'childs_pose_st',name:"Child's Pose",type:'timed',dur:60,sets:1,note:'Hold 60s',cue:"Kneel and sit back onto your heels, then fold forward with arms outstretched or resting alongside your body. Let your spine gently round and lengthen. This is excellent for stenosis — the flexion position opens the spinal canal. Breathe slowly and deeply into your back. If kneeling is uncomfortable, use a folded blanket under your knees.",url:'https://www.youtube.com/watch?v=2MJGg-dUKh0'}
+  ]},
+  {id:'max_pilates_core',name:'Max Pilates Core',icon:'&#x1F9D8;',note:'Core stability · Pilates · daily',color:'#0ea5e9',exercises:[
+    {id:'dead_bugs_mpc',name:'Dead Bugs',type:'reps',sets:1,reps:10,note:'10 reps alternating',cue:'Lie on your back with arms reaching toward the ceiling and knees bent at 90° (table top). Keeping your lower back gently pressed to the floor, slowly lower your opposite arm and leg toward the floor, then return. Alternate sides. Keep your core engaged and your back flat throughout — never let it arch.',url:'https://www.youtube.com/watch?v=g_BYB0R-4Ws'},
+    {id:'tabletop_hold',name:'Table Top Hold',type:'timed',dur:30,sets:1,note:'Hold 30s',cue:'Lie on your back, lift both legs so your hips and knees are bent at 90° — shins parallel to the floor (table top). Hold this position steady, keeping your lower back gently pressed down and core engaged. Breathe steadily.',url:'https://www.youtube.com/watch?v=v7AYKMP6rOE'},
+    {id:'tabletop_arms_up',name:'Table Top, Arms Up',type:'timed',dur:30,sets:1,note:'Hold 30s',cue:'From table top position (hips and knees at 90°), raise both arms straight up toward the ceiling. Hold steady, keeping your core braced and lower back flat to the floor. Breathe steadily throughout.',url:'https://www.youtube.com/watch?v=v7AYKMP6rOE'},
+    {id:'tabletop_arm_press',name:'Table Top + Arm Press',type:'reps',sets:1,reps:12,note:'12 reps',cue:'From table top with arms raised, slowly press your arms straight back overhead toward the floor behind you, then return to vertical. Keep your core engaged and lower back flat — the movement comes from the shoulders, not the back. Control the motion both ways.',url:'https://www.youtube.com/watch?v=g_BYB0R-4Ws'},
+    {id:'tabletop_leg_45',name:'Table Top + Leg to 45°',type:'reps',sets:1,reps:10,note:'10 reps alternating',cue:'From table top with arms pressing, extend one leg out to about 45° while keeping the other in table top. Return and alternate legs. Keep your lower back pressed firmly to the floor — if your back starts to arch, extend the leg less far. Move slowly and with control.',url:'https://www.youtube.com/watch?v=g_BYB0R-4Ws'},
+    {id:'bridges_mpc',name:'Bridges',type:'reps',sets:1,reps:12,note:'12 reps · tuck, squeeze, lift',cue:'Lie on your back with knees bent and feet flat. First tuck your tummy (gentle pelvic tilt), then squeeze your glutes, then lift your hips up toward the ceiling. Add a thigh squeeze at the top, and lift your heels up if comfortable. Lower slowly. This sequence protects your spine — the tummy tuck and flexion keep the movement stenosis-safe.',url:'https://www.youtube.com/watch?v=wPM8icPu6H8'}
   ]}
 ];
 
@@ -5738,7 +5747,8 @@ function renderTrainPrograms() {
     { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
     { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
     { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" },
-    { type:"physio",  key:3,       bg:"linear-gradient(135deg,#0A0A1A,#0A1A2A)", border:"#6366f140", icon:"&#x1F9D8;", name:"Decompression", desc:"7 exercises · spine · hips · shoulders", descColor:"#818cf8" }
+    { type:"physio",  key:3,       bg:"linear-gradient(135deg,#0A0A1A,#0A1A2A)", border:"#6366f140", icon:"&#x1F9D8;", name:"Decompression", desc:"7 exercises · spine · hips · shoulders", descColor:"#818cf8" },
+    { type:"physio",  key:4,       bg:"linear-gradient(135deg,#021A2A,#053040)", border:"#0ea5e940", icon:"&#x1F9D8;", name:"Max Pilates Core", desc:"6 exercises · core stability · Pilates", descColor:"#0ea5e9" }
   ];
   var html = "";
   for (var i=0;i<programs.length;i++) {
