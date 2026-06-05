@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v173 · 05/06/2026 20:19</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v174 · 05/06/2026 20:35</div>
 
   </div>
 </div>
@@ -5068,7 +5068,7 @@ function renderBodyView() {
         var diff=entry.weight-bw[i+1].weight;
         if (diff!==0) { var cls=diff>0?"pos":"neg"; diffHtml="<span class='bw-entry-diff "+cls+"'>"+(diff>0?"+":"")+diff.toFixed(1)+"</span>"; }
       }
-      html+="<div class='bw-entry'><span class='bw-entry-date'>"+label+"</span>"+diffHtml+"<span class='bw-entry-val'>"+entry.weight+" kg</span><button class='bw-entry-del' data-date='"+entry.date+"'>&#x2715;</button></div>";
+      html+="<div class='bw-entry'><span class='bw-entry-date bw-date-edit' data-date='"+entry.date+"' style='cursor:pointer;text-decoration:underline dotted'>"+label+"</span>"+diffHtml+"<span class='bw-entry-val'>"+entry.weight+" kg</span><button class='bw-entry-del' data-date='"+entry.date+"'>&#x2715;</button></div>";
     }
     el.innerHTML=html;
     el.querySelectorAll(".bw-entry-del").forEach(function(btn) {
@@ -5090,7 +5090,7 @@ function renderBodyView() {
         var r=bp[j], rd=new Date(r.date+"T12:00:00");
         var rlabel=rd.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
         var cat = r.sys>=140||r.dia>=90 ? "#e07050" : (r.sys>=130||r.dia>=80 ? "#e0b050" : "#6BCF86");
-        bpHtml+="<div class='bw-entry'><span class='bw-entry-date'>"+rlabel+"</span>" +
+        bpHtml+="<div class='bw-entry'><span class='bw-entry-date bp-date-edit' data-bpts='"+r.ts+"' style='cursor:pointer;text-decoration:underline dotted'>"+rlabel+"</span>" +
           "<span class='bw-entry-val' style='color:"+cat+"'>"+r.sys+"/"+r.dia+(r.pulse?" <span style='color:#3A5070;font-size:12px'>&middot; "+r.pulse+" bpm</span>":"")+"</span>" +
           "<button class='bw-entry-del' data-bpts='"+r.ts+"'>&#x2715;</button></div>";
       }
@@ -5104,6 +5104,56 @@ function renderBodyView() {
       });
     }
   }
+  // ── Editable weight dates ──
+  document.querySelectorAll(".bw-date-edit").forEach(function(span) {
+    span.addEventListener("click", function() {
+      var oldDate = span.dataset.date;
+      var existing = span.parentElement.parentElement.querySelector(".bw-dt-edit");
+      if (existing) { existing.remove(); return; }
+      var picker = document.createElement("div");
+      picker.className = "bw-dt-edit";
+      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
+      picker.innerHTML = "<input type='date' value='"+oldDate+"' style='flex:1;border:1.5px solid #2A4060;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#1C2E44;color:#E0EAF4;outline:none'>" +
+        "<button class='_bwSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
+        "<button class='_bwCancel' style='padding:8px 10px;background:#2A3A52;border:none;border-radius:7px;color:#A8B8C8;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+      span.parentElement.after(picker);
+      picker.querySelector("._bwSave").addEventListener("click", function() {
+        var newDate = picker.querySelector("input").value;
+        if (!newDate) return;
+        var data = getWD();
+        var e = (data.bodyweight||[]).find(function(x){ return x.date === oldDate; });
+        if (e) { e.date = newDate; data.bodyweight.sort(function(a,b){ return b.date.localeCompare(a.date); }); saveWD(data); pushPersonal(); }
+        renderBodyView();
+      });
+      picker.querySelector("._bwCancel").addEventListener("click", function(){ picker.remove(); });
+    });
+  });
+  // ── Editable BP date/time ──
+  document.querySelectorAll(".bp-date-edit").forEach(function(span) {
+    span.addEventListener("click", function() {
+      var ts = +span.dataset.bpts;
+      var existing = span.parentElement.parentElement.querySelector(".bp-dt-edit");
+      if (existing) { existing.remove(); return; }
+      var picker = document.createElement("div");
+      picker.className = "bp-dt-edit";
+      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
+      picker.innerHTML = "<input type='datetime-local' value='"+localDatetimeValue(ts)+"' style='flex:1;border:1.5px solid #2A4060;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#1C2E44;color:#E0EAF4;outline:none'>" +
+        "<button class='_bpSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
+        "<button class='_bpCancel' style='padding:8px 10px;background:#2A3A52;border:none;border-radius:7px;color:#A8B8C8;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+      span.parentElement.after(picker);
+      picker.querySelector("._bpSave").addEventListener("click", function() {
+        var val = picker.querySelector("input").value;
+        var newTs = val ? new Date(val).getTime() : ts;
+        if (!isNaN(newTs)) {
+          var data = getWD();
+          var e = (data.bp||[]).find(function(x){ return x.ts === ts; });
+          if (e) { e.ts = newTs; e.date = localDatetimeValue(newTs).slice(0,10); data.bp.sort(function(a,b){ return (b.ts||0)-(a.ts||0); }); saveWD(data); pushPersonal(); }
+        }
+        renderBodyView();
+      });
+      picker.querySelector("._bpCancel").addEventListener("click", function(){ picker.remove(); });
+    });
+  });
 }
 
 
@@ -6594,7 +6644,7 @@ function renderBodyView() {
         var diff=entry.weight-bw[i+1].weight;
         if (diff!==0) { var cls=diff>0?"pos":"neg"; diffHtml="<span class='bw-entry-diff "+cls+"'>"+(diff>0?"+":"")+diff.toFixed(1)+"</span>"; }
       }
-      html+="<div class='bw-entry'><span class='bw-entry-date'>"+label+"</span>"+diffHtml+"<span class='bw-entry-val'>"+entry.weight+" kg</span><button class='bw-entry-del' data-date='"+entry.date+"'>&#x2715;</button></div>";
+      html+="<div class='bw-entry'><span class='bw-entry-date bw-date-edit' data-date='"+entry.date+"' style='cursor:pointer;text-decoration:underline dotted'>"+label+"</span>"+diffHtml+"<span class='bw-entry-val'>"+entry.weight+" kg</span><button class='bw-entry-del' data-date='"+entry.date+"'>&#x2715;</button></div>";
     }
     el.innerHTML=html;
     el.querySelectorAll(".bw-entry-del").forEach(function(btn) {
@@ -6616,7 +6666,7 @@ function renderBodyView() {
         var r=bp[j], rd=new Date(r.date+"T12:00:00");
         var rlabel=rd.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
         var cat = r.sys>=140||r.dia>=90 ? "#e07050" : (r.sys>=130||r.dia>=80 ? "#e0b050" : "#6BCF86");
-        bpHtml+="<div class='bw-entry'><span class='bw-entry-date'>"+rlabel+"</span>" +
+        bpHtml+="<div class='bw-entry'><span class='bw-entry-date bp-date-edit' data-bpts='"+r.ts+"' style='cursor:pointer;text-decoration:underline dotted'>"+rlabel+"</span>" +
           "<span class='bw-entry-val' style='color:"+cat+"'>"+r.sys+"/"+r.dia+(r.pulse?" <span style='color:#3A5070;font-size:12px'>&middot; "+r.pulse+" bpm</span>":"")+"</span>" +
           "<button class='bw-entry-del' data-bpts='"+r.ts+"'>&#x2715;</button></div>";
       }
@@ -6630,6 +6680,56 @@ function renderBodyView() {
       });
     }
   }
+  // ── Editable weight dates ──
+  document.querySelectorAll(".bw-date-edit").forEach(function(span) {
+    span.addEventListener("click", function() {
+      var oldDate = span.dataset.date;
+      var existing = span.parentElement.parentElement.querySelector(".bw-dt-edit");
+      if (existing) { existing.remove(); return; }
+      var picker = document.createElement("div");
+      picker.className = "bw-dt-edit";
+      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
+      picker.innerHTML = "<input type='date' value='"+oldDate+"' style='flex:1;border:1.5px solid #2A4060;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#1C2E44;color:#E0EAF4;outline:none'>" +
+        "<button class='_bwSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
+        "<button class='_bwCancel' style='padding:8px 10px;background:#2A3A52;border:none;border-radius:7px;color:#A8B8C8;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+      span.parentElement.after(picker);
+      picker.querySelector("._bwSave").addEventListener("click", function() {
+        var newDate = picker.querySelector("input").value;
+        if (!newDate) return;
+        var data = getWD();
+        var e = (data.bodyweight||[]).find(function(x){ return x.date === oldDate; });
+        if (e) { e.date = newDate; data.bodyweight.sort(function(a,b){ return b.date.localeCompare(a.date); }); saveWD(data); pushPersonal(); }
+        renderBodyView();
+      });
+      picker.querySelector("._bwCancel").addEventListener("click", function(){ picker.remove(); });
+    });
+  });
+  // ── Editable BP date/time ──
+  document.querySelectorAll(".bp-date-edit").forEach(function(span) {
+    span.addEventListener("click", function() {
+      var ts = +span.dataset.bpts;
+      var existing = span.parentElement.parentElement.querySelector(".bp-dt-edit");
+      if (existing) { existing.remove(); return; }
+      var picker = document.createElement("div");
+      picker.className = "bp-dt-edit";
+      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
+      picker.innerHTML = "<input type='datetime-local' value='"+localDatetimeValue(ts)+"' style='flex:1;border:1.5px solid #2A4060;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#1C2E44;color:#E0EAF4;outline:none'>" +
+        "<button class='_bpSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
+        "<button class='_bpCancel' style='padding:8px 10px;background:#2A3A52;border:none;border-radius:7px;color:#A8B8C8;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+      span.parentElement.after(picker);
+      picker.querySelector("._bpSave").addEventListener("click", function() {
+        var val = picker.querySelector("input").value;
+        var newTs = val ? new Date(val).getTime() : ts;
+        if (!isNaN(newTs)) {
+          var data = getWD();
+          var e = (data.bp||[]).find(function(x){ return x.ts === ts; });
+          if (e) { e.ts = newTs; e.date = localDatetimeValue(newTs).slice(0,10); data.bp.sort(function(a,b){ return (b.ts||0)-(a.ts||0); }); saveWD(data); pushPersonal(); }
+        }
+        renderBodyView();
+      });
+      picker.querySelector("._bpCancel").addEventListener("click", function(){ picker.remove(); });
+    });
+  });
 }
 
 // ── Baby data helpers ────────────────────────────────────
