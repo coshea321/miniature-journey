@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v174 · 05/06/2026 20:35</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v175 · 05/06/2026 21:46</div>
 
   </div>
 </div>
@@ -5044,12 +5044,51 @@ function renderWorkoutHistory() {
     var sub  = w.type==="yoga" ? (w.poses||"?")+" poses" :
                w.type==="physio" ? "Physio" :
                (w.exercises&&w.exercises.length ? w.exercises.length+" exercise"+(w.exercises.length!==1?"s":"") : "");
-    html+="<div class='workout-hist-item'>"+
-      "<div class='whi-date'>"+trainFmtDateLong(w.date)+"</div>"+
+    html+="<div class='workout-hist-item' data-wid='"+w.id+"'>"+
+      "<div class='whi-row' style='align-items:center'>"+
+        "<div class='whi-date wh-date-edit' data-wid='"+w.id+"' style='cursor:pointer;text-decoration:underline dotted;flex:1'>"+trainFmtDateLong(w.date)+"</div>"+
+        "<button class='wh-del-btn' data-wid='"+w.id+"' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;opacity:.5;padding:0 4px'>&#x2715;</button>"+
+      "</div>"+
       "<div class='whi-row'><span>"+icon+" "+esc(name)+"</span><span class='whi-sets'>"+sub+"</span></div>"+
     "</div>";
   });
   el.innerHTML = html;
+
+  // Delete with confirmation
+  el.querySelectorAll(".wh-del-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      confirmDialog("Delete this workout session?", function() {
+        var data = getWD();
+        data.workouts = (data.workouts||[]).filter(function(x){ return String(x.id) !== btn.dataset.wid; });
+        saveWD(data); pushPersonal(); renderWorkoutHistory();
+      });
+    });
+  });
+
+  // Editable date
+  el.querySelectorAll(".wh-date-edit").forEach(function(span) {
+    span.addEventListener("click", function() {
+      var wid = span.dataset.wid;
+      var data = getWD();
+      var w = (data.workouts||[]).find(function(x){ return String(x.id) === wid; });
+      if (!w) return;
+      var existing = span.closest(".workout-hist-item").querySelector(".wh-dt-edit");
+      if (existing) { existing.remove(); return; }
+      var picker = document.createElement("div");
+      picker.className = "wh-dt-edit";
+      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
+      picker.innerHTML = "<input type='date' value='"+w.date+"' style='flex:1;border:1.5px solid #2A4060;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#1C2E44;color:#E0EAF4;outline:none'>" +
+        "<button class='_whSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
+        "<button class='_whCancel' style='padding:8px 10px;background:#2A3A52;border:none;border-radius:7px;color:#A8B8C8;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+      span.closest(".workout-hist-item").appendChild(picker);
+      picker.querySelector("._whSave").addEventListener("click", function() {
+        var nd = picker.querySelector("input").value;
+        if (nd) { w.date = nd; data.workouts.sort(function(a,b){ return b.date.localeCompare(a.date); }); saveWD(data); pushPersonal(); }
+        renderWorkoutHistory();
+      });
+      picker.querySelector("._whCancel").addEventListener("click", function(){ picker.remove(); });
+    });
+  });
 }
 
 
@@ -6588,12 +6627,51 @@ function renderWorkoutHistory() {
     var sub  = w.type==="yoga" ? (w.poses||"?")+" poses" :
                w.type==="physio" ? "Physio" :
                (w.exercises&&w.exercises.length ? w.exercises.length+" exercise"+(w.exercises.length!==1?"s":"") : "");
-    html+="<div class='workout-hist-item'>"+
-      "<div class='whi-date'>"+trainFmtDateLong(w.date)+"</div>"+
+    html+="<div class='workout-hist-item' data-wid='"+w.id+"'>"+
+      "<div class='whi-row' style='align-items:center'>"+
+        "<div class='whi-date wh-date-edit' data-wid='"+w.id+"' style='cursor:pointer;text-decoration:underline dotted;flex:1'>"+trainFmtDateLong(w.date)+"</div>"+
+        "<button class='wh-del-btn' data-wid='"+w.id+"' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;opacity:.5;padding:0 4px'>&#x2715;</button>"+
+      "</div>"+
       "<div class='whi-row'><span>"+icon+" "+esc(name)+"</span><span class='whi-sets'>"+sub+"</span></div>"+
     "</div>";
   });
   el.innerHTML = html;
+
+  // Delete with confirmation
+  el.querySelectorAll(".wh-del-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      confirmDialog("Delete this workout session?", function() {
+        var data = getWD();
+        data.workouts = (data.workouts||[]).filter(function(x){ return String(x.id) !== btn.dataset.wid; });
+        saveWD(data); pushPersonal(); renderWorkoutHistory();
+      });
+    });
+  });
+
+  // Editable date
+  el.querySelectorAll(".wh-date-edit").forEach(function(span) {
+    span.addEventListener("click", function() {
+      var wid = span.dataset.wid;
+      var data = getWD();
+      var w = (data.workouts||[]).find(function(x){ return String(x.id) === wid; });
+      if (!w) return;
+      var existing = span.closest(".workout-hist-item").querySelector(".wh-dt-edit");
+      if (existing) { existing.remove(); return; }
+      var picker = document.createElement("div");
+      picker.className = "wh-dt-edit";
+      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
+      picker.innerHTML = "<input type='date' value='"+w.date+"' style='flex:1;border:1.5px solid #2A4060;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#1C2E44;color:#E0EAF4;outline:none'>" +
+        "<button class='_whSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
+        "<button class='_whCancel' style='padding:8px 10px;background:#2A3A52;border:none;border-radius:7px;color:#A8B8C8;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+      span.closest(".workout-hist-item").appendChild(picker);
+      picker.querySelector("._whSave").addEventListener("click", function() {
+        var nd = picker.querySelector("input").value;
+        if (nd) { w.date = nd; data.workouts.sort(function(a,b){ return b.date.localeCompare(a.date); }); saveWD(data); pushPersonal(); }
+        renderWorkoutHistory();
+      });
+      picker.querySelector("._whCancel").addEventListener("click", function(){ picker.remove(); });
+    });
+  });
 }
 
 // ── Bodyweight log ────────────────────────────────────────
