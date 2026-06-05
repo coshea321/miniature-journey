@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v172 · 05/06/2026 19:44</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v173 · 05/06/2026 20:19</div>
 
   </div>
 </div>
@@ -2672,7 +2672,7 @@ function renderLogView() {
   var dtEl = document.getElementById("logActionDt");
   if (dtEl && !dtEl._initialised) { dtEl.value = localDatetimeValue(); dtEl._initialised = true; }
 
-  var entries = getActionLog();
+  var entries = getActionLog().filter(function(e2){ return e2 && e2.type !== "cardio" && (e2.text !== undefined && e2.text !== null); });
   var el = document.getElementById("logActionList");
   if (!entries.length) {
     el.innerHTML = "<div style='text-align:center;padding:40px 24px;color:#B87A40'>" +
