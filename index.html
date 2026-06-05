@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v171 · 05/06/2026 18:50</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v172 · 05/06/2026 19:44</div>
 
   </div>
 </div>
@@ -2706,10 +2706,13 @@ function renderLogView() {
 
   el.querySelectorAll(".log-del-btn").forEach(function(btn) {
     btn.addEventListener("click", function() {
-      var id = +btn.dataset.logid;
-      var entries = getActionLog().filter(function(e2){ return e2.id !== id; });
-      saveActionLog(entries);
-      renderLogView();
+      confirmDialog("Delete this log entry?", function(){
+        var id = +btn.dataset.logid;
+        var entries = getActionLog().filter(function(e2){ return e2.id !== id; });
+        saveActionLog(entries);
+        pushPersonal();
+        renderLogView();
+      });
     });
   });
 
@@ -4350,8 +4353,10 @@ function renderCardioLog() {
   el.innerHTML = html;
   el.querySelectorAll("[data-cardio-id]").forEach(function(btn) {
     btn.addEventListener("click", function() {
+      confirmDialog("Delete this cardio entry?", function(){
       storeSet("fl4_action_log", getActionLog().filter(function(e){ return e&&e.id!==+btn.dataset.cardioId; }));
       pushPersonal(); renderCardioLog();
+      });
     });
   });
 }
@@ -5068,7 +5073,9 @@ function renderBodyView() {
     el.innerHTML=html;
     el.querySelectorAll(".bw-entry-del").forEach(function(btn) {
       btn.addEventListener("click",function(){
-        var data=getWD(); data.bodyweight=(data.bodyweight||[]).filter(function(e){return e.date!==btn.dataset.date;}); saveWD(data); renderBodyView();
+        confirmDialog("Delete this weight entry?", function(){
+          var data=getWD(); data.bodyweight=(data.bodyweight||[]).filter(function(e){return e.date!==btn.dataset.date;}); saveWD(data); pushPersonal(); renderBodyView();
+        });
       });
     });
   }
@@ -5090,7 +5097,9 @@ function renderBodyView() {
       bpEl.innerHTML=bpHtml;
       bpEl.querySelectorAll(".bw-entry-del").forEach(function(btn) {
         btn.addEventListener("click",function(){
-          var data=getWD(); data.bp=(data.bp||[]).filter(function(e){return String(e.ts)!==btn.dataset.bpts;}); saveWD(data); renderBodyView();
+          confirmDialog("Delete this blood pressure reading?", function(){
+            var data=getWD(); data.bp=(data.bp||[]).filter(function(e){return String(e.ts)!==btn.dataset.bpts;}); saveWD(data); pushPersonal(); renderBodyView();
+          });
         });
       });
     }
@@ -6590,7 +6599,9 @@ function renderBodyView() {
     el.innerHTML=html;
     el.querySelectorAll(".bw-entry-del").forEach(function(btn) {
       btn.addEventListener("click",function(){
-        var data=getWD(); data.bodyweight=(data.bodyweight||[]).filter(function(e){return e.date!==btn.dataset.date;}); saveWD(data); renderBodyView();
+        confirmDialog("Delete this weight entry?", function(){
+          var data=getWD(); data.bodyweight=(data.bodyweight||[]).filter(function(e){return e.date!==btn.dataset.date;}); saveWD(data); pushPersonal(); renderBodyView();
+        });
       });
     });
   }
@@ -6612,7 +6623,9 @@ function renderBodyView() {
       bpEl.innerHTML=bpHtml;
       bpEl.querySelectorAll(".bw-entry-del").forEach(function(btn) {
         btn.addEventListener("click",function(){
-          var data=getWD(); data.bp=(data.bp||[]).filter(function(e){return String(e.ts)!==btn.dataset.bpts;}); saveWD(data); renderBodyView();
+          confirmDialog("Delete this blood pressure reading?", function(){
+            var data=getWD(); data.bp=(data.bp||[]).filter(function(e){return String(e.ts)!==btn.dataset.bpts;}); saveWD(data); pushPersonal(); renderBodyView();
+          });
         });
       });
     }
