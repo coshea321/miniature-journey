@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v170 · 04/06/2026 22:57</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v171 · 05/06/2026 18:50</div>
 
   </div>
 </div>
@@ -3892,8 +3892,18 @@ function applyPersonal(d) {
     // Remote first, then local overwrites (local is more recent if push is in-flight)
     remoteWkts.forEach(function(w){ if(w) wIdx[w.id] = w; });
     localWkts.forEach(function(w){  if(w) wIdx[w.id] = w; });
+    // Merge bodyweight by date (union — never lose a local entry)
+    var bwIdx = {};
+    (Array.isArray(remoteWD.bodyweight) ? remoteWD.bodyweight : []).forEach(function(e){ if(e && e.date) bwIdx[e.date] = e; });
+    (Array.isArray(localWD.bodyweight)  ? localWD.bodyweight  : []).forEach(function(e){ if(e && e.date) bwIdx[e.date] = e; });
+    // Merge blood pressure by date+time (union)
+    var bpIdx = {};
+    (Array.isArray(remoteWD.bp) ? remoteWD.bp : []).forEach(function(e){ if(e && e.ts) bpIdx[e.ts] = e; });
+    (Array.isArray(localWD.bp)  ? localWD.bp  : []).forEach(function(e){ if(e && e.ts) bpIdx[e.ts] = e; });
     storeSet("fl4_workouts", Object.assign({}, remoteWD, {
-      workouts: Object.values(wIdx).sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); })
+      workouts: Object.values(wIdx).sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); }),
+      bodyweight: Object.values(bwIdx).sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); }),
+      bp: Object.values(bpIdx).sort(function(a,b){ return (b.ts||0)-(a.ts||0); })
     }));
   }
 
@@ -5041,24 +5051,50 @@ function renderWorkoutHistory() {
 function renderBodyView() {
   var data=getWD(), bw=(data.bodyweight||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
   var el=document.getElementById("bwHistory");
-  if (!bw.length) { el.innerHTML="<p style='text-align:center;color:#3A5070;padding:20px;font-size:14px'>No entries yet.</p>"; return; }
-  var html="";
-  for (var i=0;i<bw.length;i++) {
-    var entry=bw[i], d=new Date(entry.date+"T12:00:00");
-    var label=d.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
-    var diffHtml="";
-    if (i<bw.length-1) {
-      var diff=entry.weight-bw[i+1].weight;
-      if (diff!==0) { var cls=diff>0?"pos":"neg"; diffHtml="<span class='bw-entry-diff "+cls+"'>"+(diff>0?"+":"")+diff.toFixed(1)+"</span>"; }
+  if (!bw.length) {
+    el.innerHTML="<p style='text-align:center;color:#3A5070;padding:20px;font-size:14px'>No entries yet.</p>";
+  } else {
+    var html="";
+    for (var i=0;i<bw.length;i++) {
+      var entry=bw[i], d=new Date(entry.date+"T12:00:00");
+      var label=d.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
+      var diffHtml="";
+      if (i<bw.length-1) {
+        var diff=entry.weight-bw[i+1].weight;
+        if (diff!==0) { var cls=diff>0?"pos":"neg"; diffHtml="<span class='bw-entry-diff "+cls+"'>"+(diff>0?"+":"")+diff.toFixed(1)+"</span>"; }
+      }
+      html+="<div class='bw-entry'><span class='bw-entry-date'>"+label+"</span>"+diffHtml+"<span class='bw-entry-val'>"+entry.weight+" kg</span><button class='bw-entry-del' data-date='"+entry.date+"'>&#x2715;</button></div>";
     }
-    html+="<div class='bw-entry'><span class='bw-entry-date'>"+label+"</span>"+diffHtml+"<span class='bw-entry-val'>"+entry.weight+" kg</span><button class='bw-entry-del' data-date='"+entry.date+"'>&#x2715;</button></div>";
-  }
-  el.innerHTML=html;
-  el.querySelectorAll(".bw-entry-del").forEach(function(btn) {
-    btn.addEventListener("click",function(){
-      var data=getWD(); data.bodyweight=(data.bodyweight||[]).filter(function(e){return e.date!==btn.dataset.date;}); saveWD(data); renderBodyView();
+    el.innerHTML=html;
+    el.querySelectorAll(".bw-entry-del").forEach(function(btn) {
+      btn.addEventListener("click",function(){
+        var data=getWD(); data.bodyweight=(data.bodyweight||[]).filter(function(e){return e.date!==btn.dataset.date;}); saveWD(data); renderBodyView();
+      });
     });
-  });
+  }
+  var bpEl = document.getElementById("bpHistory");
+  if (bpEl) {
+    var bp = (data.bp||[]).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    if (!bp.length) {
+      bpEl.innerHTML="<p style='text-align:center;color:#3A5070;padding:20px;font-size:14px'>No readings yet.</p>";
+    } else {
+      var bpHtml="";
+      for (var j=0;j<bp.length;j++) {
+        var r=bp[j], rd=new Date(r.date+"T12:00:00");
+        var rlabel=rd.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
+        var cat = r.sys>=140||r.dia>=90 ? "#e07050" : (r.sys>=130||r.dia>=80 ? "#e0b050" : "#6BCF86");
+        bpHtml+="<div class='bw-entry'><span class='bw-entry-date'>"+rlabel+"</span>" +
+          "<span class='bw-entry-val' style='color:"+cat+"'>"+r.sys+"/"+r.dia+(r.pulse?" <span style='color:#3A5070;font-size:12px'>&middot; "+r.pulse+" bpm</span>":"")+"</span>" +
+          "<button class='bw-entry-del' data-bpts='"+r.ts+"'>&#x2715;</button></div>";
+      }
+      bpEl.innerHTML=bpHtml;
+      bpEl.querySelectorAll(".bw-entry-del").forEach(function(btn) {
+        btn.addEventListener("click",function(){
+          var data=getWD(); data.bp=(data.bp||[]).filter(function(e){return String(e.ts)!==btn.dataset.bpts;}); saveWD(data); renderBodyView();
+        });
+      });
+    }
+  }
 }
 
 
@@ -6516,27 +6552,71 @@ document.getElementById("bwLogBtn").addEventListener("click", function() {
   renderBodyView(); toast("Weight logged: "+val+" kg");
 });
 
+document.getElementById("bpLogBtn").addEventListener("click", function() {
+  var sys = parseInt(document.getElementById("bpSys").value);
+  var dia = parseInt(document.getElementById("bpDia").value);
+  var pulse = parseInt(document.getElementById("bpPulse").value);
+  if (!sys || sys<60 || sys>250)  { toast("Enter a valid systolic (60–250)"); return; }
+  if (!dia || dia<40 || dia>150)  { toast("Enter a valid diastolic (40–150)"); return; }
+  var data = getWD();
+  data.bp = data.bp || [];
+  data.bp.unshift({ ts: Date.now(), date: trainTodayStr(), sys: sys, dia: dia, pulse: (pulse||null) });
+  data.bp.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+  saveWD(data);
+  document.getElementById("bpSys").value="";
+  document.getElementById("bpDia").value="";
+  document.getElementById("bpPulse").value="";
+  renderBodyView();
+  toast("BP logged: "+sys+"/"+dia + (pulse?" · "+pulse+" bpm":""));
+});
+
 function renderBodyView() {
   var data=getWD(), bw=(data.bodyweight||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
   var el=document.getElementById("bwHistory");
-  if (!bw.length) { el.innerHTML="<p style='text-align:center;color:#3A5070;padding:20px;font-size:14px'>No entries yet.</p>"; return; }
-  var html="";
-  for (var i=0;i<bw.length;i++) {
-    var entry=bw[i], d=new Date(entry.date+"T12:00:00");
-    var label=d.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
-    var diffHtml="";
-    if (i<bw.length-1) {
-      var diff=entry.weight-bw[i+1].weight;
-      if (diff!==0) { var cls=diff>0?"pos":"neg"; diffHtml="<span class='bw-entry-diff "+cls+"'>"+(diff>0?"+":"")+diff.toFixed(1)+"</span>"; }
+  if (!bw.length) {
+    el.innerHTML="<p style='text-align:center;color:#3A5070;padding:20px;font-size:14px'>No entries yet.</p>";
+  } else {
+    var html="";
+    for (var i=0;i<bw.length;i++) {
+      var entry=bw[i], d=new Date(entry.date+"T12:00:00");
+      var label=d.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
+      var diffHtml="";
+      if (i<bw.length-1) {
+        var diff=entry.weight-bw[i+1].weight;
+        if (diff!==0) { var cls=diff>0?"pos":"neg"; diffHtml="<span class='bw-entry-diff "+cls+"'>"+(diff>0?"+":"")+diff.toFixed(1)+"</span>"; }
+      }
+      html+="<div class='bw-entry'><span class='bw-entry-date'>"+label+"</span>"+diffHtml+"<span class='bw-entry-val'>"+entry.weight+" kg</span><button class='bw-entry-del' data-date='"+entry.date+"'>&#x2715;</button></div>";
     }
-    html+="<div class='bw-entry'><span class='bw-entry-date'>"+label+"</span>"+diffHtml+"<span class='bw-entry-val'>"+entry.weight+" kg</span><button class='bw-entry-del' data-date='"+entry.date+"'>&#x2715;</button></div>";
-  }
-  el.innerHTML=html;
-  el.querySelectorAll(".bw-entry-del").forEach(function(btn) {
-    btn.addEventListener("click",function(){
-      var data=getWD(); data.bodyweight=(data.bodyweight||[]).filter(function(e){return e.date!==btn.dataset.date;}); saveWD(data); renderBodyView();
+    el.innerHTML=html;
+    el.querySelectorAll(".bw-entry-del").forEach(function(btn) {
+      btn.addEventListener("click",function(){
+        var data=getWD(); data.bodyweight=(data.bodyweight||[]).filter(function(e){return e.date!==btn.dataset.date;}); saveWD(data); renderBodyView();
+      });
     });
-  });
+  }
+  var bpEl = document.getElementById("bpHistory");
+  if (bpEl) {
+    var bp = (data.bp||[]).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    if (!bp.length) {
+      bpEl.innerHTML="<p style='text-align:center;color:#3A5070;padding:20px;font-size:14px'>No readings yet.</p>";
+    } else {
+      var bpHtml="";
+      for (var j=0;j<bp.length;j++) {
+        var r=bp[j], rd=new Date(r.date+"T12:00:00");
+        var rlabel=rd.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
+        var cat = r.sys>=140||r.dia>=90 ? "#e07050" : (r.sys>=130||r.dia>=80 ? "#e0b050" : "#6BCF86");
+        bpHtml+="<div class='bw-entry'><span class='bw-entry-date'>"+rlabel+"</span>" +
+          "<span class='bw-entry-val' style='color:"+cat+"'>"+r.sys+"/"+r.dia+(r.pulse?" <span style='color:#3A5070;font-size:12px'>&middot; "+r.pulse+" bpm</span>":"")+"</span>" +
+          "<button class='bw-entry-del' data-bpts='"+r.ts+"'>&#x2715;</button></div>";
+      }
+      bpEl.innerHTML=bpHtml;
+      bpEl.querySelectorAll(".bw-entry-del").forEach(function(btn) {
+        btn.addEventListener("click",function(){
+          var data=getWD(); data.bp=(data.bp||[]).filter(function(e){return String(e.ts)!==btn.dataset.bpts;}); saveWD(data); renderBodyView();
+        });
+      });
+    }
+  }
 }
 
 // ── Baby data helpers ────────────────────────────────────
