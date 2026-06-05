@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v176 · 05/06/2026 22:01</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v177 · 05/06/2026 22:13</div>
 
   </div>
 </div>
@@ -5032,17 +5032,26 @@ function wireWorkoutLog() {
 
 function renderWorkoutHistory() {
   var data = getWD(), el = document.getElementById("trainHistoryContent");
-  var sessions = (data.workouts||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  var sessions = (data.workouts||[]).slice();
+  // Include cardio entries logged in the action log
+  (getActionLog()||[]).forEach(function(e){
+    if (e && e.type === "cardio") {
+      sessions.push({ id:e.id, date:e.date || (e.ts ? localDatetimeValue(e.ts).slice(0,10) : ""), type:"cardio",
+        sessionName:(e.activity||"Cardio"), duration:e.duration, calories:e.calories, _cardio:true });
+    }
+  });
+  sessions.sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); });
   if (!sessions.length) {
     el.innerHTML="<div class='train-empty'><div class='train-empty-ico'>&#x1F4C5;</div><div class='train-empty-title'>No sessions yet</div><div class='train-empty-sub'>Complete a program or free-form log to see history.</div></div>";
     return;
   }
   var html="";
   sessions.forEach(function(w) {
-    var icon = w.type==="yoga"?"&#x1F9D8;":w.type==="physio"?"&#x1FAB4;":"&#x1F4AA;";
+    var icon = w.type==="yoga"?"&#x1F9D8;":w.type==="physio"?"&#x1FAB4;":w.type==="cardio"?"&#x1F3C3;":"&#x1F4AA;";
     var name = w.sessionName || (w.exercises&&w.exercises.length ? w.exercises[0].name+"..." : "Session");
     var sub  = w.type==="yoga" ? (w.poses||"?")+" poses" :
                w.type==="physio" ? "Physio" :
+               w.type==="cardio" ? ((w.duration?w.duration+" min":"")+(w.duration&&w.calories?" · ":"")+(w.calories?w.calories+" kcal":"")) :
                (w.exercises&&w.exercises.length ? w.exercises.length+" exercise"+(w.exercises.length!==1?"s":"") : "");
     html+="<div class='workout-hist-item' data-wid='"+w.id+"'>"+
       "<div class='whi-row' style='align-items:center'>"+
@@ -5057,10 +5066,15 @@ function renderWorkoutHistory() {
   // Delete with confirmation
   el.querySelectorAll(".wh-del-btn").forEach(function(btn) {
     btn.addEventListener("click", function() {
-      confirmDialog("Delete this workout session?", function() {
+      confirmDialog("Delete this session?", function() {
+        var wid = btn.dataset.wid;
         var data = getWD();
-        data.workouts = (data.workouts||[]).filter(function(x){ return String(x.id) !== btn.dataset.wid; });
-        saveWD(data); pushPersonal(); renderWorkoutHistory();
+        data.workouts = (data.workouts||[]).filter(function(x){ return String(x.id) !== wid; });
+        saveWD(data);
+        // Also remove from action log if it's a cardio entry
+        var al = getActionLog().filter(function(e){ return String(e.id) !== wid; });
+        storeSet("fl4_action_log", al);
+        pushPersonal(); renderWorkoutHistory();
       });
     });
   });
@@ -5071,6 +5085,12 @@ function renderWorkoutHistory() {
       var wid = span.dataset.wid;
       var data = getWD();
       var w = (data.workouts||[]).find(function(x){ return String(x.id) === wid; });
+      var isCardio = false;
+      if (!w) {
+        // Might be a cardio entry in the action log
+        w = getActionLog().find(function(x){ return String(x.id) === wid; });
+        isCardio = true;
+      }
       if (!w) return;
       var existing = span.closest(".workout-hist-item").querySelector(".wh-dt-edit");
       if (existing) { existing.remove(); return; }
@@ -5083,7 +5103,17 @@ function renderWorkoutHistory() {
       span.closest(".workout-hist-item").appendChild(picker);
       picker.querySelector("._whSave").addEventListener("click", function() {
         var nd = picker.querySelector("input").value;
-        if (nd) { w.date = nd; data.workouts.sort(function(a,b){ return b.date.localeCompare(a.date); }); saveWD(data); pushPersonal(); }
+        if (nd) {
+          w.date = nd;
+          if (isCardio) {
+            var al = getActionLog();
+            var ce = al.find(function(x){ return String(x.id) === wid; });
+            if (ce) { ce.date = nd; if (ce.ts) ce.ts = new Date(nd+"T12:00:00").getTime(); }
+            storeSet("fl4_action_log", al); pushPersonal();
+          } else {
+            data.workouts.sort(function(a,b){ return b.date.localeCompare(a.date); }); saveWD(data); pushPersonal();
+          }
+        }
         renderWorkoutHistory();
       });
       picker.querySelector("._whCancel").addEventListener("click", function(){ picker.remove(); });
@@ -6615,17 +6645,26 @@ function wireWorkoutLog() {
 // ── History ───────────────────────────────────────────────
 function renderWorkoutHistory() {
   var data = getWD(), el = document.getElementById("trainHistoryContent");
-  var sessions = (data.workouts||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  var sessions = (data.workouts||[]).slice();
+  // Include cardio entries logged in the action log
+  (getActionLog()||[]).forEach(function(e){
+    if (e && e.type === "cardio") {
+      sessions.push({ id:e.id, date:e.date || (e.ts ? localDatetimeValue(e.ts).slice(0,10) : ""), type:"cardio",
+        sessionName:(e.activity||"Cardio"), duration:e.duration, calories:e.calories, _cardio:true });
+    }
+  });
+  sessions.sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); });
   if (!sessions.length) {
     el.innerHTML="<div class='train-empty'><div class='train-empty-ico'>&#x1F4C5;</div><div class='train-empty-title'>No sessions yet</div><div class='train-empty-sub'>Complete a program or free-form log to see history.</div></div>";
     return;
   }
   var html="";
   sessions.forEach(function(w) {
-    var icon = w.type==="yoga"?"&#x1F9D8;":w.type==="physio"?"&#x1FAB4;":"&#x1F4AA;";
+    var icon = w.type==="yoga"?"&#x1F9D8;":w.type==="physio"?"&#x1FAB4;":w.type==="cardio"?"&#x1F3C3;":"&#x1F4AA;";
     var name = w.sessionName || (w.exercises&&w.exercises.length ? w.exercises[0].name+"..." : "Session");
     var sub  = w.type==="yoga" ? (w.poses||"?")+" poses" :
                w.type==="physio" ? "Physio" :
+               w.type==="cardio" ? ((w.duration?w.duration+" min":"")+(w.duration&&w.calories?" · ":"")+(w.calories?w.calories+" kcal":"")) :
                (w.exercises&&w.exercises.length ? w.exercises.length+" exercise"+(w.exercises.length!==1?"s":"") : "");
     html+="<div class='workout-hist-item' data-wid='"+w.id+"'>"+
       "<div class='whi-row' style='align-items:center'>"+
@@ -6640,10 +6679,15 @@ function renderWorkoutHistory() {
   // Delete with confirmation
   el.querySelectorAll(".wh-del-btn").forEach(function(btn) {
     btn.addEventListener("click", function() {
-      confirmDialog("Delete this workout session?", function() {
+      confirmDialog("Delete this session?", function() {
+        var wid = btn.dataset.wid;
         var data = getWD();
-        data.workouts = (data.workouts||[]).filter(function(x){ return String(x.id) !== btn.dataset.wid; });
-        saveWD(data); pushPersonal(); renderWorkoutHistory();
+        data.workouts = (data.workouts||[]).filter(function(x){ return String(x.id) !== wid; });
+        saveWD(data);
+        // Also remove from action log if it's a cardio entry
+        var al = getActionLog().filter(function(e){ return String(e.id) !== wid; });
+        storeSet("fl4_action_log", al);
+        pushPersonal(); renderWorkoutHistory();
       });
     });
   });
@@ -6654,6 +6698,12 @@ function renderWorkoutHistory() {
       var wid = span.dataset.wid;
       var data = getWD();
       var w = (data.workouts||[]).find(function(x){ return String(x.id) === wid; });
+      var isCardio = false;
+      if (!w) {
+        // Might be a cardio entry in the action log
+        w = getActionLog().find(function(x){ return String(x.id) === wid; });
+        isCardio = true;
+      }
       if (!w) return;
       var existing = span.closest(".workout-hist-item").querySelector(".wh-dt-edit");
       if (existing) { existing.remove(); return; }
@@ -6666,7 +6716,17 @@ function renderWorkoutHistory() {
       span.closest(".workout-hist-item").appendChild(picker);
       picker.querySelector("._whSave").addEventListener("click", function() {
         var nd = picker.querySelector("input").value;
-        if (nd) { w.date = nd; data.workouts.sort(function(a,b){ return b.date.localeCompare(a.date); }); saveWD(data); pushPersonal(); }
+        if (nd) {
+          w.date = nd;
+          if (isCardio) {
+            var al = getActionLog();
+            var ce = al.find(function(x){ return String(x.id) === wid; });
+            if (ce) { ce.date = nd; if (ce.ts) ce.ts = new Date(nd+"T12:00:00").getTime(); }
+            storeSet("fl4_action_log", al); pushPersonal();
+          } else {
+            data.workouts.sort(function(a,b){ return b.date.localeCompare(a.date); }); saveWD(data); pushPersonal();
+          }
+        }
         renderWorkoutHistory();
       });
       picker.querySelector("._whCancel").addEventListener("click", function(){ picker.remove(); });
