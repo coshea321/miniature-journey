@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v175 · 05/06/2026 21:46</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v176 · 05/06/2026 22:01</div>
 
   </div>
 </div>
@@ -6969,7 +6969,7 @@ function renderGrowth() {
   if (growth.length) {
     html += "<div style='padding:0 12px'>";
     growth.forEach(function(e) {
-      html += "<div style='display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #F0EBF8'><div style='flex:1'><div style='font-size:14px;font-weight:600;color:#2A2010'>" + e.date + "</div><div style='font-size:13px;color:#8A6A8A'>" + (e.weight?e.weight+" kg":"") + (e.weight&&e.height?" · ":"") + (e.height?e.height+" cm":"") + "</div></div><button data-growthdate='" + e.date + "' class='growth-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
+      html += "<div class='growth-row' style='display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #F0EBF8'><div style='flex:1'><div class='growth-date-edit' data-growthdate='" + e.date + "' style='font-size:14px;font-weight:600;color:#2A2010;cursor:pointer;text-decoration:underline dotted'>" + e.date + "</div><div style='font-size:13px;color:#8A6A8A'>" + (e.weight?e.weight+" kg":"") + (e.weight&&e.height?" · ":"") + (e.height?e.height+" cm":"") + "</div></div><button data-growthdate='" + e.date + "' class='growth-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
     });
     html += "</div>";
   } else {
@@ -6990,7 +6990,27 @@ function renderGrowth() {
     saveBD(bd2); renderGrowth(); toast("&#x1F4CF; Logged");
   });
   el.querySelectorAll(".growth-del-btn").forEach(function(btn){
-    btn.addEventListener("click", function(){ var bd2=getBD(); bd2.growth=bd2.growth.filter(function(e){ return e.date!==btn.dataset.growthdate; }); saveBD(bd2); renderGrowth(); });
+    btn.addEventListener("click", function(){ confirmDialog("Delete this measurement?", function(){ var bd2=getBD(); bd2.growth=bd2.growth.filter(function(e){ return e.date!==btn.dataset.growthdate; }); saveBD(bd2); renderGrowth(); }); });
+  });
+  el.querySelectorAll(".growth-date-edit").forEach(function(span){
+    span.addEventListener("click", function(){
+      var oldDate = span.dataset.growthdate;
+      var existing = span.closest(".growth-row").querySelector(".growth-dt-edit");
+      if (existing) { existing.remove(); return; }
+      var picker = document.createElement("div");
+      picker.className = "growth-dt-edit";
+      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
+      picker.innerHTML = "<input type='date' value='"+oldDate+"' class='med-input' style='flex:1'>" +
+        "<button class='_gSave baby-log-btn' style='width:auto;padding:8px 12px;margin:0'>Save</button>" +
+        "<button class='_gCancel' style='padding:8px 10px;background:#F0EBF8;border:none;border-radius:7px;color:#8A6A8A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+      span.closest(".growth-row").appendChild(picker);
+      picker.querySelector("._gSave").addEventListener("click", function(){
+        var nd = picker.querySelector("input").value;
+        if (nd) { var bd2=getBD(); var e=bd2.growth.find(function(x){return x.date===oldDate;}); if(e){ e.date=nd; bd2.growth.sort(function(a,b){return b.date.localeCompare(a.date);}); saveBD(bd2); } }
+        renderGrowth();
+      });
+      picker.querySelector("._gCancel").addEventListener("click", function(){ picker.remove(); });
+    });
   });
 }
 
@@ -7009,7 +7029,7 @@ function renderMedicine() {
     meds.forEach(function(m){
       var tStr=m.ts?new Date(m.ts).toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"}):"";
       var dStr=m.ts?new Date(m.ts).toLocaleDateString("en-IE",{day:"numeric",month:"short"}):"";
-      html+="<div style='display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;margin:0 12px 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'><div style='flex:1'><div style='font-size:14px;font-weight:600;color:#2A2010'>"+esc(m.name||"")+(m.dose?" — "+esc(m.dose):"")+"</div>"+(m.notes?"<div style='font-size:12px;color:#8A6A8A'>"+esc(m.notes)+"</div>":"")+(tStr?"<div style='font-size:11px;color:#B8A880'>"+dStr+" "+tStr+"</div>":"")+"</div><button data-medid='"+m.id+"' class='med-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
+      html+="<div class='med-row' style='display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;margin:0 12px 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'><div style='flex:1'><div style='font-size:14px;font-weight:600;color:#2A2010'>"+esc(m.name||"")+(m.dose?" — "+esc(m.dose):"")+"</div>"+(m.notes?"<div style='font-size:12px;color:#8A6A8A'>"+esc(m.notes)+"</div>":"")+(tStr?"<div class='med-dt-edit-trigger' data-medid='"+m.id+"' style='font-size:11px;color:#B8A880;cursor:pointer;text-decoration:underline dotted'>"+dStr+" "+tStr+"</div>":"")+"</div><button data-medid='"+m.id+"' class='med-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
     });
   } else {
     html+="<div style='text-align:center;padding:32px;color:#8A6A8A;font-size:14px'>No medicine logged yet</div>";
@@ -7026,7 +7046,31 @@ function renderMedicine() {
     renderMedicine(); toast("&#x1F48A; Logged");
   });
   el.querySelectorAll(".med-del-btn").forEach(function(btn){
-    btn.addEventListener("click",function(){ var bd2=getBD(); bd2.medicine=bd2.medicine.filter(function(m){return m.id!==+btn.dataset.medid;}); saveBD(bd2); renderMedicine(); });
+    btn.addEventListener("click",function(){ confirmDialog("Delete this medicine entry?", function(){ var bd2=getBD(); bd2.medicine=bd2.medicine.filter(function(m){return m.id!==+btn.dataset.medid;}); saveBD(bd2); renderMedicine(); }); });
+  });
+  el.querySelectorAll(".med-dt-edit-trigger").forEach(function(span){
+    span.addEventListener("click", function(){
+      var id = +span.dataset.medid;
+      var bd2 = getBD();
+      var m = (bd2.medicine||[]).find(function(x){ return x.id===id; });
+      if (!m) return;
+      var existing = span.closest(".med-row").querySelector(".med-dt-edit");
+      if (existing) { existing.remove(); return; }
+      var picker = document.createElement("div");
+      picker.className = "med-dt-edit";
+      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
+      picker.innerHTML = "<input type='datetime-local' value='"+localDatetimeValue(m.ts)+"' class='med-input' style='flex:1'>" +
+        "<button class='_mSave baby-log-btn' style='width:auto;padding:8px 12px;margin:0'>Save</button>" +
+        "<button class='_mCancel' style='padding:8px 10px;background:#F0EBF8;border:none;border-radius:7px;color:#8A6A8A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+      span.closest(".med-row").appendChild(picker);
+      picker.querySelector("._mSave").addEventListener("click", function(){
+        var val = picker.querySelector("input").value;
+        var newTs = val ? new Date(val).getTime() : m.ts;
+        if (!isNaN(newTs)) { m.ts = newTs; bd2.medicine.sort(function(a,b){ return b.id-a.id; }); saveBD(bd2); }
+        renderMedicine();
+      });
+      picker.querySelector("._mCancel").addEventListener("click", function(){ picker.remove(); });
+    });
   });
 }
 
@@ -7041,7 +7085,7 @@ function renderMilestones() {
     "<button class='baby-log-btn' id='msLogBtn'>Log milestone</button></div>";
   if(ms.length){
     ms.forEach(function(m){
-      html+="<div style='display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff;margin:0 12px 6px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'><span style='font-size:22px'>&#x2B50;</span><div style='flex:1'><div style='font-size:14px;font-weight:600;color:#2A2010'>"+esc(m.text||"")+"</div>"+(m.date?"<div style='font-size:12px;color:#B8A880'>"+m.date+"</div>":"")+"</div><button data-msid='"+m.id+"' class='ms-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
+      html+="<div class='ms-row' style='display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff;margin:0 12px 6px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'><span style='font-size:22px'>&#x2B50;</span><div style='flex:1'><div style='font-size:14px;font-weight:600;color:#2A2010'>"+esc(m.text||"")+"</div>"+(m.date?"<div class='ms-date-edit' data-msid='"+m.id+"' style='font-size:12px;color:#B8A880;cursor:pointer;text-decoration:underline dotted'>"+m.date+"</div>":"")+"</div><button data-msid='"+m.id+"' class='ms-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
     });
   } else {
     html+="<div style='text-align:center;padding:32px;color:#8A6A8A;font-size:14px'>No milestones yet</div>";
@@ -7056,7 +7100,30 @@ function renderMilestones() {
     renderMilestones(); toast("&#x2B50; Milestone logged!");
   });
   el.querySelectorAll(".ms-del-btn").forEach(function(btn){
-    btn.addEventListener("click",function(){ var bd2=getBD(); bd2.milestones=bd2.milestones.filter(function(m){return m.id!==+btn.dataset.msid;}); saveBD(bd2); renderMilestones(); });
+    btn.addEventListener("click",function(){ confirmDialog("Delete this milestone?", function(){ var bd2=getBD(); bd2.milestones=bd2.milestones.filter(function(m){return m.id!==+btn.dataset.msid;}); saveBD(bd2); renderMilestones(); }); });
+  });
+  el.querySelectorAll(".ms-date-edit").forEach(function(span){
+    span.addEventListener("click", function(){
+      var id = +span.dataset.msid;
+      var bd2 = getBD();
+      var m = (bd2.milestones||[]).find(function(x){ return x.id===id; });
+      if (!m) return;
+      var existing = span.closest(".ms-row").querySelector(".ms-dt-edit");
+      if (existing) { existing.remove(); return; }
+      var picker = document.createElement("div");
+      picker.className = "ms-dt-edit";
+      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
+      picker.innerHTML = "<input type='date' value='"+(m.date||"")+"' class='med-input' style='flex:1'>" +
+        "<button class='_msSave baby-log-btn' style='width:auto;padding:8px 12px;margin:0'>Save</button>" +
+        "<button class='_msCancel' style='padding:8px 10px;background:#F0EBF8;border:none;border-radius:7px;color:#8A6A8A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+      span.closest(".ms-row").appendChild(picker);
+      picker.querySelector("._msSave").addEventListener("click", function(){
+        var nd = picker.querySelector("input").value;
+        if (nd) { m.date = nd; saveBD(bd2); }
+        renderMilestones();
+      });
+      picker.querySelector("._msCancel").addEventListener("click", function(){ picker.remove(); });
+    });
   });
 }
 

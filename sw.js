@@ -1,5 +1,5 @@
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v175 · 05/06/2026 21:46';
+const VERSION = 'v176 · 05/06/2026 22:01';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
