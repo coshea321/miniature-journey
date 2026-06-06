@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v178 · 05/06/2026 23:19</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v180 · 06/06/2026 08:28</div>
 
   </div>
 </div>
@@ -1802,6 +1802,9 @@ document.getElementById("typeBar").addEventListener("click", function(e) {
   if (currentList !== "notes") { loadListData(currentList); switchTab("list"); renderList(); }
   applyListTheme();
   updateDueDateRowVisibility();
+  // Test list uses per-card notes, so hide the Notes tab there
+  var tabNotes = document.getElementById("tabNotes");
+  if (tabNotes) tabNotes.style.display = (currentList === "testdue" || currentList === "todo" || currentList === "personal") ? "none" : "";
 });
 
 // ============================================================
@@ -1982,8 +1985,8 @@ function renderList() {
       if (e.target.closest(".chk")) { toggleItem(id); return; }
       // Zone 4: due chip or cal link → let them navigate naturally
       if (e.target.closest(".due-chip") || e.target.closest(".cal-link") || e.target.closest(".alarm-link")) return;
-      // Zone 5: everything else on testdue → open notes sheet
-      if (currentList === "testdue") { openItemSheet(id); return; }
+      // Zone 5: everything else on detail lists → open notes sheet
+      if (currentList === "testdue" || currentList === "todo" || currentList === "personal") { openItemSheet(id); return; }
       // Default: toggle done
       toggleItem(id);
     });
@@ -2043,7 +2046,7 @@ function alarmLink(item) {
 
 function cardHTML(item, c) {
   var isTask   = currentList === "todo" || currentList === "personal" || currentList === "testdue";
-  var isDetail = currentList === "testdue";
+  var isDetail = currentList === "testdue" || currentList === "todo" || currentList === "personal";
   var dueLabel = isTask ? dueDateLabel(item) : "";
   var calBtn   = isTask && item.dueDate ? calLink(item) : "";
   var alarmBtn = "";
@@ -3801,8 +3804,9 @@ function onLoginSuccess() {
   updateSyncStatus();
 
   // Test list is owner-only (development feature) — hide for everyone else
+  // Test list features now rolled out to General & Personal — hide Test tab entirely
   var testTab = document.getElementById("testListTab");
-  if (testTab) testTab.style.display = (hearthUser === "cathal1") ? "" : "none";
+  if (testTab) testTab.style.display = "none";
 
   // Stale-data banner: tapping it triggers re-login
   var sb2 = document.getElementById("staleDataBanner");
