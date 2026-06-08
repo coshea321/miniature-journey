@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v180 · 06/06/2026 08:28</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v181 · 08/06/2026 11:49</div>
 
   </div>
 </div>
@@ -4069,7 +4069,11 @@ function escNl(s) {
 
 
 function toast(msg) {
-  elToast.textContent=msg; elToast.classList.add("show");
+  // Decode any HTML entities (e.g. &#x1FAB4; emoji, &amp;) to real characters
+  var tmp = document.createElement("textarea");
+  tmp.innerHTML = msg;
+  elToast.textContent = tmp.value;
+  elToast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer=setTimeout(function(){ elToast.classList.remove("show"); }, 2200);
 }
@@ -5052,7 +5056,7 @@ function renderWorkoutHistory() {
   var html="";
   sessions.forEach(function(w) {
     var icon = w.type==="yoga"?"&#x1F9D8;":w.type==="physio"?"&#x1FAB4;":w.type==="cardio"?"&#x1F3C3;":"&#x1F4AA;";
-    var name = w.sessionName || (w.exercises&&w.exercises.length ? w.exercises[0].name+"..." : "Session");
+    var name = (w.sessionName || (w.exercises&&w.exercises.length ? w.exercises[0].name+"..." : "Session")).replace(/&amp;/g,"&");
     var sub  = w.type==="yoga" ? (w.poses||"?")+" poses" :
                w.type==="physio" ? "Physio" :
                w.type==="cardio" ? ((w.duration?w.duration+" min":"")+(w.duration&&w.calories?" · ":"")+(w.calories?w.calories+" kcal":"")) :
@@ -6273,7 +6277,7 @@ function physioNext() {
 function finishYoga() {
   var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
   var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'yoga',
-    sessionName:esc(YOGA_TRAIN_NAMES[SS.yFlowIdx]), poses:flow.length, exercises:[] };
+    sessionName:YOGA_TRAIN_NAMES[SS.yFlowIdx].replace(/&amp;/g,"&"), poses:flow.length, exercises:[] };
   saveSession(entry);
   var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
   pushPersonal();
@@ -6665,7 +6669,7 @@ function renderWorkoutHistory() {
   var html="";
   sessions.forEach(function(w) {
     var icon = w.type==="yoga"?"&#x1F9D8;":w.type==="physio"?"&#x1FAB4;":w.type==="cardio"?"&#x1F3C3;":"&#x1F4AA;";
-    var name = w.sessionName || (w.exercises&&w.exercises.length ? w.exercises[0].name+"..." : "Session");
+    var name = (w.sessionName || (w.exercises&&w.exercises.length ? w.exercises[0].name+"..." : "Session")).replace(/&amp;/g,"&");
     var sub  = w.type==="yoga" ? (w.poses||"?")+" poses" :
                w.type==="physio" ? "Physio" :
                w.type==="cardio" ? ((w.duration?w.duration+" min":"")+(w.duration&&w.calories?" · ":"")+(w.calories?w.calories+" kcal":"")) :
