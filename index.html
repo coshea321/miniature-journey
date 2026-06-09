@@ -183,7 +183,7 @@ body.home-mode .bottom-nav{background:#111820;border-top-color:#1C2A3E}
 body.home-mode #toast{background:#1C2A3E}
 body.home-mode .bn-btn{color:#4A6080}
 
-.home-content{padding:14px 14px 100px}
+.home-content{padding:14px 14px 100px;transition:opacity .18s ease}
 
 /* Greeting */
 .home-greeting{margin-bottom:16px}
@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v181 · 08/06/2026 11:49</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v182 · 09/06/2026 16:42</div>
 
   </div>
 </div>
@@ -3475,6 +3475,7 @@ var hearthHealthES = null;
 var syncPaused    = false;
 var lastPushTs    = 0;
 var _personalFetchOk = false; // becomes true after first successful remote fetch
+var _homeAwaitingFetch = false; // true between sign-in and first home data fetch
 var SSE_GRACE_MS  = 5000;
 
 // Migrate from old keys
@@ -3818,14 +3819,19 @@ function onLoginSuccess() {
     });
   }
 
-  // Show home immediately with local data, then re-render once remote data arrives
+  // Set the awaiting flag BEFORE switching so the first render shows the
+  // loading state, not stale cached data (prevents flash of old content)
+  _homeAwaitingFetch = true;
   switchSection("home");
+  // Safety: never leave home blank if the fetch hangs
+  setTimeout(function(){ if (_homeAwaitingFetch) { _homeAwaitingFetch = false; if (currentSection === "home") renderHomeScreen(); } }, 4000);
 
   fetchPersonal(function() {
     pushPersonal();
     startPersonalListening();
     startSSEFallback();
-    // Re-render home with fresh remote data
+    _homeAwaitingFetch = false;
+    // Render home with fresh remote data
     if (currentSection === "home") renderHomeScreen();
   });
 
@@ -5442,6 +5448,15 @@ document.getElementById("bnBaby").addEventListener("click",  function(){ switchS
 var homeQuickMode = null; // "grocery" | "todo" | "exercise"
 
 function renderHomeScreen() {
+  // While awaiting the first remote fetch after sign-in, show a gentle loading
+  // state instead of painting stale local data (prevents the flash of old content)
+  if (_homeAwaitingFetch) {
+    var hc = document.querySelector(".home-content");
+    if (hc) hc.style.opacity = "0";
+    return;
+  }
+  var hc2 = document.querySelector(".home-content");
+  if (hc2) hc2.style.opacity = "1";
   // Show placeholder while data loads
   var tcLife  = document.getElementById("tcLifeCount");
   var tcTrain = document.getElementById("tcTrainCount");
