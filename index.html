@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v182 · 09/06/2026 16:42</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v183 · 10/06/2026 12:13</div>
 
   </div>
 </div>
@@ -3805,9 +3805,9 @@ function onLoginSuccess() {
   updateSyncStatus();
 
   // Test list is owner-only (development feature) — hide for everyone else
-  // Test list features now rolled out to General & Personal — hide Test tab entirely
+  // Test list re-enabled for owner (developing edit-item feature)
   var testTab = document.getElementById("testListTab");
-  if (testTab) testTab.style.display = "none";
+  if (testTab) testTab.style.display = (hearthUser === "cathal1") ? "" : "none";
 
   // Stale-data banner: tapping it triggers re-login
   var sb2 = document.getElementById("staleDataBanner");
@@ -4383,13 +4383,18 @@ function openItemSheet(itemId) {
   var item  = items.find(function(x){ return x.id === itemId; });
   if (!item) return;
   _sheetItemId = itemId;
-  document.getElementById("itemSheetName").textContent = item.name;
-  document.getElementById("itemSheetNotes").value      = item.notes || "";
+  document.getElementById("itemSheetNameInput").value = item.name || "";
+  document.getElementById("itemSheetNotes").value     = item.notes || "";
+  // Due date only relevant for task-type lists
+  var dueRow = document.getElementById("itemSheetDueRow");
+  var isTask = currentList === "todo" || currentList === "personal" || currentList === "testdue";
+  if (dueRow) dueRow.style.display = isTask ? "block" : "none";
+  document.getElementById("itemSheetDueInput").value = item.dueDate || "";
 
   document.getElementById("itemSheet").style.display         = "block";
   document.getElementById("itemSheetBackdrop").style.display = "block";
   document.body.style.overflow = "hidden";
-  setTimeout(function(){ document.getElementById("itemSheetNotes").focus(); }, 150);
+  setTimeout(function(){ document.getElementById("itemSheetNameInput").focus(); }, 150);
 }
 
 
@@ -4403,11 +4408,22 @@ function closeItemSheet() {
 window.addEventListener("DOMContentLoaded", function() {
   document.getElementById("itemSheetClose").addEventListener("click", closeItemSheet);
   document.getElementById("itemSheetBackdrop").addEventListener("click", closeItemSheet);
+  document.getElementById("itemSheetDueClear").addEventListener("click", function() {
+    document.getElementById("itemSheetDueInput").value = "";
+  });
   document.getElementById("itemSheetSave").addEventListener("click", function() {
     if (!_sheetItemId) return;
     var items = getItems(), item = items.find(function(x){ return x.id === _sheetItemId; });
     if (!item) return;
+    var newName = document.getElementById("itemSheetNameInput").value.trim();
+    if (!newName) { toast("Name can't be empty"); return; }
+    item.name  = newName;
     item.notes = document.getElementById("itemSheetNotes").value.trim();
+    var isTask = currentList === "todo" || currentList === "personal" || currentList === "testdue";
+    if (isTask) {
+      var dueVal = document.getElementById("itemSheetDueInput").value;
+      item.dueDate = dueVal || null;
+    }
     listData[currentList].items = items; saveCurrentList(); renderList(); closeItemSheet(); toast("Saved");
   });
 });
@@ -7478,8 +7494,19 @@ if ("serviceWorker" in navigator && !_isPreview) {
 <div id="itemSheet" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:700;background:#1C2A3E;border-top:1.5px solid #2A3A52;border-radius:18px 18px 0 0;padding:18px 16px 36px;box-shadow:0 -8px 32px rgba(0,0,0,.6);max-width:480px;margin:0 auto;max-height:85vh;overflow-y:auto">
   <div style="width:36px;height:4px;background:#2A3A52;border-radius:2px;margin:0 auto 14px"></div>
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-    <div id="itemSheetName" style="flex:1;font-size:16px;font-weight:700;color:#E8EDF2"></div>
+    <div style="flex:1;font-size:13px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px">Edit item</div>
     <button id="itemSheetClose" aria-label="Close" style="border:none;background:none;color:#5A7090;font-size:20px;cursor:pointer;padding:0 4px;touch-action:manipulation">&#x2715;</button>
+  </div>
+  <div style="margin-bottom:12px">
+    <div style="font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Name</div>
+    <input id="itemSheetNameInput" type="text" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #2A3A52;border-radius:10px;background:#0D1B2E;color:#E8EDF2;font-family:inherit;font-size:15px;font-weight:600;outline:none">
+  </div>
+  <div style="margin-bottom:12px" id="itemSheetDueRow">
+    <div style="font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Due date</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="itemSheetDueInput" type="date" style="flex:1;box-sizing:border-box;padding:10px 12px;border:1.5px solid #2A3A52;border-radius:10px;background:#0D1B2E;color:#C8D8E8;font-family:inherit;font-size:14px;outline:none">
+      <button id="itemSheetDueClear" style="border:none;background:#2A3A52;color:#A8B8C8;border-radius:8px;padding:10px 12px;font-family:inherit;font-size:13px;cursor:pointer">Clear</button>
+    </div>
   </div>
   <div style="margin-bottom:12px">
     <div style="font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Notes</div>
