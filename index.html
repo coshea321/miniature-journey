@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v189 · 11/06/2026 16:16</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v190 · 11/06/2026 19:14</div>
 
   </div>
 </div>
@@ -7125,16 +7125,35 @@ function renderGrowth() {
   var el = document.getElementById("babyGrowthView");
   var html = "<div class='baby-log-card'><div class='baby-card-title'>&#x1F4CF; Log measurement</div>" +
     "<div style='display:flex;gap:8px;margin-bottom:6px'><input id='growthDate' type='date' class='med-input' style='flex:1'><input id='growthWeight' type='number' step='0.01' class='med-input' style='flex:1' placeholder='Weight (kg)'><input id='growthHeight' type='number' step='0.1' class='med-input' style='flex:1' placeholder='Height (cm)'></div>" +
+    "<input id='growthNote' type='text' class='med-input' style='width:100%;box-sizing:border-box;margin-bottom:6px' placeholder='Note (optional)'>" +
     "<button class='baby-log-btn' id='growthLogBtn'>Log</button></div>";
+  // Sex selector for WHO comparison (one-time, changeable)
+  var sexSel = "<div style='display:flex;align-items:center;gap:8px;padding:4px 16px 10px;font-size:12px;color:#8A6A8A'>" +
+    "<span>Compare vs average:</span>" +
+    "<button id='sexGirl' style='border:1.5px solid "+(bd.babySex==="girl"?"#C2649A":"#E8DDE8")+";background:"+(bd.babySex==="girl"?"#FBEFF6":"#fff")+";color:#C2649A;border-radius:7px;padding:4px 10px;font-family:inherit;font-size:12px;cursor:pointer'>Girl</button>" +
+    "<button id='sexBoy' style='border:1.5px solid "+(bd.babySex==="boy"?"#5A8AC2":"#E0E5F0")+";background:"+(bd.babySex==="boy"?"#EFF4FB":"#fff")+";color:#5A8AC2;border-radius:7px;padding:4px 10px;font-family:inherit;font-size:12px;cursor:pointer'>Boy</button>" +
+    "</div>";
+  html += sexSel;
   if (growth.length) {
     html += "<div style='padding:0 12px'>";
     growth.forEach(function(e) {
-      html += "<div class='growth-row' style='display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #F0EBF8'><div style='flex:1'><div class='growth-date-edit' data-growthdate='" + e.date + "' style='font-size:14px;font-weight:600;color:#2A2010;cursor:pointer;text-decoration:underline dotted'>" + e.date + "</div><div style='font-size:13px;color:#8A6A8A'>" + (e.weight?e.weight+" kg":"") + (e.weight&&e.height?" · ":"") + (e.height?e.height+" cm":"") + "</div></div><button data-growthdate='" + e.date + "' class='growth-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
+      var band = growthBand(e, bd.babySex);
+      var bandHtml = band ? "<span style='font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;margin-left:6px;background:"+band.bg+";color:"+band.fg+"'>"+band.label+"</span>" : "";
+      html += "<div class='growth-row' data-gdate='" + e.date + "' style='padding:10px 0;border-bottom:1px solid #F0EBF8'>" +
+        "<div style='display:flex;align-items:center'>" +
+          "<div style='flex:1'>" +
+            "<div class='growth-edit-trigger' data-growthdate='" + e.date + "' style='font-size:14px;font-weight:600;color:#2A2010;cursor:pointer;text-decoration:underline dotted'>" + e.date + "</div>" +
+            "<div style='font-size:13px;color:#8A6A8A'>" + (e.weight?e.weight+" kg":"") + (e.weight&&e.height?" &middot; ":"") + (e.height?e.height+" cm":"") + bandHtml + "</div>" +
+            (e.note?"<div style='font-size:12px;color:#A88AA8;font-style:italic;margin-top:2px'>"+esc(e.note)+"</div>":"") +
+          "</div>" +
+          "<button data-growthdate='" + e.date + "' class='growth-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45;width:40px;height:40px'>&#x2715;</button>" +
+        "</div></div>";
     });
     html += "</div>";
   } else {
     html += "<div style='text-align:center;padding:32px;color:#8A6A8A;font-size:14px'>No measurements yet</div>";
   }
+  html += "<div style='padding:8px 16px 14px;font-size:10px;color:#B8A8B8'>Average bands are approximate, based on WHO weight-for-length medians. Not medical advice &mdash; discuss growth with your PHN or GP.</div>";
   el.innerHTML = html;
   var now2 = new Date(), p2 = function(x){ return x<10?"0"+x:""+x; };
   var d2 = document.getElementById("growthDate"); if(d2) d2.value = now2.getFullYear()+"-"+p2(now2.getMonth()+1)+"-"+p2(now2.getDate());
@@ -7142,36 +7161,79 @@ function renderGrowth() {
     var date = document.getElementById("growthDate").value;
     var weight = parseFloat(document.getElementById("growthWeight").value)||null;
     var height = parseFloat(document.getElementById("growthHeight").value)||null;
+    var note = document.getElementById("growthNote").value.trim();
     if (!date||(!weight&&!height)) { toast("Enter a date and at least one measurement"); return; }
     var bd2=getBD(); bd2.growth=bd2.growth||[];
     var idx2=bd2.growth.findIndex(function(e){ return e.date===date; });
-    if(idx2>=0) bd2.growth[idx2]={date:date,weight:weight,height:height}; else bd2.growth.push({date:date,weight:weight,height:height});
+    var rec = {date:date,weight:weight,height:height,note:note||null};
+    if(idx2>=0) bd2.growth[idx2]=rec; else bd2.growth.push(rec);
     bd2.growth.sort(function(a,b){ return b.date.localeCompare(a.date); });
     saveBD(bd2); renderGrowth(); toast("&#x1F4CF; Logged");
   });
+  // Sex selector
+  document.getElementById("sexGirl").addEventListener("click", function(){ var b=getBD(); b.babySex="girl"; saveBD(b); renderGrowth(); });
+  document.getElementById("sexBoy").addEventListener("click", function(){ var b=getBD(); b.babySex="boy"; saveBD(b); renderGrowth(); });
   el.querySelectorAll(".growth-del-btn").forEach(function(btn){
     btn.addEventListener("click", function(){ confirmDialog("Delete this measurement?", function(){ var bd2=getBD(); bd2.growth=bd2.growth.filter(function(e){ return e.date!==btn.dataset.growthdate; }); saveBD(bd2); renderGrowth(); }); });
   });
-  el.querySelectorAll(".growth-date-edit").forEach(function(span){
+  // Full record edit: date, weight, height, note
+  el.querySelectorAll(".growth-edit-trigger").forEach(function(span){
     span.addEventListener("click", function(){
       var oldDate = span.dataset.growthdate;
-      var existing = span.closest(".growth-row").querySelector(".growth-dt-edit");
+      var row = span.closest(".growth-row");
+      var existing = row.querySelector(".growth-full-edit");
       if (existing) { existing.remove(); return; }
-      var picker = document.createElement("div");
-      picker.className = "growth-dt-edit";
-      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
-      picker.innerHTML = "<input type='date' value='"+oldDate+"' class='med-input' style='flex:1'>" +
-        "<button class='_gSave baby-log-btn' style='width:auto;padding:8px 12px;margin:0'>Save</button>" +
-        "<button class='_gCancel' style='padding:8px 10px;background:#F0EBF8;border:none;border-radius:7px;color:#8A6A8A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
-      span.closest(".growth-row").appendChild(picker);
-      picker.querySelector("._gSave").addEventListener("click", function(){
-        var nd = picker.querySelector("input").value;
-        if (nd) { var bd2=getBD(); var e=bd2.growth.find(function(x){return x.date===oldDate;}); if(e){ e.date=nd; bd2.growth.sort(function(a,b){return b.date.localeCompare(a.date);}); saveBD(bd2); } }
-        renderGrowth();
+      var bd2 = getBD();
+      var rec = (bd2.growth||[]).find(function(x){ return x.date===oldDate; });
+      if (!rec) return;
+      var ed = document.createElement("div");
+      ed.className = "growth-full-edit";
+      ed.style.cssText = "padding:8px 0;width:100%;box-sizing:border-box";
+      ed.innerHTML =
+        "<div style='display:flex;gap:6px;margin-bottom:6px'>" +
+          "<input type='date' class='_geDate med-input' value='"+rec.date+"' style='flex:1'>" +
+          "<input type='number' step='0.01' class='_geWeight med-input' value='"+(rec.weight||"")+"' placeholder='kg' style='flex:1'>" +
+          "<input type='number' step='0.1' class='_geHeight med-input' value='"+(rec.height||"")+"' placeholder='cm' style='flex:1'>" +
+        "</div>" +
+        "<input type='text' class='_geNote med-input' value='"+(rec.note?String(rec.note).replace(/'/g,"&#39;"):"")+"' placeholder='Note (optional)' style='width:100%;box-sizing:border-box;margin-bottom:6px'>" +
+        "<div style='display:flex;gap:6px'>" +
+          "<button class='_geSave baby-log-btn' style='flex:1;margin:0'>Save</button>" +
+          "<button class='_geCancel' style='padding:8px 14px;background:#F0EBF8;border:none;border-radius:7px;color:#8A6A8A;font-family:inherit;font-size:13px;cursor:pointer'>Cancel</button>" +
+        "</div>";
+      row.appendChild(ed);
+      ed.querySelector("._geSave").addEventListener("click", function(){
+        var nd = ed.querySelector("._geDate").value;
+        var nw = parseFloat(ed.querySelector("._geWeight").value)||null;
+        var nh = parseFloat(ed.querySelector("._geHeight").value)||null;
+        var nn = ed.querySelector("._geNote").value.trim();
+        if (!nd || (!nw && !nh)) { toast("Need a date and at least one measurement"); return; }
+        rec.date=nd; rec.weight=nw; rec.height=nh; rec.note=nn||null;
+        bd2.growth.sort(function(a,b){ return b.date.localeCompare(a.date); });
+        saveBD(bd2); renderGrowth();
       });
-      picker.querySelector("._gCancel").addEventListener("click", function(){ picker.remove(); });
+      ed.querySelector("._geCancel").addEventListener("click", function(){ ed.remove(); });
     });
   });
+}
+
+// ── WHO weight-for-length comparison (approximate medians, 45–110 cm) ──
+var WHO_WFL = {
+  girl: {45:2.46,50:3.36,55:4.48,60:5.90,65:7.25,70:8.47,75:9.58,80:10.62,85:11.74,90:12.93,95:14.23,100:15.69,105:17.40,110:19.43},
+  boy:  {45:2.44,50:3.37,55:4.53,60:6.04,65:7.43,70:8.69,75:9.84,80:10.86,85:11.93,90:13.05,95:14.31,100:15.71,105:17.37,110:19.33}
+};
+function growthBand(rec, sex) {
+  if (!sex || !rec.weight || !rec.height) return null;
+  var t = WHO_WFL[sex]; if (!t) return null;
+  var h = rec.height;
+  if (h < 45 || h > 110) return null;
+  var lo = Math.floor(h/5)*5, hi = lo+5;
+  if (hi > 110) hi = 110;
+  var mLo = t[lo], mHi = t[hi];
+  var median = (lo===hi) ? mLo : mLo + (mHi-mLo) * (h-lo)/5;
+  var ratio = rec.weight / median;
+  if (ratio < 0.90) return { label:"Below avg", bg:"#FDF0E0", fg:"#B07030" };
+  if (ratio > 1.10) return { label:"Above avg", bg:"#E8F0FD", fg:"#5070B0" };
+  return { label:"Normal", bg:"#E8F5E0", fg:"#508040" };
 }
 
 function renderMedicine() {
