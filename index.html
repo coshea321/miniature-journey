@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v187 · 11/06/2026 11:25</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v188 · 11/06/2026 13:43</div>
 
   </div>
 </div>
@@ -4432,6 +4432,41 @@ window.addEventListener("DOMContentLoaded", function() {
     listData[currentList].items = items; saveCurrentList(); renderList(); closeItemSheet(); toast("Saved");
   });
 });
+
+
+// ── Swipe left/right to switch lists ─────────────────────
+(function() {
+  var startX = 0, startY = 0, startT = 0;
+  var area = document.getElementById("lifeSection");
+  if (!area) return;
+  area.addEventListener("touchstart", function(e) {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    startT = Date.now();
+  }, { passive: true });
+  area.addEventListener("touchend", function(e) {
+    if (currentSection !== "lists") return;
+    // Don't swipe-switch while a sheet/overlay is open
+    var sheet = document.getElementById("itemSheet");
+    if (sheet && sheet.style.display === "block") return;
+    var dx = e.changedTouches[0].clientX - startX;
+    var dy = e.changedTouches[0].clientY - startY;
+    var dt = Date.now() - startT;
+    // Require: mostly horizontal, decent distance, reasonably quick
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6 || dt > 600) return;
+    // Build the list of visible tabs in order
+    var tabs = Array.prototype.filter.call(
+      document.querySelectorAll("#typeBar .type-btn"),
+      function(b){ return b.style.display !== "none"; }
+    );
+    var idx = tabs.findIndex(function(b){ return b.dataset.lt === currentList; });
+    if (idx < 0) return;
+    var next = dx < 0 ? idx + 1 : idx - 1; // swipe left → next list, right → previous
+    if (next < 0 || next >= tabs.length) return; // no wraparound
+    tabs[next].click();
+  }, { passive: true });
+})();
 
 document.getElementById("syncBtn").addEventListener("click", function() {
   renderSyncModal();
