@@ -379,137 +379,137 @@ body.baby-mode #toast{background:#230D2E}
 /* ============================================================
    TRAIN SECTION — dark theme
    ============================================================ */
-body.train-mode{background:#0A1018;color:#E8EDF2}
-body.train-mode header{background:#132040}
-body.train-mode .bottom-nav{background:#0F1928;border-top-color:#1E3050}
-body.train-mode #toast{background:#132040}
+body.train-mode{background:#F4EEE4;color:#2A2010}
+body.train-mode header{background:#3565C8}
+body.train-mode .bottom-nav{background:#fff;border-top-color:#E0DCD4}
+body.train-mode #toast{background:#3A3328}
 
-.train-subnav{display:flex;gap:4px;padding:5px 5px 4px;background:#0F1928;box-shadow:0 2px 10px rgba(0,0,0,.4)}
-.tsn-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:#5A7090;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .18s}
-.tsn-btn.active{color:#E8EDF2;background:#3B6FE0}
+.train-subnav{display:flex;gap:4px;padding:5px 5px 4px;background:#3565C8;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.tsn-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:rgba(255,255,255,.65);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .18s}
+.tsn-btn.active{color:#fff;background:rgba(255,255,255,.22)}
 
 .train-content{padding:13px 13px 100px}
 
 /* Date bar */
-.workout-date-bar{display:flex;align-items:center;justify-content:space-between;background:#132040;border-radius:12px;padding:11px 14px;margin-bottom:13px}
-.wdb-label{font-family:Georgia,serif;font-size:17px;font-weight:600;color:#E8EDF2;flex:1;text-align:center}
-.wdb-btn{width:34px;height:34px;border:none;background:rgba(255,255,255,.08);color:#E8EDF2;border-radius:9px;font-size:20px;cursor:pointer;transition:background .15s;flex-shrink:0}
-.wdb-btn:active{background:rgba(255,255,255,.2)}
+.workout-date-bar{display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:12px;padding:11px 14px;margin-bottom:13px}
+.wdb-label{font-family:Georgia,serif;font-size:17px;font-weight:600;color:#2A2010;flex:1;text-align:center}
+.wdb-btn{width:34px;height:34px;border:none;background:rgba(0,0,0,.06);color:#2A2010;border-radius:9px;font-size:20px;cursor:pointer;transition:background .15s;flex-shrink:0}
+.wdb-btn:active{background:rgba(0,0,0,.12)}
 .wdb-btn:disabled{opacity:.25;cursor:default}
 
 /* Exercise cards */
-.exercise-card{background:#132040;border-radius:12px;margin-bottom:10px;overflow:hidden;border:1px solid #1E3050}
+.exercise-card{background:#fff;border-radius:12px;margin-bottom:10px;overflow:hidden;border:1px solid #E0DCD4;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 .ex-header{display:flex;align-items:center;gap:10px;padding:12px 14px 8px}
 .ex-num{width:24px;height:24px;border-radius:50%;background:#3B6FE0;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.ex-name-txt{flex:1;font-size:15px;font-weight:700;color:#E8EDF2}
-.ex-vol{font-size:11px;color:#5A7090;font-weight:600}
-.ex-del{width:28px;height:28px;border:none;background:none;color:#A05050;font-size:15px;cursor:pointer;border-radius:6px;flex-shrink:0}
+.ex-name-txt{flex:1;font-size:15px;font-weight:700;color:#2A2010}
+.ex-vol{font-size:11px;color:#8A7A5A;font-weight:600}
+.ex-del{width:28px;height:28px;border:none;background:none;color:#C06060;font-size:15px;cursor:pointer;border-radius:6px;flex-shrink:0}
 .sets-wrap{padding:0 12px 4px}
 .sets-row{display:grid;grid-template-columns:28px 1fr 1fr 28px;gap:6px;align-items:center;margin-bottom:6px}
-.sets-label{font-size:11px;font-weight:700;color:#5A7090;text-align:center}
-.set-num{font-size:13px;font-weight:700;color:#5A7090;text-align:center}
-.set-input{width:100%;padding:8px 6px;border:1.5px solid #1E3050;border-radius:8px;background:#0A1018;color:#E8EDF2;font-family:inherit;font-size:15px;text-align:center;outline:none;transition:border-color .15s}
+.sets-label{font-size:11px;font-weight:700;color:#8A7A5A;text-align:center}
+.set-num{font-size:13px;font-weight:700;color:#8A7A5A;text-align:center}
+.set-input{width:100%;padding:8px 6px;border:1.5px solid #E0DCD4;border-radius:8px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:15px;text-align:center;outline:none;transition:border-color .15s}
 .set-input:focus{border-color:#3B6FE0}
-.set-del{border:none;background:none;color:#A05050;font-size:14px;cursor:pointer;text-align:center;opacity:.6}
+.set-del{border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;text-align:center;opacity:.6}
 .set-del:active{opacity:1}
 
 .set-pills-row{display:flex;flex-wrap:wrap;gap:7px;padding:8px 12px 10px}
-.set-pill{min-width:64px;padding:8px 10px;border-radius:9px;border:1.5px solid #1E3050;background:#0A1018;cursor:pointer;text-align:center;touch-action:manipulation;transition:border-color .15s}
+.set-pill{min-width:64px;padding:8px 10px;border-radius:9px;border:1.5px solid #E0DCD4;background:#FDFAF3;cursor:pointer;text-align:center;touch-action:manipulation;transition:border-color .15s}
 .set-pill:active{border-color:#3B6FE0}
-.set-pill-done{border-color:#2A5090;background:#0F1F38}
-.set-pill-num{font-size:10px;font-weight:700;color:#3A5070;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
-.set-pill-val{font-size:15px;font-weight:700;color:#C8D8E8;line-height:1}
-.set-pill-reps{font-size:11px;color:#5A7090;margin-top:2px}
-.set-pill-done .set-pill-val{color:#5A9AF8}
-.add-set-btn{margin:2px 12px 10px;padding:7px;border:1.5px dashed #1E3050;border-radius:8px;background:none;color:#5A7090;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;width:calc(100% - 24px);transition:all .15s}
+.set-pill-done{border-color:#3B6FE0;background:#E8EFFA}
+.set-pill-num{font-size:10px;font-weight:700;color:#A89A80;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.set-pill-val{font-size:15px;font-weight:700;color:#3A3328;line-height:1}
+.set-pill-reps{font-size:11px;color:#8A7A5A;margin-top:2px}
+.set-pill-done .set-pill-val{color:#2A5AB0}
+.add-set-btn{margin:2px 12px 10px;padding:7px;border:1.5px dashed #E0DCD4;border-radius:8px;background:none;color:#8A7A5A;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;width:calc(100% - 24px);transition:all .15s}
 .add-set-btn:active{border-color:#3B6FE0;color:#3B6FE0}
 .due-chip{font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px;display:inline-block;letter-spacing:.2px}
 .cal-link{font-size:13px;margin-left:5px;text-decoration:none;opacity:.7;vertical-align:middle}
 
 /* Add exercise card */
-.add-ex-card{background:#132040;border-radius:12px;padding:12px;margin-bottom:13px;border:1px solid #1E3050}
+.add-ex-card{background:#fff;border-radius:12px;padding:12px;margin-bottom:13px;border:1px solid #E0DCD4}
 .add-ex-row{display:flex;gap:8px;margin-bottom:10px}
-.add-ex-input{flex:1;border:1.5px solid #1E3050;border-radius:9px;padding:11px 13px;background:#0A1018;color:#E8EDF2;font-family:inherit;font-size:15px;outline:none;transition:border-color .15s}
+.add-ex-input{flex:1;border:1.5px solid #E0DCD4;border-radius:9px;padding:11px 13px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:15px;outline:none;transition:border-color .15s}
 .add-ex-input:focus{border-color:#3B6FE0}
-.add-ex-input::placeholder{color:#3A5070}
+.add-ex-input::placeholder{color:#A89A80}
 .add-ex-btn{width:44px;height:44px;flex-shrink:0;border:none;background:#3B6FE0;color:#fff;border-radius:9px;font-size:26px;cursor:pointer;transition:opacity .15s}
 .add-ex-btn:active{opacity:.8}
-.quick-ex-label{font-size:11px;font-weight:700;color:#3A5070;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.quick-ex-label{font-size:11px;font-weight:700;color:#A89A80;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
 .quick-chips{display:flex;flex-wrap:wrap;gap:5px}
-.qchip{padding:5px 11px;border-radius:20px;border:1.5px solid #1E3050;background:none;color:#7A9AB8;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.qchip{padding:5px 11px;border-radius:20px;border:1.5px solid #E0DCD4;background:none;color:#8A7A5A;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
 .qchip:active{background:#3B6FE0;color:#fff;border-color:#3B6FE0}
 
 /* History */
-.workout-hist-item{background:#132040;border-radius:12px;padding:14px;margin-bottom:8px;border:1px solid #1E3050}
-.whi-date{font-size:12px;font-weight:700;color:#5A7090;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
-.whi-row{font-size:14px;color:#C0D0E0;padding:3px 0;border-bottom:1px solid #0F1928;display:flex;justify-content:space-between}
+.workout-hist-item{background:#fff;border-radius:12px;padding:14px;margin-bottom:8px;border:1px solid #E0DCD4}
+.whi-date{font-size:12px;font-weight:700;color:#8A7A5A;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.whi-row{font-size:14px;color:#4A4030;padding:3px 0;border-bottom:1px solid #fff;display:flex;justify-content:space-between}
 .whi-row:last-child{border-bottom:none}
-.whi-sets{font-size:12px;color:#5A7090;font-weight:600}
+.whi-sets{font-size:12px;color:#8A7A5A;font-weight:600}
 
 /* Body weight */
-.bw-card{background:#132040;border-radius:12px;padding:14px;margin-bottom:13px;border:1px solid #1E3050}
-.bw-card-title{font-family:Georgia,serif;font-size:16px;font-weight:600;color:#E8EDF2;margin-bottom:12px}
+.bw-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:13px;border:1px solid #E0DCD4}
+.bw-card-title{font-family:Georgia,serif;font-size:16px;font-weight:600;color:#2A2010;margin-bottom:12px}
 .bw-input-row{display:flex;gap:8px;align-items:center}
-.bw-input{flex:1;border:1.5px solid #1E3050;border-radius:9px;padding:11px 12px;background:#0A1018;color:#E8EDF2;font-family:inherit;font-size:18px;text-align:center;outline:none;transition:border-color .15s}
+.bw-input{flex:1;border:1.5px solid #E0DCD4;border-radius:9px;padding:11px 12px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:18px;text-align:center;outline:none;transition:border-color .15s}
 .bw-input:focus{border-color:#3B6FE0}
-.bw-unit{color:#5A7090;font-size:14px;font-weight:700;flex-shrink:0}
+.bw-unit{color:#8A7A5A;font-size:14px;font-weight:700;flex-shrink:0}
 .bw-log-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:11px 18px;border:none;background:#3B6FE0;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s;flex-shrink:0}
 .bw-log-btn:active{opacity:.8}
-.bw-entry{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid #0F1928}
+.bw-entry{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid #fff}
 .bw-entry:last-child{border-bottom:none}
-.bw-entry-date{font-size:13px;color:#5A7090;flex:1}
+.bw-entry-date{font-size:13px;color:#8A7A5A;flex:1}
 .bw-entry-diff{font-size:12px;font-weight:700;margin-right:10px}
-.bw-entry-diff.pos{color:#4CAF7D}
-.bw-entry-diff.neg{color:#CF6679}
-.bw-entry-val{font-size:16px;font-weight:700;color:#E8EDF2;margin-right:10px;min-width:52px;text-align:right}
-.bw-entry-del{border:none;background:none;color:#A05050;font-size:13px;cursor:pointer;opacity:.5}
+.bw-entry-diff.pos{color:#2F8A50}
+.bw-entry-diff.neg{color:#C04A5A}
+.bw-entry-val{font-size:16px;font-weight:700;color:#2A2010;margin-right:10px;min-width:52px;text-align:right}
+.bw-entry-del{border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;opacity:.5}
 .bw-entry-del:active{opacity:1}
 
 /* Blood pressure */
 .bp-input-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px}
 .bp-field{display:flex;flex-direction:column;gap:4px}
-.bp-field-label{font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;text-align:center}
+.bp-field-label{font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;text-align:center}
 .bp-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;margin-left:6px}
-.bp-normal{background:#064e3b;color:#34d399}
-.bp-elevated{background:#451a03;color:#fb923c}
-.bp-high{background:#450a0a;color:#f87171}
-.bp-entry{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid #0F1928}
+.bp-normal{background:#E0F2E8;color:#1A7A4A}
+.bp-elevated{background:#FDF0E0;color:#B06A20}
+.bp-high{background:#FBE4E4;color:#C03030}
+.bp-entry{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid #fff}
 .bp-entry:last-child{border-bottom:none}
-.bp-entry-date{font-size:11px;color:#5A7090;min-width:72px}
-.bp-reading{font-size:16px;font-weight:700;color:#E8EDF2;flex:1}
-.bp-reading-pulse{font-size:12px;color:#5A7090;margin-left:6px}
-.bp-entry-del{border:none;background:none;color:#A05050;font-size:13px;cursor:pointer;opacity:.45}
+.bp-entry-date{font-size:11px;color:#8A7A5A;min-width:72px}
+.bp-reading{font-size:16px;font-weight:700;color:#2A2010;flex:1}
+.bp-reading-pulse{font-size:12px;color:#8A7A5A;margin-left:6px}
+.bp-entry-del{border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;opacity:.45}
 .bp-entry-del:active{opacity:1}
-.train-empty{text-align:center;padding:50px 24px 32px;color:#3A5070}
+.train-empty{text-align:center;padding:50px 24px 32px;color:#A89A80}
 .train-empty-ico{font-size:48px;margin-bottom:10px}
-.train-empty-title{font-family:Georgia,serif;font-size:18px;color:#7A9AB8;margin-bottom:6px}
+.train-empty-title{font-family:Georgia,serif;font-size:18px;color:#8A7A5A;margin-bottom:6px}
 .train-empty-sub{font-size:14px;line-height:1.5}
 
 /* Cardio log */
-.cardio-card{background:#132040;border-radius:12px;padding:13px;margin-bottom:13px;border:1px solid #1E3050}
-.cardio-card-title{font-family:Georgia,serif;font-size:15px;font-weight:600;color:#E8EDF2;margin-bottom:10px}
+.cardio-card{background:#fff;border-radius:12px;padding:13px;margin-bottom:13px;border:1px solid #E0DCD4}
+.cardio-card-title{font-family:Georgia,serif;font-size:15px;font-weight:600;color:#2A2010;margin-bottom:10px}
 .cardio-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
-.cardio-chip{padding:6px 12px;border-radius:20px;border:1.5px solid #1E3050;background:none;color:#7A9AB8;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.cardio-chip{padding:6px 12px;border-radius:20px;border:1.5px solid #E0DCD4;background:none;color:#8A7A5A;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
 .cardio-chip.sel{background:#0ea5e9;border-color:#0ea5e9;color:#fff}
 .cardio-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
-.cardio-field label{display:block;font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.cardio-input{width:100%;padding:10px;border:1.5px solid #1E3050;border-radius:8px;background:#0A1018;color:#E8EDF2;font-family:inherit;font-size:16px;text-align:center;outline:none;box-sizing:border-box;transition:border-color .15s}
+.cardio-field label{display:block;font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.cardio-input{width:100%;padding:10px;border:1.5px solid #E0DCD4;border-radius:8px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:16px;text-align:center;outline:none;box-sizing:border-box;transition:border-color .15s}
 .cardio-input:focus{border-color:#0ea5e9}
 .cardio-custom-row{display:flex;gap:8px;margin-bottom:10px}
-.cardio-name-input{flex:1;padding:10px 12px;border:1.5px solid #1E3050;border-radius:8px;background:#0A1018;color:#E8EDF2;font-family:inherit;font-size:14px;outline:none;transition:border-color .15s}
+.cardio-name-input{flex:1;padding:10px 12px;border:1.5px solid #E0DCD4;border-radius:8px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;outline:none;transition:border-color .15s}
 .cardio-name-input:focus{border-color:#0ea5e9}
-.cardio-name-input::placeholder{color:#3A5070}
+.cardio-name-input::placeholder{color:#A89A80}
 .cardio-log-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;width:100%;padding:11px;border:none;background:#0ea5e9;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s}
 .cardio-log-btn:active{opacity:.8}
 .cardio-est{font-size:11px;color:#0ea5e9;text-align:right;margin-bottom:8px;font-weight:600;min-height:16px}
-.cardio-entry{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #0F1928}
+.cardio-entry{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #fff}
 .cardio-entry:last-child{border-bottom:none}
 .cardio-entry-ico{font-size:18px;flex-shrink:0}
 .cardio-entry-body{flex:1}
-.cardio-entry-name{font-size:14px;font-weight:700;color:#E8EDF2}
-.cardio-entry-meta{font-size:12px;color:#5A7090}
+.cardio-entry-name{font-size:14px;font-weight:700;color:#2A2010}
+.cardio-entry-meta{font-size:12px;color:#8A7A5A}
 .cardio-entry-cal{font-size:12px;font-weight:700;color:#0ea5e9}
-.cardio-entry-del{border:none;background:none;color:#A05050;font-size:13px;cursor:pointer;opacity:.45}
+.cardio-entry-del{border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;opacity:.45}
 
 /* ============================================================
    PROGRAM CARDS
@@ -518,94 +518,94 @@ body.train-mode #toast{background:#132040}
 .prog-card{border-radius:14px;padding:15px 13px 14px;cursor:pointer;transition:opacity .15s;text-align:left;border:none;font-family:inherit;width:100%;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .prog-card:active{opacity:.75}
 .prog-card-icon{font-size:28px;margin-bottom:9px;line-height:1}
-.prog-card-name{font-family:Georgia,serif;font-size:15px;font-weight:600;color:#E8EDF2;margin-bottom:3px}
+.prog-card-name{font-family:Georgia,serif;font-size:15px;font-weight:600;color:#2A2010;margin-bottom:3px}
 .prog-card-tag{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:10px;margin-bottom:6px}
 .prog-card-desc{font-size:11px;line-height:1.5;font-weight:500}
 
 /* ============================================================
    SESSION OVERLAY  (fullscreen active session)
    ============================================================ */
-#sessionOverlay{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:#0A1018;z-index:800;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
+#sessionOverlay{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:#FDFAF3;z-index:800;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
 #sessionOverlay>.ses-inner{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto}
-.ses-prog-bar-wrap{height:3px;background:#1C2A3E;flex-shrink:0;position:relative;z-index:1}
+.ses-prog-bar-wrap{height:3px;background:#F0EBE0;flex-shrink:0;position:relative;z-index:1}
 .ses-prog-fill{height:3px;transition:width 1s linear}
-.ses-hdr{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:11px 14px;background:#0A1018;border-bottom:1px solid #1C2A3E}
-.ses-back{width:36px;height:36px;border:none;background:rgba(255,255,255,.07);color:#C0CCD8;border-radius:9px;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
-.ses-title{font-family:Georgia,serif;font-size:16px;font-weight:600;color:#E8EDF2;flex:1}
-.ses-count{font-size:12px;color:#5A7090;font-weight:600}
-.ses-body{flex:1;overflow-y:auto;padding:16px 14px 40px;color:#E8EDF2;-webkit-overflow-scrolling:touch}
+.ses-hdr{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:11px 14px;background:#FDFAF3;border-bottom:1px solid #F0EBE0}
+.ses-back{width:36px;height:36px;border:none;background:rgba(255,255,255,.07);color:#5A4A30;border-radius:9px;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.ses-title{font-family:Georgia,serif;font-size:16px;font-weight:600;color:#2A2010;flex:1}
+.ses-count{font-size:12px;color:#8A7A5A;font-weight:600}
+.ses-body{flex:1;overflow-y:auto;padding:16px 14px 40px;color:#2A2010;-webkit-overflow-scrolling:touch}
 
 /* Intro */
 .ses-intro{display:flex;flex-direction:column;align-items:center;text-align:center;padding:36px 16px 0}
 .ses-intro-ico{font-size:60px;margin-bottom:14px}
-.ses-intro-name{font-family:Georgia,serif;font-size:24px;font-weight:600;color:#E8EDF2;margin-bottom:6px}
-.ses-intro-sub{font-size:14px;color:#5A7090;margin-bottom:6px;line-height:1.6}
+.ses-intro-name{font-family:Georgia,serif;font-size:24px;font-weight:600;color:#2A2010;margin-bottom:6px}
+.ses-intro-sub{font-size:14px;color:#8A7A5A;margin-bottom:6px;line-height:1.6}
 .ses-intro-list{width:100%;max-width:340px;margin-bottom:28px;text-align:left}
-.ses-intro-ex{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#132040;border-radius:9px;margin-bottom:5px}
+.ses-intro-ex{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#fff;border-radius:9px;margin-bottom:5px}
 .ses-intro-ex-num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
-.ses-intro-ex-name{font-size:14px;font-weight:500;color:#C0D0E0;flex:1}
-.ses-intro-ex-note{font-size:11px;color:#3A5070;text-align:right}
+.ses-intro-ex-name{font-size:14px;font-weight:500;color:#4A4030;flex:1}
+.ses-intro-ex-note{font-size:11px;color:#A89A80;text-align:right}
 .ses-begin-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:14px 44px;border:none;border-radius:12px;font-family:inherit;font-size:16px;font-weight:700;color:#fff;cursor:pointer;margin-bottom:10px}
-.ses-back-link{background:none;border:none;color:#3A5070;font-family:inherit;font-size:13px;cursor:pointer;padding:6px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.ses-back-link{background:none;border:none;color:#A89A80;font-family:inherit;font-size:13px;cursor:pointer;padding:6px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 
 /* Timer circle */
 .ses-timer-wrap{display:flex;flex-direction:column;align-items:center;margin:16px 0 12px}
 
 /* Yoga */
-.ses-pose-name{font-family:Georgia,serif;font-size:22px;font-weight:700;color:#E8EDF2;text-align:center;margin-bottom:4px}
+.ses-pose-name{font-family:Georgia,serif;font-size:22px;font-weight:700;color:#2A2010;text-align:center;margin-bottom:4px}
 .ses-pose-sanskrit{font-size:13px;color:#8b5cf6;font-style:italic;text-align:center;margin-bottom:10px}
 .ses-pose-photo{width:100%;max-width:260px;border-radius:12px;margin:0 auto 12px;display:block;object-fit:cover}
-.ses-pose-cue{font-size:14px;color:#8A9AB0;line-height:1.75;text-align:center;margin:0 0 10px;padding:0 4px}
-.ses-pose-next{font-size:11px;color:#3A5070;text-align:center;margin-bottom:14px}
+.ses-pose-cue{font-size:14px;color:#8A7A5A;line-height:1.75;text-align:center;margin:0 0 10px;padding:0 4px}
+.ses-pose-next{font-size:11px;color:#A89A80;text-align:center;margin-bottom:14px}
 .ses-ctrl-row{display:flex;gap:10px;justify-content:center;margin-bottom:8px}
-.ses-ctrl-btn{background:#1C2A3E;border:1px solid #2A3A52;color:#C0CCD8;border-radius:10px;padding:10px 22px;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.ses-ctrl-btn{background:#F0EBE0;border:1px solid #E8E2D6;color:#5A4A30;border-radius:10px;padding:10px 22px;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .ses-ctrl-back{padding:10px 16px;opacity:.7}
 .ses-reps-display{text-align:center;padding:20px 0 12px}
-.ses-exit-link{display:block;text-align:center;background:none;border:none;color:#2A3A52;font-family:inherit;font-size:12px;cursor:pointer;margin-top:10px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.ses-exit-link{display:block;text-align:center;background:none;border:none;color:#E8E2D6;font-family:inherit;font-size:12px;cursor:pointer;margin-top:10px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 
 /* Physio */
-.ses-ex-card{background:#132040;border-radius:12px;padding:14px;border-left:4px solid #14b8a6;margin-bottom:12px}
-.ses-ex-name{font-size:17px;font-weight:700;color:#E8EDF2;margin-bottom:4px}
-.ses-ex-note{font-size:12px;color:#5A7090;margin-bottom:6px}
-.ses-ex-cue{font-size:13px;color:#8A9AB0;line-height:1.6;margin-bottom:10px}
+.ses-ex-card{background:#fff;border-radius:12px;padding:14px;border-left:4px solid #14b8a6;margin-bottom:12px}
+.ses-ex-name{font-size:17px;font-weight:700;color:#2A2010;margin-bottom:4px}
+.ses-ex-note{font-size:12px;color:#8A7A5A;margin-bottom:6px}
+.ses-ex-cue{font-size:13px;color:#8A7A5A;line-height:1.6;margin-bottom:10px}
 .ses-video-btn{display:inline-flex;align-items:center;gap:6px;background:#ef4444;color:#fff;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;border:none;font-family:inherit}
-.ses-set-info{font-size:12px;color:#5A7090;text-align:center;margin-bottom:8px}
-.ses-reps-card{background:#132040;border-radius:12px;padding:16px;text-align:center;margin-bottom:12px}
-.ses-reps-label{font-size:11px;font-weight:700;color:#5A7090;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.ses-set-info{font-size:12px;color:#8A7A5A;text-align:center;margin-bottom:8px}
+.ses-reps-card{background:#fff;border-radius:12px;padding:16px;text-align:center;margin-bottom:12px}
+.ses-reps-label{font-size:11px;font-weight:700;color:#8A7A5A;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
 .ses-reps-done-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:12px 32px;border:none;background:#14b8a6;color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px}
-.ses-skip-small{background:none;border:none;color:#3A5070;font-family:inherit;font-size:12px;cursor:pointer;padding:4px}
+.ses-skip-small{background:none;border:none;color:#A89A80;font-family:inherit;font-size:12px;cursor:pointer;padding:4px}
 
 /* Rest */
-.ses-rest-label{font-size:11px;font-weight:700;color:#5A7090;text-align:center;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px}
-.ses-rest-next{font-size:13px;color:#5A7090;text-align:center;margin-bottom:18px}
-.ses-skip-btn{padding:11px 28px;border:1.5px solid #3B6FE0;border-radius:10px;background:none;color:#5A9AF8;font-family:inherit;font-size:14px;cursor:pointer;display:block;margin:0 auto;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.ses-rest-label{font-size:11px;font-weight:700;color:#8A7A5A;text-align:center;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px}
+.ses-rest-next{font-size:13px;color:#8A7A5A;text-align:center;margin-bottom:18px}
+.ses-skip-btn{padding:11px 28px;border:1.5px solid #3B6FE0;border-radius:10px;background:none;color:#2A5AB0;font-family:inherit;font-size:14px;cursor:pointer;display:block;margin:0 auto;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 
 /* Superset workout */
-.ss-card{background:#132040;border-radius:14px;margin-bottom:12px;overflow:hidden;border:1px solid #1C2A3E}
-.ss-card-hdr{background:#0F1928;padding:10px 14px;display:flex;align-items:center;gap:8px}
+.ss-card{background:#fff;border-radius:14px;margin-bottom:12px;overflow:hidden;border:1px solid #F0EBE0}
+.ss-card-hdr{background:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px}
 .ss-card-label{font-size:11px;font-weight:700;color:#3B6FE0;text-transform:uppercase;letter-spacing:.6px;flex:1}
-.ss-card-round{font-size:12px;color:#5A7090;font-weight:600}
-.ss-ex{padding:12px 14px;border-bottom:1px solid #0F1928}
+.ss-card-round{font-size:12px;color:#8A7A5A;font-weight:600}
+.ss-ex{padding:12px 14px;border-bottom:1px solid #fff}
 .ss-ex:last-of-type{border-bottom:none}
-.ss-ex-name{font-size:15px;font-weight:700;color:#E8EDF2;margin-bottom:8px}
+.ss-ex-name{font-size:15px;font-weight:700;color:#2A2010;margin-bottom:8px}
 .ss-inputs{display:flex;gap:8px}
 .ss-field{flex:1;text-align:center}
-.ss-field-label{font-size:10px;color:#5A7090;margin-bottom:4px;font-weight:700;text-transform:uppercase}
-.ss-input{width:100%;padding:9px 6px;border:1.5px solid #1C2A3E;border-radius:8px;background:#0A1018;color:#E8EDF2;font-family:inherit;font-size:16px;text-align:center;outline:none}
+.ss-field-label{font-size:10px;color:#8A7A5A;margin-bottom:4px;font-weight:700;text-transform:uppercase}
+.ss-input{width:100%;padding:9px 6px;border:1.5px solid #F0EBE0;border-radius:8px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:16px;text-align:center;outline:none}
 .ss-input:focus{border-color:#3B6FE0}
 .ss-done-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:block;width:calc(100% - 28px);margin:12px 14px 14px;padding:14px;border:none;background:#3B6FE0;color:#fff;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer}
 
 /* Cond option + done screen */
-.cond-opt{background:#132040;border-radius:12px;padding:16px;margin-bottom:10px;cursor:pointer;border:1px solid #1C2A3E;text-align:center;transition:opacity .15s}
+.cond-opt{background:#fff;border-radius:12px;padding:16px;margin-bottom:10px;cursor:pointer;border:1px solid #F0EBE0;text-align:center;transition:opacity .15s}
 .cond-opt:active{opacity:.75}
-.cond-opt-title{font-size:16px;font-weight:700;color:#E8EDF2;margin-bottom:4px}
-.cond-opt-sub{font-size:12px;color:#5A7090}
+.cond-opt-title{font-size:16px;font-weight:700;color:#2A2010;margin-bottom:4px}
+.cond-opt-sub{font-size:12px;color:#8A7A5A}
 .ses-done-wrap{display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 20px 40px;min-height:100%}
 .ses-done-ico{font-size:72px;margin-bottom:14px}
-.ses-done-title{font-family:Georgia,serif;font-size:26px;font-weight:600;color:#E8EDF2;margin-bottom:6px}
-.ses-done-sub{font-size:14px;color:#5A7090;margin-bottom:28px;line-height:1.5}
+.ses-done-title{font-family:Georgia,serif;font-size:26px;font-weight:600;color:#2A2010;margin-bottom:6px}
+.ses-done-sub{font-size:14px;color:#8A7A5A;margin-bottom:28px;line-height:1.5}
 .ses-done-btn{padding:14px 36px;border:none;background:#3B6FE0;color:#fff;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-.ses-done-link{background:none;border:none;color:#3A5070;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.ses-done-link{background:none;border:none;color:#A89A80;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 </style>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
 </head>
@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v192 · 11/06/2026 22:52</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v193 · 11/06/2026 23:09</div>
 
   </div>
 </div>
@@ -794,8 +794,8 @@ body.train-mode #toast{background:#132040}
 
   <!-- PROGRAMS VIEW -->
   <div id="trainProgramsView" class="train-content">
-    <div style="background:#1a2535;border:1px solid #2a3a52;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#8A9AB0;line-height:1.5">
-      &#x2139;&#xFE0F; <strong style="color:#A8B8C8">Physio-approved</strong> programmes were prescribed for your diagnosis. <strong style="color:#d4c45a">General fitness</strong> programmes predate it — check with your physio before doing these, especially during a flare-up.
+    <div style="background:#1a2535;border:1px solid #2a3a52;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#8A7A5A;line-height:1.5">
+      &#x2139;&#xFE0F; <strong style="color:#8A7A5A">Physio-approved</strong> programmes were prescribed for your diagnosis. <strong style="color:#d4c45a">General fitness</strong> programmes predate it — check with your physio before doing these, especially during a flare-up.
     </div>
     <div class="prog-grid" id="progGrid"></div>
   </div>
@@ -2054,7 +2054,7 @@ function cardHTML(item, c) {
   var calBtn   = isTask && item.dueDate ? calLink(item) : "";
   var alarmBtn = "";
   var noteSnip = isDetail && item.notes
-    ? "<div style='font-size:11px;color:#8A9AB0;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>&#x1F4DD; " + esc(item.notes.substring(0,40)) + (item.notes.length>40?"…":"") + "</div>"
+    ? "<div style='font-size:11px;color:#8A7A5A;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>&#x1F4DD; " + esc(item.notes.substring(0,40)) + (item.notes.length>40?"…":"") + "</div>"
     : "";
   return "<div class='item-card" + (item.done?" done":"") + "' data-id='" + item.id + "' style='border-left-color:" + c.fg + "33'>" +
     "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>" +
@@ -4144,7 +4144,7 @@ function switchSection(section) {
     renderList();
     updateDueDateRowVisibility();
   } else if (section === "train") {
-    document.getElementById("themeColor").setAttribute("content", "#132040");
+    document.getElementById("themeColor").setAttribute("content", "#3565C8");
     document.getElementById("appTitle").textContent  = "💪 Train";
     document.getElementById("hdrBadge").style.display = "none";
     renderTrainView();
@@ -4363,8 +4363,8 @@ function renderCardioLog() {
   var html = "<div style=\'margin-top:10px\'>";
   entries.forEach(function(e) {
     html += "<div class=\'cardio-entry\'><span class=\'cardio-entry-ico\'>"+(e.ico||"&#x1F3C3;")+"</span>" +
-      "<div style=\'flex:1\'><div style=\'font-size:14px;font-weight:600;color:#C8D8E8\'>"+esc(e.activity||"")+"</div>" +
-      "<div style=\'font-size:12px;color:#5A7090\'>"+(e.duration?e.duration+" min":"")+
+      "<div style=\'flex:1\'><div style=\'font-size:14px;font-weight:600;color:#3A3328\'>"+esc(e.activity||"")+"</div>" +
+      "<div style=\'font-size:12px;color:#8A7A5A\'>"+(e.duration?e.duration+" min":"")+
       (e.duration&&e.calories?" · ":"")+(e.calories?e.calories+" kcal":"")+"</div></div>" +
       "<button data-cardio-id=\'"+e.id+"\' style=\'border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;opacity:.5\'>&#x2715;</button></div>";
   });
@@ -4831,8 +4831,8 @@ function renderWorkoutSession() {
   if (SS.wPhase === "condOption") {
     body.innerHTML = "<div style='padding:28px 0 16px;text-align:center'>" +
       "<div style='font-size:36px;margin-bottom:10px'>&#x1F3C3;</div>" +
-      "<div style='font-family:Georgia,serif;font-size:20px;font-weight:600;color:#E8EDF2;margin-bottom:6px'>Main work done!</div>" +
-      "<div style='font-size:14px;color:#5A7090;margin-bottom:22px'>Add conditioning?</div>" +
+      "<div style='font-family:Georgia,serif;font-size:20px;font-weight:600;color:#2A2010;margin-bottom:6px'>Main work done!</div>" +
+      "<div style='font-size:14px;color:#8A7A5A;margin-bottom:22px'>Add conditioning?</div>" +
       "<div class='cond-opt' onclick='startConditioning()'>" +
         "<div class='cond-opt-title'>Yes, add conditioning</div>" +
         "<div class='cond-opt-sub'>"+COND_TRAIN.exercises[0].name+" + "+COND_TRAIN.exercises[1].name+" &middot; "+COND_TRAIN.rounds+" rounds</div>" +
@@ -5000,7 +5000,7 @@ function renderWorkoutLog() {
         "<div class='set-pill-num'>"+(si+1)+"</div>" +
         (logged
           ? "<div class='set-pill-val'>"+(s.weight>0?s.weight+"kg":""+(s.reps)+" reps")+"</div><div class='set-pill-reps'>"+(s.weight>0?s.reps+" reps":"")+"</div>"
-          : "<div class='set-pill-val' style='color:#3A5070'>—</div>") +
+          : "<div class='set-pill-val' style='color:#B8AE9C'>—</div>") +
         "</div>";
     }
     html += "<div class='exercise-card'>" +
@@ -5181,9 +5181,9 @@ function renderWorkoutHistory() {
       var picker = document.createElement("div");
       picker.className = "wh-dt-edit";
       picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
-      picker.innerHTML = "<input type='date' value='"+w.date+"' style='flex:1;border:1.5px solid #2A4060;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#1C2E44;color:#E0EAF4;outline:none'>" +
+      picker.innerHTML = "<input type='date' value='"+w.date+"' style='flex:1;border:1.5px solid #D8D0C0;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#FDFAF3;color:#2A2010;outline:none'>" +
         "<button class='_whSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
-        "<button class='_whCancel' style='padding:8px 10px;background:#2A3A52;border:none;border-radius:7px;color:#A8B8C8;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+        "<button class='_whCancel' style='padding:8px 10px;background:#F0EBE0;border:none;border-radius:7px;color:#8A7A5A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
       span.closest(".workout-hist-item").appendChild(picker);
       picker.querySelector("._whSave").addEventListener("click", function() {
         var nd = picker.querySelector("input").value;
@@ -5210,7 +5210,7 @@ function renderBodyView() {
   var data=getWD(), bw=(data.bodyweight||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
   var el=document.getElementById("bwHistory");
   if (!bw.length) {
-    el.innerHTML="<p style='text-align:center;color:#3A5070;padding:20px;font-size:14px'>No entries yet.</p>";
+    el.innerHTML="<p style='text-align:center;color:#A89A80;padding:20px;font-size:14px'>No entries yet.</p>";
   } else {
     var html="";
     for (var i=0;i<bw.length;i++) {
@@ -5236,15 +5236,15 @@ function renderBodyView() {
   if (bpEl) {
     var bp = (data.bp||[]).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
     if (!bp.length) {
-      bpEl.innerHTML="<p style='text-align:center;color:#3A5070;padding:20px;font-size:14px'>No readings yet.</p>";
+      bpEl.innerHTML="<p style='text-align:center;color:#A89A80;padding:20px;font-size:14px'>No readings yet.</p>";
     } else {
       var bpHtml="";
       for (var j=0;j<bp.length;j++) {
         var r=bp[j], rd=new Date(r.date+"T12:00:00");
         var rlabel=rd.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
-        var cat = r.sys>=140||r.dia>=90 ? "#e07050" : (r.sys>=130||r.dia>=80 ? "#e0b050" : "#6BCF86");
+        var cat = r.sys>=140||r.dia>=90 ? "#C05A3A" : (r.sys>=130||r.dia>=80 ? "#B08A20" : "#2F8A50");
         bpHtml+="<div class='bw-entry'><span class='bw-entry-date bp-date-edit' data-bpts='"+r.ts+"' style='cursor:pointer;text-decoration:underline dotted'>"+rlabel+"</span>" +
-          "<span class='bw-entry-val' style='color:"+cat+"'>"+r.sys+"/"+r.dia+(r.pulse?" <span style='color:#3A5070;font-size:12px'>&middot; "+r.pulse+" bpm</span>":"")+"</span>" +
+          "<span class='bw-entry-val' style='color:"+cat+"'>"+r.sys+"/"+r.dia+(r.pulse?" <span style='color:#8A7A5A;font-size:12px'>&middot; "+r.pulse+" bpm</span>":"")+"</span>" +
           "<button class='bw-entry-del' data-bpts='"+r.ts+"'>&#x2715;</button></div>";
       }
       bpEl.innerHTML=bpHtml;
@@ -5266,9 +5266,9 @@ function renderBodyView() {
       var picker = document.createElement("div");
       picker.className = "bw-dt-edit";
       picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
-      picker.innerHTML = "<input type='date' value='"+oldDate+"' style='flex:1;border:1.5px solid #2A4060;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#1C2E44;color:#E0EAF4;outline:none'>" +
+      picker.innerHTML = "<input type='date' value='"+oldDate+"' style='flex:1;border:1.5px solid #D8D0C0;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#FDFAF3;color:#2A2010;outline:none'>" +
         "<button class='_bwSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
-        "<button class='_bwCancel' style='padding:8px 10px;background:#2A3A52;border:none;border-radius:7px;color:#A8B8C8;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+        "<button class='_bwCancel' style='padding:8px 10px;background:#F0EBE0;border:none;border-radius:7px;color:#8A7A5A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
       span.parentElement.after(picker);
       picker.querySelector("._bwSave").addEventListener("click", function() {
         var newDate = picker.querySelector("input").value;
@@ -5290,9 +5290,9 @@ function renderBodyView() {
       var picker = document.createElement("div");
       picker.className = "bp-dt-edit";
       picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
-      picker.innerHTML = "<input type='datetime-local' value='"+localDatetimeValue(ts)+"' style='flex:1;border:1.5px solid #2A4060;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#1C2E44;color:#E0EAF4;outline:none'>" +
+      picker.innerHTML = "<input type='datetime-local' value='"+localDatetimeValue(ts)+"' style='flex:1;border:1.5px solid #D8D0C0;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#FDFAF3;color:#2A2010;outline:none'>" +
         "<button class='_bpSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
-        "<button class='_bpCancel' style='padding:8px 10px;background:#2A3A52;border:none;border-radius:7px;color:#A8B8C8;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+        "<button class='_bpCancel' style='padding:8px 10px;background:#F0EBE0;border:none;border-radius:7px;color:#8A7A5A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
       span.parentElement.after(picker);
       picker.querySelector("._bpSave").addEventListener("click", function() {
         var val = picker.querySelector("input").value;
@@ -6115,13 +6115,13 @@ function renderYogaSession() {
   }
 
   if (SS.yPhase === "intro") {
-    var exList = flow.slice(0,5).map(function(p){ return "<div style='padding:7px 0;border-bottom:1px solid #1C2A3E;font-size:13px;color:#8A9AB0'>"+p.name+"</div>"; }).join("") +
-      (flow.length>5 ? "<div style='padding:7px 0;font-size:12px;color:#3A5070'>+ "+(flow.length-5)+" more poses</div>" : "");
+    var exList = flow.slice(0,5).map(function(p){ return "<div style='padding:7px 0;border-bottom:1px solid #E8E2D6;font-size:13px;color:#8A7A5A'>"+p.name+"</div>"; }).join("") +
+      (flow.length>5 ? "<div style='padding:7px 0;font-size:12px;color:#B8AE9C'>+ "+(flow.length-5)+" more poses</div>" : "");
     body.innerHTML = "<div class='ses-intro'>" +
       "<div class='ses-intro-ico'>&#x1F9D8;</div>" +
       "<div class='ses-intro-name'>"+esc(YOGA_TRAIN_NAMES[SS.yFlowIdx])+"</div>" +
       "<div class='ses-intro-sub'>"+flow.length+" poses &middot; ~"+Math.round(YOGA_TRAIN_TOTALS[SS.yFlowIdx]/60)+" min</div>" +
-      "<div style='width:100%;max-width:320px;background:#132040;border-radius:12px;padding:12px 14px;margin-bottom:28px;text-align:left'>"+exList+"</div>" +
+      "<div style='width:100%;max-width:320px;background:#fff;border:1px solid #E0DCD4;border-radius:12px;padding:12px 14px;margin-bottom:28px;text-align:left'>"+exList+"</div>" +
       "<button class='ses-begin-btn' style='background:#8b5cf6' onclick='beginYoga()'>Begin practice</button>" +
       "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
     "</div>";
@@ -6133,7 +6133,7 @@ function renderYogaSession() {
     body.innerHTML = "<div class='ses-done-wrap'>" +
       "<div class='ses-done-ico'>&#x1F64F;</div>" +
       "<div class='ses-done-title'>Practice complete</div>" +
-      "<div class='ses-done-sub'>Well done. Namaste.<br><small style='color:#2A3A52'>Before rising, roll to your right side first.</small></div>" +
+      "<div class='ses-done-sub'>Well done. Namaste.<br><small style='color:#C8BEA8'>Before rising, roll to your right side first.</small></div>" +
       "<button class='ses-done-btn' onclick='finishYoga()'>Save &amp; finish</button>" +
       "<button class='ses-done-link' onclick='openYogaSession(SS.yFlowIdx)'>Do it again</button>" +
     "</div>";
@@ -6225,14 +6225,14 @@ function renderPhysioSession() {
 
   if (SS.pPhase === "intro") {
     var exList = prog.exercises.map(function(ex,i){
-      return "<div style='padding:7px 0;border-bottom:1px solid #1C2A3E;font-size:13px;color:#8A9AB0'>"+esc(ex.name)+"</div>";
+      return "<div style='padding:7px 0;border-bottom:1px solid #E8E2D6;font-size:13px;color:#8A7A5A'>"+esc(ex.name)+"</div>";
     }).join("");
     body.innerHTML = "<div class='ses-intro'>" +
       "<div class='ses-intro-ico'>"+prog.icon+"</div>" +
       "<div class='ses-intro-name'>"+prog.name.replace(/&amp;/g,"&")+"</div>" +
       "<div class='ses-intro-sub'>"+prog.exercises.length+" exercises &middot; "+prog.note+"</div>" +
       (prog.warning ? "<div style='width:100%;max-width:320px;background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#e0c060;line-height:1.5;text-align:left'>&#x26A0;&#xFE0F; "+prog.warning+"</div>" : "") +
-      "<div style='width:100%;max-width:320px;background:#132040;border-radius:12px;padding:12px 14px;margin-bottom:28px;text-align:left'>"+exList+"</div>" +
+      "<div style='width:100%;max-width:320px;background:#fff;border:1px solid #E0DCD4;border-radius:12px;padding:12px 14px;margin-bottom:28px;text-align:left'>"+exList+"</div>" +
       "<button class='ses-begin-btn' style='background:"+col+"' onclick='beginPhysio()'>Begin</button>" +
       "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
     "</div>";
@@ -6444,8 +6444,8 @@ function renderWorkoutSession() {
   if (SS.wPhase === "condOption") {
     body.innerHTML = "<div style='padding:28px 0 16px;text-align:center'>" +
       "<div style='font-size:36px;margin-bottom:10px'>&#x1F3C3;</div>" +
-      "<div style='font-family:Georgia,serif;font-size:20px;font-weight:600;color:#E8EDF2;margin-bottom:6px'>Main work done!</div>" +
-      "<div style='font-size:14px;color:#5A7090;margin-bottom:22px'>Add conditioning?</div>" +
+      "<div style='font-family:Georgia,serif;font-size:20px;font-weight:600;color:#2A2010;margin-bottom:6px'>Main work done!</div>" +
+      "<div style='font-size:14px;color:#8A7A5A;margin-bottom:22px'>Add conditioning?</div>" +
       "<div class='cond-opt' onclick='startConditioning()'>" +
         "<div class='cond-opt-title'>Yes, add conditioning</div>" +
         "<div class='cond-opt-sub'>"+COND_TRAIN.exercises[0].name+" + "+COND_TRAIN.exercises[1].name+" &middot; "+COND_TRAIN.rounds+" rounds</div>" +
@@ -6630,7 +6630,7 @@ function renderWorkoutLog() {
         "<div class='set-pill-num'>"+(si+1)+"</div>" +
         (logged
           ? "<div class='set-pill-val'>"+(s.weight>0?s.weight+"kg":""+(s.reps)+" reps")+"</div><div class='set-pill-reps'>"+(s.weight>0?s.reps+" reps":"")+"</div>"
-          : "<div class='set-pill-val' style='color:#3A5070'>—</div>") +
+          : "<div class='set-pill-val' style='color:#B8AE9C'>—</div>") +
         "</div>";
     }
     html += "<div class='exercise-card'>" +
@@ -6810,9 +6810,9 @@ function renderWorkoutHistory() {
       var picker = document.createElement("div");
       picker.className = "wh-dt-edit";
       picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
-      picker.innerHTML = "<input type='date' value='"+w.date+"' style='flex:1;border:1.5px solid #2A4060;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#1C2E44;color:#E0EAF4;outline:none'>" +
+      picker.innerHTML = "<input type='date' value='"+w.date+"' style='flex:1;border:1.5px solid #D8D0C0;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#FDFAF3;color:#2A2010;outline:none'>" +
         "<button class='_whSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
-        "<button class='_whCancel' style='padding:8px 10px;background:#2A3A52;border:none;border-radius:7px;color:#A8B8C8;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+        "<button class='_whCancel' style='padding:8px 10px;background:#F0EBE0;border:none;border-radius:7px;color:#8A7A5A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
       span.closest(".workout-hist-item").appendChild(picker);
       picker.querySelector("._whSave").addEventListener("click", function() {
         var nd = picker.querySelector("input").value;
@@ -6871,7 +6871,7 @@ function renderBodyView() {
   var data=getWD(), bw=(data.bodyweight||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
   var el=document.getElementById("bwHistory");
   if (!bw.length) {
-    el.innerHTML="<p style='text-align:center;color:#3A5070;padding:20px;font-size:14px'>No entries yet.</p>";
+    el.innerHTML="<p style='text-align:center;color:#A89A80;padding:20px;font-size:14px'>No entries yet.</p>";
   } else {
     var html="";
     for (var i=0;i<bw.length;i++) {
@@ -6897,15 +6897,15 @@ function renderBodyView() {
   if (bpEl) {
     var bp = (data.bp||[]).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
     if (!bp.length) {
-      bpEl.innerHTML="<p style='text-align:center;color:#3A5070;padding:20px;font-size:14px'>No readings yet.</p>";
+      bpEl.innerHTML="<p style='text-align:center;color:#A89A80;padding:20px;font-size:14px'>No readings yet.</p>";
     } else {
       var bpHtml="";
       for (var j=0;j<bp.length;j++) {
         var r=bp[j], rd=new Date(r.date+"T12:00:00");
         var rlabel=rd.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
-        var cat = r.sys>=140||r.dia>=90 ? "#e07050" : (r.sys>=130||r.dia>=80 ? "#e0b050" : "#6BCF86");
+        var cat = r.sys>=140||r.dia>=90 ? "#C05A3A" : (r.sys>=130||r.dia>=80 ? "#B08A20" : "#2F8A50");
         bpHtml+="<div class='bw-entry'><span class='bw-entry-date bp-date-edit' data-bpts='"+r.ts+"' style='cursor:pointer;text-decoration:underline dotted'>"+rlabel+"</span>" +
-          "<span class='bw-entry-val' style='color:"+cat+"'>"+r.sys+"/"+r.dia+(r.pulse?" <span style='color:#3A5070;font-size:12px'>&middot; "+r.pulse+" bpm</span>":"")+"</span>" +
+          "<span class='bw-entry-val' style='color:"+cat+"'>"+r.sys+"/"+r.dia+(r.pulse?" <span style='color:#8A7A5A;font-size:12px'>&middot; "+r.pulse+" bpm</span>":"")+"</span>" +
           "<button class='bw-entry-del' data-bpts='"+r.ts+"'>&#x2715;</button></div>";
       }
       bpEl.innerHTML=bpHtml;
@@ -6927,9 +6927,9 @@ function renderBodyView() {
       var picker = document.createElement("div");
       picker.className = "bw-dt-edit";
       picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
-      picker.innerHTML = "<input type='date' value='"+oldDate+"' style='flex:1;border:1.5px solid #2A4060;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#1C2E44;color:#E0EAF4;outline:none'>" +
+      picker.innerHTML = "<input type='date' value='"+oldDate+"' style='flex:1;border:1.5px solid #D8D0C0;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#FDFAF3;color:#2A2010;outline:none'>" +
         "<button class='_bwSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
-        "<button class='_bwCancel' style='padding:8px 10px;background:#2A3A52;border:none;border-radius:7px;color:#A8B8C8;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+        "<button class='_bwCancel' style='padding:8px 10px;background:#F0EBE0;border:none;border-radius:7px;color:#8A7A5A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
       span.parentElement.after(picker);
       picker.querySelector("._bwSave").addEventListener("click", function() {
         var newDate = picker.querySelector("input").value;
@@ -6951,9 +6951,9 @@ function renderBodyView() {
       var picker = document.createElement("div");
       picker.className = "bp-dt-edit";
       picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
-      picker.innerHTML = "<input type='datetime-local' value='"+localDatetimeValue(ts)+"' style='flex:1;border:1.5px solid #2A4060;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#1C2E44;color:#E0EAF4;outline:none'>" +
+      picker.innerHTML = "<input type='datetime-local' value='"+localDatetimeValue(ts)+"' style='flex:1;border:1.5px solid #D8D0C0;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#FDFAF3;color:#2A2010;outline:none'>" +
         "<button class='_bpSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
-        "<button class='_bpCancel' style='padding:8px 10px;background:#2A3A52;border:none;border-radius:7px;color:#A8B8C8;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
+        "<button class='_bpCancel' style='padding:8px 10px;background:#F0EBE0;border:none;border-radius:7px;color:#8A7A5A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
       span.parentElement.after(picker);
       picker.querySelector("._bpSave").addEventListener("click", function() {
         var val = picker.querySelector("input").value;
@@ -7585,55 +7585,55 @@ if ("serviceWorker" in navigator && !_isPreview) {
 
 
 <!-- Set logging bottom sheet -->
-<div id="setSheet" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:700;background:#0D1B2E;border-top:1.5px solid #1E3050;border-radius:18px 18px 0 0;padding:18px 16px 32px;box-shadow:0 -8px 32px rgba(0,0,0,.6);max-width:480px;margin:0 auto">
-  <div style="width:36px;height:4px;background:#1E3050;border-radius:2px;margin:0 auto 16px"></div>
-  <div id="setSheetExName" style="font-size:16px;font-weight:700;color:#E8EDF2;margin-bottom:4px"></div>
-  <div id="setSheetSetLabel" style="font-size:12px;color:#5A7090;margin-bottom:16px"></div>
+<div id="setSheet" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:700;background:#fff;border-top:1.5px solid #E0DCD4;box-shadow:0 -4px 20px rgba(0,0,0,.12);border-radius:18px 18px 0 0;padding:18px 16px 32px;box-shadow:0 -8px 32px rgba(0,0,0,.6);max-width:480px;margin:0 auto">
+  <div style="width:36px;height:4px;background:#D8D0C0;border-radius:2px;margin:0 auto 16px"></div>
+  <div id="setSheetExName" style="font-size:16px;font-weight:700;color:#2A2010;margin-bottom:4px"></div>
+  <div id="setSheetSetLabel" style="font-size:12px;color:#8A7A5A;margin-bottom:16px"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
     <div>
-      <div style="font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Weight (kg)</div>
+      <div style="font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Weight (kg)</div>
       <div style="display:flex;align-items:center;gap:6px">
-        <button id="setSheetWtMinus" style="width:36px;height:36px;border:1.5px solid #1E3050;border-radius:8px;background:none;color:#C8D8E8;font-size:18px;cursor:pointer;touch-action:manipulation;flex-shrink:0">−</button>
-        <input id="setSheetWeight" type="number" min="0" step="0.5" inputmode="decimal" style="flex:1;padding:8px;border:1.5px solid #1E3050;border-radius:8px;background:#0A1018;color:#E8EDF2;font-size:18px;font-weight:700;text-align:center;font-family:inherit;outline:none;min-width:0">
-        <button id="setSheetWtPlus" style="width:36px;height:36px;border:1.5px solid #1E3050;border-radius:8px;background:none;color:#C8D8E8;font-size:18px;cursor:pointer;touch-action:manipulation;flex-shrink:0">+</button>
+        <button id="setSheetWtMinus" style="width:36px;height:36px;border:1.5px solid #D8D0C0;border-radius:8px;background:none;color:#3A3328;font-size:18px;cursor:pointer;touch-action:manipulation;flex-shrink:0">−</button>
+        <input id="setSheetWeight" type="number" min="0" step="0.5" inputmode="decimal" style="flex:1;padding:8px;border:1.5px solid #D8D0C0;border-radius:8px;background:#FDFAF3;color:#2A2010;font-size:18px;font-weight:700;text-align:center;font-family:inherit;outline:none;min-width:0">
+        <button id="setSheetWtPlus" style="width:36px;height:36px;border:1.5px solid #D8D0C0;border-radius:8px;background:none;color:#3A3328;font-size:18px;cursor:pointer;touch-action:manipulation;flex-shrink:0">+</button>
       </div>
     </div>
     <div>
-      <div style="font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Reps</div>
+      <div style="font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Reps</div>
       <div style="display:flex;align-items:center;gap:6px">
-        <button id="setSheetRepMinus" style="width:36px;height:36px;border:1.5px solid #1E3050;border-radius:8px;background:none;color:#C8D8E8;font-size:18px;cursor:pointer;touch-action:manipulation;flex-shrink:0">−</button>
-        <input id="setSheetReps" type="number" min="0" step="1" inputmode="numeric" style="flex:1;padding:8px;border:1.5px solid #1E3050;border-radius:8px;background:#0A1018;color:#E8EDF2;font-size:18px;font-weight:700;text-align:center;font-family:inherit;outline:none;min-width:0">
-        <button id="setSheetRepPlus" style="width:36px;height:36px;border:1.5px solid #1E3050;border-radius:8px;background:none;color:#C8D8E8;font-size:18px;cursor:pointer;touch-action:manipulation;flex-shrink:0">+</button>
+        <button id="setSheetRepMinus" style="width:36px;height:36px;border:1.5px solid #D8D0C0;border-radius:8px;background:none;color:#3A3328;font-size:18px;cursor:pointer;touch-action:manipulation;flex-shrink:0">−</button>
+        <input id="setSheetReps" type="number" min="0" step="1" inputmode="numeric" style="flex:1;padding:8px;border:1.5px solid #D8D0C0;border-radius:8px;background:#FDFAF3;color:#2A2010;font-size:18px;font-weight:700;text-align:center;font-family:inherit;outline:none;min-width:0">
+        <button id="setSheetRepPlus" style="width:36px;height:36px;border:1.5px solid #D8D0C0;border-radius:8px;background:none;color:#3A3328;font-size:18px;cursor:pointer;touch-action:manipulation;flex-shrink:0">+</button>
       </div>
     </div>
   </div>
   <button id="setSheetLogBtn" style="width:100%;padding:14px;border:none;background:#3B6FE0;color:#fff;border-radius:11px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation">&#x2713; Log set</button>
-  <button id="setSheetCancel" aria-label="Cancel set" style="width:100%;padding:10px;border:none;background:none;color:#5A7090;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;margin-top:6px">Cancel</button>
+  <button id="setSheetCancel" aria-label="Cancel set" style="width:100%;padding:10px;border:none;background:none;color:#8A7A5A;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;margin-top:6px">Cancel</button>
 </div>
 <div id="setSheetBackdrop" style="display:none;position:fixed;inset:0;z-index:699;background:rgba(0,0,0,.4)"></div>
 
 
 <!-- Item detail sheet -->
-<div id="itemSheet" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:700;background:#1C2A3E;border-top:1.5px solid #2A3A52;border-radius:18px 18px 0 0;padding:18px 16px 36px;box-shadow:0 -8px 32px rgba(0,0,0,.6);max-width:480px;margin:0 auto;max-height:85vh;overflow-y:auto">
-  <div style="width:36px;height:4px;background:#2A3A52;border-radius:2px;margin:0 auto 14px"></div>
+<div id="itemSheet" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:700;background:#fff;border-top:1.5px solid #E0DCD4;box-shadow:0 -4px 20px rgba(0,0,0,.12);border-radius:18px 18px 0 0;padding:18px 16px 36px;box-shadow:0 -8px 32px rgba(0,0,0,.6);max-width:480px;margin:0 auto;max-height:85vh;overflow-y:auto">
+  <div style="width:36px;height:4px;background:#F0EBE0;border-radius:2px;margin:0 auto 14px"></div>
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-    <div style="flex:1;font-size:13px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px">Edit item</div>
-    <button id="itemSheetClose" aria-label="Close" style="border:none;background:none;color:#5A7090;font-size:20px;cursor:pointer;padding:0 4px;touch-action:manipulation">&#x2715;</button>
+    <div style="flex:1;font-size:13px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px">Edit item</div>
+    <button id="itemSheetClose" aria-label="Close" style="border:none;background:none;color:#8A7A5A;font-size:20px;cursor:pointer;padding:0 4px;touch-action:manipulation">&#x2715;</button>
   </div>
   <div style="margin-bottom:12px">
-    <div style="font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Name</div>
-    <input id="itemSheetNameInput" type="text" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #2A3A52;border-radius:10px;background:#0D1B2E;color:#E8EDF2;font-family:inherit;font-size:15px;font-weight:600;outline:none">
+    <div style="font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Name</div>
+    <input id="itemSheetNameInput" type="text" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:15px;font-weight:600;outline:none">
   </div>
   <div style="margin-bottom:12px" id="itemSheetDueRow">
-    <div style="font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Due date</div>
+    <div style="font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Due date</div>
     <div style="display:flex;gap:8px;align-items:center">
-      <input id="itemSheetDueInput" type="date" style="flex:1;box-sizing:border-box;padding:10px 12px;border:1.5px solid #2A3A52;border-radius:10px;background:#0D1B2E;color:#C8D8E8;font-family:inherit;font-size:14px;outline:none">
-      <button id="itemSheetDueClear" style="border:none;background:#2A3A52;color:#A8B8C8;border-radius:8px;padding:10px 12px;font-family:inherit;font-size:13px;cursor:pointer">Clear</button>
+      <input id="itemSheetDueInput" type="date" style="flex:1;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#3A3328;font-family:inherit;font-size:14px;outline:none">
+      <button id="itemSheetDueClear" style="border:none;background:#F0EBE0;color:#8A7A5A;border-radius:8px;padding:10px 12px;font-family:inherit;font-size:13px;cursor:pointer">Clear</button>
     </div>
   </div>
   <div style="margin-bottom:12px">
-    <div style="font-size:10px;font-weight:700;color:#5A7090;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Notes</div>
-    <textarea id="itemSheetNotes" placeholder="Add notes..." rows="4" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #2A3A52;border-radius:10px;background:#0D1B2E;color:#C8D8E8;font-family:inherit;font-size:14px;resize:vertical;outline:none;line-height:1.5"></textarea>
+    <div style="font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Notes</div>
+    <textarea id="itemSheetNotes" placeholder="Add notes..." rows="4" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#3A3328;font-family:inherit;font-size:14px;resize:vertical;outline:none;line-height:1.5"></textarea>
   </div>
 
   <button id="itemSheetSave" style="width:100%;padding:13px;border:none;background:#3B6FE0;color:#fff;border-radius:11px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation">Save</button>
