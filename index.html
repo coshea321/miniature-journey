@@ -175,87 +175,87 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 /* ============================================================
    HOME SECTION — unified dark dashboard
    ============================================================ */
-body.home-mode{background:#111820;color:#E8EDF2}
-body.home-mode header{background:#111820;border-bottom:1px solid #1C2A3E}
-body.home-mode .app-title{color:#E8EDF2}
-body.home-mode .hdr-btn{background:rgba(255,255,255,.07);color:#C0CCD8}
-body.home-mode .bottom-nav{background:#111820;border-top-color:#1C2A3E}
-body.home-mode #toast{background:#1C2A3E}
-body.home-mode .bn-btn{color:#8CA1C1}
+body.home-mode{background:#F4EEE4;color:#2A2010}
+body.home-mode header{background:#F4EEE4;border-bottom:1px solid #E0DCD4}
+body.home-mode .app-title{color:#2A2010}
+body.home-mode .hdr-btn{background:rgba(0,0,0,.06);color:#7A5A30}
+body.home-mode .bottom-nav{background:#fff;border-top-color:#E0DCD4}
+body.home-mode #toast{background:#3A3328}
+body.home-mode .bn-btn{color:#AAA090}
 
 .home-content{padding:14px 14px 100px;transition:opacity .18s ease}
 
 /* Greeting */
 .home-greeting{margin-bottom:16px}
-.home-greeting-line{font-size:13px;font-weight:700;color:#8CA1C1;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
-.home-date-big{font-family:Georgia,serif;font-size:26px;font-weight:600;color:#E8EDF2;line-height:1.1}
+.home-greeting-line{font-size:13px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
+.home-date-big{font-family:Georgia,serif;font-size:26px;font-weight:600;color:#2A2010;line-height:1.1}
 
 /* Today split cards */
 .today-split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:13px}
 .today-card{border-radius:14px;padding:14px 13px 13px;cursor:pointer;transition:opacity .15s;position:relative;overflow:hidden}
 .today-card:active{opacity:.85}
-.today-card-life{background:linear-gradient(135deg,#1A3020 0%,#1F3D28 100%);border:1px solid #2D6B3560}
-.today-card-train{background:linear-gradient(135deg,#0F1F3A 0%,#132848 100%);border:1px solid #3B6FE060}
+.today-card-life{background:linear-gradient(135deg,#E9F3E2 0%,#F1F8EB 100%);border:1px solid #2D6B3540}
+.today-card-train{background:linear-gradient(135deg,#E8EFFA 0%,#F0F5FC 100%);border:1px solid #3B6FE040}
 .tc-icon{font-size:22px;margin-bottom:8px;line-height:1}
 .tc-count{font-family:Georgia,serif;font-size:28px;font-weight:600;line-height:1;margin-bottom:2px}
-.today-card-life .tc-count{color:#6BCF86}
-.today-card-train .tc-count{color:#5A9AF8}
+.today-card-life .tc-count{color:#2D6B35}
+.today-card-train .tc-count{color:#2A5AB0}
 .tc-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
-.today-card-life .tc-label{color:#3A7A48}
-.today-card-train .tc-label{color:#2A5090}
+.today-card-life .tc-label{color:#6A9A72}
+.today-card-train .tc-label{color:#7A98C8}
 .tc-sub{font-size:12px;line-height:1.5}
-.today-card-life .tc-sub{color:#4CAF70}
-.today-card-train .tc-sub{color:#4A82C8}
+.today-card-life .tc-sub{color:#3A7A48}
+.today-card-train .tc-sub{color:#3B6FE0}
 
 /* Quick-add buttons */
 .home-quick-row{display:flex;gap:7px;margin-bottom:16px}
 .hqbtn{flex:1;padding:10px 6px;border-radius:10px;border:none;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.2px}
-.hqbtn-grocery{background:#1A3020;color:#6BCF86;border:1.5px solid #2D6B3550}
-.hqbtn-task{background:#1A2A3A;color:#88AACC;border:1.5px solid #2A4A7050}
-.hqbtn-train{background:#0F1F3A;color:#5A9AF8;border:1.5px solid #3B6FE050}
+.hqbtn-grocery{background:#E9F3E2;color:#2D6B35;border:1.5px solid #2D6B3540}
+.hqbtn-task{background:#ECF1F6;color:#4A6A90;border:1.5px solid #4A6A9040}
+.hqbtn-train{background:#E8EFFA;color:#2A5AB0;border:1.5px solid #3B6FE040}
 .hqbtn:active{filter:brightness(1.3)}
 
 /* Inline quick-add panel */
-.hqp-wrap{background:#1C2A3E;border-radius:11px;padding:10px;margin-bottom:14px;display:none}
-.hqp-label{font-size:11px;font-weight:700;color:#8CA1C1;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.hqp-wrap{background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.08);border-radius:11px;padding:10px;margin-bottom:14px;display:none}
+.hqp-label{font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
 .hqp-row{display:flex;gap:8px}
-.hqp-input{flex:1;background:#111820;border:1.5px solid #1C2A3E;border-radius:8px;padding:10px 12px;color:#E8EDF2;font-family:inherit;font-size:15px;outline:none;transition:border-color .15s}
+.hqp-input{flex:1;background:#FDFAF3;border:1.5px solid #D8D0C0;border-radius:8px;padding:10px 12px;color:#2A2010;font-family:inherit;font-size:15px;outline:none;transition:border-color .15s}
 .hqp-input:focus{border-color:#3B6FE0}
-.hqp-input::placeholder{color:#3A5070}
+.hqp-input::placeholder{color:#B8AE9C}
 .hqp-add{padding:10px 16px;border:none;border-radius:8px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
 .hqp-add.life{background:#2D6B35;color:#fff}
 .hqp-add.train{background:#3B6FE0;color:#fff}
 .hqp-add.med{background:#6B21A8;color:#fff}
-.hqp-cancel{width:38px;height:38px;border:none;background:rgba(255,255,255,.05);color:#8CA1C1;border-radius:8px;font-size:16px;cursor:pointer}
+.hqp-cancel{width:38px;height:38px;border:none;background:#F0EBE0;color:#8A7A5A;border-radius:8px;font-size:16px;cursor:pointer}
 
 /* Section headers */
 .home-sec-hdr{display:flex;align-items:center;margin-bottom:8px}
-.home-sec-title{font-family:Georgia,serif;font-size:14px;font-weight:600;color:#E8EDF2;flex:1}
-.home-sec-link{border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;color:#8CA1C1;cursor:pointer;padding:2px 0}
-.home-sec-link:active{color:#E8EDF2}
+.home-sec-title{font-family:Georgia,serif;font-size:14px;font-weight:600;color:#2A2010;flex:1}
+.home-sec-link{border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;color:#A0855A;cursor:pointer;padding:2px 0}
+.home-sec-link:active{color:#2A2010}
 
 /* Spotlight items */
-.home-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#1C2A3E;border-radius:9px;margin-bottom:5px}
+.home-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);border-radius:9px;margin-bottom:5px}
 .home-item-emoji{font-size:17px;flex-shrink:0}
-.home-item-name{flex:1;font-size:14px;font-weight:500;color:#C8D8E8}
+.home-item-name{flex:1;font-size:14px;font-weight:500;color:#2A2010}
 .home-item-cat{font-size:11px;font-weight:700;padding:2px 7px;border-radius:8px;flex-shrink:0}
 .home-item-done{opacity:.45}
 .home-item-done .home-item-name{text-decoration:line-through}
-.home-empty-spot{padding:16px 12px;text-align:center;font-size:13px;color:#3A5070;background:#1C2A3E;border-radius:9px;margin-bottom:5px}
+.home-empty-spot{padding:16px 12px;text-align:center;font-size:13px;color:#A89A80;background:#FBF8F1;border-radius:9px;margin-bottom:5px}
 
 /* Week strip */
-.home-week-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;background:#1C2A3E;border-radius:12px;padding:13px 10px}
+.home-week-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);border-radius:12px;padding:13px 10px}
 .wk-day{display:flex;flex-direction:column;align-items:center;gap:5px}
-.wk-label{font-size:10px;font-weight:700;color:#3A5070;text-transform:uppercase}
-.wk-label.today{color:#5A9AF8}
-.wk-dot{width:28px;height:28px;border-radius:50%;border:2px solid #1C3A52;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .2s}
+.wk-label{font-size:10px;font-weight:700;color:#A89A80;text-transform:uppercase}
+.wk-label.today{color:#3B6FE0}
+.wk-dot{width:28px;height:28px;border-radius:50%;border:2px solid #E0DCD4;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .2s}
 .wk-dot.worked{background:#3B6FE0;border-color:#3B6FE0;color:#fff}
 .wk-dot.today-ring{border-color:#5A9AF8}
-.wk-dot.has-list{background:#1A3020;border-color:#2D6B35}
+.wk-dot.has-list{background:#E9F3E2;border-color:#2D6B35}
 .wk-dot.worked.has-list{background:linear-gradient(135deg,#2D6B35,#3B6FE0);border-color:transparent}
 
 /* Bottom nav active states */
-body.home-mode .bn-btn.home-active{color:#7AAAD8}
+body.home-mode .bn-btn.home-active{color:#C2691A}
 .bn-btn.life-active{color:#2D6B35}
 .bn-btn.train-active{color:#3B6FE0}
 .bn-btn.baby-active{color:#c084fc}
@@ -371,10 +371,10 @@ body.baby-mode #toast{background:#230D2E}
 .bag-manage-row:last-child{border-bottom:none}
 .bag-manage-name{flex:1;font-size:14px;color:#F0E8F2}
 .bag-manage-del{border:none;background:none;color:#804050;font-size:13px;cursor:pointer;opacity:.45;touch-action:manipulation}
-.today-card-baby{background:linear-gradient(135deg,#1A0A24 0%,#220D30 100%);border:1px solid #9333ea40;cursor:pointer}
-.today-card-baby .tc-count{color:#c084fc}
-.today-card-baby .tc-label{color:#7E22CE}
-.today-card-baby .tc-sub{color:#9A64C8}
+.today-card-baby{background:linear-gradient(135deg,#F3EAFA 0%,#F8F1FC 100%);border:1px solid #9333ea30;cursor:pointer}
+.today-card-baby .tc-count{color:#7E22CE}
+.today-card-baby .tc-label{color:#A87AC8}
+.today-card-baby .tc-sub{color:#8A4AB8}
 
 /* ============================================================
    TRAIN SECTION — dark theme
@@ -668,7 +668,7 @@ body.train-mode #toast{background:#132040}
       <button class="hqbtn hqbtn-grocery" id="hqGrocery">+ Grocery</button>
       <button class="hqbtn hqbtn-task" id="hqTask">+ Task</button>
       <button class="hqbtn hqbtn-train" id="hqExercise">+ Exercise</button>
-      <button class="hqbtn" style="background:#1A0A24;color:#c084fc;border:1.5px solid #9333ea40" id="hqMed">+ Medicine</button>
+      <button class="hqbtn" style="background:#F3EAFA;color:#7E22CE;border:1.5px solid #9333ea30" id="hqMed">+ Medicine</button>
     </div>
 
     <!-- Inline quick-add panel -->
@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v190 · 11/06/2026 19:14</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v192 · 11/06/2026 22:52</div>
 
   </div>
 </div>
