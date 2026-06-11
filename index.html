@@ -701,7 +701,7 @@ body.train-mode #toast{background:#132040}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v188 · 11/06/2026 13:43</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#2A3A52;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v189 · 11/06/2026 16:16</div>
 
   </div>
 </div>
@@ -4651,6 +4651,17 @@ function saveSession(entry) {
 function saveWD(data) { storeSet("fl4_workouts", data); }
 
 
+
+// ── Calorie estimate for training sessions ────────────────
+function latestBodyweightKg() {
+  var bw = (getWD().bodyweight||[]);
+  return bw.length ? (bw[0].weight || 70) : 70;
+}
+function estimateSessionKcal(met, minutes) {
+  if (!minutes || minutes <= 0) return 0;
+  return Math.round(met * latestBodyweightKg() * minutes / 60);
+}
+
 function getWD()      { return storeGet("fl4_workouts") || { workouts:[], bodyweight:[] }; }
 
 
@@ -4954,7 +4965,9 @@ function finishWorkoutSession(withCond) {
       exercises.push({ name:ex.name, sets:sets });
     });
   });
-  saveSession({ id:Date.now(), date:trainTodayStr(), type:'workout', sessionName:wk.name, exercises:exercises });
+  var _wSets = exercises.reduce(function(s,ex){ return s + (ex.sets?ex.sets.length:0); }, 0);
+  saveSession({ id:Date.now(), date:trainTodayStr(), type:'workout', sessionName:wk.name,
+    kcal:estimateSessionKcal(4.0, _wSets * 1.5), exercises:exercises });
   SS.wPhase = "complete";
   renderWorkoutSession();
   toast("&#x1F4AA; "+wk.name+" saved!");
@@ -5123,6 +5136,7 @@ function renderWorkoutHistory() {
                w.type==="physio" ? "Physio" :
                w.type==="cardio" ? ((w.duration?w.duration+" min":"")+(w.duration&&w.calories?" · ":"")+(w.calories?w.calories+" kcal":"")) :
                (w.exercises&&w.exercises.length ? w.exercises.length+" exercise"+(w.exercises.length!==1?"s":"") : "");
+    if (w.kcal && w.type!=="cardio") sub += (sub?" · ":"") + "~" + w.kcal + " kcal";
     html+="<div class='workout-hist-item' data-wid='"+w.id+"'>"+
       "<div class='whi-row' style='align-items:center'>"+
         "<div class='whi-date wh-date-edit' data-wid='"+w.id+"' style='cursor:pointer;text-decoration:underline dotted;flex:1'>"+trainFmtDateLong(w.date)+"</div>"+
@@ -6347,8 +6361,10 @@ function physioNext() {
 }
 function finishYoga() {
   var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
+  var _yMins = flow.reduce(function(s,p){ return s + (p.dur||0); }, 0) / 60;
   var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'yoga',
-    sessionName:YOGA_TRAIN_NAMES[SS.yFlowIdx].replace(/&amp;/g,"&"), poses:flow.length, exercises:[] };
+    sessionName:YOGA_TRAIN_NAMES[SS.yFlowIdx].replace(/&amp;/g,"&"), poses:flow.length,
+    kcal:estimateSessionKcal(2.8, _yMins), exercises:[] };
   saveSession(entry);
   var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
   pushPersonal();
@@ -6359,7 +6375,9 @@ function finishYoga() {
 
 function finishPhysio() {
   var prog = PROGRAMMES_TRAIN[SS.pProgIdx];
-  var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'physio', sessionName:prog.name.replace(/&amp;/g,"&"), exercises:[] };
+  var _pMins = prog.exercises.reduce(function(s,ex){ return s + ((ex.dur||40) * (ex.sets||1)); }, 0) / 60;
+  var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'physio', sessionName:prog.name.replace(/&amp;/g,"&"),
+    kcal:estimateSessionKcal(3.0, _pMins), exercises:[] };
   saveSession(entry);
   var al = getActionLog(); al.unshift(Object.assign({},entry)); storeSet("fl4_action_log", al);
   pushPersonal();
@@ -6577,7 +6595,9 @@ function finishWorkoutSession(withCond) {
       exercises.push({ name:ex.name, sets:sets });
     });
   });
-  saveSession({ id:Date.now(), date:trainTodayStr(), type:'workout', sessionName:wk.name, exercises:exercises });
+  var _wSets = exercises.reduce(function(s,ex){ return s + (ex.sets?ex.sets.length:0); }, 0);
+  saveSession({ id:Date.now(), date:trainTodayStr(), type:'workout', sessionName:wk.name,
+    kcal:estimateSessionKcal(4.0, _wSets * 1.5), exercises:exercises });
   SS.wPhase = "complete";
   renderWorkoutSession();
   toast("&#x1F4AA; "+wk.name+" saved!");
@@ -6745,6 +6765,7 @@ function renderWorkoutHistory() {
                w.type==="physio" ? "Physio" :
                w.type==="cardio" ? ((w.duration?w.duration+" min":"")+(w.duration&&w.calories?" · ":"")+(w.calories?w.calories+" kcal":"")) :
                (w.exercises&&w.exercises.length ? w.exercises.length+" exercise"+(w.exercises.length!==1?"s":"") : "");
+    if (w.kcal && w.type!=="cardio") sub += (sub?" · ":"") + "~" + w.kcal + " kcal";
     html+="<div class='workout-hist-item' data-wid='"+w.id+"'>"+
       "<div class='whi-row' style='align-items:center'>"+
         "<div class='whi-date wh-date-edit' data-wid='"+w.id+"' style='cursor:pointer;text-decoration:underline dotted;flex:1'>"+trainFmtDateLong(w.date)+"</div>"+
