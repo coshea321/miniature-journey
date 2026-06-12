@@ -701,7 +701,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v193 · 11/06/2026 23:09</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v195 · 12/06/2026 07:42</div>
 
   </div>
 </div>
@@ -794,8 +794,8 @@ body.train-mode #toast{background:#3A3328}
 
   <!-- PROGRAMS VIEW -->
   <div id="trainProgramsView" class="train-content">
-    <div style="background:#1a2535;border:1px solid #2a3a52;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#8A7A5A;line-height:1.5">
-      &#x2139;&#xFE0F; <strong style="color:#8A7A5A">Physio-approved</strong> programmes were prescribed for your diagnosis. <strong style="color:#d4c45a">General fitness</strong> programmes predate it — check with your physio before doing these, especially during a flare-up.
+    <div style="background:#FBF6EC;border:1px solid #E5D9C0;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#7A6A4A;line-height:1.5">
+      &#x2139;&#xFE0F; <strong style="color:#1A7A3A">Physio-approved</strong> programmes were prescribed for your diagnosis. <strong style="color:#9A7A10">General fitness</strong> programmes predate it — check with your physio before doing these, especially during a flare-up.
     </div>
     <div class="prog-grid" id="progGrid"></div>
   </div>
@@ -4817,11 +4817,11 @@ function renderWorkoutSession() {
       "<div class='ses-rest-next' id='restNextLbl'></div>" +
       "<div class='ses-timer-wrap'>" +
       "<svg width='130' height='130' style='display:block;margin:0 auto' id='restSvg'>" +
-        "<circle cx='65' cy='65' r='"+R+"' fill='none' stroke='#1e1e1e' stroke-width='8'/>" +
+        "<circle cx='65' cy='65' r='"+R+"' fill='none' stroke='#E5DFD3' stroke-width='8'/>" +
         "<circle cx='65' cy='65' r='"+R+"' fill='none' stroke='"+WK_TRAIN[SS.wType].color+"' stroke-width='8'" +
         " stroke-dasharray='"+circ+"' stroke-dashoffset='"+so+"'" +
         " stroke-linecap='round' transform='rotate(-90 65 65)' id='restArc'/>" +
-        "<text x='65' y='72' text-anchor='middle' fill='#fff' font-size='34' font-weight='bold' id='restNum'>"+SS.wRestTime+"</text>" +
+        "<text x='65' y='72' text-anchor='middle' fill='#2A2010' font-size='34' font-weight='bold' id='restNum'>"+SS.wRestTime+"</text>" +
       "</svg></div>" +
       "<button class='ses-skip-btn' onclick='skipWorkoutRest()'>Skip rest</button>" +
     "</div>";
@@ -5356,7 +5356,7 @@ function timerCircle(time, total, color, paused) {
     '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+ringColor+'" stroke-width="10"' +
     ' stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-pct))+'"' +
     ' stroke-linecap="round" transform="rotate(-90 70 70)" style="transition:stroke-dashoffset 0.95s linear"/>' +
-    '<text x="70" y="78" text-anchor="middle" fill="'+(paused?'#666':'#fff')+'" font-size="38" font-weight="800" font-family="inherit">'+time+'</text>' +
+    '<text x="70" y="78" text-anchor="middle" fill="'+(paused?'#B8AE9C':'#2A2010')+'" font-size="38" font-weight="800" font-family="inherit">'+time+'</text>' +
     '</svg>';
 }
 
@@ -6003,22 +6003,22 @@ function renderTrainView() {
 function renderTrainPrograms() {
   var el = document.getElementById("progGrid");
   var programs = [
-    { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#0F1F3A,#162B52)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Rows · Split Squats · Pull-ups · Glute Bridge", descColor:"#4A7AB8" },
-    { type:"workout", key:"push",  bg:"linear-gradient(135deg,#2A1010,#3A1818)", border:"#ef444440", icon:"&#x1F534;", name:"Push Day", desc:"Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B85050" },
-    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Full Body Flow", tag:"Physio", desc:"25 poses · ~19 min", descColor:"#7A5CBF" },
-    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#1A0F3A,#231550)", border:"#8b5cf640", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", tag:"Physio", desc:"18 poses · ~22 min", descColor:"#7A5CBF" },
-    { type:"physio",  key:0,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", tag:"Physio", desc:"4 exercises · nerve mobility", descColor:"#14b8a6" },
-    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F9B5;", name:"Lower Limb", tag:"Fitness", desc:"9 exercises · glutes · quad · calf", descColor:"#14b8a6" },
-    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#001A1A,#002828)", border:"#14b8a640", icon:"&#x1F33F;", name:"Max Physio", tag:"Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#14b8a6" },
-    { type:"physio",  key:3,       bg:"linear-gradient(135deg,#0A0A1A,#0A1A2A)", border:"#6366f140", icon:"&#x1F9D8;", name:"Decompression", tag:"Physio", desc:"7 exercises · spine · hips · shoulders", descColor:"#818cf8" },
-    { type:"physio",  key:4,       bg:"linear-gradient(135deg,#021A2A,#053040)", border:"#0ea5e940", icon:"&#x1F9D8;", name:"Max Pilates Core", tag:"Physio", desc:"6 exercises · core stability · Pilates", descColor:"#0ea5e9" }
+    { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#E8EFFA,#F0F5FC)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Rows · Split Squats · Pull-ups · Glute Bridge", descColor:"#2A5AB0" },
+    { type:"workout", key:"push",  bg:"linear-gradient(135deg,#FBEAEA,#FCF2F2)", border:"#ef444430", icon:"&#x1F534;", name:"Push Day", desc:"Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B03030" },
+    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#F0EAFA,#F6F2FC)", border:"#8b5cf630", icon:"&#x1F9D8;", name:"Full Body Flow", tag:"Physio", desc:"25 poses · ~19 min", descColor:"#6A3CB0" },
+    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#F0EAFA,#F6F2FC)", border:"#8b5cf630", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", tag:"Physio", desc:"18 poses · ~22 min", descColor:"#6A3CB0" },
+    { type:"physio",  key:0,       bg:"linear-gradient(135deg,#E2F4F1,#EFFAF8)", border:"#14b8a630", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", tag:"Physio", desc:"4 exercises · nerve mobility", descColor:"#0A8070" },
+    { type:"physio",  key:1,       bg:"linear-gradient(135deg,#E2F4F1,#EFFAF8)", border:"#14b8a630", icon:"&#x1F9B5;", name:"Lower Limb", tag:"Fitness", desc:"9 exercises · glutes · quad · calf", descColor:"#0A8070" },
+    { type:"physio",  key:2,       bg:"linear-gradient(135deg,#E2F4F1,#EFFAF8)", border:"#14b8a630", icon:"&#x1F33F;", name:"Max Physio", tag:"Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#0A8070" },
+    { type:"physio",  key:3,       bg:"linear-gradient(135deg,#EAECFA,#F2F3FC)", border:"#6366f130", icon:"&#x1F9D8;", name:"Decompression", tag:"Physio", desc:"7 exercises · spine · hips · shoulders", descColor:"#4A50C0" },
+    { type:"physio",  key:4,       bg:"linear-gradient(135deg,#E2F1FA,#EFF8FC)", border:"#0ea5e930", icon:"&#x1F9D8;", name:"Max Pilates Core", tag:"Physio", desc:"6 exercises · core stability · Pilates", descColor:"#0A7AB0" }
   ];
   var html = "";
   for (var i=0;i<programs.length;i++) {
     var p = programs[i];
     html += "<button class='prog-card' style='background:"+p.bg+";border:1px solid "+p.border+"' data-type='"+p.type+"' data-key='"+p.key+"'>" +
       "<div class='prog-card-icon'>"+p.icon+"</div>" +
-      (p.tag ? "<div class='prog-card-tag' style='background:"+(p.tag==='Physio'?'#14532d':'#3a3320')+";color:"+(p.tag==='Physio'?'#6BCF86':'#d4c45a')+"'>"+(p.tag==='Physio'?'&#x2713; Physio-approved':'General fitness')+"</div>" : "") +
+      (p.tag ? "<div class='prog-card-tag' style='background:"+(p.tag==='Physio'?'#DCF2E2':'#F7EFD8')+";color:"+(p.tag==='Physio'?'#1A7A3A':'#9A7A10')+"'>"+(p.tag==='Physio'?'&#x2713; Physio-approved':'General fitness')+"</div>" : "") +
       "<div class='prog-card-name'>"+p.name+"</div>" +
       "<div class='prog-card-desc' style='color:"+p.descColor+"'>"+p.desc+"</div>" +
     "</button>";
@@ -6078,7 +6078,7 @@ function timerCircle(time, total, color, paused) {
     '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+ringColor+'" stroke-width="10"' +
     ' stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-pct))+'"' +
     ' stroke-linecap="round" transform="rotate(-90 70 70)" style="transition:stroke-dashoffset 0.95s linear"/>' +
-    '<text x="70" y="78" text-anchor="middle" fill="'+(paused?'#666':'#fff')+'" font-size="38" font-weight="800" font-family="inherit">'+time+'</text>' +
+    '<text x="70" y="78" text-anchor="middle" fill="'+(paused?'#B8AE9C':'#2A2010')+'" font-size="38" font-weight="800" font-family="inherit">'+time+'</text>' +
     '</svg>';
 }
 
@@ -6270,9 +6270,9 @@ function renderPhysioSession() {
   body.innerHTML =
     (isTimedRunning
       ? "<div class='ses-timer-wrap'>" + timerCircle(SS.pTime, ex.dur, col, !SS.pRunning) + "</div>"
-      : "<div class='ses-reps-display'><div style='font-size:64px;font-weight:800;line-height:1;color:"+col+"'>"+ex.reps+"</div><div style='font-size:15px;color:#8ABFB8;margin-top:6px'>reps</div></div>"
+      : "<div class='ses-reps-display'><div style='font-size:64px;font-weight:800;line-height:1;color:"+col+"'>"+ex.reps+"</div><div style='font-size:15px;color:#5A8A80;margin-top:6px'>reps</div></div>"
     ) +
-    "<div class='ses-pose-name' style='color:#e2e8f0'>"+esc(ex.name)+"</div>" +
+    "<div class='ses-pose-name' style='color:#2A2010'>"+esc(ex.name)+"</div>" +
     (setLabel ? "<div class='ses-pose-sanskrit' style='color:"+col+"'>"+setLabel+"</div>" : "") +
     (totalSets > 1 ? "<div style='text-align:center;margin:6px 0 2px'>"+dots+"</div>" : "") +
     (ex.cue ? "<p class='ses-pose-cue'>"+esc(ex.cue)+"</p>" : "") +
@@ -6307,7 +6307,7 @@ function togglePhysioTimer() {
       SS.pTime--;
       var svg = document.querySelector("#sesBody svg");
       if (svg) {
-        var txt = svg.querySelector("text"); if (txt) { txt.textContent = SS.pTime; txt.setAttribute("fill", "#fff"); }
+        var txt = svg.querySelector("text"); if (txt) { txt.textContent = SS.pTime; txt.setAttribute("fill", "#2A2010"); }
         var ex=PROGRAMMES_TRAIN[SS.pProgIdx].exercises[SS.pExIdx];
         var R=54,circ=2*Math.PI*R,pct=SS.pTime/ex.dur;
         var circle=svg.querySelectorAll("circle")[1]; if(circle) circle.setAttribute("stroke-dashoffset",circ*(1-pct));
@@ -6328,8 +6328,8 @@ function togglePhysioTimer() {
     var prog = PROGRAMMES_TRAIN[SS.pProgIdx];
     var ring = svg.querySelectorAll("circle")[1];
     var txt  = svg.querySelector("text");
-    if (ring) ring.setAttribute("stroke", SS.pRunning ? (prog.color || "#818cf8") : "#333");
-    if (txt)  txt.setAttribute("fill", SS.pRunning ? "#fff" : "#666");
+    if (ring) ring.setAttribute("stroke", SS.pRunning ? (prog.color || "#818cf8") : "#C8BEA8");
+    if (txt)  txt.setAttribute("fill", SS.pRunning ? "#2A2010" : "#B8AE9C");
   }
 }
 function physioNext() {
@@ -6430,11 +6430,11 @@ function renderWorkoutSession() {
       "<div class='ses-rest-next' id='restNextLbl'></div>" +
       "<div class='ses-timer-wrap'>" +
       "<svg width='130' height='130' style='display:block;margin:0 auto' id='restSvg'>" +
-        "<circle cx='65' cy='65' r='"+R+"' fill='none' stroke='#1e1e1e' stroke-width='8'/>" +
+        "<circle cx='65' cy='65' r='"+R+"' fill='none' stroke='#E5DFD3' stroke-width='8'/>" +
         "<circle cx='65' cy='65' r='"+R+"' fill='none' stroke='"+WK_TRAIN[SS.wType].color+"' stroke-width='8'" +
         " stroke-dasharray='"+circ+"' stroke-dashoffset='"+so+"'" +
         " stroke-linecap='round' transform='rotate(-90 65 65)' id='restArc'/>" +
-        "<text x='65' y='72' text-anchor='middle' fill='#fff' font-size='34' font-weight='bold' id='restNum'>"+SS.wRestTime+"</text>" +
+        "<text x='65' y='72' text-anchor='middle' fill='#2A2010' font-size='34' font-weight='bold' id='restNum'>"+SS.wRestTime+"</text>" +
       "</svg></div>" +
       "<button class='ses-skip-btn' onclick='skipWorkoutRest()'>Skip rest</button>" +
     "</div>";
