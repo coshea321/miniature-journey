@@ -701,7 +701,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v198 · 12/06/2026 12:30</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v200 · 12/06/2026 14:20</div>
 
   </div>
 </div>
@@ -5796,8 +5796,8 @@ var COND_TRAIN = {rounds:2,exercises:[{id:'step_ups',name:'Step-ups',type:'reps'
 
 var YOGA_FLOWS_TRAIN = [
   [{name:'Seated Centering',sanskrit:'Sukhasana',dur:60,cue:'Sit cross-legged, using a folded blanket under your hips if needed to tilt the pelvis forward. Rest hands on knees, palms up. Close your eyes. Inhale slowly for 4 counts, filling from the belly upward. Exhale for 6 counts, letting the shoulders soften. Set an intention for your practice.'},
-  {name:'Neck and Shoulder Rolls',sanskrit:'Seated Mobilisation',dur:45,cue:'Sitting tall, drop your right ear toward your shoulder — don\'t force it. Slowly roll your chin to your chest, then your left ear to the left shoulder. Reverse the direction. Then roll both shoulders forward 3 times, backward 3 times. Move slowly and follow your breath.'},
-  {name:'Pelvic Tilts',sanskrit:'Lumbar warm-up',dur:40,cue:"Lie on your back with knees bent and feet flat. Gently flatten your lower back against the mat by tightening your deep abdominals and tilting your pelvis upward slightly. Hold 2 seconds, then release back to neutral. Move slowly and with control. This gently mobilises the lumbar spine before movement and is one of the most effective warm-ups for spinal stenosis.",url:'https://www.youtube.com/watch?v=GKz3q3-12-g'},
+  {name:'Neck and Shoulder Rolls',sanskrit:'Seated Mobilisation',dur:30,cue:'Sitting tall, drop your right ear toward your shoulder — don\'t force it. Slowly roll your chin to your chest, then your left ear to the left shoulder. Reverse the direction. Then roll both shoulders forward 3 times, backward 3 times. Move slowly and follow your breath.'},
+  {name:'Pelvic Tilts',sanskrit:'Lumbar warm-up',dur:30,cue:"Lie on your back with knees bent and feet flat. Gently flatten your lower back against the mat by tightening your deep abdominals and tilting your pelvis upward slightly. Hold 2 seconds, then release back to neutral. Move slowly and with control. This gently mobilises the lumbar spine before movement and is one of the most effective warm-ups for spinal stenosis.",url:'https://www.youtube.com/watch?v=GKz3q3-12-g'},
   {name:'Cat-Cow',sanskrit:'Marjaryasana-Bitilasana',dur:60,cue:'Tabletop — wrists under shoulders, knees under hips. Inhale: let the belly drop, tail lifts, gaze softens forward (Cow). Exhale: press the floor away, round the spine to the ceiling, tuck chin and tailbone (Cat). Flow continuously with your breath for 6–8 rounds.'},
   {name:'Bird Dog',sanskrit:'Dandayamna Bharmanasana',dur:50,cue:'From tabletop, draw your navel in gently. Extend your right arm forward and left leg back — both parallel to the floor. Keep hips level, don\'t let them rotate. Hold 3 steady breaths, lower slowly. Switch sides. 3 rounds each.'},
   {name:'Dead Bug',sanskrit:'Urdhva Prasarita Padasana',dur:50,cue:'On your back, knees bent to 90° above hips, arms reaching up to the ceiling. Press your lower back firmly into the mat and keep it there throughout. Slowly lower your right arm overhead and left leg toward the floor. Return, switch sides. 4–5 reps each.'},
@@ -5815,29 +5815,29 @@ var YOGA_FLOWS_TRAIN = [
   {name:'Warrior II Right',sanskrit:'Virabhadrasana II',dur:45,cue:'From Warrior I, open your arms wide — right forward, left back, parallel to the floor. Open the left hip out to the side. Gaze over your right fingertips. Torso stacked upright between the hips — don\'t lean forward. Sink a little deeper into the right knee.'},
   {name:'Warrior II Left',sanskrit:'Virabhadrasana II',dur:45,cue:'Left arm extends forward, right arm reaches back. Gaze over your left fingertips. Both arms reach actively in opposite directions. Torso upright. Deepen the bend in the left knee without letting it collapse inward.'},
   {name:'Reclined Butterfly',sanskrit:'Supta Baddha Konasana',dur:60,cue:'Lie on your back, bring soles of feet together, let knees fall open to the sides. One hand on your belly, one on your chest if you like. Close your eyes. Nothing to do here — just breathe and let gravity work. Each exhale, feel the inner thighs soften a little more.'},
-  {name:'Supine Twist Right',sanskrit:'Supta Matsyendrasana',dur:45,cue:'Hug both knees to your chest, then let them fall to the right. Extend your left arm out at shoulder height, palm facing up. Keep both shoulders heavy on the mat. Gaze toward the ceiling or gently to the left. Use each exhale to release deeper into the twist.'},
-  {name:'Supine Twist Left',sanskrit:'Supta Matsyendrasana',dur:45,cue:'Bring knees back to centre, then let them fall to the left. Right arm extends wide, palm up. Use your exhales to release any tension held in the upper back and shoulders. Allow the twist to deepen naturally — never force it.'},
+  {name:'Supine Twist Right',sanskrit:'Supta Matsyendrasana',dur:30,cue:'Hug both knees to your chest, then let them fall to the right. Extend your left arm out at shoulder height, palm facing up. Keep both shoulders heavy on the mat. Gaze toward the ceiling or gently to the left. Use each exhale to release deeper into the twist.'},
+  {name:'Supine Twist Left',sanskrit:'Supta Matsyendrasana',dur:30,cue:'Bring knees back to centre, then let them fall to the left. Right arm extends wide, palm up. Use your exhales to release any tension held in the upper back and shoulders. Allow the twist to deepen naturally — never force it.'},
   {name:'Bridge Pose',sanskrit:'Setu Bandha Sarvangasana',dur:55,cue:'Feet hip-width apart, flat on the mat, knees bent. Press firmly through your feet and slowly peel your hips up, vertebra by vertebra. Interlace fingers underneath and press your arms into the mat. Hold 4–5 breaths, then lower slowly one vertebra at a time.'},
   {name:'Knees to Chest',sanskrit:'Apanasana',dur:40,cue:'Draw both knees into your chest. Wrap hands around your shins — not the knees. Rock gently side to side to massage the lower back. Let your sacrum feel heavy and grounded. Stay still or keep rocking for the full time.'},
-  {name:'Savasana',sanskrit:'Savasana',dur:120,cue:'Extend both legs long, feet falling open naturally. Arms rest slightly away from your body, palms facing up. Close your eyes and stop controlling your breath. Release all effort in your face, jaw, hands and feet. You\'ve done the work — now simply rest and absorb it. Stay completely still.'}],
-  [{name:'Seated Forward Fold Variation',sanskrit:'Sukhasana variation',dur:120,cue:'Sit with feet on the ground and knees lifted. Slowly drape your heart over the tops of your thighs. Breathe into the back body.'},
-  {name:'Core Stability Boat Prep',sanskrit:'Navasana variation',dur:50,cue:'From seated, lean back slightly and lift shins parallel to the floor. Hands behind thighs for support. Core engaged, breathe steadily.'},
-  {name:'Seated Spinal Twist Right',sanskrit:'Ardha Matsyendrasana',dur:55,cue:'Extend left leg. Hug right knee to chest. Inhale tall, exhale twist toward right knee. Left hand to right knee, right hand behind.'},
-  {name:'Seated Spinal Twist Left',sanskrit:'Ardha Matsyendrasana',dur:55,cue:'Extend right leg. Hug left knee to chest. Inhale tall, exhale twist left. Right hand to left knee, left hand behind.'},
-  {name:'Head-to-Knee Pose Right',sanskrit:'Janu Sirsasana',dur:55,cue:'Tuck left foot at inner right thigh. Extend right leg. Hinge from hips with long spine, reach toward right foot or shin.'},
-  {name:'Head-to-Knee Pose Left',sanskrit:'Janu Sirsasana',dur:55,cue:'Tuck right foot at inner left thigh. Extend left leg. Hinge from hips, long spine, reach toward left foot.'},
-  {name:'Bound Angle Diamond Fold',sanskrit:'Baddha Konasana',dur:100,cue:'Soles together, feet further from body making a wide diamond. Hinge forward from hips, chest leads, spine long.'},
-  {name:'Swimming Side Stretch',sanskrit:'Seated lateral flow',dur:65,cue:'Legs in wide straddle. Reach one arm up and over toward opposite toes in a fluid sweeping motion. 8 sweeps each side.'},
-  {name:'Seated Forward Fold',sanskrit:'Paschimottanasana',dur:90,cue:'Legs extended, soft bend in knees. Hinge forward from hips with long spine. Reach for shins, ankles or feet.'},
-  {name:'Froggy Pose',sanskrit:'Mandukasana variation',dur:50,cue:'Wide kneeling, knees far apart, hips low to floor, body folded forward. Forearms on the ground. Breathe into the inner groin.'},
-  {name:'Yogi Squat',sanskrit:'Malasana',dur:70,cue:'Deep squat, heels toward earth. Hands in prayer, elbows pressing knees wide. Tailbone heavy, spine long.'},
-  {name:'Standing Forward Fold',sanskrit:'Uttanasana',dur:110,cue:'Feet wide, hinge at hips, upper body hangs heavy. Soft bend in knees. Arms dangle or hold opposite elbows.'},
-  {name:'Knees to Chest',sanskrit:'Apanasana',dur:50,cue:'Lie on your back. Draw both knees gently to chest. Hold below kneecaps. Rock side to side.'},
-  {name:'Eagle Legs Twist Right',sanskrit:'Supta Garudasana variation',dur:75,cue:'Cross right leg over left, both knees fall to the left. Right arm wide. Both shoulders heavy. Breathe into the right outer hip.'},
-  {name:'Eagle Legs Twist Left',sanskrit:'Supta Garudasana variation',dur:75,cue:'Cross left leg over right, knees fall to the right. Left arm wide. Shoulders grounded. Soften on every exhale.'},
-  {name:'Happy Baby',sanskrit:'Ananda Balasana',dur:80,cue:'Hug knees to chest then reach for outer edges of feet. Knees wide toward armpits. Rock side to side if it feels good.'},
-  {name:'Windshield Wipers',sanskrit:'Supta variation',dur:90,cue:'Feet flat, knees bent, feet wider than hips. Let knees drop right then sweep to left. Slow and fluid.'},
-  {name:'Savasana',sanskrit:'Savasana',dur:120,cue:'Legs long, feet falling open. Arms by sides, palms up. Eyes fully closed. Every muscle releases.'}]
+  {name:'Savasana',sanskrit:'Savasana',dur:90,cue:'Extend both legs long, feet falling open naturally. Arms rest slightly away from your body, palms facing up. Close your eyes and stop controlling your breath. Release all effort in your face, jaw, hands and feet. You\'ve done the work — now simply rest and absorb it. Stay completely still.'}],
+  [{name:'Seated Forward Fold Variation',sanskrit:'Sukhasana variation',dur:60,cue:'Sit with feet on the ground and knees lifted. Slowly drape your heart over the tops of your thighs. Breathe into the back body.'},
+  {name:'Core Stability Boat Prep',sanskrit:'Navasana variation',dur:30,cue:'From seated, lean back slightly and lift shins parallel to the floor. Hands behind thighs for support. Core engaged, breathe steadily.'},
+  {name:'Seated Spinal Twist Right',sanskrit:'Ardha Matsyendrasana',dur:30,cue:'Extend left leg. Hug right knee to chest. Inhale tall, exhale twist toward right knee. Left hand to right knee, right hand behind.'},
+  {name:'Seated Spinal Twist Left',sanskrit:'Ardha Matsyendrasana',dur:30,cue:'Extend right leg. Hug left knee to chest. Inhale tall, exhale twist left. Right hand to left knee, left hand behind.'},
+  {name:'Head-to-Knee Pose Right',sanskrit:'Janu Sirsasana',dur:30,cue:'Tuck left foot at inner right thigh. Extend right leg. Hinge from hips with long spine, reach toward right foot or shin.'},
+  {name:'Head-to-Knee Pose Left',sanskrit:'Janu Sirsasana',dur:30,cue:'Tuck right foot at inner left thigh. Extend left leg. Hinge from hips, long spine, reach toward left foot.'},
+  {name:'Bound Angle Diamond Fold',sanskrit:'Baddha Konasana',dur:60,cue:'Soles together, feet further from body making a wide diamond. Hinge forward from hips, chest leads, spine long.'},
+  {name:'Swimming Side Stretch',sanskrit:'Seated lateral flow',dur:30,cue:'Legs in wide straddle. Reach one arm up and over toward opposite toes in a fluid sweeping motion. 8 sweeps each side.'},
+  {name:'Seated Forward Fold',sanskrit:'Paschimottanasana',dur:60,cue:'Legs extended, soft bend in knees. Hinge forward from hips with long spine. Reach for shins, ankles or feet.'},
+  {name:'Froggy Pose',sanskrit:'Mandukasana variation',dur:30,cue:'Wide kneeling, knees far apart, hips low to floor, body folded forward. Forearms on the ground. Breathe into the inner groin.'},
+  {name:'Yogi Squat',sanskrit:'Malasana',dur:30,cue:'Deep squat, heels toward earth. Hands in prayer, elbows pressing knees wide. Tailbone heavy, spine long.'},
+  {name:'Standing Forward Fold',sanskrit:'Uttanasana',dur:60,cue:'Feet wide, hinge at hips, upper body hangs heavy. Soft bend in knees. Arms dangle or hold opposite elbows.'},
+  {name:'Knees to Chest',sanskrit:'Apanasana',dur:30,cue:'Lie on your back. Draw both knees gently to chest. Hold below kneecaps. Rock side to side.'},
+  {name:'Eagle Legs Twist Right',sanskrit:'Supta Garudasana variation',dur:30,cue:'Cross right leg over left, both knees fall to the left. Right arm wide. Both shoulders heavy. Breathe into the right outer hip.'},
+  {name:'Eagle Legs Twist Left',sanskrit:'Supta Garudasana variation',dur:30,cue:'Cross left leg over right, knees fall to the right. Left arm wide. Shoulders grounded. Soften on every exhale.'},
+  {name:'Happy Baby',sanskrit:'Ananda Balasana',dur:30,cue:'Hug knees to chest then reach for outer edges of feet. Knees wide toward armpits. Rock side to side if it feels good.'},
+  {name:'Windshield Wipers',sanskrit:'Supta variation',dur:30,cue:'Feet flat, knees bent, feet wider than hips. Let knees drop right then sweep to left. Slow and fluid.'},
+  {name:'Savasana',sanskrit:'Savasana',dur:90,cue:'Legs long, feet falling open. Arms by sides, palms up. Eyes fully closed. Every muscle releases.'}]
 ];
 var YOGA_TRAIN_NAMES   = ['Full Body Flow','Hips & Lower Back'];
 var YOGA_TRAIN_DESCS   = ['25 poses · ~19 min','18 poses · ~22 min'];
@@ -6033,8 +6033,8 @@ function renderTrainPrograms() {
   var programs = [
     { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#E8EFFA,#F0F5FC)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Rows · Split Squats · Pull-ups · Glute Bridge", descColor:"#2A5AB0" },
     { type:"workout", key:"push",  bg:"linear-gradient(135deg,#FBEAEA,#FCF2F2)", border:"#ef444430", icon:"&#x1F534;", name:"Push Day", desc:"Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B03030" },
-    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#F0EAFA,#F6F2FC)", border:"#8b5cf630", icon:"&#x1F9D8;", name:"Full Body Flow", tag:"Physio", desc:"25 poses · ~19 min", descColor:"#6A3CB0" },
-    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#F0EAFA,#F6F2FC)", border:"#8b5cf630", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", tag:"Physio", desc:"18 poses · ~22 min", descColor:"#6A3CB0" },
+    { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#F0EAFA,#F6F2FC)", border:"#8b5cf630", icon:"&#x1F9D8;", name:"Full Body Flow", tag:"Physio", desc:"24 poses · ~18 min", descColor:"#6A3CB0" },
+    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#F0EAFA,#F6F2FC)", border:"#8b5cf630", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", tag:"Physio", desc:"18 poses · ~12 min", descColor:"#6A3CB0" },
     { type:"physio",  key:0,       bg:"linear-gradient(135deg,#E2F4F1,#EFFAF8)", border:"#14b8a630", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", tag:"Physio", desc:"4 exercises · nerve mobility", descColor:"#0A8070" },
     { type:"physio",  key:1,       bg:"linear-gradient(135deg,#E2F4F1,#EFFAF8)", border:"#14b8a630", icon:"&#x1F9B5;", name:"Lower Limb", tag:"Fitness", desc:"9 exercises · glutes · quad · calf", descColor:"#0A8070" },
     { type:"physio",  key:2,       bg:"linear-gradient(135deg,#E2F4F1,#EFFAF8)", border:"#14b8a630", icon:"&#x1F33F;", name:"Max Physio", tag:"Physio", desc:"6 exercises · post-natal · core &amp; glutes", descColor:"#0A8070" },
