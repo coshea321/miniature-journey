@@ -656,8 +656,8 @@ body.train-mode #toast{background:#3A3328}
             <div class="tc-sub" id="tcBabySub" style="font-size:13px">No medicine logged yet</div>
           </div>
           <div style="text-align:right">
-            <div class="tc-count" style="font-size:20px" id="tcBabyTeeth">0</div>
-            <div class="tc-label">teeth</div>
+            <div class="tc-count" style="font-size:20px" id="tcBabyWeight">&mdash;</div>
+            <div class="tc-label">latest weight</div>
           </div>
         </div>
       </div>
@@ -701,7 +701,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v196 · 12/06/2026 08:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v198 · 12/06/2026 12:30</div>
 
   </div>
 </div>
@@ -5551,20 +5551,45 @@ function renderHomeScreen() {
     (tdItems.length ? "<span>&#x2705; "+tdItems.length+"</span>"   : "") ||
     "<span>All clear!</span>";
 
-  // ── Train today-card ──────────────────────────────────────
-  var todayWkt = getWorkoutForDate(trainTodayStr());
-  if (todayWkt && Array.isArray(todayWkt.exercises) && todayWkt.exercises.length && todayWkt.type !== "yoga" && todayWkt.type !== "physio") {
-    var exCount = todayWkt.exercises.length;
-    var setCount = 0;
-    for (var i = 0; i < todayWkt.exercises.length; i++) { var ex2 = todayWkt.exercises[i]; setCount += (ex2 && Array.isArray(ex2.sets)) ? ex2.sets.length : 0; }
-    document.getElementById("tcTrainCount").textContent = exCount;
-    document.getElementById("tcTrainLabel").textContent = "exercise" + (exCount !== 1 ? "s" : "");
-    document.getElementById("tcTrainSub").textContent   = setCount + " set" + (setCount !== 1 ? "s" : "") + " logged";
+  // ── Train today-card: all sessions + cardio, with kcal ────
+  var _today = trainTodayStr();
+  var _sessions = (getWD().workouts||[]).filter(function(w){ return w && w.date === _today; });
+  var _kcal = 0;
+  _sessions.forEach(function(w){ _kcal += (+w.kcal||0); });
+  (getActionLog()||[]).forEach(function(e){
+    if (e && e.type === "cardio" && e.date === _today) { _sessions.push(e); _kcal += (+e.calories||0); }
+  });
+  if (_sessions.length) {
+    document.getElementById("tcTrainCount").textContent = _sessions.length;
+    document.getElementById("tcTrainLabel").textContent = "session" + (_sessions.length !== 1 ? "s" : "") + " today";
+    document.getElementById("tcTrainSub").textContent   = _kcal > 0 ? ("~" + _kcal + " kcal burned") : "Logged";
   } else {
     document.getElementById("tcTrainCount").textContent = "—";
     document.getElementById("tcTrainLabel").textContent = "today";
     document.getElementById("tcTrainSub").textContent   = "No session yet";
   }
+
+  // ── Baby today-card: last medicine + latest weight ─────────
+  try {
+    var _bd = getBD();
+    var _meds = (_bd.medicine||[]).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    var _subEl = document.getElementById("tcBabySub");
+    if (_subEl) {
+      if (_meds.length) {
+        var _m = _meds[0];
+        var _ago = Date.now() - (_m.ts||0);
+        var _hrs = Math.floor(_ago/3600000);
+        var _agoTxt = _hrs < 1 ? "under an hour ago" : _hrs < 24 ? _hrs + "h ago" : Math.floor(_hrs/24) + "d ago";
+        _subEl.textContent = (_m.name||"Medicine") + (_m.dose ? " ("+_m.dose+")" : "") + " · " + _agoTxt;
+      } else {
+        _subEl.textContent = "No medicine logged yet";
+      }
+    }
+    var _gw = (_bd.growth||[]).filter(function(e){ return e && e.weight; })
+      .sort(function(a,b){ return b.date.localeCompare(a.date); });
+    var _wEl = document.getElementById("tcBabyWeight");
+    if (_wEl) _wEl.textContent = _gw.length ? (_gw[0].weight + " kg") : "—";
+  } catch(e) {}
 
   // ── Grocery spotlight (top 5 undone) ─────────────────────
   try { renderSpotlight("homeGrocerySpot", "grocery", 5); } catch(e){ console.error("renderSpotlight grocery: "+e.message); }
@@ -5616,17 +5641,20 @@ function renderWeekStrip() {
     var label = dayLabels[dow];
     var isToday = dateStr === today;
 
-    var wkt    = getWorkoutForDate(dateStr);
-    var hasWkt = !!(wkt && (
-      (Array.isArray(wkt.exercises) && wkt.exercises.length > 0) ||
-      wkt.type === "yoga" || wkt.type === "physio"
-    ));
+    // Check ALL workouts on this date (an empty free-form placeholder
+    // for the same date must not mask a real session)
+    var hasWkt = (getWD().workouts||[]).some(function(w){
+      return w && w.date === dateStr && (
+        (Array.isArray(w.exercises) && w.exercises.length > 0) ||
+        w.type === "yoga" || w.type === "physio" || w.kcal
+      );
+    });
     if (!hasWkt) {
       var alog = getActionLog();
       hasWkt = alog.some(function(e) {
         if (!e || !e.ts) return false;
         var ed = new Date(e.ts), eds = ed.getFullYear()+"-"+t2(ed.getMonth()+1)+"-"+t2(ed.getDate());
-        return eds === dateStr && (e.type==="yoga"||e.type==="physio"||e.type==="workout");
+        return eds === dateStr && (e.type==="yoga"||e.type==="physio"||e.type==="workout"||e.type==="cardio");
       });
     }
 
