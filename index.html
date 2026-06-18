@@ -179,6 +179,8 @@ body.home-mode{background:#F4EEE4;color:#2A2010}
 body.home-mode header{background:#F4EEE4;border-bottom:1px solid #E0DCD4}
 body.home-mode .app-title{color:#2A2010}
 body.home-mode .hdr-btn{background:rgba(0,0,0,.06);color:#7A5A30}
+body.home-mode .hdr-badge{background:rgba(0,0,0,.10);color:#5A4A30}
+body.home-mode #hdrUser{color:#8A7A5A !important}
 body.home-mode .bottom-nav{background:#fff;border-top-color:#E0DCD4}
 body.home-mode #toast{background:#3A3328}
 body.home-mode .bn-btn{color:#AAA090}
@@ -701,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v208 · 18/06/2026 19:25</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v209 · 18/06/2026 19:35</div>
 
   </div>
 </div>
@@ -3232,6 +3234,7 @@ document.getElementById("sectionToggles").addEventListener("change", function(e)
 });
 
 document.getElementById("settingsOverlay").addEventListener("click", function(e){ if(e.target===this) this.classList.remove("open"); });
+document.getElementById("settingsClose").addEventListener("click", function(){ document.getElementById("settingsOverlay").classList.remove("open"); });
 
 function renderCustomCatsList() {
   var el = document.getElementById("customCatsList");
