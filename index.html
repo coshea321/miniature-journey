@@ -701,7 +701,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v206 · 12/06/2026 21:03</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v207 · 18/06/2026 18:19</div>
 
   </div>
 </div>
@@ -1947,8 +1947,16 @@ function renderList() {
   var html="", cats=getCats();
   for (var ci=0;ci<cats.length;ci++) {
     var c=cats[ci], gi=groups[c.id]; if (!gi) continue;
-    html+="<div class='sec-hdr'><span>"+c.emoji+"&ensp;<span class='sec-name'>"+c.name+"</span></span><div class='sec-line'></div><span class='sec-count'>"+gi.length+"</span></div>";
+    var catKey = "fl4_catOpen_"+currentList+"_"+c.id;
+    var catStored = storeGet(catKey);
+    var catOpen = (catStored === null) ? true : !!catStored; // default open
+    html+="<div class='sec-hdr cat-toggle' data-catkey='"+catKey+"' style='cursor:pointer'>" +
+      "<span class='done-toggle-arrow"+(catOpen?"":" collapsed")+"' style='margin-right:4px'>&#9660;</span>" +
+      "<span>"+c.emoji+"&ensp;<span class='sec-name'>"+c.name+"</span></span>" +
+      "<div class='sec-line'></div><span class='sec-count'>"+gi.length+"</span></div>";
+    html+="<div class='cat-items' style='display:"+(catOpen?"block":"none")+"'>";
     for (var ii=0;ii<gi.length;ii++) html+=cardHTML(gi[ii],c);
+    html+="</div>";
   }
   if (done.length) {
     var doneOpen = storeGet("fl4_doneOpen_"+currentList);
@@ -1976,6 +1984,18 @@ function renderList() {
       storeSet("fl4_doneOpen_"+currentList, !isOpen);
     });
   }
+  // Wire category section toggles
+  elListC.querySelectorAll(".cat-toggle").forEach(function(hdr) {
+    hdr.addEventListener("click", function() {
+      var arrow = hdr.querySelector(".done-toggle-arrow");
+      var itemsDiv = hdr.nextElementSibling;
+      if (!itemsDiv) return;
+      var open = itemsDiv.style.display !== "none";
+      itemsDiv.style.display = open ? "none" : "block";
+      if (arrow) arrow.classList.toggle("collapsed", open);
+      storeSet(hdr.dataset.catkey, !open);
+    });
+  });
 
    elListC.querySelectorAll(".item-card").forEach(function(card) {
     var id = +card.dataset.id;
