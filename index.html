@@ -701,7 +701,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v207 · 18/06/2026 18:19</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v208 · 18/06/2026 19:25</div>
 
   </div>
 </div>
@@ -1805,7 +1805,7 @@ document.getElementById("typeBar").addEventListener("click", function(e) {
   if (currentList !== "notes") { loadListData(currentList); switchTab("list"); renderList(); }
   applyListTheme();
   updateDueDateRowVisibility();
-  // Test list uses per-card notes, so hide the Notes tab there
+  clearUnseen(currentList);
   var tabNotes = document.getElementById("tabNotes");
   if (tabNotes) tabNotes.style.display = (currentList === "grocery" || currentList === "travel" || currentList === "todo" || currentList === "personal" || currentList === "testdue" || currentList === "testgrocery") ? "none" : "";
 });
@@ -1904,7 +1904,7 @@ function doAdd() {
     }
   }
   var dueD = (currentList === "todo" || currentList === "personal" || currentList === "testdue") ? (document.getElementById("dueDateInput").value || null) : null;
-  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false, dueDate:dueD });
+  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false, dueDate:dueD, addedBy:hearthUser });
   addToHist(name, catId);
   saveCurrentList(); resetInput(); renderList(); switchTab("list");
   toast("Added: "+name);
@@ -2076,10 +2076,16 @@ function cardHTML(item, c) {
   var noteSnip = isDetail && item.notes
     ? "<div style='font-size:11px;color:#8A7A5A;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>&#x1F4DD; " + esc(item.notes.substring(0,40)) + (item.notes.length>40?"…":"") + "</div>"
     : "";
-  return "<div class='item-card" + (item.done?" done":"") + "' data-id='" + item.id + "' style='border-left-color:" + c.fg + "33'>" +
+  // Highlight items recently added by the partner and not yet seen
+  var unseen = getUnseen(currentList);
+  var isNew = !!unseen[item.id];
+  var newBadge = isNew
+    ? "<span style='display:inline-block;font-size:10px;font-weight:700;background:#FBE9DE;color:#C2691A;padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle'>NEW</span>"
+    : "";
+  return "<div class='item-card" + (item.done?" done":"") + "' data-id='" + item.id + "' style='border-left-color:" + (isNew ? "#E0703C" : (c.fg + "33")) + "'>" +
     "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>" +
     "<div style='flex:1;min-width:0;" + (isDetail?"cursor:pointer":"") + "'>" +
-      "<span class='item-name'>" + esc(item.name) + "</span>" +
+      "<span class='item-name'>" + esc(item.name) + "</span>" + newBadge +
       (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + (calBtn ? "&nbsp;" + calBtn : "") + "</div>" : "") +
 
       noteSnip +
@@ -2147,7 +2153,7 @@ function addFromHistory(name, catId) {
   for (var i=0;i<items.length;i++) {
     if (!items[i].done&&items[i].name.toLowerCase()===name.toLowerCase()) { toast("Already in your list!"); return; }
   }
-  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false });
+  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false, addedBy:hearthUser });
   addToHist(name,catId); saveCurrentList(); renderList(); renderHistory(); toast("Added: "+name);
 }
 
@@ -3833,6 +3839,8 @@ function onLoginSuccess() {
   if (testTab) testTab.style.display = "none";
   var testGroceryTab = document.getElementById("testGroceryTab");
   if (testGroceryTab) testGroceryTab.style.display = "none";
+
+  if (typeof updateListTabDots === "function") updateListTabDots();
 
   // Stale-data banner: tapping it triggers re-login
   var sb2 = document.getElementById("staleDataBanner");
@@ -5754,7 +5762,7 @@ function doHqpAdd() {
     })();
     var dueD = (currentList === "todo" || currentList === "personal" || currentList === "testdue") ? document.getElementById("dueDateInput").value : "";
     var dueT = dueD ? (document.getElementById("dueTimeInput").value || "") : "";
-    listData[lt].items.unshift({ id: Date.now(), name: name, catId: catId, done: false, dueDate: dueD || null, dueTime: dueT || null });
+    listData[lt].items.unshift({ id: Date.now(), name: name, catId: catId, done: false, dueDate: dueD || null, dueTime: dueT || null, addedBy:hearthUser });
     addToHistFor(lt, name, catId);
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
     saveCurrentList();
@@ -7055,12 +7063,25 @@ function fetchHousehold(cb) {
 
 function applyHousehold(data) {
   syncPaused = true;
+  var _newFromOther = {}; // lt → count of new items added by the other user
   ["grocery","todo","travel","personal"].forEach(function(lt) {
     if (!isSynced(lt)) return;
     var d = data["list_" + lt];
     if (!d || typeof d !== "object") return;
+    var incoming = Array.isArray(d.items) ? d.items.filter(Boolean) : [];
+    // Compare against what we currently hold to spot genuinely new arrivals from the partner
+    var existingIds = {};
+    ((listData[lt] && listData[lt].items) || []).forEach(function(it){ if (it) existingIds[it.id] = true; });
+    var seen = getSeenIds(lt);
+    incoming.forEach(function(it){
+      if (it && it.addedBy && it.addedBy !== hearthUser && !it.done &&
+          !existingIds[it.id] && !seen[it.id]) {
+        _newFromOther[lt] = (_newFromOther[lt]||0) + 1;
+        markUnseen(lt, it.id);
+      }
+    });
     listData[lt] = {
-      items: Array.isArray(d.items) ? d.items.filter(Boolean) : [],
+      items: incoming,
       hist:  Array.isArray(d.hist)  ? d.hist.filter(Boolean)  : []
     };
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
@@ -7079,7 +7100,54 @@ function applyHousehold(data) {
   }
   syncPaused = false;
   renderList();
+  updateListTabDots();
+  // Gentle in-app toast if the partner added something while we're using the app
+  var _totalNew = 0, _firstLt = null;
+  Object.keys(_newFromOther).forEach(function(lt){ _totalNew += _newFromOther[lt]; if(!_firstLt) _firstLt = lt; });
+  if (_totalNew > 0) {
+    var ltName = _firstLt ? (LIST_TYPES[_firstLt] ? LIST_TYPES[_firstLt].name.replace(/&#x[0-9A-Fa-f]+;\s*/,"") : _firstLt) : "";
+    var partner = hearthUser === "cathal1" ? "Petra" : "Cathal";
+    toast("&#x1F465; " + partner + " added " + _totalNew + " item" + (_totalNew!==1?"s":"") + (_firstLt && _totalNew===_newFromOther[_firstLt] ? " to " + ltName : ""));
+  }
   if (currentSection === "home") renderHomeScreen();
+}
+
+// ── "Added by partner" unseen tracking ──────────────────────
+function getSeenIds(lt) { return storeGet("fl4_seen_"+lt) || {}; }
+function markUnseen(lt, id) {
+  var u = storeGet("fl4_unseen_"+lt) || {};
+  u[id] = true;
+  storeSet("fl4_unseen_"+lt, u);
+}
+function getUnseen(lt) { return storeGet("fl4_unseen_"+lt) || {}; }
+function clearUnseen(lt) {
+  // Mark all current unseen as seen and wipe the unseen flag
+  var u = getUnseen(lt), seen = getSeenIds(lt);
+  Object.keys(u).forEach(function(id){ seen[id] = true; });
+  storeSet("fl4_seen_"+lt, seen);
+  storeSet("fl4_unseen_"+lt, {});
+  updateListTabDots();
+}
+function unseenCount(lt) { return Object.keys(getUnseen(lt)).length; }
+function updateListTabDots() {
+  ["grocery","todo","travel","personal"].forEach(function(lt){
+    var btn = document.querySelector('.type-btn[data-lt="'+lt+'"]');
+    if (!btn) return;
+    var n = unseenCount(lt);
+    var dot = btn.querySelector(".lt-newdot");
+    if (n > 0) {
+      if (!dot) {
+        dot = document.createElement("span");
+        dot.className = "lt-newdot";
+        dot.style.cssText = "position:absolute;top:3px;right:6px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#E0703C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-sizing:border-box";
+        btn.style.position = "relative";
+        btn.appendChild(dot);
+      }
+      dot.textContent = n;
+    } else if (dot) {
+      dot.remove();
+    }
+  });
 }
 
 // ── Baby view ─────────────────────────────────────────────
