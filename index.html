@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v214 · 19/06/2026 12:59</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v215 · 19/06/2026 13:56</div>
 
   </div>
 </div>
@@ -2017,8 +2017,8 @@ function renderList() {
       if (e.target.closest(".item-pill")) return;
       // Zone 3: circle/chk → toggle done
       if (e.target.closest(".chk")) { toggleItem(id); return; }
-      // Zone 4: due chip or cal link → let them navigate naturally
-      if (e.target.closest(".due-chip") || e.target.closest(".cal-link") || e.target.closest(".alarm-link")) return;
+      // Zone 4: due chip, cal link, or item link → let them navigate naturally
+      if (e.target.closest(".due-chip") || e.target.closest(".cal-link") || e.target.closest(".alarm-link") || e.target.closest(".item-link")) return;
       // Zone 5: everything else on detail lists → open notes sheet
       if (currentList === "testdue" || currentList === "todo" || currentList === "personal" || currentList === "testgrocery" || currentList === "grocery" || currentList === "travel") { openItemSheet(id); return; }
       // Default: toggle done
@@ -2091,6 +2091,9 @@ function cardHTML(item, c) {
   var noteSnip = isDetail && item.notes
     ? "<div style='font-size:11px;color:#8A7A5A;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>&#x1F4DD; " + esc(item.notes.substring(0,40)) + (item.notes.length>40?"…":"") + "</div>"
     : "";
+  var linkChip = (isDetail && item.link)
+    ? "<a href='" + esc(item.link) + "' target='_blank' rel='noopener' class='item-link' style='display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#3B6FE0;margin-top:3px;text-decoration:none;font-weight:600'>&#x1F517; Open link</a>"
+    : "";
   // Highlight items recently added by the partner and not yet seen
   var unseen = getUnseen(currentList);
   var isNew = !!unseen[item.id];
@@ -2103,7 +2106,7 @@ function cardHTML(item, c) {
       "<span class='item-name'>" + esc(item.name) + "</span>" + newBadge +
       (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + (calBtn ? "&nbsp;" + calBtn : "") + "</div>" : "") +
 
-      noteSnip +
+      noteSnip + linkChip +
     "</div>" +
     "<span class='item-pill' style='background:" + c.bg + ";color:" + c.fg + "' title='Tap to change category'>" + c.emoji + " " + c.name + "</span>" +
     "<button class='del-btn'>&#x2715;</button></div>";
@@ -4454,6 +4457,7 @@ function openItemSheet(itemId) {
   _sheetItemId = itemId;
   document.getElementById("itemSheetNameInput").value = item.name || "";
   document.getElementById("itemSheetNotes").value     = item.notes || "";
+  document.getElementById("itemSheetLink").value      = item.link || "";
   // Due date only relevant for task-type lists
   var dueRow = document.getElementById("itemSheetDueRow");
   var isTask = currentList === "todo" || currentList === "personal" || currentList === "testdue";
@@ -4591,6 +4595,10 @@ window.addEventListener("DOMContentLoaded", function() {
     if (!newName) { toast("Name can't be empty"); return; }
     item.name  = newName;
     item.notes = document.getElementById("itemSheetNotes").value.trim();
+    var linkVal = document.getElementById("itemSheetLink").value.trim();
+    // Add https:// if a bare domain/path was pasted without a scheme
+    if (linkVal && !/^https?:\/\//i.test(linkVal) && !/^[a-z]+:/i.test(linkVal)) linkVal = "https://" + linkVal;
+    item.link = linkVal || null;
     var isTask = currentList === "todo" || currentList === "personal" || currentList === "testdue";
     if (isTask) {
       var dueVal = document.getElementById("itemSheetDueInput").value;
@@ -7885,6 +7893,10 @@ if ("serviceWorker" in navigator && !_isPreview) {
   <div style="margin-bottom:12px">
     <div style="font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Notes</div>
     <textarea id="itemSheetNotes" placeholder="Add notes..." rows="4" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#3A3328;font-family:inherit;font-size:14px;resize:vertical;outline:none;line-height:1.5"></textarea>
+  </div>
+  <div style="margin-bottom:12px">
+    <div style="font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Link (optional)</div>
+    <input id="itemSheetLink" type="url" inputmode="url" placeholder="Paste a link (e.g. OneDrive file)" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#3A3328;font-family:inherit;font-size:14px;outline:none">
   </div>
 
   <button id="itemSheetSave" style="width:100%;padding:13px;border:none;background:#3B6FE0;color:#fff;border-radius:11px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation">Save</button>
