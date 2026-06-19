@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v213 · 19/06/2026 12:35</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v214 · 19/06/2026 12:59</div>
 
   </div>
 </div>
@@ -751,7 +751,10 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
       <button id="collapseAllLink" style="border:none;background:none;color:#A0855A;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#9650;&#9660; Collapse all</button>
-      <button id="importLink" style="border:none;background:none;color:#A0855A;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#x2B07; Import list</button>
+      <div style="display:flex;gap:10px">
+        <button id="printLink" style="border:none;background:none;color:#A0855A;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#x1F5A8; Print</button>
+        <button id="importLink" style="border:none;background:none;color:#A0855A;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#x2B07; Import list</button>
+      </div>
     </div>
   </div>
 
@@ -4494,6 +4497,52 @@ window.addEventListener("DOMContentLoaded", function() {
   }
   var importLink = document.getElementById("importLink");
   if (importLink) importLink.addEventListener("click", openImport);
+
+  // ── Print current list ───────────────────────────────────
+  var printLink = document.getElementById("printLink");
+  if (printLink) printLink.addEventListener("click", function() {
+    if (currentList === "notes") return;
+    var listName = (LIST_TYPES[currentList] ? LIST_TYPES[currentList].name : "List").replace(/&#x[0-9A-Fa-f]+;\s*/g, "").trim();
+    var cats = getCats();
+    var items = getItems().filter(function(x){ return x && !x.done; });
+    var groups = {};
+    items.forEach(function(it){ (groups[it.catId] = groups[it.catId] || []).push(it); });
+    var isTask = currentList === "todo" || currentList === "personal";
+    var now = new Date();
+    var dateStr = now.toLocaleDateString("en-IE", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+
+    var body = "";
+    cats.forEach(function(c){
+      var gi = groups[c.id];
+      if (!gi || !gi.length) return;
+      body += "<h2>" + c.emoji + " " + esc(c.name) + "</h2><ul>";
+      gi.forEach(function(it){
+        var due = (isTask && it.dueDate) ? " <span class='due'>(due " + it.dueDate + ")</span>" : "";
+        var note = it.notes ? "<div class='note'>" + esc(it.notes) + "</div>" : "";
+        body += "<li><span class='box'></span><span class='nm'>" + esc(it.name) + due + "</span>" + note + "</li>";
+      });
+      body += "</ul>";
+    });
+    if (!body) body = "<p class='empty'>No items to print.</p>";
+
+    var doc = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + esc(listName) + "</title><style>" +
+      "*{box-sizing:border-box}body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;margin:28px;line-height:1.5}" +
+      "h1{font-size:22px;margin:0 0 2px}.sub{color:#666;font-size:13px;margin-bottom:18px}" +
+      "h2{font-size:15px;margin:18px 0 6px;padding-bottom:4px;border-bottom:1.5px solid #ddd}" +
+      "ul{list-style:none;margin:0;padding:0}li{display:flex;align-items:flex-start;gap:9px;padding:5px 0;border-bottom:1px dotted #e2e2e2}" +
+      ".box{flex:0 0 auto;width:15px;height:15px;border:1.5px solid #888;border-radius:3px;margin-top:2px}" +
+      ".nm{font-size:14px}.due{color:#777;font-size:12px}.note{color:#777;font-size:12px;margin-top:1px}" +
+      ".empty{color:#888}@media print{body{margin:14px}}" +
+      "</style></head><body>" +
+      "<h1>" + esc(listName) + "</h1><div class='sub'>" + dateStr + "</div>" +
+      body +
+      "<script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>" +
+      "</body></html>";
+
+    var w = window.open("", "_blank");
+    if (!w) { toast("Allow pop-ups to print"); return; }
+    w.document.open(); w.document.write(doc); w.document.close();
+  });
 
   // ── Expand / collapse all categories ──────────────────────
   var collapseAllLink = document.getElementById("collapseAllLink");
