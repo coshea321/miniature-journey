@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v211 · 19/06/2026 12:12</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v212 · 19/06/2026 12:17</div>
 
   </div>
 </div>
@@ -3361,8 +3361,15 @@ document.getElementById("exportBtn").addEventListener("click", function() {
   var tzOffset=now.getTimezoneOffset(), tzSign=tzOffset<=0?"+":"-", tzAbs=Math.abs(tzOffset);
   var tzStr=tzSign+pad(Math.floor(tzAbs/60))+":"+pad(tzAbs%60);
   var localIso=localDate+"T"+localTime+tzStr;
+  // EXPORT COVERAGE (check on each release that new data types are included):
+  //  lists (items+hist), notes, customCats — per list
+  //  workouts (incl. bodyweight + bp), baby (incl. growth, medicine, milestones,
+  //  teeth, bags, babySex), action_log (incl. cardio), food_log, food_notes,
+  //  saved_meals, cal_goal, secVisible, syncPrefs.
+  //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
+  //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*.
   var exportData = {
-    version:4, exportedAt:localIso,
+    version:5, exportedAt:localIso,
     lists:{}, notes:{}, customCats:{},
     workouts:getWD(), baby:getBD(),
     action_log:getActionLog(), food_log:getFoodLog(),
@@ -3416,6 +3423,8 @@ document.getElementById("importFile").addEventListener("change", function(e) {
         function mArr(a,b,key){var s={};a.forEach(function(x){if(x)s[x[key]]=true;});return a.concat((b||[]).filter(function(x){return x&&!s[x[key]];}));}
         bd.growth=mArr(bd.growth||[],bd2.growth,"date"); bd.medicine=mArr(bd.medicine||[],bd2.medicine,"id");
         bd.milestones=mArr(bd.milestones||[],bd2.milestones,"id"); bd.teeth=Object.assign({},bd2.teeth||{},bd.teeth||{});
+        if(bd2.babySex && !bd.babySex) bd.babySex=bd2.babySex;
+        if(Array.isArray(bd2.bags) && (!Array.isArray(bd.bags)||!bd.bags.length)) bd.bags=bd2.bags;
         saveBD(bd);
       }
       if(Array.isArray(data.action_log)){var al=getActionLog(),alIds={};al.forEach(function(x){alIds[x.id]=true;});var newAl=data.action_log.filter(function(x){return x&&!alIds[x.id];});if(newAl.length)storeSet("fl4_action_log",newAl.concat(al));}
