@@ -699,11 +699,11 @@ body.train-mode #toast{background:#3A3328}
 
     <!-- Week strip -->
     <div class="home-sec-hdr" style="margin-top:14px">
-      <span class="home-sec-title">&#x1F4AA; This week</span>
+      <span class="home-sec-title">&#x1F4AA; Training this week</span>
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v212 · 19/06/2026 12:17</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v213 · 19/06/2026 12:35</div>
 
   </div>
 </div>
@@ -5776,26 +5776,10 @@ function renderWeekStrip() {
       });
     }
 
-    // Check if any list had items added or completed on this day (rough: items whose id date matches)
-    loadListData("grocery"); loadListData("todo");
-    var hasListActivity = false;
-    ["grocery","todo"].forEach(function(lt) {
-      var hist = (listData[lt]||{hist:[]}).hist;
-      for (var h = 0; h < hist.length; h++) {
-        if (hist[h].lastUsed) {
-          var hd = new Date(hist[h].lastUsed);
-          var hdStr = hd.getFullYear() + "-" + t2(hd.getMonth()+1) + "-" + t2(hd.getDate());
-          if (hdStr === dateStr) { hasListActivity = true; break; }
-        }
-      }
-    });
-
     var dotClass = "wk-dot";
     var dotInner = "";
-    if (hasWkt && hasListActivity) { dotClass += " worked has-list"; dotInner = "&#x2605;"; }
-    else if (hasWkt)               { dotClass += " worked";          dotInner = "&#x2714;"; }
-    else if (hasListActivity)      { dotClass += " has-list";        dotInner = "&#x2714;"; }
-    if (isToday)                   { dotClass += " today-ring"; }
+    if (hasWkt) { dotClass += " worked"; dotInner = "&#x1F4AA;"; }
+    if (isToday) { dotClass += " today-ring"; }
 
     html += "<div class='wk-day'>" +
       "<span class='wk-label"+(isToday?" today":"")+"'>"+label+"</span>" +
