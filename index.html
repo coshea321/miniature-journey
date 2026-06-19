@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v209 · 18/06/2026 19:35</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v210 · 19/06/2026 11:40</div>
 
   </div>
 </div>
@@ -748,6 +748,9 @@ body.train-mode #toast{background:#3A3328}
 
         <button id="dueClearBtn" aria-label="Clear due date" style="border:none;background:none;color:#A0855A;font-size:12px;cursor:pointer;padding:2px 4px;touch-action:manipulation">✕ Clear</button>
       </div>
+    </div>
+    <div style="text-align:right;margin-top:6px">
+      <button id="importLink" style="border:none;background:none;color:#A0855A;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#x2B07; Import list</button>
     </div>
   </div>
 
@@ -4447,6 +4450,49 @@ window.addEventListener("DOMContentLoaded", function() {
   document.getElementById("itemSheetDueClear").addEventListener("click", function() {
     document.getElementById("itemSheetDueInput").value = "";
   });
+
+  // ── List import ──────────────────────────────────────────
+  function openImport() {
+    if (currentList === "notes") return;
+    document.getElementById("importText").value = "";
+    document.getElementById("importSheet").style.display    = "block";
+    document.getElementById("importBackdrop").style.display = "block";
+    document.body.style.overflow = "hidden";
+    setTimeout(function(){ document.getElementById("importText").focus(); }, 150);
+  }
+  function closeImport() {
+    document.getElementById("importSheet").style.display    = "none";
+    document.getElementById("importBackdrop").style.display = "none";
+    document.body.style.overflow = "";
+  }
+  var importLink = document.getElementById("importLink");
+  if (importLink) importLink.addEventListener("click", openImport);
+  document.getElementById("importClose").addEventListener("click", closeImport);
+  document.getElementById("importCancel").addEventListener("click", closeImport);
+  document.getElementById("importBackdrop").addEventListener("click", closeImport);
+  document.getElementById("importDoBtn").addEventListener("click", function() {
+    var raw = document.getElementById("importText").value;
+    var lines = raw.split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
+    if (!lines.length) { toast("Nothing to import"); return; }
+    var items = getItems();
+    var existingNames = {};
+    items.forEach(function(it){ if (it && !it.done) existingNames[it.name.toLowerCase()] = true; });
+    var added = 0, skipped = 0;
+    lines.forEach(function(name) {
+      var clean = name.replace(/\s+[x~]\s*\d+$/i, "").replace(/\s*\(.*?\)\s*$/, "").trim();
+      if (!clean) clean = name;
+      if (existingNames[clean.toLowerCase()]) { skipped++; return; }
+      existingNames[clean.toLowerCase()] = true;
+      var catId = detectCat(clean);
+      items.unshift({ id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser });
+      addToHist(clean, catId);
+      added++;
+    });
+    listData[currentList].items = items;
+    saveCurrentList(); renderList(); closeImport();
+    toast("&#x2B07; Added " + added + " item" + (added!==1?"s":"") + (skipped ? " (" + skipped + " already there)" : ""));
+  });
+
   document.getElementById("itemSheetSave").addEventListener("click", function() {
     if (!_sheetItemId) return;
     var items = getItems(), item = items.find(function(x){ return x.id === _sheetItemId; });
@@ -7770,6 +7816,20 @@ if ("serviceWorker" in navigator && !_isPreview) {
   <button id="itemSheetSave" style="width:100%;padding:13px;border:none;background:#3B6FE0;color:#fff;border-radius:11px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation">Save</button>
 </div>
 <div id="itemSheetBackdrop" style="display:none;position:fixed;inset:0;z-index:699;background:rgba(0,0,0,.5)"></div>
+
+<div id="importBackdrop" style="display:none;position:fixed;inset:0;z-index:709;background:rgba(0,0,0,.5)"></div>
+<div id="importSheet" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:710;background:#fff;border-top:1.5px solid #E0DCD4;box-shadow:0 -4px 20px rgba(0,0,0,.12);border-radius:18px 18px 0 0;padding:18px 16px 24px;max-width:480px;margin:0 auto;max-height:80vh;overflow-y:auto">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+    <div style="flex:1;font-size:13px;font-weight:700;color:#5A6455;text-transform:uppercase;letter-spacing:.5px">Import items</div>
+    <button id="importClose" aria-label="Close" style="border:none;background:none;color:#8A7A5A;font-size:20px;cursor:pointer;padding:0 4px;touch-action:manipulation">&#x2715;</button>
+  </div>
+  <div style="font-size:13px;color:#8A7A5A;margin-bottom:10px;line-height:1.5">Paste or type one item per line. They'll be added to the current list and auto-sorted into categories.</div>
+  <textarea id="importText" rows="10" placeholder="Salmon fillets x3&#10;Broccoli&#10;Greek yogurt&#10;Quinoa&#10;..." style="width:100%;box-sizing:border-box;padding:11px 13px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;resize:vertical;outline:none;line-height:1.6"></textarea>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button id="importDoBtn" style="flex:1;padding:12px;background:#2D6B35;border:none;border-radius:10px;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer">Add items</button>
+    <button id="importCancel" style="padding:12px 18px;background:#F0EBE0;border:none;border-radius:10px;color:#8A7A5A;font-family:inherit;font-size:14px;cursor:pointer">Cancel</button>
+  </div>
+</div>
 
 </body>
 </html>
