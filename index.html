@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v215 · 19/06/2026 13:56</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v216 · 20/06/2026 18:00</div>
 
   </div>
 </div>
@@ -752,8 +752,15 @@ body.train-mode #toast{background:#3A3328}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
       <button id="collapseAllLink" style="border:none;background:none;color:#A0855A;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#9650;&#9660; Collapse all</button>
       <div style="display:flex;gap:10px">
+        <button id="searchLink" style="border:none;background:none;color:#A0855A;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#x1F50D; Search</button>
         <button id="printLink" style="border:none;background:none;color:#A0855A;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#x1F5A8; Print</button>
         <button id="importLink" style="border:none;background:none;color:#A0855A;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#x2B07; Import list</button>
+      </div>
+    </div>
+    <div id="searchRow" style="display:none;margin-top:8px">
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="listSearchInput" type="text" placeholder="Search this list..." autocomplete="off" style="flex:1;padding:9px 13px;border:2px solid #E0D0B0;border-radius:9px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;outline:none;box-sizing:border-box">
+        <button id="searchClearBtn" aria-label="Clear search" style="border:none;background:#F0EBE0;color:#8A7A5A;border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;cursor:pointer">Clear</button>
       </div>
     </div>
   </div>
@@ -1815,6 +1822,12 @@ document.getElementById("typeBar").addEventListener("click", function(e) {
   applyListTheme();
   updateDueDateRowVisibility();
   clearUnseen(currentList);
+  // Reset any active search when switching lists
+  _listSearchQuery = "";
+  var _sr = document.getElementById("searchRow");
+  if (_sr) _sr.style.display = "none";
+  var _si = document.getElementById("listSearchInput");
+  if (_si) _si.value = "";
   var tabNotes = document.getElementById("tabNotes");
   if (tabNotes) tabNotes.style.display = (currentList === "grocery" || currentList === "travel" || currentList === "todo" || currentList === "personal" || currentList === "testdue" || currentList === "testgrocery") ? "none" : "";
 });
@@ -1937,8 +1950,27 @@ function addToHist(name, catId) {
 // ============================================================
 // RENDER LIST
 // ============================================================
+var _listSearchQuery = "";
+// Fuzzy match: true if all query chars appear in order in the text (subsequence),
+// or the query is a direct substring. Case-insensitive, spaces ignored in query.
+function fuzzyMatch(query, text) {
+  if (!query) return true;
+  var q = query.toLowerCase().replace(/\s+/g, "");
+  var t = (text || "").toLowerCase();
+  if (t.indexOf(query.toLowerCase()) !== -1) return true; // fast substring path
+  var qi = 0;
+  for (var ti = 0; ti < t.length && qi < q.length; ti++) {
+    if (t[ti] === q[qi]) qi++;
+  }
+  return qi === q.length;
+}
+
 function renderList() {
   var items = getItems();
+  // Apply active search filter (fuzzy)
+  if (_listSearchQuery) {
+    items = items.filter(function(it){ return it && fuzzyMatch(_listSearchQuery, it.name + " " + (it.notes||"")); });
+  }
   var lt = LIST_TYPES[currentList];
   var active=[], done=[];
   for (var i=0;i<items.length;i++){ (items[i].done?done:active).push(items[i]); }
@@ -1959,6 +1991,7 @@ function renderList() {
     var catKey = "fl4_catOpen_"+currentList+"_"+c.id;
     var catStored = storeGet(catKey);
     var catOpen = (catStored === null) ? true : !!catStored; // default open
+    if (_listSearchQuery) catOpen = true; // always expand while searching
     html+="<div class='sec-hdr cat-toggle' data-catkey='"+catKey+"' style='cursor:pointer'>" +
       "<span class='done-toggle-arrow"+(catOpen?"":" collapsed")+"' style='margin-right:4px'>&#9660;</span>" +
       "<span>"+c.emoji+"&ensp;<span class='sec-name'>"+c.name+"</span></span>" +
@@ -4502,7 +4535,32 @@ window.addEventListener("DOMContentLoaded", function() {
   var importLink = document.getElementById("importLink");
   if (importLink) importLink.addEventListener("click", openImport);
 
-  // ── Print current list ───────────────────────────────────
+  // ── List search (toggleable, fuzzy) ──────────────────────
+  var searchLink = document.getElementById("searchLink");
+  var searchRow = document.getElementById("searchRow");
+  var searchInput = document.getElementById("listSearchInput");
+  if (searchLink && searchRow && searchInput) {
+    searchLink.addEventListener("click", function() {
+      var showing = searchRow.style.display !== "none";
+      if (showing) {
+        searchRow.style.display = "none";
+        _listSearchQuery = ""; searchInput.value = "";
+        renderList();
+      } else {
+        searchRow.style.display = "block";
+        setTimeout(function(){ searchInput.focus(); }, 100);
+      }
+    });
+    searchInput.addEventListener("input", function() {
+      _listSearchQuery = searchInput.value.trim();
+      renderList();
+    });
+    document.getElementById("searchClearBtn").addEventListener("click", function() {
+      searchInput.value = ""; _listSearchQuery = "";
+      renderList(); searchInput.focus();
+    });
+  }
+
   var printLink = document.getElementById("printLink");
   if (printLink) printLink.addEventListener("click", function() {
     if (currentList === "notes") return;
