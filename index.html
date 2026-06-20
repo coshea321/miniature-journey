@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v216 · 20/06/2026 18:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v217 · 20/06/2026 18:45</div>
 
   </div>
 </div>
@@ -1967,7 +1967,7 @@ function fuzzyMatch(query, text) {
 
 function renderList() {
   var items = getItems();
-  // Apply active search filter (fuzzy)
+  // Apply active search filter (fuzzy) — matches active and done items
   if (_listSearchQuery) {
     items = items.filter(function(it){ return it && fuzzyMatch(_listSearchQuery, it.name + " " + (it.notes||"")); });
   }
@@ -1979,6 +1979,13 @@ function renderList() {
   elListBadge.textContent = active.length||"";
   elClearBtn.style.display  = done.length ? "block" : "none";
   elReopenBtn.style.display = done.length ? "block" : "none";
+  if (currentList === "travel") {
+    elClearBtn.innerHTML  = "&#x2715; Clear packed";
+    elReopenBtn.innerHTML = "&#x21BA; Unpack all";
+  } else {
+    elClearBtn.innerHTML  = "&#x2715; Clear completed";
+    elReopenBtn.innerHTML = "&#x21BA; Reopen all";
+  }
   if (!items.length) {
     elListC.innerHTML = "<div class='empty'><div class='empty-ico'>"+lt.emptyIco+"</div><div class='empty-title'>"+lt.emptyTitle+"</div><div class='empty-sub'>"+lt.emptySub+"</div></div>";
     return;
@@ -2005,7 +2012,7 @@ function renderList() {
     var isOpen = (doneOpen === null) ? true : !!doneOpen; // default open
     html+="<div class='done-toggle' id='doneToggle'>" +
       "<span class='done-toggle-arrow"+(isOpen?"":" collapsed")+"' id='doneArrow'>&#9660;</span>" +
-      "<span class='sec-name' style='color:#7A8772'>&#10003; Done</span>" +
+      "<span class='sec-name' style='color:#7A8772'>&#10003; "+(currentList==="travel"?"Packed":"Done")+"</span>" +
       "<div class='sec-line'></div>" +
       "<span class='sec-count'>"+done.length+"</span>" +
       "</div>";
