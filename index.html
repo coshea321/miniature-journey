@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v222 · 21/06/2026 20:11</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v224 · 21/06/2026 20:59</div>
 
   </div>
 </div>
@@ -2082,12 +2082,53 @@ function renderList() {
     btn.addEventListener("click", function(e){
       e.stopPropagation();
       var tag = btn.dataset.recipe;
-      var count = getItems().filter(function(it){ return it && it.recipe === tag && !it.done; }).length;
-      confirmDialog("Remove all " + count + " " + tag + " item" + (count!==1?"s":"") + "?", function(){
-        listData[currentList].items = getItems().filter(function(it){ return !(it && it.recipe === tag && !it.done); });
+      var count = getItems().filter(function(it){ return it && it.recipe === tag; }).length;
+      var addedCount = getItems().filter(function(it){ return it && it.recipe === tag && it._recipeAdded; }).length;
+
+      function doClear(deleteAdded) {
+        var kept = [];
+        getItems().forEach(function(it){
+          if (!it || it.recipe !== tag) { kept.push(it); return; }
+          if (it._recipeAdded) {
+            if (deleteAdded) { return; } // remove entirely
+            // Keep: just drop the recipe markers, leave as a normal active item
+            it.recipe = null; delete it._recipePrev; delete it._recipeAdded;
+            kept.push(it); return;
+          }
+          // Pre-existed → restore prior state, drop the tag
+          var prev = it._recipePrev;
+          if (prev) { it.done = prev.done; it.catId = prev.catId; it.recipe = prev.recipe || null; }
+          else { it.recipe = null; }
+          delete it._recipePrev; delete it._recipeAdded;
+          kept.push(it);
+        });
+        listData[currentList].items = kept;
         saveCurrentList(); renderList();
-        toast("Cleared " + tag + " items");
-      });
+        toast("Cleared " + tag + " recipe");
+      }
+
+      // Three-way choice: delete the added items, keep them, or cancel
+      var ov = document.createElement("div");
+      ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:900;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box";
+      ov.setAttribute("role","alertdialog"); ov.setAttribute("aria-modal","true");
+      var box = document.createElement("div");
+      box.style.cssText = "background:#fff;border-radius:14px;padding:20px;width:100%;max-width:330px;box-shadow:0 8px 32px rgba(0,0,0,.2)";
+      var msg = "Clear the <b>" + esc(tag) + "</b> recipe?<br><span style='font-size:13px;color:#8A7A5A'>" +
+        "Items it tagged that were already on your list will revert to how they were. " +
+        (addedCount ? ("The " + addedCount + " item" + (addedCount!==1?"s":"") + " it added new — keep or delete?") : "Nothing new was added.") + "</span>";
+      box.innerHTML = "<div style='font-size:15px;color:#2A2010;line-height:1.5;margin-bottom:16px'>" + msg + "</div>" +
+        "<div style='display:flex;flex-direction:column;gap:8px'>" +
+          (addedCount ? "<button id='_rcDel' style='padding:11px;border:none;background:#C03030;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Delete added items</button>" +
+                        "<button id='_rcKeep' style='padding:11px;border:1.5px solid #2D6B35;background:#fff;color:#2D6B35;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Keep added items</button>"
+                      : "<button id='_rcDel' style='padding:11px;border:none;background:#2D6B35;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Clear recipe</button>") +
+          "<button id='_rcCancel' style='padding:11px;border:1.5px solid #E0D0B0;background:none;border-radius:9px;font-family:inherit;font-size:14px;cursor:pointer'>Cancel</button>" +
+        "</div>";
+      ov.appendChild(box); document.body.appendChild(ov);
+      var close = function(){ document.body.removeChild(ov); };
+      document.getElementById("_rcDel").addEventListener("click", function(){ close(); doClear(true); });
+      var keepBtn = document.getElementById("_rcKeep");
+      if (keepBtn) keepBtn.addEventListener("click", function(){ close(); doClear(false); });
+      document.getElementById("_rcCancel").addEventListener("click", close);
     });
   });
 
@@ -4687,24 +4728,40 @@ window.addEventListener("DOMContentLoaded", function() {
     var lines = raw.split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
     if (!lines.length) { toast("Nothing to import"); return; }
     var items = getItems();
-    var existingNames = {};
-    items.forEach(function(it){ if (it && !it.done) existingNames[it.name.toLowerCase()] = true; });
-    var added = 0, skipped = 0;
+    // Index existing items by lowercased name (first match wins)
+    var byName = {};
+    items.forEach(function(it){ if (it){ var k=(it.name||"").trim().toLowerCase(); if(!(k in byName)) byName[k]=it; } });
+    var added = 0, tagged = 0;
     lines.forEach(function(name) {
       var clean = name.replace(/\s+[x~]\s*\d+$/i, "").replace(/\s*\(.*?\)\s*$/, "").trim();
       if (!clean) clean = name;
-      if (existingNames[clean.toLowerCase()]) { skipped++; return; }
-      existingNames[clean.toLowerCase()] = true;
-      var catId = detectCat(clean);
-      var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser };
-      if (tag) rec.recipe = tag;
-      items.unshift(rec);
-      addToHist(clean, catId);
-      added++;
+      var key = clean.toLowerCase();
+      var existing = byName[key];
+      if (existing) {
+        // Tag the existing item, recording its prior state so Clear can restore it
+        if (!existing._recipePrev) {
+          existing._recipePrev = { done: !!existing.done, catId: existing.catId, recipe: existing.recipe || null };
+        }
+        existing.recipe = tag || existing.recipe; // new tag replaces old
+        existing._recipeAdded = false;            // pre-existed: restore, don't delete
+        if (existing.done) existing.done = false; // un-check from Done/Packed
+        if (tag) existing.catId = detectCat(clean); // recipe's category wins
+        tagged++;
+      } else {
+        var catId = detectCat(clean);
+        var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser };
+        if (tag) { rec.recipe = tag; rec._recipeAdded = true; }
+        items.unshift(rec);
+        byName[key] = rec;
+        addToHist(clean, catId);
+        added++;
+      }
     });
     listData[currentList].items = items;
     saveCurrentList(); renderList(); closeImport();
-    toast("&#x2B07; Added " + added + " item" + (added!==1?"s":"") + (skipped ? " (" + skipped + " already there)" : ""));
+    var msg = "&#x2B07; Added " + added + " item" + (added!==1?"s":"");
+    if (tagged) msg += ", tagged " + tagged + " existing";
+    toast(msg);
   });
 
   document.getElementById("itemSheetSave").addEventListener("click", function() {
