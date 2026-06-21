@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v224 · 21/06/2026 20:59</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v225 · 21/06/2026 22:55</div>
 
   </div>
 </div>
@@ -3503,7 +3503,7 @@ document.getElementById("exportBtn").addEventListener("click", function() {
   //  lists (items+hist), notes, customCats — per list
   //  workouts (incl. bodyweight + bp), baby (incl. growth, medicine, milestones,
   //  teeth, bags, babySex), action_log (incl. cardio), food_log, food_notes,
-  //  saved_meals, cal_goal, secVisible, syncPrefs.
+  //  saved_meals, cal_goal, secVisible, syncPrefs, recipes (list import recipes).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*.
   var exportData = {
@@ -3513,6 +3513,7 @@ document.getElementById("exportBtn").addEventListener("click", function() {
     action_log:getActionLog(), food_log:getFoodLog(),
     food_notes:storeGet("fl4_food_notes")||{},
     saved_meals:storeGet("fl4_saved_meals")||[],
+    recipes:storeGet("fl4_recipes")||[],
     cal_goal:storeGet("fl4_cal_goal")||2000,
     secVisible:storeGet("fl4_secVisible")||{},
     syncPrefs:storeGet("fl4_syncPrefs")||{}
@@ -3569,6 +3570,7 @@ document.getElementById("importFile").addEventListener("change", function(e) {
       if(Array.isArray(data.food_log)){var fl=getFoodLog(),flIds={};fl.forEach(function(x){flIds[x.id]=true;});var newFl=data.food_log.filter(function(x){return x&&!flIds[x.id];});if(newFl.length)storeSet("fl4_food_log",newFl.concat(fl));}
       if(data.food_notes){var fn=storeGet("fl4_food_notes")||{};Object.keys(data.food_notes).forEach(function(k){if(!fn[k])fn[k]=data.food_notes[k];});storeSet("fl4_food_notes",fn);}
       if(Array.isArray(data.saved_meals)){var sm=storeGet("fl4_saved_meals")||[],smIds={};sm.forEach(function(m){smIds[m.id]=true;});storeSet("fl4_saved_meals",sm.concat(data.saved_meals.filter(function(m){return m&&!smIds[m.id];})));}
+      if(Array.isArray(data.recipes)){var rc=storeGet("fl4_recipes")||[],rcN={};rc.forEach(function(m){if(m)rcN[m.name.toLowerCase()]=true;});storeSet("fl4_recipes",rc.concat(data.recipes.filter(function(m){return m&&m.name&&!rcN[m.name.toLowerCase()];})));}
       if(data.cal_goal&&!storeGet("fl4_cal_goal"))storeSet("fl4_cal_goal",data.cal_goal);
       renderList(); toast("Imported: "+imported.lists+" list items");
     } catch(err){ toast("Import failed: "+err.message); }
@@ -4618,10 +4620,58 @@ window.addEventListener("DOMContentLoaded", function() {
   });
 
   // ── List import ──────────────────────────────────────────
+  // ── Saved recipes (Grocery only) ─────────────────────────
+  function getRecipes() { return storeGet("fl4_recipes") || []; }
+  function saveRecipes(r) { storeSet("fl4_recipes", r); }
+  function upsertRecipe(name, lines) {
+    if (!name || !lines.length) return;
+    var r = getRecipes();
+    var i = r.findIndex(function(x){ return x.name.toLowerCase() === name.toLowerCase(); });
+    var rec = { name: name, lines: lines, updated: Date.now() };
+    if (i >= 0) r[i] = rec; else r.unshift(rec);
+    saveRecipes(r);
+  }
+  function renderSavedRecipes() {
+    var wrap = document.getElementById("savedRecipesWrap");
+    var list = document.getElementById("savedRecipesList");
+    if (!wrap || !list) return;
+    // Grocery only
+    if (currentList !== "grocery") { wrap.style.display = "none"; return; }
+    var r = getRecipes();
+    if (!r.length) { wrap.style.display = "none"; return; }
+    wrap.style.display = "block";
+    list.innerHTML = "";
+    r.forEach(function(rec){
+      var chip = document.createElement("span");
+      chip.style.cssText = "display:inline-flex;align-items:center;gap:5px;background:#E6DBF5;color:#6A3CB0;border-radius:14px;padding:5px 6px 5px 11px;font-size:13px;font-weight:600";
+      var label = document.createElement("button");
+      label.textContent = "🍽 " + rec.name;
+      label.style.cssText = "border:none;background:none;color:#6A3CB0;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:0";
+      label.addEventListener("click", function(){
+        document.getElementById("importTag").value = rec.name;
+        document.getElementById("importText").value = rec.lines.join("\n");
+      });
+      var del = document.createElement("button");
+      del.innerHTML = "&#x2715;";
+      del.setAttribute("aria-label", "Delete recipe " + rec.name);
+      del.style.cssText = "border:none;background:rgba(106,60,176,.15);color:#6A3CB0;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0";
+      del.addEventListener("click", function(e){
+        e.stopPropagation();
+        confirmDialog("Delete saved recipe \"" + rec.name + "\"?", function(){
+          saveRecipes(getRecipes().filter(function(x){ return x.name.toLowerCase() !== rec.name.toLowerCase(); }));
+          renderSavedRecipes();
+        });
+      });
+      chip.appendChild(label); chip.appendChild(del);
+      list.appendChild(chip);
+    });
+  }
+
   function openImport() {
     if (currentList === "notes") return;
     document.getElementById("importText").value = "";
     var _itag = document.getElementById("importTag"); if (_itag) _itag.value = "";
+    renderSavedRecipes();
     document.getElementById("importSheet").style.display    = "block";
     document.getElementById("importBackdrop").style.display = "block";
     document.body.style.overflow = "hidden";
@@ -4732,9 +4782,11 @@ window.addEventListener("DOMContentLoaded", function() {
     var byName = {};
     items.forEach(function(it){ if (it){ var k=(it.name||"").trim().toLowerCase(); if(!(k in byName)) byName[k]=it; } });
     var added = 0, tagged = 0;
+    var recipeLines = [];
     lines.forEach(function(name) {
       var clean = name.replace(/\s+[x~]\s*\d+$/i, "").replace(/\s*\(.*?\)\s*$/, "").trim();
       if (!clean) clean = name;
+      if (tag) recipeLines.push(clean);
       var key = clean.toLowerCase();
       var existing = byName[key];
       if (existing) {
@@ -4758,6 +4810,10 @@ window.addEventListener("DOMContentLoaded", function() {
       }
     });
     listData[currentList].items = items;
+    // Auto-save the recipe for reuse (Grocery only)
+    if (tag && currentList === "grocery" && recipeLines.length) {
+      upsertRecipe(tag, recipeLines);
+    }
     saveCurrentList(); renderList(); closeImport();
     var msg = "&#x2B07; Added " + added + " item" + (added!==1?"s":"");
     if (tagged) msg += ", tagged " + tagged + " existing";
@@ -8087,6 +8143,10 @@ if ("serviceWorker" in navigator && !_isPreview) {
     <button id="importClose" aria-label="Close" style="border:none;background:none;color:#8A7A5A;font-size:20px;cursor:pointer;padding:0 4px;touch-action:manipulation">&#x2715;</button>
   </div>
   <div style="font-size:13px;color:#8A7A5A;margin-bottom:10px;line-height:1.5">Paste or type one item per line. They'll be added to the current list and auto-sorted into categories.</div>
+  <div id="savedRecipesWrap" style="display:none;margin-bottom:12px">
+    <div style="font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Saved recipes &middot; tap to load</div>
+    <div id="savedRecipesList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+  </div>
   <input id="importTag" type="text" placeholder="Recipe tag (optional, e.g. Bolognese)" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;outline:none;margin-bottom:8px">
   <textarea id="importText" rows="10" placeholder="Salmon fillets x3&#10;Broccoli&#10;Greek yogurt&#10;Quinoa&#10;..." style="width:100%;box-sizing:border-box;padding:11px 13px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;resize:vertical;outline:none;line-height:1.6"></textarea>
   <div style="display:flex;gap:8px;margin-top:12px">
