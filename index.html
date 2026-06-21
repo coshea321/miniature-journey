@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v220 · 21/06/2026 11:06</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v222 · 21/06/2026 20:11</div>
 
   </div>
 </div>
@@ -2011,6 +2011,18 @@ function renderList() {
   var groups={};
   for (var i=0;i<active.length;i++) { var cid=active[i].catId||"other"; if (!groups[cid]) groups[cid]=[]; groups[cid].push(active[i]); }
   var html="", cats=getCats();
+  // Recipe-tag banner: if any active items carry a recipe tag, offer one-tap clear
+  var _recipeTags = {};
+  active.forEach(function(it){ if (it && it.recipe) _recipeTags[it.recipe] = (_recipeTags[it.recipe]||0)+1; });
+  var _rtKeys = Object.keys(_recipeTags);
+  if (_rtKeys.length) {
+    _rtKeys.forEach(function(tag){
+      html += "<div class='recipe-banner' data-recipe='" + esc(tag).replace(/'/g,"&#39;") + "' style='display:flex;align-items:center;gap:8px;background:#F0E8FA;border:1px solid #D8C8F0;border-radius:10px;padding:8px 12px;margin-bottom:8px'>" +
+        "<span style='flex:1;font-size:13px;color:#6A3CB0;font-weight:600'>&#x1F37D; " + esc(tag) + " &middot; " + _recipeTags[tag] + " item" + (_recipeTags[tag]!==1?"s":"") + "</span>" +
+        "<button class='recipe-clear-btn' data-recipe='" + esc(tag).replace(/'/g,"&#39;") + "' style='border:none;background:#6A3CB0;color:#fff;border-radius:7px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>Clear all</button>" +
+        "</div>";
+    });
+  }
   for (var ci=0;ci<cats.length;ci++) {
     var c=cats[ci], gi=groups[c.id]; if (!gi) continue;
     var catKey = "fl4_catOpen_"+currentList+"_"+c.id;
@@ -2065,6 +2077,19 @@ function renderList() {
     });
   });
   updateCollapseAllLabel();
+  // Recipe clear-all buttons
+  elListC.querySelectorAll(".recipe-clear-btn").forEach(function(btn){
+    btn.addEventListener("click", function(e){
+      e.stopPropagation();
+      var tag = btn.dataset.recipe;
+      var count = getItems().filter(function(it){ return it && it.recipe === tag && !it.done; }).length;
+      confirmDialog("Remove all " + count + " " + tag + " item" + (count!==1?"s":"") + "?", function(){
+        listData[currentList].items = getItems().filter(function(it){ return !(it && it.recipe === tag && !it.done); });
+        saveCurrentList(); renderList();
+        toast("Cleared " + tag + " items");
+      });
+    });
+  });
 
    elListC.querySelectorAll(".item-card").forEach(function(card) {
     var id = +card.dataset.id;
@@ -2152,6 +2177,9 @@ function cardHTML(item, c) {
   var linkChip = (isDetail && item.link)
     ? "<a href='" + esc(item.link) + "' target='_blank' rel='noopener' class='item-link' style='display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#3B6FE0;margin-top:3px;text-decoration:none;font-weight:600'>&#x1F517; Open link</a>"
     : "";
+  var recipeChip = item.recipe
+    ? "<span style='display:inline-block;font-size:10px;font-weight:700;background:#E6DBF5;color:#6A3CB0;padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle'>&#x1F37D; " + esc(item.recipe) + "</span>"
+    : "";
   // Highlight items recently added by the partner and not yet seen
   var unseen = getUnseen(currentList);
   var isNew = !!unseen[item.id];
@@ -2166,7 +2194,7 @@ function cardHTML(item, c) {
   return "<div class='item-card" + (item.done?" done":"") + (isDup?" is-dup":"") + "' data-id='" + item.id + "' style='border-left-color:" + leftColor + (isDup?";background:#FFF8EC":"") + "'>" +
     "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>" +
     "<div style='flex:1;min-width:0;" + (isDetail?"cursor:pointer":"") + "'>" +
-      "<span class='item-name'>" + esc(item.name) + "</span>" + newBadge + dupBadge +
+      "<span class='item-name'>" + esc(item.name) + "</span>" + newBadge + dupBadge + recipeChip +
       (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + (calBtn ? "&nbsp;" + calBtn : "") + "</div>" : "") +
 
       noteSnip + linkChip +
@@ -4552,6 +4580,7 @@ window.addEventListener("DOMContentLoaded", function() {
   function openImport() {
     if (currentList === "notes") return;
     document.getElementById("importText").value = "";
+    var _itag = document.getElementById("importTag"); if (_itag) _itag.value = "";
     document.getElementById("importSheet").style.display    = "block";
     document.getElementById("importBackdrop").style.display = "block";
     document.body.style.overflow = "hidden";
@@ -4654,6 +4683,7 @@ window.addEventListener("DOMContentLoaded", function() {
   document.getElementById("importBackdrop").addEventListener("click", closeImport);
   document.getElementById("importDoBtn").addEventListener("click", function() {
     var raw = document.getElementById("importText").value;
+    var tag = (document.getElementById("importTag").value || "").trim();
     var lines = raw.split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
     if (!lines.length) { toast("Nothing to import"); return; }
     var items = getItems();
@@ -4666,7 +4696,9 @@ window.addEventListener("DOMContentLoaded", function() {
       if (existingNames[clean.toLowerCase()]) { skipped++; return; }
       existingNames[clean.toLowerCase()] = true;
       var catId = detectCat(clean);
-      items.unshift({ id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser });
+      var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser };
+      if (tag) rec.recipe = tag;
+      items.unshift(rec);
       addToHist(clean, catId);
       added++;
     });
@@ -7998,6 +8030,7 @@ if ("serviceWorker" in navigator && !_isPreview) {
     <button id="importClose" aria-label="Close" style="border:none;background:none;color:#8A7A5A;font-size:20px;cursor:pointer;padding:0 4px;touch-action:manipulation">&#x2715;</button>
   </div>
   <div style="font-size:13px;color:#8A7A5A;margin-bottom:10px;line-height:1.5">Paste or type one item per line. They'll be added to the current list and auto-sorted into categories.</div>
+  <input id="importTag" type="text" placeholder="Recipe tag (optional, e.g. Bolognese)" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;outline:none;margin-bottom:8px">
   <textarea id="importText" rows="10" placeholder="Salmon fillets x3&#10;Broccoli&#10;Greek yogurt&#10;Quinoa&#10;..." style="width:100%;box-sizing:border-box;padding:11px 13px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;resize:vertical;outline:none;line-height:1.6"></textarea>
   <div style="display:flex;gap:8px;margin-top:12px">
     <button id="importDoBtn" style="flex:1;padding:12px;background:#2D6B35;border:none;border-radius:10px;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer">Add items</button>
