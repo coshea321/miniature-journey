@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v229 · 22/06/2026 22:13</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v230 · 22/06/2026 22:52</div>
 
   </div>
 </div>
@@ -4479,12 +4479,12 @@ function startSSEFallback() {
     var personalStale = !hearthHealthES || hearthHealthES.readyState !== 1;
     var householdStale = isHouseholdSet() && (!hearthSyncES || hearthSyncES.readyState !== 1);
     if (personalStale) {
-      console.warn("SSE personal stale — falling back to fetch");
+      console.log("SSE personal stale — falling back to fetch");
       fetchPersonal();
       startPersonalListening();
     }
     if (householdStale) {
-      console.warn("SSE household stale — falling back to fetch");
+      console.log("SSE household stale — falling back to fetch");
       fetchHousehold();
       startListening();
     }
