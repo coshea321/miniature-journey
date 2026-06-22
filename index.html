@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v225 · 21/06/2026 22:55</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v228 · 22/06/2026 21:34</div>
 
   </div>
 </div>
@@ -1820,6 +1820,7 @@ document.getElementById("typeBar").addEventListener("click", function(e) {
   resetInput();
   // Reset any active search BEFORE rendering the newly selected list
   _listSearchQuery = "";
+  _travelFilter = [];
   var _sr0 = document.getElementById("searchRow");
   if (_sr0) _sr0.style.display = "none";
   var _si0 = document.getElementById("listSearchInput");
@@ -1960,6 +1961,7 @@ function addToHist(name, catId) {
 // RENDER LIST
 // ============================================================
 var _listSearchQuery = "";
+var _travelFilter = [];
 // Fuzzy match: true if all query chars appear in order in the text (subsequence),
 // or the query is a direct substring. Case-insensitive, spaces ignored in query.
 function fuzzyMatch(query, text) {
@@ -1974,11 +1976,56 @@ function fuzzyMatch(query, text) {
   return qi === q.length;
 }
 
+function getTravelTags() { return storeGet("fl4_travel_tags") || []; }
+function addTravelTagToPool(tag) {
+  var pool = getTravelTags();
+  if (!pool.some(function(t){ return t.toLowerCase() === tag.toLowerCase(); })) {
+    pool.push(tag); storeSet("fl4_travel_tags", pool);
+  }
+}
+
+function renderItemSheetTags() {
+  var box = document.getElementById("itemSheetTagsChips");
+  if (!box) return;
+  box.innerHTML = "";
+  // Union of pool tags and any already on this item
+  var pool = getTravelTags().slice();
+  _sheetTags.forEach(function(t){ if (!pool.some(function(p){return p.toLowerCase()===t.toLowerCase();})) pool.push(t); });
+  if (!pool.length) {
+    box.innerHTML = "<span style='font-size:12px;color:#A0855A'>No tags yet — add one below.</span>";
+    return;
+  }
+  pool.forEach(function(tag){
+    var on = _sheetTags.some(function(t){ return t.toLowerCase() === tag.toLowerCase(); });
+    var chip = document.createElement("button");
+    chip.textContent = tag;
+    chip.style.cssText = "border:1.5px solid " + (on?"#3565C8":"#D8D0C0") + ";background:" + (on?"#3565C8":"#fff") + ";color:" + (on?"#fff":"#5A6455") + ";border-radius:14px;padding:5px 12px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer";
+    chip.addEventListener("click", function(){
+      if (on) _sheetTags = _sheetTags.filter(function(t){ return t.toLowerCase() !== tag.toLowerCase(); });
+      else _sheetTags.push(tag);
+      renderItemSheetTags();
+    });
+    box.appendChild(chip);
+  });
+}
+
 function renderList() {
   var items = getItems();
   // Apply active search filter (fuzzy) — matches active and done items
   if (_listSearchQuery) {
     items = items.filter(function(it){ return it && fuzzyMatch(_listSearchQuery, it.name + " " + (it.notes||"")); });
+  }
+  // Apply travel tag filter (show items carrying any active tag; "__untagged__" matches items with no tags)
+  if (currentList === "travel" && _travelFilter.length) {
+    var _wantUntagged = _travelFilter.indexOf("__untagged__") !== -1;
+    var _wantTags = _travelFilter.filter(function(f){ return f !== "__untagged__"; });
+    items = items.filter(function(it){
+      if (!it) return false;
+      var hasTags = Array.isArray(it.tags) && it.tags.length;
+      if (_wantUntagged && !hasTags) return true;
+      if (hasTags && _wantTags.length && it.tags.some(function(t){ return _wantTags.some(function(f){ return f.toLowerCase() === t.toLowerCase(); }); })) return true;
+      return false;
+    });
   }
   var lt = LIST_TYPES[currentList];
   var active=[], done=[];
@@ -2011,6 +2058,25 @@ function renderList() {
   var groups={};
   for (var i=0;i<active.length;i++) { var cid=active[i].catId||"other"; if (!groups[cid]) groups[cid]=[]; groups[cid].push(active[i]); }
   var html="", cats=getCats();
+  // Travel tag filter bar
+  if (currentList === "travel") {
+    var allTags = getTravelTags().slice();
+    // Include any tags present on items but not in the pool
+    getItems().forEach(function(it){ if (it && Array.isArray(it.tags)) it.tags.forEach(function(t){ if (!allTags.some(function(p){return p.toLowerCase()===t.toLowerCase();})) allTags.push(t); }); });
+    if (allTags.length) {
+      html += "<div style='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px'>";
+      html += "<span style='font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px'>&#x1F3F7; Filter:</span>";
+      allTags.forEach(function(tag){
+        var on = _travelFilter.some(function(f){ return f.toLowerCase() === tag.toLowerCase(); });
+        html += "<button class='travel-filter-chip' data-tag='" + esc(tag).replace(/'/g,"&#39;") + "' style='border:1.5px solid " + (on?"#3565C8":"#D8D0C0") + ";background:" + (on?"#3565C8":"#fff") + ";color:" + (on?"#fff":"#5A6455") + ";border-radius:13px;padding:4px 11px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer'>" + esc(tag) + "</button>";
+      });
+      // Untagged option
+      var _unOn = _travelFilter.indexOf("__untagged__") !== -1;
+      html += "<button class='travel-filter-chip' data-tag='__untagged__' style='border:1.5px dashed " + (_unOn?"#3565C8":"#C0B8A8") + ";background:" + (_unOn?"#3565C8":"#fff") + ";color:" + (_unOn?"#fff":"#7A6A50") + ";border-radius:13px;padding:4px 11px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer'>Untagged</button>";
+      if (_travelFilter.length) html += "<button id='travelFilterClear' style='border:none;background:none;color:#A0855A;font-size:12px;font-weight:700;cursor:pointer;padding:4px'>Clear</button>";
+      html += "</div>";
+    }
+  }
   // Recipe-tag banner: if any active items carry a recipe tag, offer one-tap clear
   var _recipeTags = {};
   active.forEach(function(it){ if (it && it.recipe) _recipeTags[it.recipe] = (_recipeTags[it.recipe]||0)+1; });
@@ -2077,7 +2143,20 @@ function renderList() {
     });
   });
   updateCollapseAllLabel();
-  // Recipe clear-all buttons
+  // Travel tag filter chips
+  elListC.querySelectorAll(".travel-filter-chip").forEach(function(chip){
+    chip.addEventListener("click", function(){
+      var tag = chip.dataset.tag;
+      if (_travelFilter.some(function(f){ return f.toLowerCase() === tag.toLowerCase(); })) {
+        _travelFilter = _travelFilter.filter(function(f){ return f.toLowerCase() !== tag.toLowerCase(); });
+      } else {
+        _travelFilter.push(tag);
+      }
+      renderList();
+    });
+  });
+  var _tfClear = document.getElementById("travelFilterClear");
+  if (_tfClear) _tfClear.addEventListener("click", function(){ _travelFilter = []; renderList(); });
   elListC.querySelectorAll(".recipe-clear-btn").forEach(function(btn){
     btn.addEventListener("click", function(e){
       e.stopPropagation();
@@ -2221,6 +2300,9 @@ function cardHTML(item, c) {
   var recipeChip = item.recipe
     ? "<span style='display:inline-block;font-size:10px;font-weight:700;background:#E6DBF5;color:#6A3CB0;padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle'>&#x1F37D; " + esc(item.recipe) + "</span>"
     : "";
+  var tagChips = (Array.isArray(item.tags) && item.tags.length)
+    ? item.tags.map(function(t){ return "<span style='display:inline-block;font-size:10px;font-weight:700;background:#DCE6F8;color:#2B4E9B;padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle'>&#x1F3F7; " + esc(t) + "</span>"; }).join("")
+    : "";
   // Highlight items recently added by the partner and not yet seen
   var unseen = getUnseen(currentList);
   var isNew = !!unseen[item.id];
@@ -2235,7 +2317,7 @@ function cardHTML(item, c) {
   return "<div class='item-card" + (item.done?" done":"") + (isDup?" is-dup":"") + "' data-id='" + item.id + "' style='border-left-color:" + leftColor + (isDup?";background:#FFF8EC":"") + "'>" +
     "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>" +
     "<div style='flex:1;min-width:0;" + (isDetail?"cursor:pointer":"") + "'>" +
-      "<span class='item-name'>" + esc(item.name) + "</span>" + newBadge + dupBadge + recipeChip +
+      "<span class='item-name'>" + esc(item.name) + "</span>" + newBadge + dupBadge + recipeChip + tagChips +
       (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + (calBtn ? "&nbsp;" + calBtn : "") + "</div>" : "") +
 
       noteSnip + linkChip +
@@ -3503,7 +3585,8 @@ document.getElementById("exportBtn").addEventListener("click", function() {
   //  lists (items+hist), notes, customCats — per list
   //  workouts (incl. bodyweight + bp), baby (incl. growth, medicine, milestones,
   //  teeth, bags, babySex), action_log (incl. cardio), food_log, food_notes,
-  //  saved_meals, cal_goal, secVisible, syncPrefs, recipes (list import recipes).
+  //  saved_meals, cal_goal, secVisible, syncPrefs, recipes (list import recipes),
+  //  travel_tags (Travel tag pool; per-item tags live on the items themselves).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*.
   var exportData = {
@@ -3514,6 +3597,7 @@ document.getElementById("exportBtn").addEventListener("click", function() {
     food_notes:storeGet("fl4_food_notes")||{},
     saved_meals:storeGet("fl4_saved_meals")||[],
     recipes:storeGet("fl4_recipes")||[],
+    travel_tags:storeGet("fl4_travel_tags")||[],
     cal_goal:storeGet("fl4_cal_goal")||2000,
     secVisible:storeGet("fl4_secVisible")||{},
     syncPrefs:storeGet("fl4_syncPrefs")||{}
@@ -3571,6 +3655,7 @@ document.getElementById("importFile").addEventListener("change", function(e) {
       if(data.food_notes){var fn=storeGet("fl4_food_notes")||{};Object.keys(data.food_notes).forEach(function(k){if(!fn[k])fn[k]=data.food_notes[k];});storeSet("fl4_food_notes",fn);}
       if(Array.isArray(data.saved_meals)){var sm=storeGet("fl4_saved_meals")||[],smIds={};sm.forEach(function(m){smIds[m.id]=true;});storeSet("fl4_saved_meals",sm.concat(data.saved_meals.filter(function(m){return m&&!smIds[m.id];})));}
       if(Array.isArray(data.recipes)){var rc=storeGet("fl4_recipes")||[],rcN={};rc.forEach(function(m){if(m)rcN[m.name.toLowerCase()]=true;});storeSet("fl4_recipes",rc.concat(data.recipes.filter(function(m){return m&&m.name&&!rcN[m.name.toLowerCase()];})));}
+      if(Array.isArray(data.travel_tags)){var tt=storeGet("fl4_travel_tags")||[];data.travel_tags.forEach(function(t){if(t&&!tt.some(function(x){return x.toLowerCase()===t.toLowerCase();}))tt.push(t);});storeSet("fl4_travel_tags",tt);}
       if(data.cal_goal&&!storeGet("fl4_cal_goal"))storeSet("fl4_cal_goal",data.cal_goal);
       renderList(); toast("Imported: "+imported.lists+" list items");
     } catch(err){ toast("Import failed: "+err.message); }
@@ -4583,6 +4668,7 @@ function renderCardioLog() {
 
 // ── Item detail sheet ─────────────────────────────────────
 var _sheetItemId = null;
+var _sheetTags = [];
 
 function openItemSheet(itemId) {
   var items = getItems();
@@ -4592,6 +4678,19 @@ function openItemSheet(itemId) {
   document.getElementById("itemSheetNameInput").value = item.name || "";
   document.getElementById("itemSheetNotes").value     = item.notes || "";
   document.getElementById("itemSheetLink").value      = item.link || "";
+  // Tags (Travel list only)
+  var tagsWrap = document.getElementById("itemSheetTagsWrap");
+  if (tagsWrap) {
+    if (currentList === "travel") {
+      tagsWrap.style.display = "block";
+      _sheetTags = Array.isArray(item.tags) ? item.tags.slice() : [];
+      var _nt = document.getElementById("itemSheetNewTag"); if (_nt) _nt.value = "";
+      renderItemSheetTags();
+    } else {
+      tagsWrap.style.display = "none";
+      _sheetTags = [];
+    }
+  }
   // Due date only relevant for task-type lists
   var dueRow = document.getElementById("itemSheetDueRow");
   var isTask = currentList === "todo" || currentList === "personal" || currentList === "testdue";
@@ -4820,6 +4919,19 @@ window.addEventListener("DOMContentLoaded", function() {
     toast(msg);
   });
 
+  // ── Travel tags ──────────────────────────────────────────
+
+  var _addTagBtn = document.getElementById("itemSheetAddTag");
+  if (_addTagBtn) _addTagBtn.addEventListener("click", function(){
+    var inp = document.getElementById("itemSheetNewTag");
+    var t = (inp.value || "").trim();
+    if (!t) return;
+    addTravelTagToPool(t);
+    if (!_sheetTags.some(function(x){ return x.toLowerCase() === t.toLowerCase(); })) _sheetTags.push(t);
+    inp.value = "";
+    renderItemSheetTags();
+  });
+
   document.getElementById("itemSheetSave").addEventListener("click", function() {
     if (!_sheetItemId) return;
     var items = getItems(), item = items.find(function(x){ return x.id === _sheetItemId; });
@@ -4832,6 +4944,9 @@ window.addEventListener("DOMContentLoaded", function() {
     // Add https:// if a bare domain/path was pasted without a scheme
     if (linkVal && !/^https?:\/\//i.test(linkVal) && !/^[a-z]+:/i.test(linkVal)) linkVal = "https://" + linkVal;
     item.link = linkVal || null;
+    if (currentList === "travel") {
+      item.tags = (_sheetTags && _sheetTags.length) ? _sheetTags.slice() : null;
+    }
     var isTask = currentList === "todo" || currentList === "personal" || currentList === "testdue";
     if (isTask) {
       var dueVal = document.getElementById("itemSheetDueInput").value;
@@ -8130,6 +8245,14 @@ if ("serviceWorker" in navigator && !_isPreview) {
   <div style="margin-bottom:12px">
     <div style="font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Link (optional)</div>
     <input id="itemSheetLink" type="url" inputmode="url" placeholder="Paste a link (e.g. OneDrive file)" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#3A3328;font-family:inherit;font-size:14px;outline:none">
+  </div>
+  <div id="itemSheetTagsWrap" style="display:none;margin-bottom:12px">
+    <div style="font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Tags</div>
+    <div id="itemSheetTagsChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+    <div style="display:flex;gap:6px">
+      <input id="itemSheetNewTag" type="text" placeholder="Add a tag (e.g. abroad)" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#3A3328;font-family:inherit;font-size:14px;outline:none">
+      <button id="itemSheetAddTag" style="border:none;background:#5A7BC0;color:#fff;border-radius:9px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Add</button>
+    </div>
   </div>
 
   <button id="itemSheetSave" style="width:100%;padding:13px;border:none;background:#3B6FE0;color:#fff;border-radius:11px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation">Save</button>
