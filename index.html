@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v233 · 23/06/2026 16:50</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v234 · 23/06/2026 17:01</div>
 
   </div>
 </div>
@@ -982,6 +982,7 @@ body.train-mode #toast{background:#3A3328}
 <div id="recipesSection" style="display:none">
   <div style="display:flex;gap:4px;padding:8px 10px;background:#B5651D;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
     <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F37D; Recipes</span>
+    <button id="recipeImportBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-right:6px">&#x2B07; Import</button>
     <button id="recipeNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
   </div>
   <div id="recipesContent" style="padding:14px 14px 100px"></div>
@@ -2106,13 +2107,16 @@ function scaleIngredient(ing, mult) {
   }
   if (unit === "g")  return { amount: fmtNumber(amt), unit: "g" };
   if (unit === "kg") return { amount: fmtNumber(amt), unit: "kg" };
-  if (unit === "pinch") {
-    var p = Math.round(amt);
-    return { amount: String(p), unit: p === 1 ? "pinch" : "pinches" };
-  }
-  if (unit === "cube") {
-    var cb = Math.round(amt);
-    return { amount: String(cb), unit: cb === 1 ? "cube" : "cubes" };
+  if (unit === "oz") return { amount: fmtNumber(amt), unit: "oz" };
+  if (unit === "lb") return { amount: fmtNumber(amt), unit: "lb" };
+  // Count-style units pluralise on scaling
+  var countUnits = { pinch:["pinch","pinches"], cube:["cube","cubes"], clove:["clove","cloves"],
+                     can:["can","cans"], slice:["slice","slices"], piece:["piece","pieces"] };
+  if (countUnits[unit]) {
+    var nWhole = Math.round(amt*100)/100;
+    var disp = fmtNumber(amt);
+    var plural = nWhole !== 1;
+    return { amount: disp, unit: countUnits[unit][plural ? 1 : 0] };
   }
   return { amount: fmtNumber(amt), unit: unit || "" };
 }
@@ -2244,41 +2248,126 @@ function openRecipeEditor(id) {
     toast("Recipe saved");
   });
 }
+// Build recipe objects from pasted CSV text. Returns {recipes, skipped}.
+function recipesFromCSV(text) {
+  var rows = parseCSV(text);
+  if (!rows.length) return { recipes: [], skipped: 0 };
+  var header = rows[0].map(function(h){ return (h||"").trim().toLowerCase(); });
+  function col(name){ return header.indexOf(name); }
+  var iTitle = col("title"), iIng = col("ingredients"), iInstr = col("instructions"),
+      iQty = col("quantity"), iNotes = col("notes"), iSource = col("source");
+  var recipes = [], skipped = 0;
+  for (var r = 1; r < rows.length; r++) {
+    var row = rows[r];
+    if (!row || !row.length) continue;
+    var ingRaw = iIng >= 0 ? (row[iIng]||"").trim() : "";
+    if (!ingRaw || ingRaw.toLowerCase() === "nan") { skipped++; continue; }
+    var title = iTitle >= 0 ? (row[iTitle]||"").trim() : "";
+    if (!title || title.toLowerCase() === "nan") { skipped++; continue; }
+    // servings from quantity (first number; "8-10" → 8; blank → 1)
+    var servings = 1;
+    if (iQty >= 0) {
+      var qm = String(row[iQty]||"").match(/\d+/);
+      if (qm) servings = parseInt(qm[0], 10) || 1;
+    }
+    var ingredients = parseIngredients(ingRaw, true); // strip parens
+    var method = iInstr >= 0 ? cleanText(row[iInstr]) : "";
+    var notes  = iNotes >= 0 ? cleanText(row[iNotes]) : "";
+    var source = iSource >= 0 ? (row[iSource]||"").trim() : "";
+    if (source && source.toLowerCase() !== "nan") {
+      notes = (notes ? notes + "\n\n" : "") + "Source: " + source;
+    }
+    recipes.push({
+      id: Date.now() + r + Math.floor(Math.random()*1000),
+      name: title, servings: servings, ingredients: ingredients,
+      method: method, notes: notes
+    });
+  }
+  return { recipes: recipes, skipped: skipped };
+}
+function cleanText(s) {
+  s = (s||"").trim();
+  if (!s || s.toLowerCase() === "nan") return "";
+  return s.replace(/\n{3,}/g, "\n\n");
+}
+
 function fieldLabel(t){ return "<div style='font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px'>" + t + "</div>"; }
 function recipeInputCss(){ return "width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;outline:none;"; }
 
-// Parse "amount unit name" lines into ingredient objects
-function parseIngredients(text) {
-  var units = ["tsp","tbsp","ml","l","cube","cubes","pinch","pinches","g","kg","cup","cups"];
+// Parse "amount unit name" lines into ingredient objects.
+// Handles fractions ("1 1/2", "1/3", "¾"), "~" prefix, unit synonyms
+// (tablespoon(s)/teaspoon(s)/grams etc.), and optional bracket-stripping.
+function parseIngredients(text, stripParens) {
+  var unitMap = {
+    "tsp":"tsp","teaspoon":"tsp","teaspoons":"tsp","teaspoon(s)":"tsp",
+    "tbsp":"tbsp","tbs":"tbsp","tablespoon":"tbsp","tablespoons":"tbsp","tablespoon(s)":"tbsp",
+    "ml":"ml","millilitre":"ml","millilitres":"ml","milliliter":"ml","milliliters":"ml",
+    "l":"l","litre":"l","litres":"l","liter":"l","liters":"l",
+    "g":"g","gram":"g","grams":"g","gr":"g",
+    "kg":"kg","kilogram":"kg","kilograms":"kg",
+    "cup":"cup","cups":"cup",
+    "oz":"oz","ounce":"oz","ounces":"oz",
+    "lb":"lb","lbs":"lb","pound":"lb","pounds":"lb",
+    "cube":"cube","cubes":"cube","pinch":"pinch","pinches":"pinch",
+    "clove":"clove","cloves":"clove","can":"can","cans":"can",
+    "slice":"slice","slices":"slice","piece":"piece","pieces":"piece"
+  };
   return text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean).map(function(line){
     var approx = false;
     if (line[0] === "~") { approx = true; line = line.slice(1).trim(); }
-    // amount: leading number (incl. fraction chars and decimals)
-    var m = line.match(/^([\d.\/¼½¾⅓⅔]+)\s+(.*)$/);
+    if (stripParens) line = line.replace(/\s*\([^)]*\)/g, "").replace(/\s*\)\s*/g," ").replace(/[\s,]+$/,"").replace(/\s{2,}/g," ").trim();
+    // amount: leading number, possibly "1 1/2" or "1/3" or unicode fraction
+    var m = line.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|[¼½¾⅓⅔⅛⅜⅝⅞]|\d+(?:\.\d+)?)\s+(.*)$/);
     var amount = null, rest = line;
     if (m) { amount = parseAmount(m[1]); rest = m[2]; }
-    // unit: next word if it's a known unit
+    // unit: next word if known (strip trailing punctuation)
     var unit = null;
     var parts = rest.split(/\s+/);
-    if (parts.length && units.indexOf(parts[0].toLowerCase()) !== -1) {
-      unit = parts[0].toLowerCase();
-      if (unit === "cubes") unit = "cube";
-      if (unit === "pinches") unit = "pinch";
-      rest = parts.slice(1).join(" ");
+    if (parts.length) {
+      var cand = parts[0].toLowerCase().replace(/[.,]$/,"");
+      if (unitMap[cand]) { unit = unitMap[cand]; rest = parts.slice(1).join(" "); }
     }
+    rest = rest.replace(/^,\s*/,"").replace(/[\s,]+$/,"").trim();
     var ing = { name: rest };
     if (amount != null) ing.amount = amount;
     if (unit) ing.unit = unit;
     if (approx) ing.approx = true;
     return ing;
-  });
+  }).filter(function(ing){ return ing.name; });
 }
 function parseAmount(s) {
-  var fr = {"¼":0.25,"½":0.5,"¾":0.75,"⅓":0.333,"⅔":0.667};
+  var fr = {"¼":0.25,"½":0.5,"¾":0.75,"⅓":0.333,"⅔":0.667,"⅛":0.125,"⅜":0.375,"⅝":0.625,"⅞":0.875};
+  s = s.trim();
   if (fr[s] != null) return fr[s];
+  // mixed "1 1/2"
+  var mm = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mm) return (+mm[1]) + (+mm[2])/(+mm[3]);
   if (s.indexOf("/") !== -1) { var p=s.split("/"); return (+p[0])/(+p[1]); }
   var n = parseFloat(s);
   return isNaN(n) ? null : n;
+}
+
+// Minimal RFC-4180 CSV parser: handles quoted fields, embedded newlines and commas, "" escapes.
+function parseCSV(text) {
+  var rows = [], row = [], field = "", inQ = false, i = 0;
+  text = text.replace(/^\uFEFF/, ""); // strip BOM
+  while (i < text.length) {
+    var ch = text[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (text[i+1] === '"') { field += '"'; i += 2; continue; }
+        inQ = false; i++; continue;
+      }
+      field += ch; i++; continue;
+    }
+    if (ch === '"') { inQ = true; i++; continue; }
+    if (ch === ',') { row.push(field); field = ""; i++; continue; }
+    if (ch === '\r') { i++; continue; }
+    if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ""; i++; continue; }
+    field += ch; i++;
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows;
 }
 
 function getTravelTags() { return storeGet("fl4_travel_tags") || []; }
@@ -6349,6 +6438,52 @@ document.getElementById("bnLife").addEventListener("click",  function(){ switchS
 document.getElementById("bnTrain").addEventListener("click", function(){ switchSection("train"); });
 document.getElementById("bnRecipes").addEventListener("click", function(){ switchSection("recipes"); });
 document.getElementById("recipeNewBtn").addEventListener("click", function(){ _recipeView="detail"; openRecipeEditor(null); });
+document.getElementById("recipeImportBtn").addEventListener("click", function(){
+  document.getElementById("recipeImportText").value = "";
+  document.getElementById("recipeImportPreview").textContent = "";
+  document.getElementById("recipeImportSheet").style.display = "block";
+  document.getElementById("recipeImportBackdrop").style.display = "block";
+  document.body.style.overflow = "hidden";
+});
+function closeRecipeImport(){
+  document.getElementById("recipeImportSheet").style.display = "none";
+  document.getElementById("recipeImportBackdrop").style.display = "none";
+  document.body.style.overflow = "";
+}
+document.getElementById("recipeImportClose").addEventListener("click", closeRecipeImport);
+document.getElementById("recipeImportCancel").addEventListener("click", closeRecipeImport);
+document.getElementById("recipeImportBackdrop").addEventListener("click", closeRecipeImport);
+document.getElementById("recipeImportText").addEventListener("input", function(){
+  var txt = this.value.trim();
+  var prev = document.getElementById("recipeImportPreview");
+  if (!txt) { prev.textContent = ""; return; }
+  try {
+    var res = recipesFromCSV(txt);
+    prev.textContent = res.recipes.length + " recipe" + (res.recipes.length!==1?"s":"") + " found" + (res.skipped ? ", " + res.skipped + " row(s) skipped" : "");
+  } catch(e) { prev.textContent = "Couldn't read that — check it's CSV text."; }
+});
+document.getElementById("recipeImportDo").addEventListener("click", function(){
+  var txt = document.getElementById("recipeImportText").value.trim();
+  if (!txt) { toast("Paste some CSV first"); return; }
+  var res;
+  try { res = recipesFromCSV(txt); }
+  catch(e) { toast("Couldn't parse the CSV"); return; }
+  if (!res.recipes.length) { toast("No recipes with ingredients found"); return; }
+  var rb = getRecipeBook();
+  // Skip exact-name duplicates already in the book
+  var have = {};
+  rb.forEach(function(r){ if(r) have[r.name.toLowerCase()] = true; });
+  var added = 0, dupes = 0;
+  res.recipes.forEach(function(r){
+    if (have[r.name.toLowerCase()]) { dupes++; return; }
+    have[r.name.toLowerCase()] = true;
+    rb.push(r); added++;
+  });
+  saveRecipeBook(rb);
+  closeRecipeImport();
+  _recipeView = "list"; renderRecipes();
+  toast("Imported " + added + " recipe" + (added!==1?"s":"") + (dupes ? " (" + dupes + " already there)" : ""));
+});
 document.getElementById("bnNotes").addEventListener("click", function(){ switchSection("notes"); });
 document.getElementById("bnBaby").addEventListener("click",  function(){ switchSection("baby");  });
 
@@ -8592,6 +8727,21 @@ if ("serviceWorker" in navigator && !_isPreview) {
   <div style="display:flex;gap:8px;margin-top:12px">
     <button id="importDoBtn" style="flex:1;padding:12px;background:#2D6B35;border:none;border-radius:10px;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer">Add items</button>
     <button id="importCancel" style="padding:12px 18px;background:#F0EBE0;border:none;border-radius:10px;color:#8A7A5A;font-family:inherit;font-size:14px;cursor:pointer">Cancel</button>
+  </div>
+</div>
+
+<div id="recipeImportBackdrop" style="display:none;position:fixed;inset:0;z-index:719;background:rgba(0,0,0,.5)"></div>
+<div id="recipeImportSheet" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:720;background:#fff;border-top:1.5px solid #E0DCD4;box-shadow:0 -4px 20px rgba(0,0,0,.12);border-radius:18px 18px 0 0;padding:18px 16px 24px;max-width:480px;margin:0 auto;max-height:85vh;overflow-y:auto">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+    <div style="flex:1;font-size:13px;font-weight:700;color:#5A6455;text-transform:uppercase;letter-spacing:.5px">Import recipes (CSV)</div>
+    <button id="recipeImportClose" aria-label="Close" style="border:none;background:none;color:#8A7A5A;font-size:20px;cursor:pointer;padding:0 4px">&#x2715;</button>
+  </div>
+  <div style="font-size:13px;color:#8A7A5A;margin-bottom:10px;line-height:1.5">Paste the full contents of a recipe CSV export (including the header row). Recipes with ingredients will be added; article-only rows are skipped.</div>
+  <textarea id="recipeImportText" rows="9" placeholder="title,description,...,ingredients,instructions,..." style="width:100%;box-sizing:border-box;padding:11px 13px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:13px;resize:vertical;outline:none;line-height:1.5"></textarea>
+  <div id="recipeImportPreview" style="font-size:13px;color:#7A5A30;margin-top:8px"></div>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button id="recipeImportDo" style="flex:1;padding:12px;background:#B5651D;border:none;border-radius:10px;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer">Import</button>
+    <button id="recipeImportCancel" style="padding:12px 18px;background:#F0EBE0;border:none;border-radius:10px;color:#8A7A5A;font-family:inherit;font-size:14px;cursor:pointer">Cancel</button>
   </div>
 </div>
 
