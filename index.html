@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v231 · 23/06/2026 10:22</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v232 · 23/06/2026 13:21</div>
 
   </div>
 </div>
@@ -974,6 +974,17 @@ body.train-mode #toast{background:#3A3328}
       </div>
     </div>
   </div>
+</div>
+
+<!-- ============================================================
+     RECIPES SECTION
+     ============================================================ -->
+<div id="recipesSection" style="display:none">
+  <div style="display:flex;gap:4px;padding:8px 10px;background:#B5651D;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
+    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F37D; Recipes</span>
+    <button id="recipeNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
+  </div>
+  <div id="recipesContent" style="padding:14px 14px 100px"></div>
 </div>
 
 <!-- ============================================================
@@ -1372,6 +1383,9 @@ body.train-mode #toast{background:#3A3328}
   </button>
   <button class="bn-btn" id="bnTrain" aria-label="Train">
     <span class="bn-ico">&#x1F4AA;</span>Train
+  </button>
+  <button class="bn-btn" id="bnRecipes" aria-label="Recipes">
+    <span class="bn-ico">&#x1F37D;</span>Recipes
   </button>
   <button class="bn-btn" id="bnNotes" aria-label="Notes">
     <span class="bn-ico">&#x1F4DD;</span>Notes
@@ -1981,6 +1995,256 @@ function fuzzyMatch(query, text) {
     if (t[ti] === q[qi]) qi++;
   }
   return qi === q.length;
+}
+
+// ============================================================
+// RECIPES SECTION
+// ============================================================
+function getRecipeBook() { return storeGet("fl4_recipebook") || []; }
+function saveRecipeBook(r) { storeSet("fl4_recipebook", r); }
+
+// Seed the first recipe once
+function seedRecipes() {
+  var rb = getRecipeBook();
+  if (rb.length) return;
+  rb.push({
+    id: Date.now(),
+    name: "Iced Coffee",
+    servings: 1,
+    ingredients: [
+      { amount: 2,    unit: "tsp",   name: "instant coffee (dark roast if you have it)" },
+      { amount: 2,    unit: "tbsp",  name: "warm water (just to dissolve)" },
+      { amount: 150,  unit: "ml",    name: "milk of choice (oat or lactose-free)" },
+      { amount: 8,    unit: "cube",  name: "ice cubes", approx: true },
+      { amount: 1,    unit: "tsp",   name: "maple syrup or honey" },
+      { amount: 0.25, unit: "tsp",   name: "vanilla extract (gluten-free)" },
+      { amount: 1,    unit: "pinch", name: "salt" }
+    ],
+    method: "Dissolve the coffee in the warm water until smooth, then blend everything on high for 30–40 seconds until slushy — stop the moment it's smooth so the oat milk doesn't go gluey. Drink upright.",
+    notes: ""
+  });
+  saveRecipeBook(rb);
+}
+
+// ── Unit + scaling helpers ──
+// Volume units are converted to ml for scaling, then re-displayed:
+//   < 20 ml  → tsp/tbsp   |   >= 20 ml → ml
+var _ML_PER = { tsp: 5, tbsp: 15, ml: 1, l: 1000 };
+function isVolumeUnit(u) { return u === "tsp" || u === "tbsp" || u === "ml" || u === "l"; }
+
+function fmtFraction(n) {
+  // Render a number with nice common fractions (¼ ⅓ ½ ⅔ ¾)
+  var whole = Math.floor(n);
+  var frac = n - whole;
+  var map = [[0,""],[0.25,"¼"],[0.333,"⅓"],[0.5,"½"],[0.667,"⅔"],[0.75,"¾"],[1,""]];
+  var best = map[0], bestD = Math.abs(frac - map[0][0]);
+  for (var i=1;i<map.length;i++){ var d=Math.abs(frac-map[i][0]); if(d<bestD){bestD=d;best=map[i];} }
+  if (best[0] === 1) { whole += 1; best = map[0]; }
+  if (bestD > 0.08) { // not close to a nice fraction — use one decimal
+    var v = Math.round(n*10)/10;
+    return (v % 1 === 0) ? String(v) : String(v);
+  }
+  if (whole === 0 && best[1] === "") return "0";
+  if (whole === 0) return best[1];
+  return whole + (best[1] ? " " + best[1] : "");
+}
+function fmtNumber(n) {
+  var r = Math.round(n*100)/100;
+  if (r % 1 === 0) return String(r);
+  return fmtFraction(r);
+}
+
+// Given an ingredient and a scale multiplier, return the display amount + unit
+function scaleIngredient(ing, mult) {
+  var amt = (ing.amount || 0) * mult;
+  if (isVolumeUnit(ing.unit)) {
+    var ml = amt * (_ML_PER[ing.unit] || 1);
+    if (ml >= 20) {
+      // show as ml (round to nearest 5 if large, else nearest 1)
+      var mlR = ml >= 100 ? Math.round(ml/5)*5 : Math.round(ml);
+      return { amount: String(mlR), unit: "ml" };
+    }
+    // below 20 ml → tsp or tbsp
+    if (ml >= 15 && Math.abs(ml/15 - Math.round(ml/15)) < 0.05) {
+      return { amount: fmtNumber(ml/15), unit: "tbsp" };
+    }
+    return { amount: fmtFraction(ml/5), unit: "tsp" };
+  }
+  // Non-volume: pinch / cube / count — scale the number
+  if (ing.unit === "pinch") {
+    var p = Math.round(amt);
+    return { amount: String(p), unit: p === 1 ? "pinch" : "pinches" };
+  }
+  if (ing.unit === "cube") {
+    var cb = Math.round(amt);
+    return { amount: String(cb), unit: cb === 1 ? "cube" : "cubes" };
+  }
+  // generic count or unitless
+  return { amount: fmtNumber(amt), unit: ing.unit || "" };
+}
+
+var _recipeView = "list";   // "list" | "detail"
+var _recipeOpenId = null;
+var _recipeServings = 1;
+
+function renderRecipes() {
+  seedRecipes();
+  if (_recipeView === "detail" && _recipeOpenId != null) { renderRecipeDetail(); return; }
+  var el = document.getElementById("recipesContent");
+  var rb = getRecipeBook();
+  if (!rb.length) {
+    el.innerHTML = "<div style='text-align:center;color:#8A7A5A;padding:40px 20px'><div style='font-size:40px;margin-bottom:10px'>&#x1F37D;</div><div style='font-size:16px;font-weight:600;margin-bottom:4px'>No recipes yet</div><div style='font-size:13px'>Tap “+ New” to add one.</div></div>";
+    return;
+  }
+  var html = "";
+  rb.forEach(function(r){
+    var ingCount = (r.ingredients||[]).length;
+    html += "<button class='recipe-card' data-rid='" + r.id + "' style='display:block;width:100%;text-align:left;background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;font-family:inherit'>" +
+      "<div style='font-size:16px;font-weight:700;color:#2A2010;margin-bottom:3px'>" + esc(r.name) + "</div>" +
+      "<div style='font-size:12px;color:#9A8A6A'>" + ingCount + " ingredient" + (ingCount!==1?"s":"") + " &middot; serves " + (r.servings||1) + "</div>" +
+      "</button>";
+  });
+  el.innerHTML = html;
+  el.querySelectorAll(".recipe-card").forEach(function(card){
+    card.addEventListener("click", function(){
+      _recipeOpenId = +card.dataset.rid;
+      var r = getRecipeBook().find(function(x){ return x.id === _recipeOpenId; });
+      _recipeServings = (r && r.servings) || 1;
+      _recipeView = "detail";
+      renderRecipeDetail();
+    });
+  });
+}
+
+function renderRecipeDetail() {
+  var el = document.getElementById("recipesContent");
+  var r = getRecipeBook().find(function(x){ return x.id === _recipeOpenId; });
+  if (!r) { _recipeView = "list"; renderRecipes(); return; }
+  var base = r.servings || 1;
+  var mult = _recipeServings / base;
+
+  var ingHtml = "";
+  (r.ingredients||[]).forEach(function(ing){
+    var s = scaleIngredient(ing, mult);
+    var amtStr = (s.amount && s.amount !== "0") ? "<b>" + (ing.approx ? "~" : "") + s.amount + (s.unit ? " " + s.unit : "") + "</b> " : "";
+    ingHtml += "<li style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#2A2010;list-style:none'>" + amtStr + esc(ing.name) + "</li>";
+  });
+
+  el.innerHTML =
+    "<button id='recipeBackBtn' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; All recipes</button>" +
+    "<div style='font-family:Georgia,serif;font-size:24px;font-weight:600;color:#2A2010;margin-bottom:14px'>" + esc(r.name) + "</div>" +
+    "<div style='display:flex;align-items:center;gap:14px;background:#FBF5EC;border:1px solid #ECE0CC;border-radius:12px;padding:10px 14px;margin-bottom:16px'>" +
+      "<span style='font-size:13px;font-weight:700;color:#7A5A30;text-transform:uppercase;letter-spacing:.5px'>Serves</span>" +
+      "<button id='servMinus' style='width:34px;height:34px;border:1.5px solid #D8C8A8;background:#fff;border-radius:8px;font-size:20px;color:#7A5A30;cursor:pointer;line-height:1'>&minus;</button>" +
+      "<span id='servCount' style='font-size:20px;font-weight:700;color:#2A2010;min-width:24px;text-align:center'>" + _recipeServings + "</span>" +
+      "<button id='servPlus' style='width:34px;height:34px;border:1.5px solid #D8C8A8;background:#fff;border-radius:8px;font-size:20px;color:#7A5A30;cursor:pointer;line-height:1'>+</button>" +
+    "</div>" +
+    "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Ingredients</div>" +
+    "<ul style='margin:0 0 18px;padding:0'>" + ingHtml + "</ul>" +
+    (r.method ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Method</div><div style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + esc(r.method) + "</div>" : "") +
+    (r.notes ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Notes</div><div style='font-size:14px;color:#6A5A40;line-height:1.6;margin-bottom:18px'>" + esc(r.notes) + "</div>" : "") +
+    "<div style='display:flex;gap:8px;margin-top:8px'>" +
+      "<button id='recipeEditBtn' style='flex:1;padding:11px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Edit</button>" +
+      "<button id='recipeDeleteBtn' style='padding:11px 16px;border:1.5px solid #E0C0C0;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Delete</button>" +
+    "</div>";
+
+  document.getElementById("recipeBackBtn").addEventListener("click", function(){ _recipeView="list"; _recipeOpenId=null; renderRecipes(); });
+  document.getElementById("servMinus").addEventListener("click", function(){ if(_recipeServings>1){_recipeServings--; renderRecipeDetail();} });
+  document.getElementById("servPlus").addEventListener("click", function(){ if(_recipeServings<50){_recipeServings++; renderRecipeDetail();} });
+  document.getElementById("recipeDeleteBtn").addEventListener("click", function(){
+    confirmDialog("Delete \"" + r.name + "\"?", function(){
+      saveRecipeBook(getRecipeBook().filter(function(x){ return x.id !== r.id; }));
+      _recipeView="list"; _recipeOpenId=null; renderRecipes();
+    });
+  });
+  document.getElementById("recipeEditBtn").addEventListener("click", function(){ openRecipeEditor(r.id); });
+}
+
+// Minimal create/edit for step one (raw text entry; richer parsing comes later)
+function openRecipeEditor(id) {
+  var r = id != null ? getRecipeBook().find(function(x){ return x.id === id; }) : null;
+  var isNew = !r;
+  // Build an ingredient text representation: "amount unit name" per line
+  var ingText = r ? (r.ingredients||[]).map(function(i){
+    return (i.approx?"~":"") + (i.amount!=null?i.amount+" ":"") + (i.unit?i.unit+" ":"") + i.name;
+  }).join("\n") : "";
+  var el = document.getElementById("recipesContent");
+  el.innerHTML =
+    "<button id='recipeCancelEdit' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; Cancel</button>" +
+    "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:14px'>" + (isNew?"New recipe":"Edit recipe") + "</div>" +
+    fieldLabel("Name") +
+    "<input id='reName' type='text' value='" + (r?esc(r.name).replace(/'/g,"&#39;"):"") + "' placeholder='Recipe name' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+    fieldLabel("Serves") +
+    "<input id='reServings' type='number' min='1' value='" + (r?r.servings||1:1) + "' style='" + recipeInputCss() + "margin-bottom:12px;max-width:90px'>" +
+    fieldLabel("Ingredients (one per line: amount unit name)") +
+    "<textarea id='reIng' rows='7' placeholder='2 tsp instant coffee&#10;150 ml milk&#10;~8 cube ice cubes' style='" + recipeInputCss() + "margin-bottom:12px;resize:vertical;line-height:1.6'>" + (ingText?esc(ingText):"") + "</textarea>" +
+    fieldLabel("Method") +
+    "<textarea id='reMethod' rows='5' placeholder='Step-by-step method...' style='" + recipeInputCss() + "margin-bottom:12px;resize:vertical;line-height:1.6'>" + (r&&r.method?esc(r.method):"") + "</textarea>" +
+    fieldLabel("Notes (optional)") +
+    "<textarea id='reNotes' rows='2' placeholder='Any notes...' style='" + recipeInputCss() + "margin-bottom:16px;resize:vertical;line-height:1.6'>" + (r&&r.notes?esc(r.notes):"") + "</textarea>" +
+    "<button id='reSave' style='width:100%;padding:13px;border:none;background:#B5651D;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save recipe</button>";
+
+  document.getElementById("recipeCancelEdit").addEventListener("click", function(){
+    if (isNew) { _recipeView="list"; renderRecipes(); }
+    else { _recipeView="detail"; renderRecipeDetail(); }
+  });
+  document.getElementById("reSave").addEventListener("click", function(){
+    var name = document.getElementById("reName").value.trim();
+    if (!name) { toast("Name can't be empty"); return; }
+    var servings = parseInt(document.getElementById("reServings").value, 10) || 1;
+    var ingredients = parseIngredients(document.getElementById("reIng").value);
+    var method = document.getElementById("reMethod").value.trim();
+    var notes  = document.getElementById("reNotes").value.trim();
+    var rb = getRecipeBook();
+    if (isNew) {
+      var nid = Date.now();
+      rb.unshift({ id:nid, name:name, servings:servings, ingredients:ingredients, method:method, notes:notes });
+      _recipeOpenId = nid;
+    } else {
+      var ex = rb.find(function(x){ return x.id === id; });
+      if (ex) { ex.name=name; ex.servings=servings; ex.ingredients=ingredients; ex.method=method; ex.notes=notes; }
+    }
+    saveRecipeBook(rb);
+    _recipeServings = servings;
+    _recipeView="detail"; renderRecipeDetail();
+    toast("Recipe saved");
+  });
+}
+function fieldLabel(t){ return "<div style='font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px'>" + t + "</div>"; }
+function recipeInputCss(){ return "width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;outline:none;"; }
+
+// Parse "amount unit name" lines into ingredient objects
+function parseIngredients(text) {
+  var units = ["tsp","tbsp","ml","l","cube","cubes","pinch","pinches","g","kg","cup","cups"];
+  return text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean).map(function(line){
+    var approx = false;
+    if (line[0] === "~") { approx = true; line = line.slice(1).trim(); }
+    // amount: leading number (incl. fraction chars and decimals)
+    var m = line.match(/^([\d.\/¼½¾⅓⅔]+)\s+(.*)$/);
+    var amount = null, rest = line;
+    if (m) { amount = parseAmount(m[1]); rest = m[2]; }
+    // unit: next word if it's a known unit
+    var unit = null;
+    var parts = rest.split(/\s+/);
+    if (parts.length && units.indexOf(parts[0].toLowerCase()) !== -1) {
+      unit = parts[0].toLowerCase();
+      if (unit === "cubes") unit = "cube";
+      if (unit === "pinches") unit = "pinch";
+      rest = parts.slice(1).join(" ");
+    }
+    var ing = { name: rest };
+    if (amount != null) ing.amount = amount;
+    if (unit) ing.unit = unit;
+    if (approx) ing.approx = true;
+    return ing;
+  });
+}
+function parseAmount(s) {
+  var fr = {"¼":0.25,"½":0.5,"¾":0.75,"⅓":0.333,"⅔":0.667};
+  if (fr[s] != null) return fr[s];
+  if (s.indexOf("/") !== -1) { var p=s.split("/"); return (+p[0])/(+p[1]); }
+  var n = parseFloat(s);
+  return isNaN(n) ? null : n;
 }
 
 function getTravelTags() { return storeGet("fl4_travel_tags") || []; }
@@ -3593,7 +3857,8 @@ document.getElementById("exportBtn").addEventListener("click", function() {
   //  workouts (incl. bodyweight + bp), baby (incl. growth, medicine, milestones,
   //  teeth, bags, babySex), action_log (incl. cardio), food_log, food_notes,
   //  saved_meals, cal_goal, secVisible, syncPrefs, recipes (list import recipes),
-  //  travel_tags (Travel tag pool; per-item tags live on the items themselves).
+  //  travel_tags (Travel tag pool; per-item tags live on the items themselves),
+  //  recipebook (Recipes section).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*.
   var exportData = {
@@ -3605,6 +3870,7 @@ document.getElementById("exportBtn").addEventListener("click", function() {
     saved_meals:storeGet("fl4_saved_meals")||[],
     recipes:storeGet("fl4_recipes")||[],
     travel_tags:storeGet("fl4_travel_tags")||[],
+    recipebook:storeGet("fl4_recipebook")||[],
     cal_goal:storeGet("fl4_cal_goal")||2000,
     secVisible:storeGet("fl4_secVisible")||{},
     syncPrefs:storeGet("fl4_syncPrefs")||{}
@@ -3663,6 +3929,7 @@ document.getElementById("importFile").addEventListener("change", function(e) {
       if(Array.isArray(data.saved_meals)){var sm=storeGet("fl4_saved_meals")||[],smIds={};sm.forEach(function(m){smIds[m.id]=true;});storeSet("fl4_saved_meals",sm.concat(data.saved_meals.filter(function(m){return m&&!smIds[m.id];})));}
       if(Array.isArray(data.recipes)){var rc=storeGet("fl4_recipes")||[],rcN={};rc.forEach(function(m){if(m)rcN[m.name.toLowerCase()]=true;});storeSet("fl4_recipes",rc.concat(data.recipes.filter(function(m){return m&&m.name&&!rcN[m.name.toLowerCase()];})));}
       if(Array.isArray(data.travel_tags)){var tt=storeGet("fl4_travel_tags")||[];data.travel_tags.forEach(function(t){if(t&&!tt.some(function(x){return x.toLowerCase()===t.toLowerCase();}))tt.push(t);});storeSet("fl4_travel_tags",tt);}
+      if(Array.isArray(data.recipebook)){var rb2=storeGet("fl4_recipebook")||[],rbIds={};rb2.forEach(function(m){if(m)rbIds[m.id]=true;});storeSet("fl4_recipebook",rb2.concat(data.recipebook.filter(function(m){return m&&!rbIds[m.id];})));}
       if(data.cal_goal&&!storeGet("fl4_cal_goal"))storeSet("fl4_cal_goal",data.cal_goal);
       renderList(); toast("Imported: "+imported.lists+" list items");
     } catch(err){ toast("Import failed: "+err.message); }
@@ -4407,12 +4674,14 @@ function switchSection(section) {
   document.getElementById("homeSection").style.display  = section === "home"   ? "block" : "none";
   document.getElementById("lifeSection").style.display  = section === "lists"  ? "block" : "none";
   document.getElementById("trainSection").style.display = section === "train"  ? "block" : "none";
+  document.getElementById("recipesSection").style.display = section === "recipes" ? "block" : "none";
   document.getElementById("notesSection").style.display = section === "notes"  ? "block" : "none";
   document.getElementById("babySection").style.display  = section === "baby"   ? "block" : "none";
 
   document.getElementById("bnHome").className  = "bn-btn" + (section === "home"   ? " home-active"  : "");
   document.getElementById("bnLife").className  = "bn-btn" + (section === "lists"  ? " life-active"  : "");
   document.getElementById("bnTrain").className = "bn-btn" + (section === "train"  ? " train-active" : "");
+  document.getElementById("bnRecipes").className = "bn-btn" + (section === "recipes" ? " recipes-active" : "");
   document.getElementById("bnNotes").className = "bn-btn" + (section === "notes"  ? " notes-active" : "");
   document.getElementById("bnBaby").className  = "bn-btn" + (section === "baby"   ? " baby-active"  : "");
 
@@ -4446,6 +4715,11 @@ function switchSection(section) {
     document.getElementById("appTitle").innerHTML = "&#x1F4DD; Notes";
     document.getElementById("hdrBadge").style.display = "none";
     renderNotesSection();
+  } else if (section === "recipes") {
+    document.getElementById("themeColor").setAttribute("content", "#B5651D");
+    document.getElementById("appTitle").innerHTML = "&#x1F37D; Recipes";
+    document.getElementById("hdrBadge").style.display = "none";
+    renderRecipes();
   } else if (section === "baby") {
     document.getElementById("themeColor").setAttribute("content", "#7E22CE");
     document.getElementById("appTitle").innerHTML = "&#x1F476; Baby";
@@ -6039,6 +6313,8 @@ function btnBusy(el) {
 document.getElementById("bnHome").addEventListener("click",  function(){ switchSection("home");  });
 document.getElementById("bnLife").addEventListener("click",  function(){ switchSection("lists"); });
 document.getElementById("bnTrain").addEventListener("click", function(){ switchSection("train"); });
+document.getElementById("bnRecipes").addEventListener("click", function(){ switchSection("recipes"); });
+document.getElementById("recipeNewBtn").addEventListener("click", function(){ _recipeView="detail"; openRecipeEditor(null); });
 document.getElementById("bnNotes").addEventListener("click", function(){ switchSection("notes"); });
 document.getElementById("bnBaby").addEventListener("click",  function(){ switchSection("baby");  });
 
