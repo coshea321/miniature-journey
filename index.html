@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v235 · 23/06/2026 21:58</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v236 · 23/06/2026 22:38</div>
 
   </div>
 </div>
@@ -2125,24 +2125,76 @@ var _recipeView = "list";   // "list" | "detail"
 var _recipeOpenId = null;
 var _recipeServings = 1;
 
+var _recipeFilter = "all"; // "all" | "fav" | category name
 function renderRecipes() {
   seedRecipes();
   if (_recipeView === "detail" && _recipeOpenId != null) { renderRecipeDetail(); return; }
   var el = document.getElementById("recipesContent");
   var rb = getRecipeBook();
   if (!rb.length) {
-    el.innerHTML = "<div style='text-align:center;color:#8A7A5A;padding:40px 20px'><div style='font-size:40px;margin-bottom:10px'>&#x1F37D;</div><div style='font-size:16px;font-weight:600;margin-bottom:4px'>No recipes yet</div><div style='font-size:13px'>Tap “+ New” to add one.</div></div>";
+    el.innerHTML = "<div style='text-align:center;color:#8A7A5A;padding:40px 20px'><div style='font-size:40px;margin-bottom:10px'>&#x1F37D;</div><div style='font-size:16px;font-weight:600;margin-bottom:4px'>No recipes yet</div><div style='font-size:13px'>Tap “+ New” or “Import”.</div></div>";
     return;
   }
-  var html = "";
-  rb.forEach(function(r){
-    var ingCount = (r.ingredients||[]).length;
-    html += "<button class='recipe-card' data-rid='" + r.id + "' style='display:block;width:100%;text-align:left;background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;font-family:inherit'>" +
-      "<div style='font-size:16px;font-weight:700;color:#2A2010;margin-bottom:3px'>" + esc(r.name) + "</div>" +
-      "<div style='font-size:12px;color:#9A8A6A'>" + ingCount + " ingredient" + (ingCount!==1?"s":"") + " &middot; serves " + (r.servings||1) + "</div>" +
-      "</button>";
+  // Collect categories in use
+  var cats = [];
+  rb.forEach(function(r){ var c=(r.category||"").trim(); if(c && cats.indexOf(c)===-1) cats.push(c); });
+  cats.sort();
+  var hasFav = rb.some(function(r){ return r.fav; });
+
+  // Filter bar
+  var bar = "<div style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px'>";
+  function chip(key,label){
+    var on = _recipeFilter === key;
+    return "<button class='rcp-filter' data-key='" + esc(key).replace(/'/g,"&#39;") + "' style='border:1.5px solid " + (on?"#B5651D":"#E0D0B8") + ";background:" + (on?"#B5651D":"#fff") + ";color:" + (on?"#fff":"#7A5A30") + ";border-radius:14px;padding:5px 13px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>" + label + "</button>";
+  }
+  bar += chip("all","All");
+  if (hasFav) bar += chip("fav","&#x2605; Favourites");
+  cats.forEach(function(c){ bar += chip(c, esc(c)); });
+  bar += "</div>";
+
+  // Filter the list
+  var shown = rb.filter(function(r){
+    if (_recipeFilter === "all") return true;
+    if (_recipeFilter === "fav") return !!r.fav;
+    return (r.category||"").trim() === _recipeFilter;
   });
+
+  var html = bar;
+  if (!shown.length) {
+    html += "<div style='text-align:center;color:#9A8A6A;padding:30px'>Nothing here yet.</div>";
+  } else {
+    // Group by category when showing All; otherwise flat
+    if (_recipeFilter === "all" && cats.length) {
+      var groups = {};
+      var uncat = [];
+      shown.forEach(function(r){ var c=(r.category||"").trim(); if(c){(groups[c]=groups[c]||[]).push(r);} else uncat.push(r); });
+      cats.forEach(function(c){
+        if (!groups[c]) return;
+        html += "<div style='font-size:12px;font-weight:700;color:#9A7A4A;text-transform:uppercase;letter-spacing:.5px;margin:6px 2px 8px'>" + esc(c) + "</div>";
+        groups[c].forEach(function(r){ html += recipeCardHTML(r); });
+      });
+      if (uncat.length) {
+        html += "<div style='font-size:12px;font-weight:700;color:#9A7A4A;text-transform:uppercase;letter-spacing:.5px;margin:6px 2px 8px'>Uncategorised</div>";
+        uncat.forEach(function(r){ html += recipeCardHTML(r); });
+      }
+    } else {
+      shown.forEach(function(r){ html += recipeCardHTML(r); });
+    }
+  }
   el.innerHTML = html;
+
+  el.querySelectorAll(".rcp-filter").forEach(function(b){
+    b.addEventListener("click", function(){ _recipeFilter = b.dataset.key; renderRecipes(); });
+  });
+  el.querySelectorAll(".recipe-fav").forEach(function(star){
+    star.addEventListener("click", function(e){
+      e.stopPropagation();
+      var id = +star.dataset.rid;
+      var rb2 = getRecipeBook();
+      var r = rb2.find(function(x){ return x.id === id; });
+      if (r) { r.fav = !r.fav; saveRecipeBook(rb2); renderRecipes(); }
+    });
+  });
   el.querySelectorAll(".recipe-card").forEach(function(card){
     card.addEventListener("click", function(){
       _recipeOpenId = +card.dataset.rid;
@@ -2152,6 +2204,17 @@ function renderRecipes() {
       renderRecipeDetail();
     });
   });
+}
+
+function recipeCardHTML(r) {
+  var ingCount = (r.ingredients||[]).length;
+  return "<div class='recipe-card' data-rid='" + r.id + "' style='display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px 14px;margin-bottom:10px;cursor:pointer'>" +
+    "<div style='flex:1;min-width:0'>" +
+      "<div style='font-size:16px;font-weight:700;color:#2A2010;margin-bottom:3px'>" + esc(r.name) + "</div>" +
+      "<div style='font-size:12px;color:#9A8A6A'>" + ingCount + " ingredient" + (ingCount!==1?"s":"") + " &middot; serves " + (r.servings||1) + (r.category?" &middot; " + esc(r.category):"") + "</div>" +
+    "</div>" +
+    "<button class='recipe-fav' data-rid='" + r.id + "' aria-label='Favourite' style='border:none;background:none;cursor:pointer;font-size:22px;line-height:1;padding:4px;color:" + (r.fav?"#E8A030":"#D8CEBC") + "'>" + (r.fav?"&#x2605;":"&#x2606;") + "</button>" +
+  "</div>";
 }
 
 function renderRecipeDetail() {
@@ -2170,7 +2233,11 @@ function renderRecipeDetail() {
 
   el.innerHTML =
     "<button id='recipeBackBtn' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; All recipes</button>" +
-    "<div style='font-family:Georgia,serif;font-size:24px;font-weight:600;color:#2A2010;margin-bottom:14px'>" + esc(r.name) + "</div>" +
+    "<div style='display:flex;align-items:flex-start;gap:10px;margin-bottom:6px'>" +
+      "<div style='flex:1;font-family:Georgia,serif;font-size:24px;font-weight:600;color:#2A2010'>" + esc(r.name) + "</div>" +
+      "<button id='recipeFavBtn' aria-label='Favourite' style='border:none;background:none;cursor:pointer;font-size:26px;line-height:1;padding:2px;color:" + (r.fav?"#E8A030":"#D8CEBC") + "'>" + (r.fav?"&#x2605;":"&#x2606;") + "</button>" +
+    "</div>" +
+    (r.category ? "<div style='font-size:13px;color:#9A7A4A;font-weight:600;margin-bottom:14px'>" + esc(r.category) + "</div>" : "<div style='margin-bottom:14px'></div>") +
     "<div style='display:flex;align-items:center;gap:14px;background:#FBF5EC;border:1px solid #ECE0CC;border-radius:12px;padding:10px 14px;margin-bottom:16px'>" +
       "<span style='font-size:13px;font-weight:700;color:#7A5A30;text-transform:uppercase;letter-spacing:.5px'>Serves</span>" +
       "<button id='servMinus' style='width:34px;height:34px;border:1.5px solid #D8C8A8;background:#fff;border-radius:8px;font-size:20px;color:#7A5A30;cursor:pointer;line-height:1'>&minus;</button>" +
@@ -2187,6 +2254,10 @@ function renderRecipeDetail() {
     "</div>";
 
   document.getElementById("recipeBackBtn").addEventListener("click", function(){ _recipeView="list"; _recipeOpenId=null; renderRecipes(); });
+  document.getElementById("recipeFavBtn").addEventListener("click", function(){
+    var rb = getRecipeBook(), rr = rb.find(function(x){ return x.id === r.id; });
+    if (rr) { rr.fav = !rr.fav; saveRecipeBook(rb); renderRecipeDetail(); }
+  });
   document.getElementById("servMinus").addEventListener("click", function(){ if(_recipeServings>1){_recipeServings--; renderRecipeDetail();} });
   document.getElementById("servPlus").addEventListener("click", function(){ if(_recipeServings<50){_recipeServings++; renderRecipeDetail();} });
   document.getElementById("recipeDeleteBtn").addEventListener("click", function(){
@@ -2214,6 +2285,9 @@ function openRecipeEditor(id) {
     "<input id='reName' type='text' value='" + (r?esc(r.name).replace(/'/g,"&#39;"):"") + "' placeholder='Recipe name' style='" + recipeInputCss() + "margin-bottom:12px'>" +
     fieldLabel("Serves") +
     "<input id='reServings' type='number' min='1' value='" + (r?r.servings||1:1) + "' style='" + recipeInputCss() + "margin-bottom:12px;max-width:90px'>" +
+    fieldLabel("Category (optional)") +
+    "<input id='reCategory' type='text' value='" + (r&&r.category?esc(r.category).replace(/'/g,"&#39;"):"") + "' placeholder='e.g. Breakfast, Dinner, Dessert' list='reCatList' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+    "<datalist id='reCatList'>" + recipeCategoryOptions() + "</datalist>" +
     fieldLabel("Ingredients (one per line: amount unit name)") +
     "<textarea id='reIng' rows='7' placeholder='2 tsp instant coffee&#10;150 ml milk&#10;~8 cube ice cubes' style='" + recipeInputCss() + "margin-bottom:12px;resize:vertical;line-height:1.6'>" + (ingText?esc(ingText):"") + "</textarea>" +
     fieldLabel("Method") +
@@ -2230,17 +2304,18 @@ function openRecipeEditor(id) {
     var name = document.getElementById("reName").value.trim();
     if (!name) { toast("Name can't be empty"); return; }
     var servings = parseInt(document.getElementById("reServings").value, 10) || 1;
+    var category = document.getElementById("reCategory").value.trim();
     var ingredients = parseIngredients(document.getElementById("reIng").value);
     var method = document.getElementById("reMethod").value.trim();
     var notes  = document.getElementById("reNotes").value.trim();
     var rb = getRecipeBook();
     if (isNew) {
       var nid = Date.now();
-      rb.unshift({ id:nid, name:name, servings:servings, ingredients:ingredients, method:method, notes:notes });
+      rb.unshift({ id:nid, name:name, servings:servings, category:category, ingredients:ingredients, method:method, notes:notes, fav:false });
       _recipeOpenId = nid;
     } else {
       var ex = rb.find(function(x){ return x.id === id; });
-      if (ex) { ex.name=name; ex.servings=servings; ex.ingredients=ingredients; ex.method=method; ex.notes=notes; }
+      if (ex) { ex.name=name; ex.servings=servings; ex.category=category; ex.ingredients=ingredients; ex.method=method; ex.notes=notes; }
     }
     saveRecipeBook(rb);
     _recipeServings = servings;
@@ -2291,6 +2366,11 @@ function cleanText(s) {
   return s.replace(/\n{3,}/g, "\n\n");
 }
 
+function recipeCategoryOptions() {
+  var seen = {}, out = "";
+  getRecipeBook().forEach(function(r){ var c=(r.category||"").trim(); if(c && !seen[c.toLowerCase()]){ seen[c.toLowerCase()]=1; out += "<option value='" + esc(c).replace(/'/g,"&#39;") + "'></option>"; } });
+  return out;
+}
 function fieldLabel(t){ return "<div style='font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px'>" + t + "</div>"; }
 function recipeInputCss(){ return "width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;outline:none;"; }
 
