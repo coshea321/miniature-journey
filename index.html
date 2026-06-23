@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v234 · 23/06/2026 17:01</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v235 · 23/06/2026 21:58</div>
 
   </div>
 </div>
@@ -6438,52 +6438,66 @@ document.getElementById("bnLife").addEventListener("click",  function(){ switchS
 document.getElementById("bnTrain").addEventListener("click", function(){ switchSection("train"); });
 document.getElementById("bnRecipes").addEventListener("click", function(){ switchSection("recipes"); });
 document.getElementById("recipeNewBtn").addEventListener("click", function(){ _recipeView="detail"; openRecipeEditor(null); });
-document.getElementById("recipeImportBtn").addEventListener("click", function(){
-  document.getElementById("recipeImportText").value = "";
-  document.getElementById("recipeImportPreview").textContent = "";
-  document.getElementById("recipeImportSheet").style.display = "block";
-  document.getElementById("recipeImportBackdrop").style.display = "block";
-  document.body.style.overflow = "hidden";
-});
 function closeRecipeImport(){
-  document.getElementById("recipeImportSheet").style.display = "none";
-  document.getElementById("recipeImportBackdrop").style.display = "none";
+  var sh = document.getElementById("recipeImportSheet"), bd = document.getElementById("recipeImportBackdrop");
+  if (sh) sh.style.display = "none";
+  if (bd) bd.style.display = "none";
   document.body.style.overflow = "";
 }
-document.getElementById("recipeImportClose").addEventListener("click", closeRecipeImport);
-document.getElementById("recipeImportCancel").addEventListener("click", closeRecipeImport);
-document.getElementById("recipeImportBackdrop").addEventListener("click", closeRecipeImport);
-document.getElementById("recipeImportText").addEventListener("input", function(){
-  var txt = this.value.trim();
-  var prev = document.getElementById("recipeImportPreview");
-  if (!txt) { prev.textContent = ""; return; }
-  try {
-    var res = recipesFromCSV(txt);
-    prev.textContent = res.recipes.length + " recipe" + (res.recipes.length!==1?"s":"") + " found" + (res.skipped ? ", " + res.skipped + " row(s) skipped" : "");
-  } catch(e) { prev.textContent = "Couldn't read that — check it's CSV text."; }
-});
-document.getElementById("recipeImportDo").addEventListener("click", function(){
-  var txt = document.getElementById("recipeImportText").value.trim();
-  if (!txt) { toast("Paste some CSV first"); return; }
-  var res;
-  try { res = recipesFromCSV(txt); }
-  catch(e) { toast("Couldn't parse the CSV"); return; }
-  if (!res.recipes.length) { toast("No recipes with ingredients found"); return; }
-  var rb = getRecipeBook();
-  // Skip exact-name duplicates already in the book
-  var have = {};
-  rb.forEach(function(r){ if(r) have[r.name.toLowerCase()] = true; });
-  var added = 0, dupes = 0;
-  res.recipes.forEach(function(r){
-    if (have[r.name.toLowerCase()]) { dupes++; return; }
-    have[r.name.toLowerCase()] = true;
-    rb.push(r); added++;
+(function wireRecipeImport(){
+  function wire(){
+  var importBtn = document.getElementById("recipeImportBtn");
+  if (importBtn) importBtn.addEventListener("click", function(){
+    var t = document.getElementById("recipeImportText"); if (t) t.value = "";
+    var p = document.getElementById("recipeImportPreview"); if (p) p.textContent = "";
+    var sh = document.getElementById("recipeImportSheet"); if (sh) sh.style.display = "block";
+    var bd = document.getElementById("recipeImportBackdrop"); if (bd) bd.style.display = "block";
+    document.body.style.overflow = "hidden";
   });
-  saveRecipeBook(rb);
-  closeRecipeImport();
-  _recipeView = "list"; renderRecipes();
-  toast("Imported " + added + " recipe" + (added!==1?"s":"") + (dupes ? " (" + dupes + " already there)" : ""));
-});
+  var closeBtn = document.getElementById("recipeImportClose");
+  if (closeBtn) closeBtn.addEventListener("click", closeRecipeImport);
+  var cancelBtn = document.getElementById("recipeImportCancel");
+  if (cancelBtn) cancelBtn.addEventListener("click", closeRecipeImport);
+  var bdrop = document.getElementById("recipeImportBackdrop");
+  if (bdrop) bdrop.addEventListener("click", closeRecipeImport);
+  var ta = document.getElementById("recipeImportText");
+  if (ta) ta.addEventListener("input", function(){
+    var txt = this.value.trim();
+    var prev = document.getElementById("recipeImportPreview");
+    if (!prev) return;
+    if (!txt) { prev.textContent = ""; return; }
+    try {
+      var res = recipesFromCSV(txt);
+      prev.textContent = res.recipes.length + " recipe" + (res.recipes.length!==1?"s":"") + " found" + (res.skipped ? ", " + res.skipped + " row(s) skipped" : "");
+    } catch(e) { prev.textContent = "Couldn't read that — check it's CSV text."; }
+  });
+  var doBtn = document.getElementById("recipeImportDo");
+  if (doBtn) doBtn.addEventListener("click", function(){
+    var ta2 = document.getElementById("recipeImportText");
+    var txt = ta2 ? ta2.value.trim() : "";
+    if (!txt) { toast("Paste some CSV first"); return; }
+    var res;
+    try { res = recipesFromCSV(txt); }
+    catch(e) { toast("Couldn't parse the CSV"); return; }
+    if (!res.recipes.length) { toast("No recipes with ingredients found"); return; }
+    var rb = getRecipeBook();
+    var have = {};
+    rb.forEach(function(r){ if(r) have[r.name.toLowerCase()] = true; });
+    var added = 0, dupes = 0;
+    res.recipes.forEach(function(r){
+      if (have[r.name.toLowerCase()]) { dupes++; return; }
+      have[r.name.toLowerCase()] = true;
+      rb.push(r); added++;
+    });
+    saveRecipeBook(rb);
+    closeRecipeImport();
+    _recipeView = "list"; renderRecipes();
+    toast("Imported " + added + " recipe" + (added!==1?"s":"") + (dupes ? " (" + dupes + " already there)" : ""));
+  });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire);
+  else wire();
+})();
 document.getElementById("bnNotes").addEventListener("click", function(){ switchSection("notes"); });
 document.getElementById("bnBaby").addEventListener("click",  function(){ switchSection("baby");  });
 
