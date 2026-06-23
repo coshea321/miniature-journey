@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v232 · 23/06/2026 13:21</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v233 · 23/06/2026 16:50</div>
 
   </div>
 </div>
@@ -2027,23 +2027,27 @@ function seedRecipes() {
 }
 
 // ── Unit + scaling helpers ──
-// Volume units are converted to ml for scaling, then re-displayed:
-//   < 20 ml  → tsp/tbsp   |   >= 20 ml → ml
-var _ML_PER = { tsp: 5, tbsp: 15, ml: 1, l: 1000 };
-function isVolumeUnit(u) { return u === "tsp" || u === "tbsp" || u === "ml" || u === "l"; }
+// Spoon/volume/weight units keep their unit and just scale the number.
+// Cups convert to grams (dry goods, by ingredient) or ml (liquids).
+var _SPOON_KEEP = { tsp:1, tbsp:1, ml:1, l:1, g:1, kg:1 };
+// Approx grams per 1 cup for common dry ingredients (keyword match on name)
+var _CUP_GRAMS = [
+  ["self-raising flour",120],["self raising flour",120],["plain flour",120],["flour",120],
+  ["icing sugar",125],["powdered sugar",125],["caster sugar",220],["brown sugar",220],["sugar",200],
+  ["rolled oats",90],["oats",90],["cocoa",100],["butter",225],["rice",185],
+  ["breadcrumbs",108],["chocolate chips",175],["chocolate",175],["raisins",145],
+  ["almonds",140],["nuts",140],["desiccated coconut",80],["coconut",80]
+];
+var _CUP_ML = 240;
 
 function fmtFraction(n) {
-  // Render a number with nice common fractions (¼ ⅓ ½ ⅔ ¾)
   var whole = Math.floor(n);
   var frac = n - whole;
   var map = [[0,""],[0.25,"¼"],[0.333,"⅓"],[0.5,"½"],[0.667,"⅔"],[0.75,"¾"],[1,""]];
   var best = map[0], bestD = Math.abs(frac - map[0][0]);
   for (var i=1;i<map.length;i++){ var d=Math.abs(frac-map[i][0]); if(d<bestD){bestD=d;best=map[i];} }
   if (best[0] === 1) { whole += 1; best = map[0]; }
-  if (bestD > 0.08) { // not close to a nice fraction — use one decimal
-    var v = Math.round(n*10)/10;
-    return (v % 1 === 0) ? String(v) : String(v);
-  }
+  if (bestD > 0.08) { var v = Math.round(n*10)/10; return String(v); }
   if (whole === 0 && best[1] === "") return "0";
   if (whole === 0) return best[1];
   return whole + (best[1] ? " " + best[1] : "");
@@ -2053,34 +2057,64 @@ function fmtNumber(n) {
   if (r % 1 === 0) return String(r);
   return fmtFraction(r);
 }
+function roundMetric(v) { return v >= 100 ? Math.round(v/5)*5 : Math.round(v); }
 
-// Given an ingredient and a scale multiplier, return the display amount + unit
+// Approx grams per US cup for common dry/weighable ingredients.
+// If the ingredient name matches, cups convert to grams; otherwise to millilitres.
+function cupToGrams(name) {
+  var n = (name||"").toLowerCase();
+  var table = [
+    ["icing sugar",120],["powdered sugar",120],["brown sugar",220],["caster sugar",200],
+    ["granulated sugar",200],["sugar",200],["self-raising flour",120],["self raising flour",120],
+    ["plain flour",120],["bread flour",127],["wholemeal flour",120],["flour",120],
+    ["butter",227],["rolled oats",90],["oats",90],["rice",185],["cocoa",100],
+    ["breadcrumbs",108],["ground almond",96],["almonds",143],["almond",96],
+    ["chocolate chip",170],["chocolate",170],["honey",340],["maple syrup",322],
+    ["yogurt",245],["yoghurt",245],["cream cheese",225],["grated cheese",100],["cheese",113]
+  ];
+  for (var i=0;i<table.length;i++){ if(n.indexOf(table[i][0])!==-1) return table[i][1]; }
+  return null;
+}
+
+// Given an ingredient and a scale multiplier, return the display amount + unit.
+// Rule: tsp/tbsp always stay tsp/tbsp; ml stays ml; cups convert to g (dry) or ml (liquid);
+// counts/pinches/cubes scale as whole numbers.
 function scaleIngredient(ing, mult) {
   var amt = (ing.amount || 0) * mult;
-  if (isVolumeUnit(ing.unit)) {
-    var ml = amt * (_ML_PER[ing.unit] || 1);
-    if (ml >= 20) {
-      // show as ml (round to nearest 5 if large, else nearest 1)
-      var mlR = ml >= 100 ? Math.round(ml/5)*5 : Math.round(ml);
-      return { amount: String(mlR), unit: "ml" };
-    }
-    // below 20 ml → tsp or tbsp
-    if (ml >= 15 && Math.abs(ml/15 - Math.round(ml/15)) < 0.05) {
-      return { amount: fmtNumber(ml/15), unit: "tbsp" };
-    }
-    return { amount: fmtFraction(ml/5), unit: "tsp" };
+  var unit = ing.unit;
+
+  if (unit === "tsp" || unit === "tbsp") {
+    return { amount: fmtFraction(amt), unit: unit };
   }
-  // Non-volume: pinch / cube / count — scale the number
-  if (ing.unit === "pinch") {
+  if (unit === "ml") {
+    var mlR = amt >= 100 ? Math.round(amt/5)*5 : Math.round(amt);
+    return { amount: String(mlR), unit: "ml" };
+  }
+  if (unit === "l") {
+    return { amount: fmtNumber(amt), unit: "l" };
+  }
+  if (unit === "cup" || unit === "cups") {
+    var gpc = cupToGrams(ing.name);
+    if (gpc != null) {
+      var grams = amt * gpc;
+      var gR = grams >= 100 ? Math.round(grams/5)*5 : Math.round(grams);
+      return { amount: String(gR), unit: "g" };
+    }
+    var ml = amt * 240;
+    var mlc = ml >= 100 ? Math.round(ml/5)*5 : Math.round(ml);
+    return { amount: String(mlc), unit: "ml" };
+  }
+  if (unit === "g")  return { amount: fmtNumber(amt), unit: "g" };
+  if (unit === "kg") return { amount: fmtNumber(amt), unit: "kg" };
+  if (unit === "pinch") {
     var p = Math.round(amt);
     return { amount: String(p), unit: p === 1 ? "pinch" : "pinches" };
   }
-  if (ing.unit === "cube") {
+  if (unit === "cube") {
     var cb = Math.round(amt);
     return { amount: String(cb), unit: cb === 1 ? "cube" : "cubes" };
   }
-  // generic count or unitless
-  return { amount: fmtNumber(amt), unit: ing.unit || "" };
+  return { amount: fmtNumber(amt), unit: unit || "" };
 }
 
 var _recipeView = "list";   // "list" | "detail"
