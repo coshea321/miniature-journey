@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v238 · 24/06/2026 00:30</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v239 · 24/06/2026 01:00</div>
 
   </div>
 </div>
@@ -2004,6 +2004,23 @@ function fuzzyMatch(query, text) {
 function getRecipeBook() { return storeGet("fl4_recipebook") || []; }
 function saveRecipeBook(r) { storeSet("fl4_recipebook", r); }
 
+// A section-header line (e.g. "<b>Base</b>" or "Sauce:") — kept for display as a
+// sub-heading but never treated as a buyable ingredient. Pattern-matched so it
+// also rescues recipes saved before headers were flagged (no re-import needed).
+function isHeaderIng(ing){
+  if (!ing) return true;
+  if (ing.header) return true;
+  var n = String(ing.name||"").trim();
+  if (!n) return true;
+  if (/^<(b|strong)\b[^>]*>[\s\S]*<\/(b|strong)>$/i.test(n)) return true;          // <b>Base</b>
+  var bare = n.replace(/<\/?[^>]+>/g,"").trim();
+  if (!ing.amount && !ing.unit && /:\s*$/.test(bare)) return true;                 // "Sauce:"
+  return false;
+}
+function headerLabel(ing){
+  return String(ing && ing.name || "").replace(/<\/?[^>]+>/g,"").replace(/:\s*$/,"").trim();
+}
+
 // Push a Recipes-section recipe onto the Grocery list (Phase 1: names only).
 // Tag = recipe name, so the batch clears/reverts as a group exactly like the
 // grocery CSV import. Also saves a reusable saved-recipe chip in fl4_recipes at
@@ -2013,7 +2030,7 @@ function addRecipeToGroceries(recipe, mult) {
   if (!recipe) return;
   var m = (typeof mult === "number" && mult > 0) ? mult : 1;
   var tag = (recipe.name || "").trim();
-  var ings = (recipe.ingredients || []).filter(function(ing){ return ing && ing.name && String(ing.name).trim(); });
+  var ings = (recipe.ingredients || []).filter(function(ing){ return ing && ing.name && String(ing.name).trim() && !isHeaderIng(ing); });
   var names = ings.map(function(ing){ return String(ing.name).trim(); });
   if (!tag || !names.length) { toast("No ingredients to add"); return; }
 
@@ -2308,6 +2325,10 @@ function renderRecipeDetail() {
 
   var ingHtml = "";
   (r.ingredients||[]).forEach(function(ing){
+    if (isHeaderIng(ing)) {
+      ingHtml += "<li style='padding:11px 0 3px;list-style:none;font-size:12px;font-weight:800;color:#B5651D;text-transform:uppercase;letter-spacing:.5px'>" + esc(headerLabel(ing)) + "</li>";
+      return;
+    }
     var s = scaleIngredient(ing, mult);
     var amtStr = (s.amount && s.amount !== "0") ? "<b>" + (ing.approx ? "~" : "") + s.amount + (s.unit ? " " + s.unit : "") + "</b> " : "";
     ingHtml += "<li style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#2A2010;list-style:none'>" + amtStr + esc(ing.name) + "</li>";
@@ -2480,6 +2501,12 @@ function parseIngredients(text, stripParens) {
     var approx = false;
     if (line[0] === "~") { approx = true; line = line.slice(1).trim(); }
     if (stripParens) line = line.replace(/\s*\([^)]*\)/g, "").replace(/\s*\)\s*/g," ").replace(/[\s,]+$/,"").replace(/\s{2,}/g," ").trim();
+    // Section header (e.g. "<b>Base</b>" or "Sauce:") — keep for display, never a grocery item.
+    var _bare = line.replace(/<\/?[^>]+>/g,"").trim();
+    if (/^<(b|strong)\b[^>]*>[\s\S]*<\/(b|strong)>$/i.test(line) ||
+        (/:\s*$/.test(_bare) && !/^[\d¼½¾⅓⅔⅛⅜⅝⅞]/.test(_bare))) {
+      return { name: _bare.replace(/:\s*$/,"").trim(), header: true };
+    }
     // amount: leading number, possibly "1 1/2" or "1/3" or unicode fraction
     var m = line.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|[¼½¾⅓⅔⅛⅜⅝⅞]|\d+(?:\.\d+)?)\s+(.*)$/);
     var amount = null, rest = line;
