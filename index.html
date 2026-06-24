@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v237 · 24/06/2026 00:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v238 · 24/06/2026 00:30</div>
 
   </div>
 </div>
@@ -2009,12 +2009,12 @@ function saveRecipeBook(r) { storeSet("fl4_recipebook", r); }
 // grocery CSV import. Also saves a reusable saved-recipe chip in fl4_recipes at
 // the recipe's BASE servings. Targets grocery directly (not currentList) so it
 // works no matter which section is open. Amount-carrying is a later phase.
-function addRecipeToGroceries(recipe) {
+function addRecipeToGroceries(recipe, mult) {
   if (!recipe) return;
+  var m = (typeof mult === "number" && mult > 0) ? mult : 1;
   var tag = (recipe.name || "").trim();
-  var names = (recipe.ingredients || [])
-    .map(function(ing){ return (ing && ing.name ? ing.name : "").trim(); })
-    .filter(Boolean);
+  var ings = (recipe.ingredients || []).filter(function(ing){ return ing && ing.name && String(ing.name).trim(); });
+  var names = ings.map(function(ing){ return String(ing.name).trim(); });
   if (!tag || !names.length) { toast("No ingredients to add"); return; }
 
   var d = loadListData("grocery");
@@ -2029,13 +2029,25 @@ function addRecipeToGroceries(recipe) {
     for (var i=0;i<GROCERY_KW.length;i++){ if (low.indexOf(GROCERY_KW[i][0])!==-1) return GROCERY_KW[i][1]; }
     return "other";
   }
+  // ASCII-only amount label, scaled to current servings. Reuses scaleIngredient
+  // so units stay one source of truth. Returns "" when there's no clean amount
+  // (incl. the compound-amount parser gap) → caller falls back to name-only.
+  function amtLabel(ing){
+    var s = scaleIngredient(ing, m);
+    if (!s || !s.amount || s.amount === "0") return "";
+    var a = String(s.amount)
+      .replace(/¼/g,"1/4").replace(/⅓/g,"1/3").replace(/½/g,"1/2")
+      .replace(/⅔/g,"2/3").replace(/¾/g,"3/4");
+    return (ing.approx ? "~" : "") + a + (s.unit ? " " + s.unit : "");
+  }
 
   var added = 0, tagged = 0;
-  names.forEach(function(nm){
-    var clean = nm.replace(/\s*\(.*?\)\s*$/, "").trim() || nm;
+  ings.forEach(function(ing){
+    var clean = String(ing.name).replace(/\s*\(.*?\)\s*$/, "").trim() || String(ing.name).trim();
     var key = clean.toLowerCase();
     var existing = byName[key];
     if (existing) {
+      // Re-tag only — never touch an existing item's text or amount.
       if (!existing._recipePrev) {
         existing._recipePrev = { done: !!existing.done, catId: existing.catId, recipe: existing.recipe || null };
       }
@@ -2047,6 +2059,8 @@ function addRecipeToGroceries(recipe) {
     } else {
       var catId = gcat(clean);
       var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser, recipe: tag, _recipeAdded: true };
+      var amt = amtLabel(ing);
+      if (amt) rec.amount = amt;            // new items carry the scaled amount
       items.unshift(rec);
       byName[key] = rec;
       addToHistFor("grocery", clean, catId);
@@ -2335,7 +2349,7 @@ function renderRecipeDetail() {
       _recipeView="list"; _recipeOpenId=null; renderRecipes();
     });
   });
-  document.getElementById("recipeToGroceryBtn").addEventListener("click", function(){ addRecipeToGroceries(r); });
+  document.getElementById("recipeToGroceryBtn").addEventListener("click", function(){ addRecipeToGroceries(r, mult); });
   document.getElementById("recipeEditBtn").addEventListener("click", function(){ openRecipeEditor(r.id); });
 }
 
@@ -2853,6 +2867,9 @@ function cardHTML(item, c) {
   var newBadge = isNew
     ? "<span style='display:inline-block;font-size:10px;font-weight:700;background:#FBE9DE;color:#C2691A;padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle'>NEW</span>"
     : "";
+  var amtChip = item.amount
+    ? "<span style='font-size:12px;font-weight:600;color:#9A7A4A;margin-left:6px;white-space:nowrap'>" + esc(item.amount) + "</span>"
+    : "";
   var isDup = window._dupNames && window._dupNames[(item.name||"").trim().toLowerCase()];
   var dupBadge = isDup
     ? "<span style='display:inline-block;font-size:10px;font-weight:700;background:#FCE4C4;color:#A85A10;padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle'>DUPLICATE</span>"
@@ -2861,7 +2878,7 @@ function cardHTML(item, c) {
   return "<div class='item-card" + (item.done?" done":"") + (isDup?" is-dup":"") + "' data-id='" + item.id + "' style='border-left-color:" + leftColor + (isDup?";background:#FFF8EC":"") + "'>" +
     "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>" +
     "<div style='flex:1;min-width:0;" + (isDetail?"cursor:pointer":"") + "'>" +
-      "<span class='item-name'>" + esc(item.name) + "</span>" + newBadge + dupBadge + recipeChip + tagChips +
+      "<span class='item-name'>" + esc(item.name) + "</span>" + amtChip + newBadge + dupBadge + recipeChip + tagChips +
       (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + (calBtn ? "&nbsp;" + calBtn : "") + "</div>" : "") +
 
       noteSnip + linkChip +
