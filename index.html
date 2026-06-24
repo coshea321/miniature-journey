@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v236 · 23/06/2026 22:38</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v237 · 24/06/2026 00:00</div>
 
   </div>
 </div>
@@ -2004,6 +2004,74 @@ function fuzzyMatch(query, text) {
 function getRecipeBook() { return storeGet("fl4_recipebook") || []; }
 function saveRecipeBook(r) { storeSet("fl4_recipebook", r); }
 
+// Push a Recipes-section recipe onto the Grocery list (Phase 1: names only).
+// Tag = recipe name, so the batch clears/reverts as a group exactly like the
+// grocery CSV import. Also saves a reusable saved-recipe chip in fl4_recipes at
+// the recipe's BASE servings. Targets grocery directly (not currentList) so it
+// works no matter which section is open. Amount-carrying is a later phase.
+function addRecipeToGroceries(recipe) {
+  if (!recipe) return;
+  var tag = (recipe.name || "").trim();
+  var names = (recipe.ingredients || [])
+    .map(function(ing){ return (ing && ing.name ? ing.name : "").trim(); })
+    .filter(Boolean);
+  if (!tag || !names.length) { toast("No ingredients to add"); return; }
+
+  var d = loadListData("grocery");
+  var items = d.items;
+  var byName = {};
+  items.forEach(function(it){ if (it){ var k=(it.name||"").trim().toLowerCase(); if(!(k in byName)) byName[k]=it; } });
+
+  // Grocery-specific category detection (detectCat() is bound to currentList).
+  function gcat(name){
+    if (!name) return "other";
+    var low = name.toLowerCase();
+    for (var i=0;i<GROCERY_KW.length;i++){ if (low.indexOf(GROCERY_KW[i][0])!==-1) return GROCERY_KW[i][1]; }
+    return "other";
+  }
+
+  var added = 0, tagged = 0;
+  names.forEach(function(nm){
+    var clean = nm.replace(/\s*\(.*?\)\s*$/, "").trim() || nm;
+    var key = clean.toLowerCase();
+    var existing = byName[key];
+    if (existing) {
+      if (!existing._recipePrev) {
+        existing._recipePrev = { done: !!existing.done, catId: existing.catId, recipe: existing.recipe || null };
+      }
+      existing.recipe = tag;
+      existing._recipeAdded = false;        // pre-existed: restore on clear, don't delete
+      if (existing.done) existing.done = false;
+      existing.catId = gcat(clean);
+      tagged++;
+    } else {
+      var catId = gcat(clean);
+      var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser, recipe: tag, _recipeAdded: true };
+      items.unshift(rec);
+      byName[key] = rec;
+      addToHistFor("grocery", clean, catId);
+      added++;
+    }
+  });
+
+  // Save grocery list directly (saveCurrentList() is bound to currentList).
+  storeSet(LIST_CONFIG.grocery.key, d);
+  pushPersonal();
+  if (isHouseholdSet() && isSynced("grocery")) pushHousehold();
+
+  // Update the reusable saved-recipe chip quietly, at BASE servings, names only.
+  var saved = storeGet("fl4_recipes") || [];
+  var si = saved.findIndex(function(x){ return x && x.name && x.name.toLowerCase() === tag.toLowerCase(); });
+  var srec = { name: tag, lines: names, updated: Date.now() };
+  if (si >= 0) saved[si] = srec; else saved.unshift(srec);
+  storeSet("fl4_recipes", saved);
+
+  if (currentList === "grocery") renderList();
+  var msg = "&#x1F6D2; Added " + added + " to Grocery";
+  if (tagged) msg += ", tagged " + tagged + " existing";
+  toast(msg);
+}
+
 // Seed the first recipe once
 function seedRecipes() {
   var rb = getRecipeBook();
@@ -2248,6 +2316,7 @@ function renderRecipeDetail() {
     "<ul style='margin:0 0 18px;padding:0'>" + ingHtml + "</ul>" +
     (r.method ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Method</div><div style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + esc(r.method) + "</div>" : "") +
     (r.notes ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Notes</div><div style='font-size:14px;color:#6A5A40;line-height:1.6;margin-bottom:18px'>" + esc(r.notes) + "</div>" : "") +
+    "<button id='recipeToGroceryBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#2D6B35;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F6D2; Add to grocery list</button>" +
     "<div style='display:flex;gap:8px;margin-top:8px'>" +
       "<button id='recipeEditBtn' style='flex:1;padding:11px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Edit</button>" +
       "<button id='recipeDeleteBtn' style='padding:11px 16px;border:1.5px solid #E0C0C0;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Delete</button>" +
@@ -2266,6 +2335,7 @@ function renderRecipeDetail() {
       _recipeView="list"; _recipeOpenId=null; renderRecipes();
     });
   });
+  document.getElementById("recipeToGroceryBtn").addEventListener("click", function(){ addRecipeToGroceries(r); });
   document.getElementById("recipeEditBtn").addEventListener("click", function(){ openRecipeEditor(r.id); });
 }
 
