@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v239 · 24/06/2026 01:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v240 · 24/06/2026 01:30</div>
 
   </div>
 </div>
@@ -2002,7 +2002,7 @@ function fuzzyMatch(query, text) {
 // RECIPES SECTION
 // ============================================================
 function getRecipeBook() { return storeGet("fl4_recipebook") || []; }
-function saveRecipeBook(r) { storeSet("fl4_recipebook", r); }
+function saveRecipeBook(r) { storeSet("fl4_recipebook", r); if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold(); }
 
 // A section-header line (e.g. "<b>Base</b>" or "Sauce:") — kept for display as a
 // sub-heading but never treated as a buyable ingredient. Pattern-matched so it
@@ -2415,7 +2415,7 @@ function openRecipeEditor(id) {
     var notes  = document.getElementById("reNotes").value.trim();
     var rb = getRecipeBook();
     if (isNew) {
-      var nid = Date.now();
+      var nid = Date.now() + Math.floor(Math.random()*100000);
       rb.unshift({ id:nid, name:name, servings:servings, category:category, ingredients:ingredients, method:method, notes:notes, fav:false });
       _recipeOpenId = nid;
     } else {
@@ -4942,6 +4942,8 @@ var data = {};
     if ((bd.growth||[]).length || (bd.medicine||[]).length || (bd.milestones||[]).length || Object.keys(bd.teeth||{}).length)
       data["baby"] = bd;
   }
+  // Recipe book is shared household-wide (merge-by-id on the receiving side).
+  data["recipebook"] = storeGet("fl4_recipebook") || [];
   lastPushTs = Date.now();
   fetch(authUrl(houseUrl("/shared")), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).catch(function(){});
   }, 800);
@@ -8236,6 +8238,23 @@ function applyHousehold(data) {
   if (isSynced("baby") && data["baby"] && typeof data["baby"] === "object") {
     storeSet("fl4_baby", data["baby"]);
     if (currentSection === "baby") renderBabyView();
+  }
+  // Recipe book — merge by id: partner's new recipes are added, same-id recipes
+  // take the incoming version (edits/favourites propagate). Deletions do NOT
+  // propagate by design (a recipe removed on one device is kept from the other).
+  if (Array.isArray(data["recipebook"])) {
+    var localRB = storeGet("fl4_recipebook") || [];
+    var incoming = data["recipebook"].filter(function(m){ return m && m.id != null; });
+    var incById = {};
+    incoming.forEach(function(m){ incById[m.id] = m; });
+    var localIds = {};
+    var merged = localRB.map(function(m){
+      if (m && m.id != null) { localIds[m.id] = true; return incById[m.id] || m; }  // same-id → incoming
+      return m;
+    });
+    var fresh = incoming.filter(function(m){ return !localIds[m.id]; });            // partner's new ones
+    storeSet("fl4_recipebook", fresh.concat(merged));
+    if (currentSection === "recipes") renderRecipes();
   }
   syncPaused = false;
   renderList();
