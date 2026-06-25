@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v243 · 24/06/2026 03:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v244 · 24/06/2026 03:30</div>
 
   </div>
 </div>
@@ -2393,6 +2393,7 @@ function openRecipeEditor(id) {
     fieldLabel("Category (optional)") +
     "<input id='reCategory' type='text' value='" + (r&&r.category?esc(r.category).replace(/'/g,"&#39;"):"") + "' placeholder='e.g. Breakfast, Dinner, Dessert' list='reCatList' style='" + recipeInputCss() + "margin-bottom:12px'>" +
     "<datalist id='reCatList'>" + recipeCategoryOptions() + "</datalist>" +
+    recipeCategoryChips() +
     fieldLabel("Ingredients (one per line: amount unit name)") +
     "<textarea id='reIng' rows='7' placeholder='2 tsp instant coffee&#10;150 ml milk&#10;~8 cube ice cubes' style='" + recipeInputCss() + "margin-bottom:12px;resize:vertical;line-height:1.6'>" + (ingText?esc(ingText):"") + "</textarea>" +
     fieldLabel("Method") +
@@ -2405,6 +2406,28 @@ function openRecipeEditor(id) {
     if (isNew) { _recipeView="list"; renderRecipes(); }
     else { _recipeView="detail"; renderRecipeDetail(); }
   });
+  var _reChips = document.getElementById("reCatChips");
+  if (_reChips) {
+    var _hiReChip = function(){
+      var v = (document.getElementById("reCategory").value||"").trim().toLowerCase();
+      Array.prototype.forEach.call(_reChips.querySelectorAll(".reCatChip"), function(x){
+        var on = v !== "" && x.getAttribute("data-cat").toLowerCase() === v;
+        x.style.background  = on ? "#B5651D" : "#FBF4E8";
+        x.style.color       = on ? "#fff"    : "#8A5A1A";
+        x.style.borderColor = on ? "#B5651D" : "#D8C0A0";
+      });
+    };
+    _reChips.addEventListener("click", function(e){
+      var b = e.target && e.target.closest ? e.target.closest(".reCatChip") : null;
+      if (!b) return;
+      var input = document.getElementById("reCategory");
+      var val = b.getAttribute("data-cat");
+      input.value = (input.value.trim().toLowerCase() === val.toLowerCase()) ? "" : val; // tap active to clear
+      _hiReChip();
+    });
+    document.getElementById("reCategory").addEventListener("input", _hiReChip);
+    _hiReChip(); // reflect current value when the editor opens
+  }
   document.getElementById("reSave").addEventListener("click", function(){
     var name = document.getElementById("reName").value.trim();
     if (!name) { toast("Name can't be empty"); return; }
@@ -2475,6 +2498,18 @@ function recipeCategoryOptions() {
   var seen = {}, out = "";
   getRecipeBook().forEach(function(r){ var c=(r.category||"").trim(); if(c && !seen[c.toLowerCase()]){ seen[c.toLowerCase()]=1; out += "<option value='" + esc(c).replace(/'/g,"&#39;") + "'></option>"; } });
   return out;
+}
+// Tappable quick-pick chips of previously-used categories (reliable on Android,
+// where the <datalist> dropdown often doesn't surface). Tap fills the field;
+// tap the active chip again to clear it.
+function recipeCategoryChips() {
+  var seen = {}, cats = [];
+  getRecipeBook().forEach(function(r){ var c=(r.category||"").trim(); if(c && !seen[c.toLowerCase()]){ seen[c.toLowerCase()]=1; cats.push(c); } });
+  cats.sort(function(a,b){ return a.toLowerCase().localeCompare(b.toLowerCase()); });
+  if (!cats.length) return "";
+  return "<div id='reCatChips' style='display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 12px'>" +
+    cats.map(function(c){ var v=esc(c).replace(/'/g,"&#39;"); return "<button type='button' class='reCatChip' data-cat='" + v + "' style='padding:5px 11px;border:1.5px solid #D8C0A0;background:#FBF4E8;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer'>" + esc(c) + "</button>"; }).join("") +
+    "</div>";
 }
 function fieldLabel(t){ return "<div style='font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px'>" + t + "</div>"; }
 function recipeInputCss(){ return "width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;outline:none;"; }
