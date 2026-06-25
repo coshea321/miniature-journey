@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v241 · 24/06/2026 02:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v242 · 24/06/2026 02:30</div>
 
   </div>
 </div>
@@ -2291,7 +2291,7 @@ function renderRecipes() {
       var id = +star.dataset.rid;
       var rb2 = getRecipeBook();
       var r = rb2.find(function(x){ return x.id === id; });
-      if (r) { r.fav = !r.fav; saveRecipeBook(rb2); renderRecipes(); }
+      if (r) { r.fav = !r.fav; r.updated = Date.now(); saveRecipeBook(rb2); renderRecipes(); }
     });
   });
   el.querySelectorAll(".recipe-card").forEach(function(card){
@@ -2360,7 +2360,7 @@ function renderRecipeDetail() {
   document.getElementById("recipeBackBtn").addEventListener("click", function(){ _recipeView="list"; _recipeOpenId=null; renderRecipes(); });
   document.getElementById("recipeFavBtn").addEventListener("click", function(){
     var rb = getRecipeBook(), rr = rb.find(function(x){ return x.id === r.id; });
-    if (rr) { rr.fav = !rr.fav; saveRecipeBook(rb); renderRecipeDetail(); }
+    if (rr) { rr.fav = !rr.fav; rr.updated = Date.now(); saveRecipeBook(rb); renderRecipeDetail(); }
   });
   document.getElementById("servMinus").addEventListener("click", function(){ if(_recipeServings>1){_recipeServings--; renderRecipeDetail();} });
   document.getElementById("servPlus").addEventListener("click", function(){ if(_recipeServings<50){_recipeServings++; renderRecipeDetail();} });
@@ -2416,11 +2416,11 @@ function openRecipeEditor(id) {
     var rb = getRecipeBook();
     if (isNew) {
       var nid = Date.now() + Math.floor(Math.random()*100000);
-      rb.unshift({ id:nid, name:name, servings:servings, category:category, ingredients:ingredients, method:method, notes:notes, fav:false });
+      rb.unshift({ id:nid, name:name, servings:servings, category:category, ingredients:ingredients, method:method, notes:notes, fav:false, updated:Date.now() });
       _recipeOpenId = nid;
     } else {
       var ex = rb.find(function(x){ return x.id === id; });
-      if (ex) { ex.name=name; ex.servings=servings; ex.category=category; ex.ingredients=ingredients; ex.method=method; ex.notes=notes; }
+      if (ex) { ex.name=name; ex.servings=servings; ex.category=category; ex.ingredients=ingredients; ex.method=method; ex.notes=notes; ex.updated=Date.now(); }
     }
     saveRecipeBook(rb);
     _recipeServings = servings;
@@ -2460,7 +2460,7 @@ function recipesFromCSV(text) {
     recipes.push({
       id: Date.now() + r + Math.floor(Math.random()*1000),
       name: title, servings: servings, ingredients: ingredients,
-      method: method, notes: notes
+      method: method, notes: notes, updated: Date.now() + r
     });
   }
   return { recipes: recipes, skipped: skipped };
@@ -4866,6 +4866,27 @@ function applyPersonal(d) {
     storeSet("fl4_saved_meals", Object.values(smIndex));
   }
   if (d.cal_goal) storeSet("fl4_cal_goal", d.cal_goal);
+
+  // ── Recipe book: newest-wins by `updated` (mirrors the household channel) ──
+  if (Array.isArray(d.recipebook)) {
+    var lrb = storeGet("fl4_recipebook") || [];
+    var rInc = d.recipebook.filter(function(m){ return m && m.id != null; });
+    var rIdx = {}; rInc.forEach(function(m){ rIdx[m.id] = m; });
+    var rLids = {}, rbPush = false;
+    var rMerged = lrb.map(function(m){
+      if (!m || m.id == null) return m;
+      rLids[m.id] = true;
+      var im = rIdx[m.id];
+      if (!im) { rbPush = true; return m; }                       // backup missing this → push
+      if ((im.updated||0) > (m.updated||0)) return im;            // incoming newer → take it
+      if ((m.updated||0) > (im.updated||0)) rbPush = true;        // local newer → push to converge
+      return m;
+    });
+    var rFresh = rInc.filter(function(m){ return !rLids[m.id]; });
+    storeSet("fl4_recipebook", rFresh.concat(rMerged));
+    if (currentSection === "recipes") renderRecipes();
+    if (rbPush) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
+  }
 
   // ── Baby: merge arrays by date/id, merge teeth object ────────────────────
   if (d.baby && typeof d.baby === "object") {
@@ -8250,22 +8271,30 @@ function applyHousehold(data) {
     storeSet("fl4_baby", data["baby"]);
     if (currentSection === "baby") renderBabyView();
   }
-  // Recipe book — merge by id: partner's new recipes are added, same-id recipes
-  // take the incoming version (edits/favourites propagate). Deletions do NOT
-  // propagate by design (a recipe removed on one device is kept from the other).
+  // Recipe book — merge by id with NEWEST-WINS (by `updated` timestamp), so a
+  // stale copy pushed by another device can never revert a newer edit. Partner's
+  // new recipes are added. If we end up holding a copy newer than (or absent from)
+  // the incoming /shared, schedule a re-push so /shared converges to the newest.
+  // Deletions still do NOT propagate (kept from whichever device still has it).
   if (Array.isArray(data["recipebook"])) {
     var localRB = storeGet("fl4_recipebook") || [];
     var incoming = data["recipebook"].filter(function(m){ return m && m.id != null; });
     var incById = {};
     incoming.forEach(function(m){ incById[m.id] = m; });
-    var localIds = {};
+    var localIds = {}, rbNeedPush = false;
     var merged = localRB.map(function(m){
-      if (m && m.id != null) { localIds[m.id] = true; return incById[m.id] || m; }  // same-id → incoming
-      return m;
+      if (!m || m.id == null) return m;
+      localIds[m.id] = true;
+      var inc = incById[m.id];
+      if (!inc) { rbNeedPush = true; return m; }                         // /shared missing this → push
+      if ((inc.updated||0) > (m.updated||0)) return inc;                 // incoming newer → take it
+      if ((m.updated||0) > (inc.updated||0)) rbNeedPush = true;          // local newer → push to converge
+      return m;                                                          // equal/local → keep local
     });
-    var fresh = incoming.filter(function(m){ return !localIds[m.id]; });            // partner's new ones
+    var fresh = incoming.filter(function(m){ return !localIds[m.id]; });  // partner's new ones
     storeSet("fl4_recipebook", fresh.concat(merged));
     if (currentSection === "recipes") renderRecipes();
+    if (rbNeedPush) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
   }
   syncPaused = false;
   renderList();
