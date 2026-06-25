@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v242 · 24/06/2026 02:30</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v243 · 24/06/2026 03:00</div>
 
   </div>
 </div>
@@ -8236,6 +8236,7 @@ function fetchHousehold(cb) {
 
 function applyHousehold(data) {
   syncPaused = true;
+  try {
   var _newFromOther = {}; // lt → count of new items added by the other user
   ["grocery","todo","travel","personal"].forEach(function(lt) {
     if (!isSynced(lt)) return;
@@ -8296,7 +8297,8 @@ function applyHousehold(data) {
     if (currentSection === "recipes") renderRecipes();
     if (rbNeedPush) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
   }
-  syncPaused = false;
+  } catch (err) { console.warn("applyHousehold error (sync continues):", err); }
+  finally { syncPaused = false; }
   renderList();
   updateListTabDots();
   // Gentle in-app toast if the partner added something while we're using the app
