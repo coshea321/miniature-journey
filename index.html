@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v245 · 24/06/2026 04:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v246 · 24/06/2026 04:30</div>
 
   </div>
 </div>
@@ -1820,7 +1820,6 @@ var listData = { grocery:null, todo:null, travel:null, personal:null };
 var fbUrl = ""; var syncRoom = "";
 var syncPaused = false;
 var lastPushTs = 0;       // timestamp of our last push to Firebase
-var SSE_GRACE_MS = 3000;  // ignore SSE events for 3s after a local push
 // Per-section sync prefs: default grocery/todo/travel ON, notes OFF
 var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, personal:false, notes:false, baby:false };
 
@@ -4419,7 +4418,6 @@ var syncPaused    = false;
 var lastPushTs    = 0;
 var _personalFetchOk = false; // becomes true after first successful remote fetch
 var _homeAwaitingFetch = false; // true between sign-in and first home data fetch
-var SSE_GRACE_MS  = 5000;
 
 // Migrate from old keys
 (function() {
@@ -5183,7 +5181,7 @@ function startPersonalListening() {
   });
 }
 function handlePersonalEvent(e) {
-  if (Date.now() - lastPushTs < SSE_GRACE_MS) return; // ignore echo of our own push
+  // Apply immediately (see handleHouseholdEvent) — the merges are clobber-proof.
   try {
     var p = JSON.parse(e.data);
     if (e.type === "put" && p.data && typeof p.data === "object") {
@@ -5212,19 +5210,10 @@ function startListening() {
     };
   });
 }
-var _graceRefetch = null;
 function handleHouseholdEvent(e) {
-  if (Date.now() - lastPushTs < SSE_GRACE_MS) {
-    // Suppressed inside the post-push grace window. This might be the echo of our
-    // own push, but it could equally be a genuine remote change. Don't drop it
-    // outright — schedule a single catch-up pull once the window closes, so we
-    // never silently miss the partner's edits (e.g. a recipe category change).
-    // A pull doesn't push, so this can't re-bounce; merge-by-id makes the
-    // self-echo case an idempotent no-op.
-    clearTimeout(_graceRefetch);
-    _graceRefetch = setTimeout(function(){ _graceRefetch = null; if (isHouseholdSet()) fetchHousehold(); }, SSE_GRACE_MS);
-    return;
-  }
+  // Apply incoming sync immediately. The v245 list/recipe merges (union by id +
+  // newest-wins + deletion tombstones) preserve local unpushed changes and make
+  // our own echo an idempotent no-op, so no grace window / bounce guard is needed.
   try {
     var p = JSON.parse(e.data);
     if (e.type === "put" && p.data && typeof p.data === "object") {
