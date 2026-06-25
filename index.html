@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v246 · 24/06/2026 04:30</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v247 · 24/06/2026 05:00</div>
 
   </div>
 </div>
@@ -1769,21 +1769,27 @@ function mergeTombs(a, b){ var o = {}; [a,b].forEach(function(t){ Object.keys(t|
 // conflict by `updated` (tie → remote); then drop any id deleted at/after its
 // last update. Returned newest-first to match the unshift add order.
 function mergeListItems(localItems, remoteItems, tombs){
-  var byId = {};
+  var byId = {}, remoteIds = {}, push = false;
   (localItems||[]).forEach(function(it){ if (it && it.id != null) byId[it.id] = it; });
   (remoteItems||[]).forEach(function(it){
     if (!it || it.id == null) return;
+    remoteIds[it.id] = it;
     var ex = byId[it.id];
     if (!ex || (it.updated||0) >= (ex.updated||0)) byId[it.id] = it;
   });
   var out = [];
   Object.keys(byId).forEach(function(k){
     var it = byId[k], ts = tombs ? tombs[it.id] : null;
-    if (ts != null && ts >= (it.updated||0)) return;   // deleted at/after last edit → drop
+    if (ts != null && ts >= (it.updated||0)) {        // deleted at/after last edit → drop
+      if (remoteIds[it.id]) push = true;              // remote still has it → /shared stale
+      return;
+    }
+    var rem = remoteIds[it.id];
+    if (!rem || (it.updated||0) > (rem.updated||0)) push = true; // remote lacks/older → /shared stale
     out.push(it);
   });
   out.sort(function(a,b){ return (b.id||0) - (a.id||0); });
-  return out;
+  return { items: out, push: push };   // push = our merged set is fuller/newer than remote → re-push to converge
 }
 function getItems() { return loadListData(currentList).items; }
 function getHist()  { return loadListData(currentList).hist; }
@@ -4866,6 +4872,7 @@ function applyPersonal(d) {
   }
 
   // ── Lists: merge remote + local by item ID (union, no overwrites) ─────────
+  var _pListRepush = false;
   ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
     var ld = d["list_" + lt];
     if (!ld || typeof ld !== "object") return;
@@ -4876,8 +4883,10 @@ function applyPersonal(d) {
     // Union by id with newest-wins + deletion tombstones (same as household channel)
     var _tombs = mergeTombs(getTombs(lt), (ld.deleted && typeof ld.deleted === "object") ? ld.deleted : {});
     storeSet("fl4_tomb_" + lt, purgeTombs(_tombs));
+    var _lm = mergeListItems(local.items, remote.items, _tombs);
+    if (_lm.push) _pListRepush = true;
     listData[lt] = {
-      items: mergeListItems(local.items, remote.items, _tombs),
+      items: _lm.items,
       hist:  mergeHist(local.hist, remote.hist)
     };
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
@@ -4889,6 +4898,7 @@ function applyPersonal(d) {
       if (newCats.length) saveCustomCats(lt, existingCats.concat(newCats));
     }
   });
+  if (_pListRepush) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0); // converge backup to the union
 
   // ── Notes: merge by note ID ───────────────────────────────────────────────
   if (Array.isArray(d.global_notes)) {
@@ -8289,6 +8299,7 @@ function applyHousehold(data) {
   syncPaused = true;
   try {
   var _newFromOther = {}; // lt → count of new items added by the other user
+  var _listRepush = false; // true if our merge is fuller/newer than /shared → re-push to converge
   ["grocery","todo","travel","personal"].forEach(function(lt) {
     if (!isSynced(lt)) return;
     var d = data["list_" + lt];
@@ -8310,8 +8321,10 @@ function applyHousehold(data) {
     var _localHist  = (listData[lt] && listData[lt].hist)  || [];
     var _tombs = mergeTombs(getTombs(lt), (d.deleted && typeof d.deleted === "object") ? d.deleted : {});
     storeSet("fl4_tomb_" + lt, purgeTombs(_tombs));
+    var _lm = mergeListItems(_localItems, incoming, _tombs);
+    if (_lm.push) _listRepush = true;
     listData[lt] = {
-      items: mergeListItems(_localItems, incoming, _tombs),
+      items: _lm.items,
       hist:  mergeHist(_localHist, Array.isArray(d.hist) ? d.hist.filter(Boolean) : [])
     };
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
@@ -8323,6 +8336,7 @@ function applyHousehold(data) {
       if (newCats.length) saveCustomCats(lt, existing.concat(newCats));
     }
   });
+  if (_listRepush) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0); // converge /shared to the union
   if (isSynced("notes") && Array.isArray(data["global_notes"])) storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
   if (isSynced("baby") && data["baby"] && typeof data["baby"] === "object") {
     storeSet("fl4_baby", data["baby"]);
