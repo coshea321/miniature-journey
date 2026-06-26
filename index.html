@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v248 · 24/06/2026 05:30</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v249 · 24/06/2026 06:30</div>
 
   </div>
 </div>
@@ -2257,6 +2257,8 @@ var _recipeView = "list";   // "list" | "detail"
 var _recipeEditing = false; // true while the recipe editor is open — suppresses sync re-renders that would discard unsaved input
 var _recipeOpenId = null;
 var _recipeServings = 1;
+var _recipeSelectMode = false;  // bulk-categorise selection mode
+var _recipeSelected = {};       // id -> true while selected
 
 var _recipeFilter = "all"; // "all" | "fav" | category name
 function renderRecipes() {
@@ -2293,7 +2295,19 @@ function renderRecipes() {
     return (r.category||"").trim() === _recipeFilter;
   });
 
-  var html = bar;
+  var _selCount = Object.keys(_recipeSelected).filter(function(k){ return _recipeSelected[k]; }).length;
+  var selectHdr;
+  if (_recipeSelectMode) {
+    selectHdr = "<div style='display:flex;align-items:center;gap:8px;margin-bottom:12px'>" +
+      "<button id='rcpSetCat'" + (_selCount?"":" disabled") + " style='flex:1;padding:10px;border:none;border-radius:10px;background:" + (_selCount?"#B5651D":"#D8CEBC") + ";color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:" + (_selCount?"pointer":"default") + "'>Set category (" + _selCount + ")</button>" +
+      "<button id='rcpSelCancel' style='padding:10px 14px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Cancel</button>" +
+    "</div>";
+  } else {
+    selectHdr = "<div style='display:flex;justify-content:flex-end;margin-bottom:10px'>" +
+      "<button id='rcpSelStart' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x2713; Select</button>" +
+    "</div>";
+  }
+  var html = selectHdr + bar;
   if (!shown.length) {
     html += "<div style='text-align:center;color:#9A8A6A;padding:30px'>Nothing here yet.</div>";
   } else {
@@ -2305,14 +2319,14 @@ function renderRecipes() {
       cats.forEach(function(c){
         if (!groups[c]) return;
         html += "<div style='font-size:12px;font-weight:700;color:#9A7A4A;text-transform:uppercase;letter-spacing:.5px;margin:6px 2px 8px'>" + esc(c) + "</div>";
-        groups[c].forEach(function(r){ html += recipeCardHTML(r); });
+        groups[c].forEach(function(r){ html += recipeCardHTML(r, _recipeSelectMode, !!_recipeSelected[r.id]); });
       });
       if (uncat.length) {
         html += "<div style='font-size:12px;font-weight:700;color:#9A7A4A;text-transform:uppercase;letter-spacing:.5px;margin:6px 2px 8px'>Uncategorised</div>";
-        uncat.forEach(function(r){ html += recipeCardHTML(r); });
+        uncat.forEach(function(r){ html += recipeCardHTML(r, _recipeSelectMode, !!_recipeSelected[r.id]); });
       }
     } else {
-      shown.forEach(function(r){ html += recipeCardHTML(r); });
+      shown.forEach(function(r){ html += recipeCardHTML(r, _recipeSelectMode, !!_recipeSelected[r.id]); });
     }
   }
   el.innerHTML = html;
@@ -2331,24 +2345,82 @@ function renderRecipes() {
   });
   el.querySelectorAll(".recipe-card").forEach(function(card){
     card.addEventListener("click", function(){
-      _recipeOpenId = +card.dataset.rid;
+      var id = +card.dataset.rid;
+      if (_recipeSelectMode) {
+        if (_recipeSelected[id]) delete _recipeSelected[id]; else _recipeSelected[id] = true;
+        renderRecipes();
+        return;
+      }
+      _recipeOpenId = id;
       var r = getRecipeBook().find(function(x){ return x.id === _recipeOpenId; });
       _recipeServings = (r && r.servings) || 1;
       _recipeView = "detail";
       renderRecipeDetail();
     });
   });
+  var _selStart = document.getElementById("rcpSelStart");
+  if (_selStart) _selStart.addEventListener("click", function(){ _recipeSelectMode = true; _recipeSelected = {}; renderRecipes(); });
+  var _selCancel = document.getElementById("rcpSelCancel");
+  if (_selCancel) _selCancel.addEventListener("click", function(){ _recipeSelectMode = false; _recipeSelected = {}; renderRecipes(); });
+  var _setCat = document.getElementById("rcpSetCat");
+  if (_setCat) _setCat.addEventListener("click", function(){
+    var ids = Object.keys(_recipeSelected).filter(function(k){ return _recipeSelected[k]; }).map(Number);
+    if (ids.length) openBulkCategoryPicker(ids);
+  });
 }
 
-function recipeCardHTML(r) {
+function recipeCardHTML(r, selectMode, selected) {
   var ingCount = (r.ingredients||[]).length;
-  return "<div class='recipe-card' data-rid='" + r.id + "' style='display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px 14px;margin-bottom:10px;cursor:pointer'>" +
+  var check = selectMode ? "<div style='font-size:22px;line-height:1;color:" + (selected?"#B5651D":"#CFC4AE") + "'>" + (selected?"&#x2611;":"&#x2610;") + "</div>" : "";
+  var fav = selectMode ? "" : "<button class='recipe-fav' data-rid='" + r.id + "' aria-label='Favourite' style='border:none;background:none;cursor:pointer;font-size:22px;line-height:1;padding:4px;color:" + (r.fav?"#E8A030":"#D8CEBC") + "'>" + (r.fav?"&#x2605;":"&#x2606;") + "</button>";
+  return "<div class='recipe-card' data-rid='" + r.id + "' style='display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:" + (selected?"#FBF1E2":"#fff") + ";border:1px solid " + (selected?"#E0C098":"#ECE4D6") + ";border-radius:12px;padding:14px 14px;margin-bottom:10px;cursor:pointer'>" +
+    check +
     "<div style='flex:1;min-width:0'>" +
       "<div style='font-size:16px;font-weight:700;color:#2A2010;margin-bottom:3px'>" + esc(r.name) + "</div>" +
       "<div style='font-size:12px;color:#9A8A6A'>" + ingCount + " ingredient" + (ingCount!==1?"s":"") + " &middot; serves " + (r.servings||1) + (r.category?" &middot; " + esc(r.category):"") + "</div>" +
     "</div>" +
-    "<button class='recipe-fav' data-rid='" + r.id + "' aria-label='Favourite' style='border:none;background:none;cursor:pointer;font-size:22px;line-height:1;padding:4px;color:" + (r.fav?"#E8A030":"#D8CEBC") + "'>" + (r.fav?"&#x2605;":"&#x2606;") + "</button>" +
+    fav +
   "</div>";
+}
+
+function applyBulkCategory(ids, category){
+  var rb = getRecipeBook(), set = {}, n = 0;
+  (ids||[]).forEach(function(id){ set[id] = true; });
+  rb.forEach(function(r){ if (r && set[r.id]) { r.category = category; r.updated = Date.now(); n++; } });
+  saveRecipeBook(rb);
+  _recipeSelectMode = false; _recipeSelected = {};
+  renderRecipes();
+  toast(n + " recipe" + (n!==1?"s":"") + (category ? " &rarr; " + esc(category) : " set to Uncategorised"));
+}
+function openBulkCategoryPicker(ids){
+  if (!ids || !ids.length) return;
+  var seen = {}, cats = [];
+  getRecipeBook().forEach(function(r){ var c=(r.category||"").trim(); if(c && !seen[c.toLowerCase()]){ seen[c.toLowerCase()]=1; cats.push(c); } });
+  cats.sort(function(a,b){ return a.toLowerCase().localeCompare(b.toLowerCase()); });
+  var chips = cats.map(function(c){ var v=esc(c).replace(/'/g,"&#39;"); return "<button type='button' class='bulkCatChip' data-cat='" + v + "' style='padding:7px 13px;border:1.5px solid #D8C0A0;background:#FBF4E8;color:#8A5A1A;border-radius:16px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>" + esc(c) + "</button>"; }).join("");
+  var ov = document.createElement("div");
+  ov.id = "bulkCatOverlay";
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(40,30,16,.45);display:flex;align-items:flex-end;justify-content:center;z-index:9999";
+  ov.innerHTML =
+    "<div style='background:#FFFDF7;width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:18px 18px 22px;box-sizing:border-box;max-height:80vh;overflow:auto'>" +
+      "<div style='font-size:16px;font-weight:800;color:#2A2010;margin-bottom:4px'>Set category</div>" +
+      "<div style='font-size:13px;color:#8A7A5A;margin-bottom:14px'>" + ids.length + " recipe" + (ids.length!==1?"s":"") + " selected</div>" +
+      (chips ? "<div style='display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px'>" + chips + "</div>" : "") +
+      "<input id='bulkCatInput' placeholder='Or type a new category' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+      "<button id='bulkCatUncat' type='button' style='width:100%;padding:11px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px'>Set to Uncategorised</button>" +
+      "<div style='display:flex;gap:8px'>" +
+        "<button id='bulkCatCancel' type='button' style='flex:1;padding:12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Cancel</button>" +
+        "<button id='bulkCatApply' type='button' style='flex:1;padding:12px;border:none;background:#B5651D;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Apply</button>" +
+      "</div>" +
+    "</div>";
+  document.body.appendChild(ov);
+  function close(){ if (ov.parentNode) ov.parentNode.removeChild(ov); }
+  var input = ov.querySelector("#bulkCatInput");
+  ov.querySelectorAll(".bulkCatChip").forEach(function(b){ b.addEventListener("click", function(){ input.value = b.getAttribute("data-cat"); input.focus(); }); });
+  ov.querySelector("#bulkCatUncat").addEventListener("click", function(){ close(); applyBulkCategory(ids, ""); });
+  ov.querySelector("#bulkCatCancel").addEventListener("click", close);
+  ov.querySelector("#bulkCatApply").addEventListener("click", function(){ close(); applyBulkCategory(ids, input.value.trim()); });
+  ov.addEventListener("click", function(e){ if (e.target === ov) close(); });
 }
 
 function renderRecipeDetail() {
