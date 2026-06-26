@@ -704,7 +704,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v255 · 24/06/2026 09:30</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v256 · 26/06/2026 10:30</div>
 
   </div>
 </div>
@@ -1886,6 +1886,7 @@ document.getElementById("typeBar").addEventListener("click", function(e) {
   // Reset any active search BEFORE rendering the newly selected list
   _listSearchQuery = "";
   _travelFilter = [];
+  _todayFilter = false;
   var _sr0 = document.getElementById("searchRow");
   if (_sr0) _sr0.style.display = "none";
   var _si0 = document.getElementById("listSearchInput");
@@ -2027,6 +2028,7 @@ function addToHist(name, catId) {
 // ============================================================
 var _listSearchQuery = "";
 var _travelFilter = [];
+var _todayFilter = false;
 // Fuzzy match: true if all query chars appear in order in the text (subsequence),
 // or the query is a direct substring. Case-insensitive, spaces ignored in query.
 function fuzzyMatch(query, text) {
@@ -2782,6 +2784,12 @@ function renderList() {
       return false;
     });
   }
+  // General "Today" filter: show only starred items. Auto-disengage if nothing is starred
+  // (prevents being stranded in an empty filtered view with no chip to toggle off).
+  if (currentList === "todo") {
+    if (_todayFilter && !getItems().some(function(it){ return it && it.today; })) _todayFilter = false;
+    if (_todayFilter) items = items.filter(function(it){ return it && it.today; });
+  }
   var lt = LIST_TYPES[currentList];
   var active=[], done=[];
   for (var i=0;i<items.length;i++){ (items[i].done?done:active).push(items[i]); }
@@ -2829,6 +2837,16 @@ function renderList() {
       var _unOn = _travelFilter.indexOf("__untagged__") !== -1;
       html += "<button class='travel-filter-chip' data-tag='__untagged__' style='border:1.5px dashed " + (_unOn?"#3565C8":"#C0B8A8") + ";background:" + (_unOn?"#3565C8":"#fff") + ";color:" + (_unOn?"#fff":"#7A6A50") + ";border-radius:13px;padding:4px 11px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer'>Untagged</button>";
       if (_travelFilter.length) html += "<button id='travelFilterClear' style='border:none;background:none;color:#A0855A;font-size:12px;font-weight:700;cursor:pointer;padding:4px'>Clear</button>";
+      html += "</div>";
+    }
+  }
+  // General "Today" filter chip — only shown when at least one item is starred
+  if (currentList === "todo") {
+    var _todayCount = getItems().filter(function(it){ return it && it.today; }).length;
+    if (_todayCount) {
+      var _tOn = _todayFilter;
+      html += "<div style='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px'>";
+      html += "<button id='todayFilterChip' style='border:1.5px solid " + (_tOn?"#C2691A":"#D8D0C0") + ";background:" + (_tOn?"#C2691A":"#fff") + ";color:" + (_tOn?"#fff":"#5A6455") + ";border-radius:13px;padding:4px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>&#x2605; Today (" + _todayCount + ")</button>";
       html += "</div>";
     }
   }
@@ -2912,6 +2930,8 @@ function renderList() {
   });
   var _tfClear = document.getElementById("travelFilterClear");
   if (_tfClear) _tfClear.addEventListener("click", function(){ _travelFilter = []; renderList(); });
+  var _todayChip = document.getElementById("todayFilterChip");
+  if (_todayChip) _todayChip.addEventListener("click", function(){ _todayFilter = !_todayFilter; renderList(); });
   elListC.querySelectorAll(".recipe-clear-btn").forEach(function(btn){
     btn.addEventListener("click", function(e){
       e.stopPropagation();
@@ -2975,6 +2995,8 @@ function renderList() {
       if (e.target.closest(".item-pill")) return;
       // Zone 3: circle/chk → toggle done
       if (e.target.closest(".chk")) { toggleItem(id); return; }
+      // Zone 3b: star → toggle "today" pick (General list only)
+      if (e.target.closest(".star-btn")) { toggleToday(id); return; }
       // Zone 4: due chip, cal link, or item link → let them navigate naturally
       if (e.target.closest(".due-chip") || e.target.closest(".cal-link") || e.target.closest(".alarm-link") || e.target.closest(".item-link")) return;
       // Zone 5: everything else on detail lists → open notes sheet
@@ -3072,6 +3094,9 @@ function cardHTML(item, c) {
     ? "<span style='display:inline-block;font-size:10px;font-weight:700;background:#FCE4C4;color:#A85A10;padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle'>DUPLICATE</span>"
     : "";
   var leftColor = isDup ? "#E8A030" : (isNew ? "#E0703C" : (c.fg + "33"));
+  var starBtn = (currentList === "todo")
+    ? "<button class='star-btn' title='Pick for today' style='width:34px;height:40px;flex-shrink:0;border:none;background:none;font-size:18px;line-height:1;cursor:pointer;padding:0;color:" + (item.today?"#E8A030":"#D0C8B8") + "'>" + (item.today?"&#x2605;":"&#x2606;") + "</button>"
+    : "";
   return "<div class='item-card" + (item.done?" done":"") + (isDup?" is-dup":"") + "' data-id='" + item.id + "' style='border-left-color:" + leftColor + (isDup?";background:#FFF8EC":"") + "'>" +
     "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>" +
     "<div style='flex:1;min-width:0;" + (isDetail?"cursor:pointer":"") + "'>" +
@@ -3081,12 +3106,18 @@ function cardHTML(item, c) {
       noteSnip + linkChip +
     "</div>" +
     "<span class='item-pill' style='background:" + c.bg + ";color:" + c.fg + "' title='Tap to change category'>" + c.emoji + " " + c.name + "</span>" +
+    starBtn +
     "<button class='del-btn'>&#x2715;</button></div>";
 }
 
 function toggleItem(id) {
   var items=getItems();
-  for (var i=0;i<items.length;i++) { if (items[i].id===id) { items[i].done=!items[i].done; items[i].updated=Date.now(); break; } }
+  for (var i=0;i<items.length;i++) { if (items[i].id===id) { items[i].done=!items[i].done; if (items[i].done) items[i].today=false; items[i].updated=Date.now(); break; } }
+  saveCurrentList(); renderList();
+}
+function toggleToday(id) {
+  var items=getItems();
+  for (var i=0;i<items.length;i++) { if (items[i].id===id) { items[i].today=!items[i].today; items[i].updated=Date.now(); break; } }
   saveCurrentList(); renderList();
 }
 function updateCollapseAllLabel() {
