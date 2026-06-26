@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v252 · 24/06/2026 08:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v253 · 24/06/2026 08:30</div>
 
   </div>
 </div>
@@ -1365,6 +1365,7 @@ body.train-mode #toast{background:#3A3328}
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <div class="sync-section-title" style="margin-bottom:8px">Import / Export</div>
     <button class="sync-btn" id="exportBtn">&#x2B07;&#xFE0F; Export all data</button>
+    <div id="lastBackupInfo" style="font-size:12px;color:#8A7A5A;margin:-2px 2px 10px;text-align:center">Last backup: never</div>
     <label class="sync-btn outline" id="importLabel" style="text-align:center;cursor:pointer;display:block;margin-bottom:6px">
       &#x2B06;&#xFE0F; Import data
       <input type="file" id="importFile" accept=".json" style="display:none">
@@ -4373,9 +4374,10 @@ function exportAllData() {
   exportData.notes["global_work"]=storeGet("fl4_notes_global_work")||[];
   var blob=new Blob([JSON.stringify(exportData,null,2)],{type:"application/json"});
   var url=URL.createObjectURL(blob), a=document.createElement("a");
-  a.href=url; a.download="hearth-backup-"+localDate+".json";
+  a.href=url; a.download="hearth-backup-"+localDate+"_"+pad(now.getHours())+pad(now.getMinutes())+".json";
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   storeSet("fl4_last_backup", Date.now());
+  updateLastBackupInfo();
   dismissBackupNudge();
   toast("Exported!");
 }
@@ -4384,11 +4386,21 @@ document.getElementById("exportBtn").addEventListener("click", exportAllData);
 // ── Backup-on-login nudge ──────────────────────────────────
 // fl4_last_backup / fl4_backup_snooze are transient UI state (NOT exported).
 function dismissBackupNudge(){ var b=document.getElementById("backupNudge"); if(b) b.style.display="none"; }
+function fmtBackupTime(ts){
+  if(!ts) return "never";
+  var d=new Date(ts), p=function(x){return x<10?"0"+x:""+x;};
+  var mon=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return p(d.getDate())+" "+mon[d.getMonth()]+" "+d.getFullYear()+", "+p(d.getHours())+":"+p(d.getMinutes());
+}
+function updateLastBackupInfo(){
+  var el=document.getElementById("lastBackupInfo");
+  if(el) el.textContent="Last backup: "+fmtBackupTime(storeGet("fl4_last_backup")||0);
+}
 function maybeShowBackupNudge(){
   try {
     var DAY = 24*3600*1000;
-    var WEEK = 10*60*1000;        // TEMP TEST: 10 min (revert to 7*DAY)
-    var SNOOZE = 2*60*1000;       // TEMP TEST: 2 min  (revert to 2*DAY)
+    var WEEK = 7*DAY;             // suggest a backup if none in the last 7 days
+    var SNOOZE = 2*DAY;           // after dismiss, stay quiet for 2 days
     var last = storeGet("fl4_last_backup") || 0;
     var snooze = storeGet("fl4_backup_snooze") || 0;
     if (Date.now() - snooze < SNOOZE) return;   // recently dismissed
@@ -4406,6 +4418,7 @@ function maybeShowBackupNudge(){
   if (now) now.addEventListener("click", exportAllData);
   var later = document.getElementById("backupNudgeLater");
   if (later) later.addEventListener("click", function(){ storeSet("fl4_backup_snooze", Date.now()); dismissBackupNudge(); });
+  updateLastBackupInfo();
 })();
 // Re-check on app open: resume from background after being away a while (not quick switches).
 var _bgHiddenAt = 0;
