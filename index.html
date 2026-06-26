@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v249 · 24/06/2026 06:30</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v250 · 24/06/2026 07:00</div>
 
   </div>
 </div>
@@ -2423,6 +2423,21 @@ function openBulkCategoryPicker(ids){
   ov.addEventListener("click", function(e){ if (e.target === ov) close(); });
 }
 
+// Render a recipe method readably without changing stored text: honour existing
+// line breaks (blank line → paragraph, single → line break) and split run-together
+// numbered steps ("…cool. 2. Whisk…") onto their own line. Conservative: only a
+// 1–2 digit number + ". " (so temps like "350." and decimals like "1.5" are safe).
+function formatMethod(text){
+  var t = String(text||"");
+  if (!t.trim()) return "";
+  t = t.replace(/([^\n])\s+(\d{1,2}\.\s)/g, "$1\n$2");          // break before "N. "
+  t = t.replace(/([^\n])\s+(Step\s+\d+\b[:.]?\s*)/gi, "$1\n$2"); // break before "Step N"
+  t = t.replace(/\n{3,}/g, "\n\n").replace(/[ \t]+\n/g, "\n").replace(/\n[ \t]+/g, "\n").trim();
+  return t.split(/\n{2,}/).map(function(p){
+    return "<p style='margin:0 0 10px'>" + esc(p).replace(/\n/g, "<br>") + "</p>";
+  }).join("");
+}
+
 function renderRecipeDetail() {
   var el = document.getElementById("recipesContent");
   var r = getRecipeBook().find(function(x){ return x.id === _recipeOpenId; });
@@ -2456,7 +2471,7 @@ function renderRecipeDetail() {
     "</div>" +
     "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Ingredients</div>" +
     "<ul style='margin:0 0 18px;padding:0'>" + ingHtml + "</ul>" +
-    (r.method ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Method</div><div style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + esc(r.method) + "</div>" : "") +
+    (r.method ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Method</div><div style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + formatMethod(r.method) + "</div>" : "") +
     (r.notes ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Notes</div><div style='font-size:14px;color:#6A5A40;line-height:1.6;margin-bottom:18px'>" + esc(r.notes) + "</div>" : "") +
     "<button id='recipeToGroceryBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#2D6B35;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F6D2; Add to grocery list</button>" +
     "<div style='display:flex;gap:8px;margin-top:8px'>" +
