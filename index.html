@@ -703,7 +703,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v250 · 24/06/2026 07:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v252 · 24/06/2026 08:00</div>
 
   </div>
 </div>
@@ -1401,6 +1401,14 @@ body.train-mode #toast{background:#3A3328}
   <span style="flex:1;font-size:13px;color:#C0D8F0">&#x1F504; Update available</span>
   <button onclick="window.location.reload()" style="background:#3A8FE0;border:none;color:#fff;border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation">Refresh</button>
   <button onclick="document.getElementById('updateBanner').style.display='none'" style="background:none;border:none;color:#8AAAC0;font-size:18px;cursor:pointer;padding:0 4px;touch-action:manipulation">&#x2715;</button>
+</div>
+<div id="backupNudge" style="display:none;position:fixed;bottom:70px;left:12px;right:12px;max-width:456px;margin:0 auto;z-index:790;background:#2E4A2F;border:1px solid #4A6A4C;border-radius:12px;padding:12px 16px;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.35)">
+  <div style="flex:1;min-width:0">
+    <div style="font-weight:700;font-size:13px;color:#EAF3EA;margin-bottom:2px">&#x1F4BE; Time for a backup?</div>
+    <div id="backupNudgeSub" style="font-size:12px;color:#B8CBB8">It's been a while since your last export.</div>
+  </div>
+  <button id="backupNudgeNow" style="background:#7FB069;border:none;color:#11280F;border-radius:8px;padding:8px 12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation">Back up now</button>
+  <button id="backupNudgeLater" aria-label="Dismiss" style="background:none;border:none;color:#9FB89F;font-size:18px;cursor:pointer;padding:0 2px;touch-action:manipulation">&#x2715;</button>
 </div>
 <div class="ver">v14</div>
 
@@ -4323,7 +4331,7 @@ document.querySelectorAll(".section-chk").forEach(function(chk) {
 });
 
 // ── Export ────────────────────────────────────────────────
-document.getElementById("exportBtn").addEventListener("click", function() {
+function exportAllData() {
   ["grocery","todo","travel","personal","baby"].forEach(function(lt){ loadListData(lt); });
   var now=new Date(), pad=function(x){return x<10?"0"+x:""+x;};
   var localDate=now.getFullYear()+"-"+pad(now.getMonth()+1)+"-"+pad(now.getDate());
@@ -4339,7 +4347,8 @@ document.getElementById("exportBtn").addEventListener("click", function() {
   //  travel_tags (Travel tag pool; per-item tags live on the items themselves),
   //  recipebook (Recipes section).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
-  //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*.
+  //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*, fl4_last_backup, fl4_backup_snooze,
+  //  fl4_tomb_* (sync deletion tombstones).
   var exportData = {
     version:5, exportedAt:localIso,
     lists:{}, notes:{}, customCats:{},
@@ -4366,7 +4375,43 @@ document.getElementById("exportBtn").addEventListener("click", function() {
   var url=URL.createObjectURL(blob), a=document.createElement("a");
   a.href=url; a.download="hearth-backup-"+localDate+".json";
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  storeSet("fl4_last_backup", Date.now());
+  dismissBackupNudge();
   toast("Exported!");
+}
+document.getElementById("exportBtn").addEventListener("click", exportAllData);
+
+// ── Backup-on-login nudge ──────────────────────────────────
+// fl4_last_backup / fl4_backup_snooze are transient UI state (NOT exported).
+function dismissBackupNudge(){ var b=document.getElementById("backupNudge"); if(b) b.style.display="none"; }
+function maybeShowBackupNudge(){
+  try {
+    var DAY = 24*3600*1000;
+    var WEEK = 10*60*1000;        // TEMP TEST: 10 min (revert to 7*DAY)
+    var SNOOZE = 2*60*1000;       // TEMP TEST: 2 min  (revert to 2*DAY)
+    var last = storeGet("fl4_last_backup") || 0;
+    var snooze = storeGet("fl4_backup_snooze") || 0;
+    if (Date.now() - snooze < SNOOZE) return;   // recently dismissed
+    if (Date.now() - last < WEEK)     return;   // backed up recently
+    var days = last ? Math.floor((Date.now()-last)/DAY) : 0;
+    var sub = document.getElementById("backupNudgeSub");
+    if (sub) sub.textContent = last
+      ? ("Last backup was " + days + " day" + (days!==1?"s":"") + " ago.")
+      : "You haven't exported a backup yet.";
+    var b = document.getElementById("backupNudge"); if (b) b.style.display = "flex";
+  } catch(e){}
+}
+(function(){
+  var now = document.getElementById("backupNudgeNow");
+  if (now) now.addEventListener("click", exportAllData);
+  var later = document.getElementById("backupNudgeLater");
+  if (later) later.addEventListener("click", function(){ storeSet("fl4_backup_snooze", Date.now()); dismissBackupNudge(); });
+})();
+// Re-check on app open: resume from background after being away a while (not quick switches).
+var _bgHiddenAt = 0;
+document.addEventListener("visibilitychange", function(){
+  if (document.hidden) { _bgHiddenAt = Date.now(); return; }
+  if (Date.now() - _bgHiddenAt > 30*1000 && isLoggedIn() && typeof maybeShowBackupNudge === "function") maybeShowBackupNudge();
 });
 
 // ── Import ────────────────────────────────────────────────
@@ -4851,6 +4896,8 @@ function onLoginSuccess() {
   if (testGroceryTab) testGroceryTab.style.display = "none";
 
   if (typeof updateListTabDots === "function") updateListTabDots();
+
+  setTimeout(function(){ if (isLoggedIn() && typeof maybeShowBackupNudge === "function") maybeShowBackupNudge(); }, 1800);
 
   // Stale-data banner: tapping it triggers re-login
   var sb2 = document.getElementById("staleDataBanner");
