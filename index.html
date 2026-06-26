@@ -704,7 +704,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v256 · 26/06/2026 10:30</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v257 · 26/06/2026 11:00</div>
 
   </div>
 </div>
@@ -2999,9 +2999,14 @@ function renderList() {
       if (e.target.closest(".star-btn")) { toggleToday(id); return; }
       // Zone 4: due chip, cal link, or item link → let them navigate naturally
       if (e.target.closest(".due-chip") || e.target.closest(".cal-link") || e.target.closest(".alarm-link") || e.target.closest(".item-link")) return;
-      // Zone 5: everything else on detail lists → open notes sheet
-      if (currentList === "testdue" || currentList === "todo" || currentList === "personal" || currentList === "testgrocery" || currentList === "grocery" || currentList === "travel") { openItemSheet(id); return; }
-      // Default: toggle done
+      // Zone 5: detail lists → open notes ONLY when the item body (name/notes) is tapped.
+      // The gap between the checkbox and the body is now a neutral buffer, so a near-miss
+      // on the checkbox no longer opens the notes sheet by accident. Applies to all lists.
+      if (currentList === "testdue" || currentList === "todo" || currentList === "personal" || currentList === "testgrocery" || currentList === "grocery" || currentList === "travel") {
+        if (e.target.closest(".item-body")) openItemSheet(id);
+        return;
+      }
+      // Default (non-detail lists): toggle done
       toggleItem(id);
     });
     card.querySelector(".del-btn").addEventListener("click", function(e){
@@ -3099,7 +3104,7 @@ function cardHTML(item, c) {
     : "";
   return "<div class='item-card" + (item.done?" done":"") + (isDup?" is-dup":"") + "' data-id='" + item.id + "' style='border-left-color:" + leftColor + (isDup?";background:#FFF8EC":"") + "'>" +
     "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>" +
-    "<div style='flex:1;min-width:0;" + (isDetail?"cursor:pointer":"") + "'>" +
+    "<div class='item-body' style='flex:1;min-width:0;margin-left:5px;" + (isDetail?"cursor:pointer":"") + "'>" +
       "<span class='item-name'>" + esc(item.name) + "</span>" + amtChip + newBadge + dupBadge + recipeChip + tagChips +
       (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + (calBtn ? "&nbsp;" + calBtn : "") + "</div>" : "") +
 
