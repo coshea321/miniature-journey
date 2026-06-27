@@ -714,7 +714,7 @@ body.train-mode #toast{background:#3A3328}
 
     <!-- To-do spotlight -->
     <div class="home-sec-hdr" style="margin-top:12px">
-      <span class="home-sec-title">&#x2705; To-do</span>
+      <span class="home-sec-title">&#x2605; Today</span>
       <button class="home-sec-link" id="hSeeAllTodo">See all &#x2192;</button>
     </div>
     <div id="homeTodoSpot"></div>
@@ -725,7 +725,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v259 · 27/06/2026 14:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v260 · 27/06/2026 15:00</div>
 
   </div>
 </div>
@@ -7179,19 +7179,22 @@ function renderHomeScreen() {
   try { renderSpotlight("homeGrocerySpot", "grocery", 5); } catch(e){ console.error("renderSpotlight grocery: "+e.message); }
 
   // ── Todo spotlight (top 4 undone) ────────────────────────
-  try { renderSpotlight("homeTodoSpot", "todo", 4); } catch(e){ console.error("renderSpotlight todo: "+e.message); }
+  try { renderSpotlight("homeTodoSpot", "todo", 4, true); } catch(e){ console.error("renderSpotlight todo: "+e.message); }
 
   // ── Week strip ────────────────────────────────────────────
   try { renderWeekStrip(); } catch(e){ console.error("renderWeekStrip: "+e.message); }
 }
 
-function renderSpotlight(elId, lt, maxItems) {
+function renderSpotlight(elId, lt, maxItems, todayOnly) {
   loadListData(lt);
-  var items = (listData[lt]||{items:[]}).items.filter(function(x){ return !x.done; }).slice(0, maxItems);
+  var items = (listData[lt]||{items:[]}).items.filter(function(x){
+    return !x.done && (!todayOnly || x.today);
+  }).slice(0, maxItems);
   var el = document.getElementById(elId);
   if (!items.length) {
     el.innerHTML = "<div class='home-empty-spot'>" +
-      (lt === "grocery" ? "&#x1F389; Grocery list is clear" : "&#x1F389; No pending tasks") + "</div>";
+      (todayOnly ? "&#x1F389; No tasks for today" :
+       lt === "grocery" ? "&#x1F389; Grocery list is clear" : "&#x1F389; No pending tasks") + "</div>";
     return;
   }
   var cats = getAllCats(lt);
