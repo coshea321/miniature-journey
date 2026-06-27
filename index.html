@@ -203,6 +203,29 @@ body.home-mode .bn-btn{color:#AAA090}
 .hw-meta{text-align:right;flex-shrink:0;font-size:11px;font-weight:600;color:#7A98C8;line-height:1.55}
 .hw-meta b{color:#2A5AB0;font-weight:700}
 .hw-stale{opacity:.6}
+.home-weather{cursor:pointer}
+.home-weather:active{opacity:.85}
+
+/* Weather detail sheet */
+.hw-sheet-now{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#EAF1FA 0%,#F2F6FC 100%);border:1px solid #3B6FE033;border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.hw-sheet-now-icon{font-size:40px;line-height:1}
+.hw-sheet-now-main{flex:1}
+.hw-sheet-now-temp{font-family:Georgia,serif;font-size:32px;font-weight:600;color:#2A5AB0;line-height:1}
+.hw-sheet-now-cond{font-size:13px;font-weight:600;color:#5A7AB8;margin-top:3px}
+.hw-sheet-now-meta{text-align:right;font-size:12px;font-weight:600;color:#7A98C8;line-height:1.6}
+.hw-sheet-now-meta b{color:#2A5AB0;font-weight:700}
+.hw-sheet-days{display:flex;flex-direction:column;gap:2px}
+.hw-day-row{display:grid;grid-template-columns:1.3fr .6fr 1.1fr .9fr .8fr;align-items:center;gap:6px;padding:11px 6px;border-bottom:1px solid #EEEAE2;font-size:13px;color:#2A2010}
+.hw-day-row:last-child{border-bottom:none}
+.hw-day-name{font-weight:700}
+.hw-day-icon{font-size:20px;text-align:center}
+.hw-day-temps{font-weight:500;color:#4A4030}
+.hw-day-temps b{color:#2A5AB0}
+.hw-day-rain{color:#3B6FE0;font-weight:600;font-size:12px}
+.hw-day-wind{color:#7A8A6A;font-weight:600;font-size:12px}
+.hw-sheet-units{font-size:11px;color:#A89A80;text-align:center;margin-top:8px}
+.hw-sheet-stamp{font-size:11px;color:#B0A48A;text-align:center;margin-top:12px;font-weight:600}
+.hw-sheet-empty{padding:24px 12px;text-align:center;color:#A89A80;font-size:14px}
 
 /* Today split cards */
 .today-split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:13px}
@@ -726,7 +749,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v261 · 27/06/2026 16:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v262 · 27/06/2026 17:00</div>
 
   </div>
 </div>
@@ -1193,6 +1216,15 @@ body.train-mode #toast{background:#3A3328}
 </div>
 
 <!-- CATEGORY PICKER MODAL -->
+<!-- Weather detail sheet (3-day) -->
+<div class="overlay" id="weatherOverlay">
+  <div class="modal-box" style="position:relative">
+    <button class="modal-close" id="weatherClose" aria-label="Close">&#x2715;</button>
+    <div class="modal-title">Weather</div>
+    <div id="weatherSheetBody"></div>
+  </div>
+</div>
+
 <div class="overlay" id="pickerOverlay">
   <div class="modal-box" style="position:relative">
     <button class="modal-close" id="pickerClose" aria-label="Close">&#x2715;</button>
@@ -7065,40 +7097,117 @@ function hwLoadCache() {
   try { return JSON.parse(localStorage.getItem(HW_CACHE_KEY) || "null"); }
   catch (e) { return null; }
 }
-function fetchWeather() {
+function fetchWeather(force) {
   // Paint cache immediately (possibly stale) so card never flashes empty
   var cached = hwLoadCache();
   if (cached) hwPaint(cached, (Date.now() - cached.at) > HW_MAX_AGE);
 
-  // Skip network if cache is fresh, or a fetch is already in flight
-  if (cached && (Date.now() - cached.at) <= HW_MAX_AGE) return;
+  // Skip network if cache is fresh, or a fetch is already in flight.
+  // `force` (used when opening the detail sheet) bypasses the freshness gate
+  // so an older cache lacking 3-day data still gets refreshed.
+  if (!force && cached && (Date.now() - cached.at) <= HW_MAX_AGE && cached.days) return;
   if (_hwFetching) return;
   if (!navigator.onLine) return; // offline: keep showing cache (or nothing)
   _hwFetching = true;
 
   var url = "https://api.open-meteo.com/v1/forecast?latitude=" + HW_LAT +
     "&longitude=" + HW_LON +
-    "&current=temperature_2m,relative_humidity_2m,weather_code" +
-    "&daily=temperature_2m_max,temperature_2m_min" +
-    "&timezone=auto&forecast_days=1";
+    "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code" +
+    "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max" +
+    "&timezone=auto&forecast_days=3";
 
   fetch(url).then(function(r){ return r.json(); }).then(function(j){
     _hwFetching = false;
-    if (!j || !j.current) return;
+    if (!j || !j.current || !j.daily) return;
+    var dl = j.daily, days = [];
+    for (var i = 0; i < (dl.time ? dl.time.length : 0) && i < 3; i++) {
+      days.push({
+        date: dl.time[i],
+        code: dl.weather_code[i],
+        hi:   Math.round(dl.temperature_2m_max[i]),
+        lo:   Math.round(dl.temperature_2m_min[i]),
+        pop:  (dl.precipitation_probability_max ? dl.precipitation_probability_max[i] : null),
+        wind: (dl.wind_speed_10m_max ? Math.round(dl.wind_speed_10m_max[i]) : null)
+      });
+    }
     var rec = {
-      temp: j.current.temperature_2m,
-      hum:  j.current.relative_humidity_2m,
-      code: j.current.weather_code,
-      high: Math.round(j.daily.temperature_2m_max[0]),
-      low:  Math.round(j.daily.temperature_2m_min[0]),
-      at:   Date.now()
+      temp:  j.current.temperature_2m,
+      hum:   j.current.relative_humidity_2m,
+      feels: (j.current.apparent_temperature != null ? Math.round(j.current.apparent_temperature) : null),
+      code:  j.current.weather_code,
+      high:  Math.round(dl.temperature_2m_max[0]),
+      low:   Math.round(dl.temperature_2m_min[0]),
+      days:  days,
+      at:    Date.now()
     };
     try { localStorage.setItem(HW_CACHE_KEY, JSON.stringify(rec)); } catch (e) {}
     hwPaint(rec, false);
+    // If the detail sheet is open, refresh its contents with the new data
+    var ws = document.getElementById("weatherOverlay");
+    if (ws && ws.classList.contains("open")) renderWeatherSheet(rec);
   }).catch(function(){
     _hwFetching = false;
     // Network failed: leave any cached paint in place; if none, card stays hidden
   });
+}
+
+// ── Weather detail sheet (3-day) ─────────────────────────────
+function hwDayName(dateStr, idx) {
+  if (idx === 0) return "Today";
+  if (idx === 1) return "Tomorrow";
+  var dn = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  var d = new Date(dateStr + "T00:00:00");
+  return isNaN(d.getTime()) ? "" : dn[d.getDay()];
+}
+function renderWeatherSheet(data) {
+  var body = document.getElementById("weatherSheetBody");
+  if (!body) return;
+  if (!data) { body.innerHTML = "<div class='hw-sheet-empty'>No weather data yet.</div>"; return; }
+  var html = "";
+  // Today detail header
+  html += "<div class='hw-sheet-now'>" +
+    "<div class='hw-sheet-now-icon'>" + hwCodeToIcon(data.code) + "</div>" +
+    "<div class='hw-sheet-now-main'>" +
+      "<div class='hw-sheet-now-temp'>" + Math.round(data.temp) + "\u00B0</div>" +
+      "<div class='hw-sheet-now-cond'>" + hwCodeToText(data.code) + "</div>" +
+    "</div>" +
+    "<div class='hw-sheet-now-meta'>" +
+      (data.feels != null ? "Feels <b>" + data.feels + "\u00B0</b><br>" : "") +
+      "Humidity <b>" + data.hum + "%</b>" +
+    "</div>" +
+  "</div>";
+  // 3-day rows
+  var days = data.days || [];
+  if (days.length) {
+    html += "<div class='hw-sheet-days'>";
+    for (var i = 0; i < days.length; i++) {
+      var dy = days[i];
+      html += "<div class='hw-day-row'>" +
+        "<span class='hw-day-name'>" + hwDayName(dy.date, i) + "</span>" +
+        "<span class='hw-day-icon'>" + hwCodeToIcon(dy.code) + "</span>" +
+        "<span class='hw-day-temps'><b>" + dy.hi + "\u00B0</b> / " + dy.lo + "\u00B0</span>" +
+        "<span class='hw-day-rain'>\uD83D\uDCA7 " + (dy.pop != null ? dy.pop + "%" : "\u2013") + "</span>" +
+        "<span class='hw-day-wind'>\uD83D\uDCA8 " + (dy.wind != null ? dy.wind : "\u2013") + "</span>" +
+      "</div>";
+    }
+    html += "</div>";
+    html += "<div class='hw-sheet-units'>Wind in km/h \u00B7 \uD83D\uDCA7 chance of rain</div>";
+  } else {
+    html += "<div class='hw-sheet-empty'>Loading 3-day forecast\u2026</div>";
+  }
+  // Timestamp
+  var t = new Date(data.at);
+  var hh = ("0" + t.getHours()).slice(-2), mm = ("0" + t.getMinutes()).slice(-2);
+  var staleNote = (Date.now() - data.at) > HW_MAX_AGE ? " (cached)" : "";
+  html += "<div class='hw-sheet-stamp'>Carrigaline \u00B7 as of " + hh + ":" + mm + staleNote + "</div>";
+  body.innerHTML = html;
+}
+function openWeatherSheet() {
+  var ov = document.getElementById("weatherOverlay");
+  if (!ov) return;
+  renderWeatherSheet(hwLoadCache());
+  ov.classList.add("open");
+  fetchWeather(true); // ensure fresh 3-day data; re-renders sheet on arrival
 }
 
 function renderHomeScreen() {
@@ -7248,6 +7357,14 @@ function renderWeekStrip() {
 
 // ── Today-card tap → navigate to section ─────────────────
 document.getElementById("tcTrainCard").addEventListener("click", function(){ switchSection("train"); });
+(function(){
+  var hw = document.getElementById("homeWeather");
+  if (hw) hw.addEventListener("click", function(){ openWeatherSheet(); });
+  var wc = document.getElementById("weatherClose");
+  if (wc) wc.addEventListener("click", function(){ document.getElementById("weatherOverlay").classList.remove("open"); });
+  var wo = document.getElementById("weatherOverlay");
+  if (wo) wo.addEventListener("click", function(e){ if (e.target === this) this.classList.remove("open"); });
+})();
 document.getElementById("hSeeAllGrocery").addEventListener("click", function(){
   switchSection("lists"); currentList = "grocery"; applyListTheme(); switchTab("list"); renderList();
 });
