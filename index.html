@@ -658,17 +658,18 @@ body.train-mode #toast{background:#3A3328}
 
     <!-- Today at a glance — 2+2 split -->
     <div class="today-split">
-      <div class="today-card today-card-life" id="tcLifeCard">
-        <div class="tc-icon">&#x1F6D2;</div>
-        <div class="tc-count" id="tcLifeCount">0</div>
-        <div class="tc-label">active items</div>
-        <div class="tc-sub" id="tcLifeSub"></div>
-      </div>
-      <div class="today-card today-card-train" id="tcTrainCard">
-        <div class="tc-icon">&#x1F4AA;</div>
-        <div class="tc-count" id="tcTrainCount">—</div>
-        <div class="tc-label" id="tcTrainLabel">today</div>
-        <div class="tc-sub" id="tcTrainSub">No session yet</div>
+      <div class="today-card today-card-train" id="tcTrainCard" style="grid-column:span 2">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div><div class="tc-icon" style="margin-bottom:0">&#x1F4AA;</div></div>
+          <div style="flex:1">
+            <div class="tc-label" style="margin-bottom:2px">Training</div>
+            <div class="tc-sub" id="tcTrainSub" style="font-size:13px">No session yet</div>
+          </div>
+          <div style="text-align:right">
+            <div class="tc-count" style="font-size:20px" id="tcTrainCount">&mdash;</div>
+            <div class="tc-label" id="tcTrainLabel">today</div>
+          </div>
+        </div>
       </div>
       <div class="today-card today-card-baby" id="tcBabyCard" style="grid-column:span 2">
         <div style="display:flex;align-items:center;gap:10px">
@@ -705,19 +706,19 @@ body.train-mode #toast{background:#3A3328}
       </div>
     </div>
 
-    <!-- Grocery spotlight -->
-    <div class="home-sec-hdr">
-      <span class="home-sec-title">&#x1F6D2; Grocery</span>
-      <button class="home-sec-link" id="hSeeAllGrocery">See all &#x2192;</button>
-    </div>
-    <div id="homeGrocerySpot"></div>
-
     <!-- To-do spotlight -->
-    <div class="home-sec-hdr" style="margin-top:12px">
+    <div class="home-sec-hdr">
       <span class="home-sec-title">&#x2605; Today</span>
       <button class="home-sec-link" id="hSeeAllTodo">See all &#x2192;</button>
     </div>
     <div id="homeTodoSpot"></div>
+
+    <!-- Grocery spotlight -->
+    <div class="home-sec-hdr" style="margin-top:12px">
+      <span class="home-sec-title">&#x1F6D2; Grocery</span>
+      <button class="home-sec-link" id="hSeeAllGrocery">See all &#x2192;</button>
+    </div>
+    <div id="homeGrocerySpot"></div>
 
     <!-- Week strip -->
     <div class="home-sec-hdr" style="margin-top:14px">
@@ -725,7 +726,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v260 · 27/06/2026 15:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v261 · 27/06/2026 16:00</div>
 
   </div>
 </div>
@@ -7112,9 +7113,7 @@ function renderHomeScreen() {
   if (hc2) hc2.style.opacity = "1";
   fetchWeather();
   // Show placeholder while data loads
-  var tcLife  = document.getElementById("tcLifeCount");
   var tcTrain = document.getElementById("tcTrainCount");
-  if (tcLife  && tcLife.textContent  === "0") tcLife.textContent  = "—";
   if (tcTrain && tcTrain.textContent === "—") tcTrain.style.opacity = "0.4";
   var hour = new Date().getHours();
   var greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -7123,17 +7122,6 @@ function renderHomeScreen() {
   var days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   var months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   document.getElementById("homeDateBig").textContent = days[d.getDay()] + ", " + d.getDate() + " " + months[d.getMonth()];
-
-  // ── Life today-card ───────────────────────────────────────
-  loadListData("grocery"); loadListData("todo");
-  var gItems  = (listData.grocery||{items:[]}).items.filter(function(x){ return !x.done; });
-  var tdItems = (listData.todo   ||{items:[]}).items.filter(function(x){ return !x.done; });
-  var lifeTotal = gItems.length + tdItems.length;
-  document.getElementById("tcLifeCount").textContent = lifeTotal;
-  document.getElementById("tcLifeSub").innerHTML =
-    (gItems.length  ? "<span>&#x1F6D2; "+gItems.length+"</span> " : "") +
-    (tdItems.length ? "<span>&#x2705; "+tdItems.length+"</span>"   : "") ||
-    "<span>All clear!</span>";
 
   // ── Train today-card: all sessions + cardio, with kcal ────
   var _today = trainTodayStr();
@@ -7259,7 +7247,6 @@ function renderWeekStrip() {
 }
 
 // ── Today-card tap → navigate to section ─────────────────
-document.getElementById("tcLifeCard").addEventListener("click",  function(){ switchSection("lists"); });
 document.getElementById("tcTrainCard").addEventListener("click", function(){ switchSection("train"); });
 document.getElementById("hSeeAllGrocery").addEventListener("click", function(){
   switchSection("lists"); currentList = "grocery"; applyListTheme(); switchTab("list"); renderList();
