@@ -749,7 +749,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v262 · 27/06/2026 17:00</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v264 · 27/06/2026 17:00</div>
 
   </div>
 </div>
@@ -5215,7 +5215,8 @@ function applyPersonal(d) {
       medicine:   mergeByKey(local.medicine,   rb.medicine,   "id"),
       milestones: mergeByKey(local.milestones, rb.milestones, "id"),
       teeth:      Object.assign({}, local.teeth||{}, rb.teeth||{}),
-      bags:       rb.bags || local.bags
+      bags:       rb.bags || local.bags,
+      babySex:    local.babySex || rb.babySex
     });
     if (currentSection === "baby") renderBabyView();
   }
@@ -9057,6 +9058,13 @@ function growthBand(rec, sex) {
   return { label:"Normal", bg:"#E8F5E0", fg:"#508040" };
 }
 
+function latestBabyWeight() {
+  var bd = getBD();
+  var g = (bd.growth||[]).slice().sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); });
+  for (var i=0;i<g.length;i++){ if (g[i] && typeof g[i].weight==="number" && g[i].weight>0) return g[i].weight; }
+  return null;
+}
+
 function renderMedicine() {
   var bd = getBD();
   var meds = (bd.medicine||[]).slice().sort(function(a,b){ return b.id-a.id; });
@@ -9064,8 +9072,14 @@ function renderMedicine() {
   var now3=new Date(), p3=function(x){return x<10?"0"+x:""+x;};
   var dtStr=now3.getFullYear()+"-"+p3(now3.getMonth()+1)+"-"+p3(now3.getDate())+"T"+p3(now3.getHours())+":"+p3(now3.getMinutes());
   var html = "<div class='baby-log-card'><div class='baby-card-title'>&#x1F48A; Log medicine</div>" +
+    "<div class='med-quick-chips' style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px'>" +
+      "<button type='button' class='med-chip' data-med='Calpol' data-conc='Calpol Infant 120mg/5ml' data-mgkg='15' data-mg5='120' data-floor='0' data-cap='10' data-fallback='5ml' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:14px;padding:5px 12px;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation'>Calpol</button>" +
+      "<button type='button' class='med-chip' data-med='Nurofen' data-conc='Nurofen for Children 100mg/5ml' data-mgkg='10' data-mg5='100' data-floor='5' data-cap='10' data-fallback='2.5ml' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:14px;padding:5px 12px;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation'>Nurofen</button>" +
+      "<button type='button' class='med-chip' data-med='Antibiotic' data-mgkg='' data-fallback='' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:14px;padding:5px 12px;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation'>Antibiotic</button>" +
+    "</div>" +
     "<input id='medName' type='text' class='med-input' placeholder='Medicine name' autocomplete='off' style='margin-bottom:6px'>" +
     "<div style='display:flex;gap:8px;margin-bottom:6px'><input id='medDose' type='text' class='med-input' style='flex:1' placeholder='Dose'><input id='medTime' type='datetime-local' class='med-input' style='flex:1' value='"+dtStr+"'></div>" +
+    "<div id='medDoseNote' style='font-size:11px;line-height:1.35;color:#8A6A8A;margin:-2px 0 6px;min-height:0'></div>" +
     "<input id='medNotes' type='text' class='med-input' placeholder='Notes (optional)' style='margin-bottom:6px'>" +
     "<button class='baby-log-btn' id='medLogBtn'>Log</button></div>";
   if (meds.length) {
@@ -9087,6 +9101,36 @@ function renderMedicine() {
     saveBD(bd2);
     document.getElementById("medName").value="";document.getElementById("medDose").value="";document.getElementById("medNotes").value="";
     renderMedicine(); toast("&#x1F48A; Logged");
+  });
+  el.querySelectorAll(".med-chip").forEach(function(chip){
+    chip.addEventListener("click",function(){
+      var d=chip.dataset;
+      document.getElementById("medName").value=d.med||"";
+      var doseEl=document.getElementById("medDose"), noteEl=document.getElementById("medDoseNote");
+      var dose="", note="";
+      if(d.mgkg){
+        var mgkg=parseFloat(d.mgkg), mg5=parseFloat(d.mg5), floor=parseFloat(d.floor||"0"), cap=parseFloat(d.cap||"99");
+        var w=latestBabyWeight();
+        if(w==null){
+          dose=d.fallback||"";
+          note="No weight logged - using standard infant dose. Add a weight in Growth for a weight-based estimate.";
+        } else if(floor && w<floor){
+          dose="";
+          note="Note: "+w+"kg is under "+floor+"kg. "+d.med+" is not advised at this weight - check your GP or pharmacist.";
+        } else {
+          var ml=Math.floor((w*mgkg*5/mg5)*4)/4, capped=false;
+          if(ml>cap){ ml=cap; capped=true; }
+          dose=ml+"ml";
+          note=d.conc+" | "+w+"kg x "+mgkg+"mg/kg ~ "+ml+"ml"+(capped?" (capped)":"")+" | estimate only, check the leaflet.";
+        }
+      } else {
+        dose=d.fallback||"";
+        note="Dose as prescribed on the bottle.";
+      }
+      doseEl.value=dose;
+      if(noteEl) noteEl.textContent=note;
+      doseEl.focus(); doseEl.select&&doseEl.select();
+    });
   });
   el.querySelectorAll(".med-del-btn").forEach(function(btn){
     btn.addEventListener("click",function(){ confirmDialog("Delete this medicine entry?", function(){ var bd2=getBD(); bd2.medicine=bd2.medicine.filter(function(m){return m.id!==+btn.dataset.medid;}); saveBD(bd2); renderMedicine(); }); });
