@@ -1,14 +1,14 @@
-# Hearth — Notes & State of Play (as of v267)
+# Hearth — Notes & State of Play (as of v271)
 
 **This is the single source of truth for the Hearth project.** It combines: state-of-play (version log + what's pending), architecture & working notes, hard-won lessons, and the full `sw.js` source. There are no other Hearth context docs — if an older separate `HEARTH-architecture.md` or `HEARTH-state-of-play.md` is still in Project knowledge, delete it; this file supersedes both.
 
-Update this file at the end of a session so a new chat can pick up cleanly.
+**This file lives in the repo** (`HEARTH-notes.md` at root) and is updated by Claude Code at every release. A new chat session can read it directly — no upload needed. To get a fresh session up to speed: open Claude Code on the web, point it at this repo, and it reads `CLAUDE.md` + `HEARTH-notes.md` automatically.
 
 ## ⚙️ Maintenance habit (keep this note)
-**After any major update — a new feature/section, or several version bumps — Claude regenerates this state-of-play doc as a downloadable file so Cathal can upload the fresh copy to Project knowledge.** Cathal can also just ask "update the state of play" any time. Re-upload the latest `index.html` / `sw.js` to Project knowledge at the same time, so a new chat reasons about the current app, not an old one.
+**Update `HEARTH-notes.md` in the repo at every release** — changelog entry, version bump in the sw.js block, and backlog sync. Since the file is now in the repo, Claude Code reads it directly at the start of each session; there is no need to re-upload it to Project knowledge. The old "download and re-upload" flow is obsolete.
 
 ## Current version
-**v267 · 29/06/2026** — last shipped build (version label is now **date-only**, sourced from `sw.js` VERSION) (matches the `sw.js` snapshot at the foot of this doc).
+**v271 · 29/06/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION) (matches the `sw.js` snapshot at the foot of this doc).
 
 ## Recently completed (v230–v267)
 - **v230:** Silenced routine "SSE stale — falling back to fetch" messages from the red error panel (changed `console.warn` → `console.log`; genuine SSE event-error warnings kept).
@@ -46,6 +46,10 @@ Update this file at the end of a session so a new chat can pick up cleanly.
 - **v264:** **Weight-based medicine dosing.** Medicine chips now compute a default dose from her **latest logged weight** (`latestBabyWeight()`, new top-level helper — newest growth record with a numeric `weight`). Per-chip config lives in `data-` attrs: **Calpol** = 15mg/kg, 120mg/5ml (Calpol Infant); **Nurofen** = 10mg/kg, 100mg/5ml (Nurofen for Children); Antibiotic = no calc ("dose as prescribed"). Formula `ml = weight × mgkg × 5 / mg5`, **rounded DOWN to 0.25ml** (suggestion never exceeds the mg/kg calc), **capped at 10ml** single dose. **Floor guard:** Nurofen **blocked under 5kg** (ibuprofen contraindicated) — fills no dose, shows a check-GP note. **No weight logged →** falls back to flat 5ml/2.5ml with a "log a weight" note. A `#medDoseNote` line under the dose field always shows the working + product strength + "estimate only, check the leaflet" (set via `textContent`, ASCII only). All editable. **Caveat baked into notes, not just the UI:** the ml is only correct for the two confirmed strengths above — switching to **Calpol 6+ (250mg/5ml)** would make the suggestion ~2× too high; the inline strength label is the guard. Uses latest weight regardless of age, so a stale weight gives a stale dose (the note shows the kg used). **Confirmed with Cathal up front; council declined.**
 - **v265–v266:** **Version-label timestamp clarified, then simplified.** Diagnosed a "wrong time" report on the bottom-of-page label: it is **not a live clock** — the HTML label is overwritten at runtime by the `sw.js` `VERSION` constant via the `SW_VERSION` postMessage, so it always shows the *active service worker's* build stamp and can lag until the new SW activates. v265 was a no-op timestamp bump to test this; v266 **dropped the `HH:MM` from the format** (now `vNNN · DD/MM/YYYY`) so a frozen build stamp can never be misread as a stale clock. No logic change. Also established: previewing the full PWA in the Claude file-preview pane shows blank because the sandbox blocks the external DOMPurify CDN / inline scripts — the app renders fine deployed (verified via headless boot producing the full DOM); the preview pane is not a reliable way to view this app.
 - **v267:** **Feels-like temperature on weather card.** The home-page weather card now shows "Feels X°" at the top of the right-side meta area (above H/L and Humidity). The `apparent_temperature` value was already being fetched from Open-Meteo and stored as `rec.feels` — it just wasn't displayed. Guarded against null so it only appears when the API returns a value. Also added `CLAUDE.md` and `HEARTH-notes.md` to the repo.
+- **v268:** **Recipe deletion sync via tombstones.** Deleting a recipe now records a tombstone (`fl4_tomb_recipes`, same helpers as the v245 list tombstones: `getTombs`/`addTomb`/`purgeTombs`/`mergeTombs`). Both sync channels (household and personal) carry `rb_deleted` in their payloads; on apply, tombstoned recipes are removed if `deletedAt > recipe.updated` (newest-wins — if a device edited the recipe after you deleted it, the edit survives). A convergence re-push fires if any recipes were pruned. **Bonus fix:** `pushPersonal` was never including `recipebook` — same-account devices (e.g. phone + laptop) were missing recipe sync on the personal channel entirely; fixed.
+- **v269:** **Recipe search + scroll restoration on back.** A 🔍 Search button appears above the recipe list (static HTML, survives re-renders); toggles a fuzzy-search input; filters by recipe name + notes in real time. When you open a recipe detail, `window.scrollY` is saved; pressing Back re-renders the list and restores your scroll position. Also added `CLAUDE.md` always-create-PR rule.
+- **v270:** **Scroll-to-top on all navigation transitions.** Opening a recipe detail (`window.scrollTo(0,0)`), switching list types (Grocery → Travel → To-do etc.), and switching sections (Home / Lists / Recipes / Baby etc.) all scroll to the top of the page so you start at the beginning of the new view. `CLAUDE.md` backup-branch step made mandatory and explicit.
+- **v271:** **Fix duplicate items from home dashboard quick-add.** `doHqpAdd()` (the home quick-add panel for Grocery and To-do) had no duplicate check — if "Milk" was already in the Grocery list, tapping Add from the home dashboard would silently create a second "Milk". The regular list-section add already guarded against this. Added the same logic: shows "Already in your list!" for undone duplicates; unchecks done items instead of re-adding. Also replaced an incorrect `saveCurrentList()` call (which saved/pushed `currentList` instead of `lt`, so if you'd last been on a different list type the wrong list was pushed) with direct push calls scoped to `lt`; added missing `updated` timestamp to items created from the dashboard.
 
 ## Recipes section — current shape
 - Store: `fl4_recipebook` — **shared household-wide** (newest-wins-by-`updated` merge via `/shared`, plus same merge on the personal channel for same-account devices); separate from grocery-import `fl4_recipes`.
@@ -60,15 +64,17 @@ Update this file at the end of a session so a new chat can pick up cleanly.
 ## Pending / next steps (not yet built)
 - **Add-to-grocery Phase 3 — real-world purchase quantities.** Convert cooking amounts to shop quantities, e.g. "1200ml oat milk" → "2× 1L bottles". **Council-reviewed; on hold.** Consensus = build thin + advisory (static in-code staples table, render-time from stored numeric amount, show both cooking + suggested pack, only mass/volume convert) — but a real logged dissent (Devil's Advocate) that the coverage cliff + upkeep may not clear the bar. Three open calls before building: show-both vs replace; table scope (~15–20 Irish staples); whether to heed the dissent.
 - **Manual amount editing.** The item edit sheet doesn't expose `item.amount` yet — amounts currently come from recipes only. Small follow-up. Low priority.
-- **Recipe deletions don't propagate** across devices (newest-wins keeps a recipe the other device still has). For now, delete on both devices. Future option: soft-delete/tombstone records so removals sync.
 - **Pre-v242 recipes are unstamped** (`updated` absent → treated as 0). Edit each once post-v242 to fully protect it under newest-wins. Optional one-off: stamp all existing recipes on next load.
 - **Imported recipes default to "Uncategorised"** — Cathal to categorise over time (the v249 bulk-categorise tool makes this fast: filter to Uncategorised → Select → set).
 - **Possible future backup enhancement:** an auto-copy into Firebase `/backups`, or a periodic reminder independent of app open (current nudge is on-open only).
 - Known minor parser gaps: compound amounts like "1 ¾ cups + 2 tbs Greek yogurt" keep the whole string as the name (don't scale → land as name-only on grocery); "Garlic - 2 cloves" (name-first) doesn't split the amount cleanly. Rare; acceptable.
 - Open question (low priority): whether to sync the travel tag pool / recipe categories across devices (currently localStorage, so per-device; per-item tags DO sync).
 
+**Resolved since last update:**
+- ~~Recipe deletions don't propagate~~ → **fixed in v268** (tombstone pattern, mirrors v245 list tombstones).
+
 ## Shipped (reverse order, condensed — full detail in version log above)
-v267 feels-like on weather card · v266 version label date-only · v265 timestamp diagnostic bump · v264 weight-based medicine dosing · v263 baby medicine quick-chips + babySex-save fix · v262 weather 3-day sheet · v261 home layout cleanup · v260 front-page ★ Today · v259 weather timestamp · v258 weather card · v257 tap-zone fix · v256 "Today" picks · v255 partner-recipe toast · v254 noindex · v251–253 backup nudge · v250 method formatting · v249 bulk categorise · v248 recipe-editor-no-close · v247 list convergence re-push · v246 grace window removed · v245 union/newest-wins/tombstones · v243 sync send-wedge fix · v242 newest-wins recipe sync · v241 grace catch-up · v240 recipe sync · v237–239 add-to-grocery (names→amounts→headers) · v236 recipe categories+favourites · v234 CSV import · v232 Recipes section.
+v271 fix dashboard duplicate add · v270 scroll-to-top everywhere · v269 recipe search + scroll restore · v268 recipe deletion sync · v267 feels-like on weather card · v266 version label date-only · v265 timestamp diagnostic bump · v264 weight-based medicine dosing · v263 baby medicine quick-chips + babySex-save fix · v262 weather 3-day sheet · v261 home layout cleanup · v260 front-page ★ Today · v259 weather timestamp · v258 weather card · v257 tap-zone fix · v256 "Today" picks · v255 partner-recipe toast · v254 noindex · v251–253 backup nudge · v250 method formatting · v249 bulk categorise · v248 recipe-editor-no-close · v247 list convergence re-push · v246 grace window removed · v245 union/newest-wins/tombstones · v243 sync send-wedge fix · v242 newest-wins recipe sync · v241 grace catch-up · v240 recipe sync · v237–239 add-to-grocery (names→amounts→headers) · v236 recipe categories+favourites · v234 CSV import · v232 Recipes section.
 
 ## Open decisions on record
 - Add-to-grocery: **Option B** chosen (push items to Grocery **and** save a reusable chip in `fl4_recipes`). Saved chip stored at **base servings**. Re-tapping **updates the chip quietly + always re-adds the tagged items**.
@@ -98,9 +104,9 @@ A reference for any new chat working on the Hearth PWA. Read this first.
 - **Users:** `cathal1` (Cathal) and `petra`. Items can carry `addedBy` and sync between devices.
 
 ## Who maintains it & how
-- Cathal is a **non-coder**, editing via the **GitHub web editor on a Redmi Note 14 (HyperOS) phone**, occasionally a laptop.
-- Claude works on the file directly and hands back finished `index.html` + `sw.js` to download — Cathal does NOT paste the file into chat.
-- Cathal reviews and commits manually (this human checkpoint is deliberate — keep it).
+- Cathal is a **non-coder**. He reviews and merges PRs; Claude Code does all the coding.
+- Claude Code (CLI / web) works on the file directly, commits and pushes to a feature branch, and **opens a PR immediately** — Cathal reviews the diff on GitHub and merges to `main`. The human-review checkpoint is deliberate; Claude Code never pushes directly to `main`.
+- Before each change, Claude Code creates a `backup-vNNN` branch (frozen snapshot of the prior version) for rollback. Branches older than 3 versions back can be pruned.
 
 ## Sections (bottom nav, 6 icons)
 Home · Lists · Train · Recipes · Notes · Baby
@@ -159,20 +165,20 @@ Home · Lists · Train · Recipes · Notes · Baby
 - Counts (cloves, cans, slices, pieces, cubes, pinches) scale as whole numbers and pluralise.
 
 ## Standard per-change workflow
-1. Remind Cathal to create a `backup-vXXX` branch first; suggest deleting branches older than 3 versions back. Never delete `main`.
+1. **Create and push a `backup-vNNN` branch** (current version, before any edits) — every time, without exception. Suggest pruning branches older than 3 versions back. Never push to or delete `main`.
 2. Edit incrementally — never rewrite the whole file.
 3. grep-verify replacements landed.
 4. Syntax-check the main script block (PREVIEW MODE → first `</script>`) with `node --check`.
 5. Verify file length / single DOCTYPE-pair / single version string.
 6. Bump the version string in BOTH `index.html` and `sw.js`. Format: **`vNNN · DD/MM/YYYY`** (date only — no `HH:MM`). The displayed bottom-of-page label is sourced from the `sw.js` `VERSION` constant at runtime (the HTML label is overwritten via the `SW_VERSION` postMessage), so `sw.js` is the source of truth for what the user sees; a stale-looking version means the new SW hasn't activated yet, not a bug.
-7. Present the updated files for download.
-8. **On a major release** (new feature/section, or several bumps at once), also produce a **single datetime-stamped backup zip** bundling the main files — `index.html`, `sw.js`, `HEARTH-notes.md`, plus a short `MANIFEST.txt` (version + which file goes to GitHub vs Project knowledge). Name it `hearth-vNNN-YYYYMMDD-HHMM.zip`, **flat (no nested folders)**. Cathal extracts and distributes from there. This is his preferred release flow: extraction lands the files in a fresh dated folder, which sidesteps the HyperOS download-collision dance AND gives a complete known-good restore point per release (complements the GitHub backup branches). For small/diagnostic single-file tweaks, loose files are fine — the zip is for real releases.
+7. **Update `HEARTH-notes.md`**: add a changelog entry, bump the version in the sw.js block at the bottom of this file, and sync the backlog.
+8. **Commit, push, and immediately open a GitHub PR** — always, without waiting to be asked. Cathal merges to `main` from the PR; never say "create a PR when you're ready".
 
 ## Device/workflow notes
-- Download collisions on the Redmi: delete the old `index.html`/`sw.js` in the Files app before downloading the new ones (HyperOS lacks reliable "save as").
-- GitHub uploads/edits on mobile: use **Chrome with "Desktop site"** — the GitHub app can't edit/upload files. Pasting into the web editor avoids the download/rename dance.
-- Keep dated local backups of a known-good `index.html` outside GitHub too — the per-release backup zip (workflow step 8) is exactly this, automated.
-- **Release zip extraction** is the active distribution method on the Redmi: download the one zip → extract in Mi File Manager → upload the extracted `index.html`/`sw.js` to GitHub and all three files to Project knowledge. Verify zip extraction stays smooth on the device; if it ever gets fiddly, fall back to loose files.
+- **Active workflow:** Claude Code commits + pushes to a feature branch; Cathal reviews the PR diff on GitHub and merges to `main`. GitHub Pages serves the updated app within seconds of merge.
+- Backup branches (`backup-vNNN`) are the per-release restore points — frozen snapshots pushed to GitHub before every change.
+- GitHub edits on mobile (if needed without Claude Code): use **Chrome with "Desktop site"** — the GitHub app can't edit files.
+- The old "download zip → extract on Redmi → re-upload to GitHub" flow is superseded by the git/PR workflow. It remains a valid manual fallback if Claude Code is unavailable.
 
 ## Review council (on request)
 When Cathal says "use my council" / "council review", run the 7-expert template: PWA/Mobile UX, Healthcare/Wellness (physio safety), Firebase/Sync, Accessibility, Privacy, Non-Technical Parent, Devil's Advocate — independent views, then a consensus with per-expert confidence.
@@ -208,11 +214,11 @@ Lessons from a parallel vanilla React PWA session that apply equally to Hearth:
 
 It is a **single-source-of-truth file**: changing the one `VERSION` line below updates the cache name (`CACHE`) and the SW version message together, so a routine version bump is a **one-line edit** to `VERSION`. After every bump, update this block to match (keep it at the current version) so the next chat reasons about the live SW.
 
-Current version: **v267**.
+Current version: **v271**.
 
 ```js
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v267 · 29/06/2026';
+const VERSION = 'v271 · 29/06/2026';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
