@@ -1,4 +1,4 @@
-# Hearth — Notes & State of Play (as of v266)
+# Hearth — Notes & State of Play (as of v267)
 
 **This is the single source of truth for the Hearth project.** It combines: state-of-play (version log + what's pending), architecture & working notes, hard-won lessons, and the full `sw.js` source. There are no other Hearth context docs — if an older separate `HEARTH-architecture.md` or `HEARTH-state-of-play.md` is still in Project knowledge, delete it; this file supersedes both.
 
@@ -8,9 +8,9 @@ Update this file at the end of a session so a new chat can pick up cleanly.
 **After any major update — a new feature/section, or several version bumps — Claude regenerates this state-of-play doc as a downloadable file so Cathal can upload the fresh copy to Project knowledge.** Cathal can also just ask "update the state of play" any time. Re-upload the latest `index.html` / `sw.js` to Project knowledge at the same time, so a new chat reasons about the current app, not an old one.
 
 ## Current version
-**v266 · 28/06/2026** — last shipped build (version label is now **date-only**, sourced from `sw.js` VERSION) (matches the `sw.js` snapshot at the foot of this doc).
+**v267 · 29/06/2026** — last shipped build (version label is now **date-only**, sourced from `sw.js` VERSION) (matches the `sw.js` snapshot at the foot of this doc).
 
-## Recently completed (v230–v266)
+## Recently completed (v230–v267)
 - **v230:** Silenced routine "SSE stale — falling back to fetch" messages from the red error panel (changed `console.warn` → `console.log`; genuine SSE event-error warnings kept).
 - **v231:** Fixed Notes sub-tab flashing on Grocery at login (set it hidden by default to match the switch-handler logic; Grocery has no Notes sub-tab by design — notes are per-item).
 - **v232:** Built the **Recipes section** (6th nav icon). Recipe objects: name, servings, ingredients (amount/unit/name), method, notes. Servings stepper rescales live. Seeded with the Iced Coffee recipe. Create/edit via a raw-text editor.
@@ -45,6 +45,7 @@ Update this file at the end of a session so a new chat can pick up cleanly.
 - **v263:** **Baby medicine quick-chips + sex-save fix.** (1) Added **Calpol / Nurofen / Antibiotic** chips inside `renderMedicine()` (the static chips at ~line 1069 are **dead code** — `renderMedicine()` rebuilds the view from scratch, so chips had to go in the render fn). Tapping a chip fills `medName` + a default dose (**Calpol 5ml, Nurofen 2.5ml**, Antibiotic blank) then focuses/selects the dose field — fill-and-edit, not auto-log. (2) **Fixed `babySex` not persisting:** the household-apply merge (`applyHousehold`, ~line 5269) rebuilt the baby object via `storeSet("fl4_baby", {...})` and **silently omitted `babySex`**, wiping it every sync cycle. Added `babySex: local.babySex || rb.babySex` (local wins, falls back to partner's device). The import path already had a guard; this was the missing second path.
 - **v264:** **Weight-based medicine dosing.** Medicine chips now compute a default dose from her **latest logged weight** (`latestBabyWeight()`, new top-level helper — newest growth record with a numeric `weight`). Per-chip config lives in `data-` attrs: **Calpol** = 15mg/kg, 120mg/5ml (Calpol Infant); **Nurofen** = 10mg/kg, 100mg/5ml (Nurofen for Children); Antibiotic = no calc ("dose as prescribed"). Formula `ml = weight × mgkg × 5 / mg5`, **rounded DOWN to 0.25ml** (suggestion never exceeds the mg/kg calc), **capped at 10ml** single dose. **Floor guard:** Nurofen **blocked under 5kg** (ibuprofen contraindicated) — fills no dose, shows a check-GP note. **No weight logged →** falls back to flat 5ml/2.5ml with a "log a weight" note. A `#medDoseNote` line under the dose field always shows the working + product strength + "estimate only, check the leaflet" (set via `textContent`, ASCII only). All editable. **Caveat baked into notes, not just the UI:** the ml is only correct for the two confirmed strengths above — switching to **Calpol 6+ (250mg/5ml)** would make the suggestion ~2× too high; the inline strength label is the guard. Uses latest weight regardless of age, so a stale weight gives a stale dose (the note shows the kg used). **Confirmed with Cathal up front; council declined.**
 - **v265–v266:** **Version-label timestamp clarified, then simplified.** Diagnosed a "wrong time" report on the bottom-of-page label: it is **not a live clock** — the HTML label is overwritten at runtime by the `sw.js` `VERSION` constant via the `SW_VERSION` postMessage, so it always shows the *active service worker's* build stamp and can lag until the new SW activates. v265 was a no-op timestamp bump to test this; v266 **dropped the `HH:MM` from the format** (now `vNNN · DD/MM/YYYY`) so a frozen build stamp can never be misread as a stale clock. No logic change. Also established: previewing the full PWA in the Claude file-preview pane shows blank because the sandbox blocks the external DOMPurify CDN / inline scripts — the app renders fine deployed (verified via headless boot producing the full DOM); the preview pane is not a reliable way to view this app.
+- **v267:** **Feels-like temperature on weather card.** The home-page weather card now shows "Feels X°" at the top of the right-side meta area (above H/L and Humidity). The `apparent_temperature` value was already being fetched from Open-Meteo and stored as `rec.feels` — it just wasn't displayed. Guarded against null so it only appears when the API returns a value. Also added `CLAUDE.md` and `HEARTH-notes.md` to the repo.
 
 ## Recipes section — current shape
 - Store: `fl4_recipebook` — **shared household-wide** (newest-wins-by-`updated` merge via `/shared`, plus same merge on the personal channel for same-account devices); separate from grocery-import `fl4_recipes`.
@@ -67,7 +68,7 @@ Update this file at the end of a session so a new chat can pick up cleanly.
 - Open question (low priority): whether to sync the travel tag pool / recipe categories across devices (currently localStorage, so per-device; per-item tags DO sync).
 
 ## Shipped (reverse order, condensed — full detail in version log above)
-v266 version label date-only · v265 timestamp diagnostic bump · v264 weight-based medicine dosing · v263 baby medicine quick-chips + babySex-save fix · v262 weather 3-day sheet · v261 home layout cleanup · v260 front-page ★ Today · v259 weather timestamp · v258 weather card · v257 tap-zone fix · v256 "Today" picks · v255 partner-recipe toast · v254 noindex · v251–253 backup nudge · v250 method formatting · v249 bulk categorise · v248 recipe-editor-no-close · v247 list convergence re-push · v246 grace window removed · v245 union/newest-wins/tombstones · v243 sync send-wedge fix · v242 newest-wins recipe sync · v241 grace catch-up · v240 recipe sync · v237–239 add-to-grocery (names→amounts→headers) · v236 recipe categories+favourites · v234 CSV import · v232 Recipes section.
+v267 feels-like on weather card · v266 version label date-only · v265 timestamp diagnostic bump · v264 weight-based medicine dosing · v263 baby medicine quick-chips + babySex-save fix · v262 weather 3-day sheet · v261 home layout cleanup · v260 front-page ★ Today · v259 weather timestamp · v258 weather card · v257 tap-zone fix · v256 "Today" picks · v255 partner-recipe toast · v254 noindex · v251–253 backup nudge · v250 method formatting · v249 bulk categorise · v248 recipe-editor-no-close · v247 list convergence re-push · v246 grace window removed · v245 union/newest-wins/tombstones · v243 sync send-wedge fix · v242 newest-wins recipe sync · v241 grace catch-up · v240 recipe sync · v237–239 add-to-grocery (names→amounts→headers) · v236 recipe categories+favourites · v234 CSV import · v232 Recipes section.
 
 ## Open decisions on record
 - Add-to-grocery: **Option B** chosen (push items to Grocery **and** save a reusable chip in `fl4_recipes`). Saved chip stored at **base servings**. Re-tapping **updates the chip quietly + always re-adds the tagged items**.
@@ -90,7 +91,7 @@ A reference for any new chat working on the Hearth PWA. Read this first.
 
 ## What Hearth is
 - A family-hub Progressive Web App for two people (Cathal + partner Petra).
-- **One single-file vanilla HTML/JS app**: `index.html` (~9,550 lines, ~557k) plus `sw.js` (service worker).
+- **One single-file vanilla HTML/JS app**: `index.html` (~9,500 lines, ~557k) plus `sw.js` (service worker).
 - No build step, no framework. Plain HTML/CSS/JS.
 - **Hosting:** GitHub Pages at `coshea321.github.io/miniature-journey`
 - **Storage:** localStorage (primary) + Firebase Realtime Database (household sync between the two users)
@@ -104,7 +105,7 @@ A reference for any new chat working on the Hearth PWA. Read this first.
 ## Sections (bottom nav, 6 icons)
 Home · Lists · Train · Recipes · Notes · Baby
 
-- **Home:** order is greeting → weather → Training strip → Baby strip → quick-add → ★ Today → Grocery → week strip (v261 layout). **Weather card** under the greeting (v258): current temp + condition + humidity + high/low for Carrigaline, via Open-Meteo (no key); device-local, cached in `hearthWeather`, refetched only if >30 min stale; hidden if no data and offline; "as of HH:MM" timestamp always shown (v259); **tap opens a 3-day detail sheet** (v262: feels-like, humidity, per-day high/low + 💧 rain chance + 💨 wind). **Training strip** (v261): compact full-width horizontal card (sessions today + kcal), taps through to Train. **Baby strip:** last medicine + latest weight. **"★ Today" to-do spotlight** (v260, moved above Grocery in v261): only tasks starred for today (v256 `today` flag), empty state "🎉 No tasks for today". The old "active items" tile was removed in v261. Grocery spotlight unchanged.
+- **Home:** order is greeting → weather → Training strip → Baby strip → quick-add → ★ Today → Grocery → week strip (v261 layout). **Weather card** under the greeting (v258): current temp + condition + humidity + high/low for Carrigaline, via Open-Meteo (no key); device-local, cached in `hearthWeather`, refetched only if >30 min stale; hidden if no data and offline; "as of HH:MM" timestamp always shown (v259); **tap opens a 3-day detail sheet** (v262: feels-like, humidity, per-day high/low + 💧 rain chance + 💨 wind); **feels-like shown on card** (v267). **Training strip** (v261): compact full-width horizontal card (sessions today + kcal), taps through to Train. **Baby strip:** last medicine + latest weight. **"★ Today" to-do spotlight** (v260, moved above Grocery in v261): only tasks starred for today (v256 `today` flag), empty state "🎉 No tasks for today". The old "active items" tile was removed in v261. Grocery spotlight unchanged.
 - **Lists:** Grocery, General (todo), Personal, Travel. Collapsible categories, per-item notes/links/due dates, search (fuzzy, toggleable), print, import, duplicate highlighting, partner-added "NEW" indicators, expand/collapse all. Travel has multi-tag items + a tag filter bar (incl. "Untagged"). Grocery has recipe-tag import (tag a batch, clear/revert as a group) with reusable saved recipes. **General has a "Today" pick** (v256): a ☆/★ star per item sets a manual `today` boolean, with a **★ Today (N)** filter chip at the top; ticking an item done clears its today flag; it syncs via the normal per-item `updated` merge (no separate machinery). **Tap zones on item cards** (v257): the circle checks off; the **item body text (`.item-body`) opens the notes sheet**; the gap between them is a deliberate neutral buffer (does nothing) so a near-miss on the checkbox doesn't open notes. Category pill, ★ star, and ✕ delete are their own zones.
 - **Train:** yoga flows + physio programmes. Every exercise timed/auto-advancing; one-sided exercises are explicit (Right)/(Left) entries each with their own chime. tsp/tbsp-style timing rules don't apply here.
 - **Recipes:** recipe book with ingredients/method/servings/notes, servings scaler, categories + favourites, CSV batch import.
@@ -120,7 +121,7 @@ Home · Lists · Train · Recipes · Notes · Baby
 
 4. **Never write at a computed index without checking `find()` succeeded.** The v221 corruption came from a Python edit where `find()` returned −1 and the code then wrote at `idx + len(...)`, which appended a FULL DUPLICATE of the document after `</html>` — doubling the file to ~923k chars (two "Hearth" headers, raw `no-cache` meta visible as text, broken nav). If a find/anchor might miss, assert it found something before slicing/inserting.
 
-5. **End-of-file edits are dangerous — verify structure after.** After ANY edit near the end of the file, verify: total length is sane (**~557k at v266**, growing slowly each version — a sudden jump to ~900k+ means the v221-style doubling), exactly ONE real `<html lang>`, ONE version string, DOCTYPE count of 2 (one real + one inside the print-doc JS string). The fix for the v221 doubling was truncating at the first `</body>\n</html>`.
+5. **End-of-file edits are dangerous — verify structure after.** After ANY edit near the end of the file, verify: total length is sane (**~557k at v267**, growing slowly each version — a sudden jump to ~900k+ means the v221-style doubling), exactly ONE real `<html lang>`, ONE version string, DOCTYPE count of 2 (one real + one inside the print-doc JS string). The fix for the v221 doubling was truncating at the first `</body>\n</html>`.
 
 6. **Scope: helpers called from top-level renderers must be top-level.** `renderList`, `openItemSheet`, `switchSection` etc. are top-level functions. A helper they call (e.g. `getTravelTags`, `renderItemSheetTags`) that is accidentally defined INSIDE a setup/IIFE block throws "X is not defined" the moment the renderer runs (this was the v226 bug). Define such helpers at top level.
 
@@ -207,11 +208,11 @@ Lessons from a parallel vanilla React PWA session that apply equally to Hearth:
 
 It is a **single-source-of-truth file**: changing the one `VERSION` line below updates the cache name (`CACHE`) and the SW version message together, so a routine version bump is a **one-line edit** to `VERSION`. After every bump, update this block to match (keep it at the current version) so the next chat reasons about the live SW.
 
-Current version: **v266**.
+Current version: **v267**.
 
 ```js
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v266 · 28/06/2026';
+const VERSION = 'v267 · 29/06/2026';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
