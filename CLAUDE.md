@@ -10,7 +10,7 @@ Cathal is a **non-coder**; treat him as the reviewer, not a co-developer. Lead w
 - Hosted on **GitHub Pages**; `main` is live. No backend except Firebase Realtime DB (household sync via room codes, REST/EventSource — no SDK).
 
 ## Per-change workflow (every change)
-1. **Create a backup branch `backup-vNNN` first** (current version, before edits). Suggest pruning branches older than 3 versions back. Never touch `main` directly for non-trivial work.
+1. **Create and push a backup branch `backup-vNNN` first** (current version, before any edits). Do this every time without exception — even for small changes. Suggest pruning branches older than 3 versions back. Never touch `main` directly for non-trivial work.
 2. **Edit incrementally** — never rewrite the whole file. Make targeted edits.
 3. **Verify the edit landed** (grep for the changed strings) — silent no-op edits have caused real incidents here.
 4. **Syntax-check the main script block**: extract from the `// PREVIEW MODE` comment to the FIRST `</script>` and run `node --check`. (The file also contains an escaped `</script>` inside a JS print-doc string — don't be fooled by it.)
