@@ -8,7 +8,7 @@
 **Update `HEARTH-notes.md` in the repo at every release** — changelog entry, version bump in the sw.js block, and backlog sync. Since the file is now in the repo, Claude Code reads it directly at the start of each session; there is no need to re-upload it to Project knowledge. The old "download and re-upload" flow is obsolete.
 
 ## Current version
-**v271 · 29/06/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION) (matches the `sw.js` snapshot at the foot of this doc).
+**v272 · 29/06/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION) (matches the `sw.js` snapshot at the foot of this doc).
 
 ## Recently completed (v230–v267)
 - **v230:** Silenced routine "SSE stale — falling back to fetch" messages from the red error panel (changed `console.warn` → `console.log`; genuine SSE event-error warnings kept).
@@ -49,6 +49,7 @@
 - **v268:** **Recipe deletion sync via tombstones.** Deleting a recipe now records a tombstone (`fl4_tomb_recipes`, same helpers as the v245 list tombstones: `getTombs`/`addTomb`/`purgeTombs`/`mergeTombs`). Both sync channels (household and personal) carry `rb_deleted` in their payloads; on apply, tombstoned recipes are removed if `deletedAt > recipe.updated` (newest-wins — if a device edited the recipe after you deleted it, the edit survives). A convergence re-push fires if any recipes were pruned. **Bonus fix:** `pushPersonal` was never including `recipebook` — same-account devices (e.g. phone + laptop) were missing recipe sync on the personal channel entirely; fixed.
 - **v269:** **Recipe search + scroll restoration on back.** A 🔍 Search button appears above the recipe list (static HTML, survives re-renders); toggles a fuzzy-search input; filters by recipe name + notes in real time. When you open a recipe detail, `window.scrollY` is saved; pressing Back re-renders the list and restores your scroll position. Also added `CLAUDE.md` always-create-PR rule.
 - **v270:** **Scroll-to-top on all navigation transitions.** Opening a recipe detail (`window.scrollTo(0,0)`), switching list types (Grocery → Travel → To-do etc.), and switching sections (Home / Lists / Recipes / Baby etc.) all scroll to the top of the page so you start at the beginning of the new view. `CLAUDE.md` backup-branch step made mandatory and explicit.
+- **v272:** **Manual amount editing on Grocery items.** The item edit sheet now shows an **Amount** field for Grocery items (hidden on all other lists). The `item.amount` field (e.g. "200 g", "1 can") was already stored and shown as a chip on grocery cards but could only be set via recipe import — now it can be set or cleared manually from the edit sheet. No change to other lists or sync logic.
 - **v271:** **Fix duplicate items from home dashboard quick-add.** `doHqpAdd()` (the home quick-add panel for Grocery and To-do) had no duplicate check — if "Milk" was already in the Grocery list, tapping Add from the home dashboard would silently create a second "Milk". The regular list-section add already guarded against this. Added the same logic: shows "Already in your list!" for undone duplicates; unchecks done items instead of re-adding. Also replaced an incorrect `saveCurrentList()` call (which saved/pushed `currentList` instead of `lt`, so if you'd last been on a different list type the wrong list was pushed) with direct push calls scoped to `lt`; added missing `updated` timestamp to items created from the dashboard.
 
 ## Recipes section — current shape
@@ -63,7 +64,7 @@
 
 ## Pending / next steps (not yet built)
 - **Add-to-grocery Phase 3 — real-world purchase quantities.** Convert cooking amounts to shop quantities, e.g. "1200ml oat milk" → "2× 1L bottles". **Council-reviewed; on hold.** Consensus = build thin + advisory (static in-code staples table, render-time from stored numeric amount, show both cooking + suggested pack, only mass/volume convert) — but a real logged dissent (Devil's Advocate) that the coverage cliff + upkeep may not clear the bar. Three open calls before building: show-both vs replace; table scope (~15–20 Irish staples); whether to heed the dissent.
-- **Manual amount editing.** The item edit sheet doesn't expose `item.amount` yet — amounts currently come from recipes only. Small follow-up. Low priority.
+- ~~**Manual amount editing.**~~ **Done in v272.**
 - **Pre-v242 recipes are unstamped** (`updated` absent → treated as 0). Edit each once post-v242 to fully protect it under newest-wins. Optional one-off: stamp all existing recipes on next load.
 - **Imported recipes default to "Uncategorised"** — Cathal to categorise over time (the v249 bulk-categorise tool makes this fast: filter to Uncategorised → Select → set).
 - **Possible future backup enhancement:** an auto-copy into Firebase `/backups`, or a periodic reminder independent of app open (current nudge is on-open only).
@@ -74,7 +75,7 @@
 - ~~Recipe deletions don't propagate~~ → **fixed in v268** (tombstone pattern, mirrors v245 list tombstones).
 
 ## Shipped (reverse order, condensed — full detail in version log above)
-v271 fix dashboard duplicate add · v270 scroll-to-top everywhere · v269 recipe search + scroll restore · v268 recipe deletion sync · v267 feels-like on weather card · v266 version label date-only · v265 timestamp diagnostic bump · v264 weight-based medicine dosing · v263 baby medicine quick-chips + babySex-save fix · v262 weather 3-day sheet · v261 home layout cleanup · v260 front-page ★ Today · v259 weather timestamp · v258 weather card · v257 tap-zone fix · v256 "Today" picks · v255 partner-recipe toast · v254 noindex · v251–253 backup nudge · v250 method formatting · v249 bulk categorise · v248 recipe-editor-no-close · v247 list convergence re-push · v246 grace window removed · v245 union/newest-wins/tombstones · v243 sync send-wedge fix · v242 newest-wins recipe sync · v241 grace catch-up · v240 recipe sync · v237–239 add-to-grocery (names→amounts→headers) · v236 recipe categories+favourites · v234 CSV import · v232 Recipes section.
+v272 manual grocery amount editing · v271 fix dashboard duplicate add · v270 scroll-to-top everywhere · v269 recipe search + scroll restore · v268 recipe deletion sync · v267 feels-like on weather card · v266 version label date-only · v265 timestamp diagnostic bump · v264 weight-based medicine dosing · v263 baby medicine quick-chips + babySex-save fix · v262 weather 3-day sheet · v261 home layout cleanup · v260 front-page ★ Today · v259 weather timestamp · v258 weather card · v257 tap-zone fix · v256 "Today" picks · v255 partner-recipe toast · v254 noindex · v251–253 backup nudge · v250 method formatting · v249 bulk categorise · v248 recipe-editor-no-close · v247 list convergence re-push · v246 grace window removed · v245 union/newest-wins/tombstones · v243 sync send-wedge fix · v242 newest-wins recipe sync · v241 grace catch-up · v240 recipe sync · v237–239 add-to-grocery (names→amounts→headers) · v236 recipe categories+favourites · v234 CSV import · v232 Recipes section.
 
 ## Open decisions on record
 - Add-to-grocery: **Option B** chosen (push items to Grocery **and** save a reusable chip in `fl4_recipes`). Saved chip stored at **base servings**. Re-tapping **updates the chip quietly + always re-adds the tagged items**.
@@ -214,11 +215,11 @@ Lessons from a parallel vanilla React PWA session that apply equally to Hearth:
 
 It is a **single-source-of-truth file**: changing the one `VERSION` line below updates the cache name (`CACHE`) and the SW version message together, so a routine version bump is a **one-line edit** to `VERSION`. After every bump, update this block to match (keep it at the current version) so the next chat reasons about the live SW.
 
-Current version: **v271**.
+Current version: **v272**.
 
 ```js
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v271 · 29/06/2026';
+const VERSION = 'v272 · 29/06/2026';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
