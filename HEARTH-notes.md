@@ -8,7 +8,7 @@
 **Update `HEARTH-notes.md` in the repo at every release** — changelog entry, version bump in the sw.js block, and backlog sync. Since the file is now in the repo, Claude Code reads it directly at the start of each session; there is no need to re-upload it to Project knowledge. The old "download and re-upload" flow is obsolete.
 
 ## Current version
-**v272 · 29/06/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION) (matches the `sw.js` snapshot at the foot of this doc).
+**v272 · 29/06/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant).
 
 ## Recently completed (v230–v267)
 - **v230:** Silenced routine "SSE stale — falling back to fetch" messages from the red error panel (changed `console.warn` → `console.log`; genuine SSE event-error warnings kept).
@@ -210,77 +210,7 @@ Lessons from a parallel vanilla React PWA session that apply equally to Hearth:
 ---
 ---
 
-## sw.js — FULL SOURCE LIVES HERE (this block IS the file)
-**Read this before saying sw.js is "not available" — it is not a separate Project upload, it is reproduced in full below, and this block is the authoritative copy.** To bump or edit `sw.js`: reconstruct the file verbatim from the code block, apply the change, and deliver `sw.js` for download alongside `index.html`. Never tell Cathal sw.js is missing or that you only have `index.html` — the complete source is right here.
+## sw.js
+`sw.js` is in the repo root alongside `index.html`. Read it directly — no snapshot needed here.
 
-It is a **single-source-of-truth file**: changing the one `VERSION` line below updates the cache name (`CACHE`) and the SW version message together, so a routine version bump is a **one-line edit** to `VERSION`. After every bump, update this block to match (keep it at the current version) so the next chat reasons about the live SW.
-
-Current version: **v272**.
-
-```js
-// ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v272 · 29/06/2026';
-const CACHE   = 'hearth-' + VERSION;
-
-const ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
-];
-
-// Install: cache all assets, skip waiting immediately
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS))
-  );
-  self.skipWaiting();
-});
-
-// Activate: delete old caches, take control, tell pages to reload + send version
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
-      ))
-      .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: 'window' }))
-      .then(clients => {
-        clients.forEach(client => client.postMessage({ type: 'SW_UPDATED', version: VERSION }));
-      })
-  );
-});
-
-// Respond to version requests from the page
-self.addEventListener('message', e => {
-  if (e.data && e.data.type === 'GET_VERSION') {
-    e.source.postMessage({ type: 'SW_VERSION', version: VERSION });
-  }
-});
-
-// Fetch: cache-first for same-origin assets, but never cache sw.js itself
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  // Never intercept requests for the SW file itself
-  // Never cache sw.js or index.html — always fetch fresh
-  if (url.pathname.endsWith('/sw.js')) return;
-  if (url.pathname.endsWith('/') || url.pathname.endsWith('/index.html')) return;
-  if (url.origin === self.location.origin) {
-    e.respondWith(
-      caches.match(e.request).then(cached => {
-        if (cached) return cached;
-        return fetch(e.request).then(response => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE).then(c => c.put(e.request, clone));
-          }
-          return response;
-        });
-      })
-    );
-  }
-});
-
-```
+It is a **single-source-of-truth file**: changing the one `VERSION` constant updates the cache name and the SW version message together, so a routine version bump is a **one-line edit**. The version format is `vNNN · DD/MM/YYYY`.
