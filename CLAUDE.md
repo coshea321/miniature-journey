@@ -16,7 +16,7 @@ Cathal is a **non-coder**; treat him as the reviewer, not a co-developer. Lead w
 4. **Syntax-check the main script block**: extract from the `// PREVIEW MODE` comment to the FIRST `</script>` and run `node --check`. (The file also contains an escaped `</script>` inside a JS print-doc string — don't be fooled by it.)
 5. **Verify file integrity**: sane length (~557k, grows slowly — a jump to ~900k+ means the v221-style document-doubling bug), exactly ONE real `<!DOCTYPE>`/`<html lang>`, ONE version label, clean `</body>\n</html>` EOF.
 6. **Bump the version in BOTH `index.html` and `sw.js`.** Format: `vNNN · DD/MM/YYYY` (date only, no time). For `sw.js` this is the one-line `VERSION` edit.
-7. **Show Cathal the diff and let him review before committing/pushing.** Keep that checkpoint — don't push unreviewed. (In Claude Code the git branch is the backup; a download zip is optional, not required.)
+7. **Commit, push, then immediately open a GitHub PR** — always, without waiting to be asked. The PR is how Cathal reviews the diff and merges to `main`. Describe changes clearly in the PR body. Never push and say "create a PR when you're ready" — create it now.
 
 ## Design & safety rules (these override a prompt that conflicts)
 - **Confirm feature design before building anything non-trivial.** Cathal has corrected mid-build many times; align upfront.
