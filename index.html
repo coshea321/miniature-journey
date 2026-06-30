@@ -214,6 +214,13 @@ body.home-mode .bn-btn{color:#AAA090}
 .hw-sheet-now-cond{font-size:13px;font-weight:600;color:#5A7AB8;margin-top:3px}
 .hw-sheet-now-meta{text-align:right;font-size:12px;font-weight:600;color:#7A98C8;line-height:1.6}
 .hw-sheet-now-meta b{color:#2A5AB0;font-weight:700}
+.hw-hourly-label{font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.hw-hourly{display:flex;overflow-x:auto;gap:14px;padding:2px 2px 14px;margin-bottom:6px;-webkit-overflow-scrolling:touch;border-bottom:1px solid #EEEAE2}
+.hw-hour{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:38px}
+.hw-hour-label{font-size:11px;font-weight:700;color:#7A8AA8}
+.hw-hour-icon{font-size:18px}
+.hw-hour-temp{font-size:13px;font-weight:700;color:#2A5AB0}
+.hw-hour-pop{font-size:10px;font-weight:600;color:#3B6FE0;min-height:12px}
 .hw-sheet-days{display:flex;flex-direction:column;gap:2px}
 .hw-day-row{display:grid;grid-template-columns:1.3fr .6fr 1.1fr .9fr .8fr;align-items:center;gap:6px;padding:11px 6px;border-bottom:1px solid #EEEAE2;font-size:13px;color:#2A2010}
 .hw-day-row:last-child{border-bottom:none}
@@ -749,7 +756,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v272 · 29/06/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v273 · 29/06/2026</div>
 
   </div>
 </div>
@@ -7177,7 +7184,7 @@ function fetchWeather(force) {
   // Skip network if cache is fresh, or a fetch is already in flight.
   // `force` (used when opening the detail sheet) bypasses the freshness gate
   // so an older cache lacking 3-day data still gets refreshed.
-  if (!force && cached && (Date.now() - cached.at) <= HW_MAX_AGE && cached.days) return;
+  if (!force && cached && (Date.now() - cached.at) <= HW_MAX_AGE && cached.days && cached.hours) return;
   if (_hwFetching) return;
   if (!navigator.onLine) return; // offline: keep showing cache (or nothing)
   _hwFetching = true;
@@ -7185,6 +7192,7 @@ function fetchWeather(force) {
   var url = "https://api.open-meteo.com/v1/forecast?latitude=" + HW_LAT +
     "&longitude=" + HW_LON +
     "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code" +
+    "&hourly=temperature_2m,weather_code,precipitation_probability" +
     "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max" +
     "&timezone=auto&forecast_days=3";
 
@@ -7202,6 +7210,21 @@ function fetchWeather(force) {
         wind: (dl.wind_speed_10m_max ? Math.round(dl.wind_speed_10m_max[i]) : null)
       });
     }
+    // Next ~24 hours, starting from the current hour (rolling window into tomorrow)
+    var hl = j.hourly, hours = [];
+    if (hl && hl.time) {
+      var nowCutoff = Date.now() - 30 * 60000; // allow the current hour's slot
+      for (var h = 0; h < hl.time.length; h++) {
+        if (new Date(hl.time[h]).getTime() < nowCutoff) continue;
+        hours.push({
+          time: hl.time[h],
+          temp: Math.round(hl.temperature_2m[h]),
+          code: hl.weather_code[h],
+          pop:  (hl.precipitation_probability ? hl.precipitation_probability[h] : null)
+        });
+        if (hours.length >= 24) break;
+      }
+    }
     var rec = {
       temp:  j.current.temperature_2m,
       hum:   j.current.relative_humidity_2m,
@@ -7210,6 +7233,7 @@ function fetchWeather(force) {
       high:  Math.round(dl.temperature_2m_max[0]),
       low:   Math.round(dl.temperature_2m_min[0]),
       days:  days,
+      hours: hours,
       at:    Date.now()
     };
     try { localStorage.setItem(HW_CACHE_KEY, JSON.stringify(rec)); } catch (e) {}
@@ -7231,6 +7255,28 @@ function hwDayName(dateStr, idx) {
   var d = new Date(dateStr + "T00:00:00");
   return isNaN(d.getTime()) ? "" : dn[d.getDay()];
 }
+function hwHourLabel(timeStr, idx) {
+  if (idx === 0) return "Now";
+  var d = new Date(timeStr);
+  var h = d.getHours();
+  var h12 = h % 12; if (h12 === 0) h12 = 12;
+  return h12 + (h >= 12 ? "pm" : "am");
+}
+function renderHourlyRow(hours) {
+  if (!hours || !hours.length) return "";
+  var html = "<div class='hw-hourly-label'>Next 24 hours</div><div class='hw-hourly'>";
+  for (var i = 0; i < hours.length; i++) {
+    var hr = hours[i];
+    html += "<div class='hw-hour'>" +
+      "<span class='hw-hour-label'>" + hwHourLabel(hr.time, i) + "</span>" +
+      "<span class='hw-hour-icon'>" + hwCodeToIcon(hr.code) + "</span>" +
+      "<span class='hw-hour-temp'>" + hr.temp + "°</span>" +
+      "<span class='hw-hour-pop'>" + (hr.pop != null && hr.pop >= 20 ? hr.pop + "%" : "") + "</span>" +
+    "</div>";
+  }
+  html += "</div>";
+  return html;
+}
 function renderWeatherSheet(data) {
   var body = document.getElementById("weatherSheetBody");
   if (!body) return;
@@ -7248,6 +7294,8 @@ function renderWeatherSheet(data) {
       "Humidity <b>" + data.hum + "%</b>" +
     "</div>" +
   "</div>";
+  // Hourly strip (next 24h, scrolls horizontally)
+  html += renderHourlyRow(data.hours);
   // 3-day rows
   var days = data.days || [];
   if (days.length) {
