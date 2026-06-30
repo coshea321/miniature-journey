@@ -756,7 +756,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v273 · 29/06/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v274 · 29/06/2026</div>
 
   </div>
 </div>
@@ -7162,7 +7162,7 @@ function hwPaint(data, stale) {
   var metaEl = document.getElementById("hwMeta");
   iconEl.innerHTML = hwCodeToIcon(data.code);
   tempEl.textContent = Math.round(data.temp) + "\u00B0";
-  condEl.textContent = hwCodeToText(data.code) + " \u00B7 Carrigaline";
+  condEl.textContent = hwCodeToText(data.code) + " \u00B7 " + (data.loc || "Carrigaline");
   var t = new Date(data.at);
   var hh = ("0" + t.getHours()).slice(-2), mm = ("0" + t.getMinutes()).slice(-2);
   var feelsStr = (data.feels != null) ? "Feels <b>" + data.feels + "\u00B0</b><br>" : "";
@@ -7175,6 +7175,18 @@ function hwPaint(data, stale) {
 function hwLoadCache() {
   try { return JSON.parse(localStorage.getItem(HW_CACHE_KEY) || "null"); }
   catch (e) { return null; }
+}
+// Try the device's GPS (so weather follows you while travelling); falls back
+// to the hardcoded Carrigaline coords on denial/timeout/unsupported browser.
+// Coords are used only to build the Open-Meteo request URL — never stored
+// or synced beyond the existing device-local hearthWeather cache.
+function hwGetCoords(cb) {
+  if (!navigator.geolocation) { cb(HW_LAT, HW_LON, false); return; }
+  navigator.geolocation.getCurrentPosition(
+    function(pos) { cb(pos.coords.latitude, pos.coords.longitude, true); },
+    function() { cb(HW_LAT, HW_LON, false); },
+    { timeout: 8000, maximumAge: 10 * 60 * 1000 }
+  );
 }
 function fetchWeather(force) {
   // Paint cache immediately (possibly stale) so card never flashes empty
@@ -7189,8 +7201,9 @@ function fetchWeather(force) {
   if (!navigator.onLine) return; // offline: keep showing cache (or nothing)
   _hwFetching = true;
 
-  var url = "https://api.open-meteo.com/v1/forecast?latitude=" + HW_LAT +
-    "&longitude=" + HW_LON +
+  hwGetCoords(function(lat, lon, isDevice) {
+  var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat +
+    "&longitude=" + lon +
     "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code" +
     "&hourly=temperature_2m,weather_code,precipitation_probability" +
     "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max" +
@@ -7234,6 +7247,7 @@ function fetchWeather(force) {
       low:   Math.round(dl.temperature_2m_min[0]),
       days:  days,
       hours: hours,
+      loc:   isDevice ? "Current location" : "Carrigaline",
       at:    Date.now()
     };
     try { localStorage.setItem(HW_CACHE_KEY, JSON.stringify(rec)); } catch (e) {}
@@ -7244,6 +7258,7 @@ function fetchWeather(force) {
   }).catch(function(){
     _hwFetching = false;
     // Network failed: leave any cached paint in place; if none, card stays hidden
+  });
   });
 }
 
@@ -7319,7 +7334,7 @@ function renderWeatherSheet(data) {
   var t = new Date(data.at);
   var hh = ("0" + t.getHours()).slice(-2), mm = ("0" + t.getMinutes()).slice(-2);
   var staleNote = (Date.now() - data.at) > HW_MAX_AGE ? " (cached)" : "";
-  html += "<div class='hw-sheet-stamp'>Carrigaline \u00B7 as of " + hh + ":" + mm + staleNote + "</div>";
+  html += "<div class='hw-sheet-stamp'>" + (data.loc || "Carrigaline") + " \u00B7 as of " + hh + ":" + mm + staleNote + "</div>";
   body.innerHTML = html;
 }
 function openWeatherSheet() {
