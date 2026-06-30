@@ -304,6 +304,7 @@ body.home-mode .bn-btn.home-active{color:#C2691A}
 .bn-btn.train-active{color:#3B6FE0}
 .bn-btn.baby-active{color:#c084fc}
 .bn-btn.notes-active{color:#A05A10}
+.bn-btn.trips-active{color:#0F8A8A}
 .notes-tab-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .notes-tab-btn.active{color:#fff;background:rgba(255,255,255,.2)}
 
@@ -756,7 +757,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v274 · 29/06/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v275 · 30/06/2026</div>
 
   </div>
 </div>
@@ -1048,6 +1049,17 @@ body.train-mode #toast{background:#3A3328}
     </div>
   </div>
   <div id="recipesContent" style="padding:14px 14px 100px"></div>
+</div>
+
+<!-- ============================================================
+     TRIPS SECTION
+     ============================================================ -->
+<div id="tripsSection" style="display:none">
+  <div style="display:flex;gap:4px;padding:8px 10px;background:#0F8A8A;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
+    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F9F3; Trips</span>
+    <button id="tripNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New trip</button>
+  </div>
+  <div id="tripsContent" style="padding:14px 14px 100px"></div>
 </div>
 
 <!-- ============================================================
@@ -1432,6 +1444,10 @@ body.train-mode #toast{background:#3A3328}
         <span class="sync-toggle-label">&#x1F4DD; Notes</span>
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="notes" checked><span class="toggle-slider"></span></label>
       </div>
+      <div class="sync-toggle-row">
+        <span class="sync-toggle-label">&#x1F9F3; Trips</span>
+        <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="trips" checked><span class="toggle-slider"></span></label>
+      </div>
     </div>
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <div class="sync-section-title" style="margin-bottom:8px">Import / Export</div>
@@ -1465,6 +1481,9 @@ body.train-mode #toast{background:#3A3328}
   </button>
   <button class="bn-btn" id="bnBaby" aria-label="Baby">
     <span class="bn-ico">&#x1F476;</span>Baby
+  </button>
+  <button class="bn-btn" id="bnTrips" aria-label="Trips">
+    <span class="bn-ico">&#x1F9F3;</span>Trips
   </button>
 </nav>
 
@@ -2119,6 +2138,364 @@ function fuzzyMatch(query, text) {
 // ============================================================
 function getRecipeBook() { return storeGet("fl4_recipebook") || []; }
 function saveRecipeBook(r) { storeSet("fl4_recipebook", r); if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold(); }
+
+// ============================================================
+// TRIPS — household-shared, like recipebook, but with a nested
+// per-booking merge: each booking has its own id/updated so two
+// devices can each add/edit a different booking in the same trip
+// without one clobbering the other (a whole-trip newest-wins would
+// not be safe here — a trip is a container of many edit units).
+// ============================================================
+function getTrips() { return storeGet("fl4_trips") || []; }
+function saveTripsStore(t) {
+  storeSet("fl4_trips", t);
+  pushPersonal();
+  if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold();
+}
+
+// Merge two trip lists at both the trip level and the nested booking level.
+// Booking ids are globally unique (Date.now()+random), so booking tombstones
+// are a single flat store regardless of which trip the booking belonged to.
+// Returns {trips, push} — push=true means our merge result is fuller/newer
+// than what we received, so the caller should re-push to converge.
+function mergeTripsData(localTrips, incomingTrips, tripTombs, bookingTombs) {
+  var push = false;
+  function mergeBookings(localB, incB) {
+    var incById = {};
+    (incB || []).forEach(function(b){ if (b && b.id != null) incById[b.id] = b; });
+    var localIds = {};
+    var merged = (localB || []).map(function(b){
+      if (!b || b.id == null) return b;
+      localIds[b.id] = true;
+      var inc = incById[b.id];
+      if (!inc) { push = true; return b; }                    // partner missing this → push
+      if ((inc.updated||0) > (b.updated||0)) return inc;       // incoming newer → take it
+      if ((b.updated||0) > (inc.updated||0)) push = true;      // local newer → push to converge
+      return b;
+    });
+    var fresh = (incB || []).filter(function(b){ return b && b.id != null && !localIds[b.id]; });
+    var full = fresh.concat(merged);
+    return full.filter(function(b){
+      return !(b && bookingTombs[b.id] && bookingTombs[b.id] > (b.updated||0));
+    });
+  }
+  var incById = {};
+  (incomingTrips || []).forEach(function(t){ if (t && t.id != null) incById[t.id] = t; });
+  var localIds = {};
+  var merged = (localTrips || []).map(function(t){
+    if (!t || t.id == null) return t;
+    localIds[t.id] = true;
+    var inc = incById[t.id];
+    if (!inc) { push = true; return t; }
+    var winner = (inc.updated||0) > (t.updated||0) ? inc : t;
+    if ((t.updated||0) > (inc.updated||0)) push = true;
+    return {
+      id: t.id, name: winner.name, start: winner.start, end: winner.end, updated: winner.updated,
+      bookings: mergeBookings(t.bookings, inc.bookings)
+    };
+  });
+  var fresh = (incomingTrips || []).filter(function(t){ return t && t.id != null && !localIds[t.id]; });
+  var full = fresh.concat(merged);
+  full = full.filter(function(t){
+    return !(t && tripTombs[t.id] && tripTombs[t.id] > (t.updated||0));
+  });
+  return { trips: full, push: push };
+}
+
+// ── Trips UI ─────────────────────────────────────────────────
+var TRIP_BOOKING_TYPES = {
+  parking:       { label: "Parking",       icon: "&#x1F17F;&#xFE0F;" },
+  flight:        { label: "Flight",        icon: "&#x2708;&#xFE0F;" },
+  car:           { label: "Car rental",    icon: "&#x1F697;" },
+  accommodation: { label: "Accommodation", icon: "&#x1F3E8;" },
+  other:         { label: "Other",         icon: "&#x1F3AB;" }
+};
+var TRIP_MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var _tripView = "list"; // "list" | "detail"
+var _tripOpenId = null;
+var _tripEditing = false;
+var _tripExpanded = {};
+
+function todayStr() {
+  var d = new Date(), p = function(x){ return x < 10 ? "0"+x : x; };
+  return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
+}
+function tripDayMonth(dateStr) {
+  var p = dateStr.split("-");
+  return parseInt(p[2],10) + " " + TRIP_MONTH_ABBR[parseInt(p[1],10)-1];
+}
+function tripRangeLabel(start, end) {
+  if (!start) return "";
+  if (!end || end === start) return tripDayMonth(start);
+  var sp = start.split("-"), ep = end.split("-");
+  if (sp[0] === ep[0] && sp[1] === ep[1]) return parseInt(sp[2],10) + "–" + tripDayMonth(end);
+  return tripDayMonth(start) + " – " + tripDayMonth(end);
+}
+function bookingDateTimeLabel(iso) {
+  if (!iso) return "";
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return esc(iso);
+  var p = function(x){ return x < 10 ? "0"+x : x; };
+  var h = d.getHours(), h12 = h % 12; if (h12 === 0) h12 = 12;
+  return d.getDate() + " " + TRIP_MONTH_ABBR[d.getMonth()] + ", " + h12 + ":" + p(d.getMinutes()) + (h >= 12 ? "pm" : "am");
+}
+
+function renderTrips() {
+  _tripEditing = false;
+  if (_tripView === "detail" && _tripOpenId != null) { renderTripDetail(); return; }
+  var el = document.getElementById("tripsContent");
+  var trips = getTrips();
+  if (!trips.length) {
+    el.innerHTML = "<div style='text-align:center;color:#8A7A5A;padding:40px 20px'><div style='font-size:40px;margin-bottom:10px'>&#x1F9F3;</div><div style='font-size:16px;font-weight:600;margin-bottom:4px'>No trips yet</div><div style='font-size:13px'>Tap “+ New trip” to plan one.</div></div>";
+    return;
+  }
+  var today = todayStr();
+  var upcoming = [], past = [];
+  trips.forEach(function(t){ ((t.end||t.start||"") >= today ? upcoming : past).push(t); });
+  upcoming.sort(function(a,b){ return (a.start||"").localeCompare(b.start||""); });
+  past.sort(function(a,b){ return (b.start||"").localeCompare(a.start||""); });
+
+  var html = "";
+  if (upcoming.length) {
+    html += "<div style='font-size:12px;font-weight:700;color:#0F8A8A;text-transform:uppercase;letter-spacing:.5px;margin:6px 2px 8px'>Upcoming</div>";
+    upcoming.forEach(function(t){ html += tripCardHTML(t); });
+  }
+  if (past.length) {
+    html += "<div style='font-size:12px;font-weight:700;color:#9A8A6A;text-transform:uppercase;letter-spacing:.5px;margin:18px 2px 8px'>Past</div>";
+    past.forEach(function(t){ html += tripCardHTML(t); });
+  }
+  el.innerHTML = html;
+
+  el.querySelectorAll(".trip-card").forEach(function(card){
+    card.addEventListener("click", function(){
+      _tripOpenId = +card.dataset.tid;
+      _tripView = "detail";
+      renderTripDetail();
+      window.scrollTo(0, 0);
+    });
+  });
+}
+
+function tripCardHTML(t) {
+  var n = (t.bookings||[]).length;
+  return "<div class='trip-card' data-tid='" + t.id + "' style='display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer'>" +
+    "<div style='flex:1;min-width:0'>" +
+      "<div style='font-size:16px;font-weight:700;color:#1A2E2E;margin-bottom:3px'>" + esc(t.name||"Untitled trip") + "</div>" +
+      "<div style='font-size:12px;color:#9A8A6A'>" + esc(tripRangeLabel(t.start, t.end)) + " &middot; " + n + " booking" + (n!==1?"s":"") + "</div>" +
+    "</div>" +
+  "</div>";
+}
+
+function renderTripDetail() {
+  var el = document.getElementById("tripsContent");
+  var trip = getTrips().find(function(x){ return x.id === _tripOpenId; });
+  if (!trip) { _tripView = "list"; renderTrips(); return; }
+  var bookings = (trip.bookings||[]).slice().sort(function(a,b){
+    return new Date(a.start||0).getTime() - new Date(b.start||0).getTime();
+  });
+  var html =
+    "<button id='tripBack' style='border:none;background:none;color:#0F8A8A;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; All trips</button>" +
+    "<div style='display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px'>" +
+      "<div>" +
+        "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;color:#1A2E2E'>" + esc(trip.name||"Untitled trip") + "</div>" +
+        "<div style='font-size:13px;color:#8A7A5A;margin-top:2px'>" + esc(tripRangeLabel(trip.start, trip.end)) + "</div>" +
+      "</div>" +
+      "<button id='tripEditBtn' style='border:1.5px solid #D8D0C0;background:#fff;color:#0F8A8A;border-radius:8px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>Edit</button>" +
+    "</div>" +
+    "<button id='bookingNewBtn' style='width:100%;padding:12px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px'>+ Add booking</button>";
+
+  if (!bookings.length) {
+    html += "<div style='text-align:center;color:#9A8A6A;padding:24px'>No bookings yet. Add a flight, hotel, parking…</div>";
+  } else {
+    bookings.forEach(function(b){ html += bookingCardHTML(b); });
+  }
+  el.innerHTML = html;
+
+  document.getElementById("tripBack").addEventListener("click", function(){
+    _tripView = "list"; _tripOpenId = null; _tripExpanded = {};
+    renderTrips();
+    window.scrollTo(0, 0);
+  });
+  document.getElementById("tripEditBtn").addEventListener("click", function(){ openTripEditor(trip.id); });
+  document.getElementById("bookingNewBtn").addEventListener("click", function(){ openBookingEditor(trip.id, null); });
+
+  el.querySelectorAll(".booking-card").forEach(function(card){
+    card.addEventListener("click", function(e){
+      if (e.target.closest(".booking-edit-btn")) return;
+      var bid = +card.dataset.bid;
+      _tripExpanded[bid] = !_tripExpanded[bid];
+      renderTripDetail();
+    });
+  });
+  el.querySelectorAll(".booking-edit-btn").forEach(function(btn){
+    btn.addEventListener("click", function(e){
+      e.stopPropagation();
+      openBookingEditor(trip.id, +btn.dataset.bid);
+    });
+  });
+}
+
+function bookingCardHTML(b) {
+  var ty = TRIP_BOOKING_TYPES[b.type] || TRIP_BOOKING_TYPES.other;
+  var expanded = !!_tripExpanded[b.id];
+  var timeLabel = bookingDateTimeLabel(b.start) + (b.end ? " &rarr; " + bookingDateTimeLabel(b.end) : "");
+  var extra = "";
+  if (expanded) {
+    extra = "<div style='margin-top:10px;padding-top:10px;border-top:1px dotted #ECE4D6;font-size:13px;color:#5A5040'>" +
+      (b.ref ? "<div style='margin-bottom:4px'><b>Ref:</b> " + esc(b.ref) + "</div>" : "") +
+      (b.notes ? "<div style='white-space:pre-wrap'>" + esc(b.notes) + "</div>" : "") +
+      (!b.ref && !b.notes ? "<div style='color:#B0A488'>No extra details</div>" : "") +
+      "<button class='booking-edit-btn' data-bid='" + b.id + "' style='margin-top:10px;border:1.5px solid #D8D0C0;background:#fff;color:#0F8A8A;border-radius:8px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>Edit booking</button>" +
+    "</div>";
+  }
+  return "<div class='booking-card' data-bid='" + b.id + "' style='background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer'>" +
+    "<div style='display:flex;align-items:center;gap:10px'>" +
+      "<span style='font-size:20px'>" + ty.icon + "</span>" +
+      "<div style='flex:1;min-width:0'>" +
+        "<div style='font-size:15px;font-weight:700;color:#1A2E2E'>" + esc(b.title||ty.label) + "</div>" +
+        "<div style='font-size:12px;color:#9A8A6A'>" + timeLabel + (b.location ? " &middot; " + esc(b.location) : "") + "</div>" +
+      "</div>" +
+    "</div>" +
+    extra +
+  "</div>";
+}
+
+function openTripEditor(id) {
+  _tripEditing = true;
+  var t = id != null ? getTrips().find(function(x){ return x.id === id; }) : null;
+  var isNew = !t;
+  var el = document.getElementById("tripsContent");
+  el.innerHTML =
+    "<button id='tripCancelEdit' style='border:none;background:none;color:#0F8A8A;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; Cancel</button>" +
+    "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:14px'>" + (isNew?"New trip":"Edit trip") + "</div>" +
+    fieldLabel("Trip name") +
+    "<input id='tpName' type='text' value='" + (t?esc(t.name):"") + "' placeholder='e.g. Lanzarote' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+    fieldLabel("Start date") +
+    "<input id='tpStart' type='date' value='" + (t&&t.start?t.start:"") + "' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+    fieldLabel("End date (optional)") +
+    "<input id='tpEnd' type='date' value='" + (t&&t.end?t.end:"") + "' style='" + recipeInputCss() + "margin-bottom:16px'>" +
+    "<button id='tpSave' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save trip</button>" +
+    (t ? "<button id='tpDelete' style='width:100%;padding:13px;border:1.5px solid #C03030;background:#fff;color:#C03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px'>Delete trip</button>" : "");
+
+  document.getElementById("tripCancelEdit").addEventListener("click", function(){
+    _tripEditing = false;
+    if (isNew) { _tripView = "list"; renderTrips(); } else { _tripView = "detail"; renderTripDetail(); }
+  });
+  document.getElementById("tpSave").addEventListener("click", function(){
+    var name = document.getElementById("tpName").value.trim();
+    if (!name) { toast("Trip name can't be empty"); return; }
+    var start = document.getElementById("tpStart").value;
+    var end = document.getElementById("tpEnd").value;
+    if (!start) { toast("Start date is required"); return; }
+    if (end && end < start) { toast("End date can't be before start"); return; }
+    var trips = getTrips();
+    if (isNew) {
+      var nid = Date.now() + Math.floor(Math.random()*100000);
+      trips.unshift({ id:nid, name:name, start:start, end:end||null, updated:Date.now(), bookings:[] });
+      _tripOpenId = nid;
+    } else {
+      var ex = trips.find(function(x){ return x.id === id; });
+      if (ex) { ex.name = name; ex.start = start; ex.end = end||null; ex.updated = Date.now(); }
+    }
+    saveTripsStore(trips);
+    _tripEditing = false;
+    _tripView = "detail";
+    renderTripDetail();
+    toast("Trip saved");
+  });
+  var _tpDel = document.getElementById("tpDelete");
+  if (_tpDel) _tpDel.addEventListener("click", function(){
+    if (!confirm("Delete this trip and all its bookings?")) return;
+    var trips = getTrips().filter(function(x){ return x.id !== id; });
+    addTomb("trips", id);
+    saveTripsStore(trips);
+    _tripEditing = false;
+    _tripView = "list";
+    _tripOpenId = null;
+    renderTrips();
+    toast("Trip deleted");
+  });
+}
+
+function openBookingEditor(tripId, bookingId) {
+  _tripEditing = true;
+  var trip = getTrips().find(function(x){ return x.id === tripId; });
+  if (!trip) { _tripView = "list"; renderTrips(); return; }
+  var b = bookingId != null ? (trip.bookings||[]).find(function(x){ return x.id === bookingId; }) : null;
+  var isNew = !b;
+  var el = document.getElementById("tripsContent");
+  var typeOpts = Object.keys(TRIP_BOOKING_TYPES).map(function(k){
+    var sel = (b ? b.type === k : k === "flight") ? " selected" : "";
+    return "<option value='" + k + "'" + sel + ">" + TRIP_BOOKING_TYPES[k].icon + " " + TRIP_BOOKING_TYPES[k].label + "</option>";
+  }).join("");
+  el.innerHTML =
+    "<button id='bkCancelEdit' style='border:none;background:none;color:#0F8A8A;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; Cancel</button>" +
+    "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:14px'>" + (isNew?"New booking":"Edit booking") + " &mdash; " + esc(trip.name) + "</div>" +
+    fieldLabel("Type") +
+    "<select id='bkType' style='" + recipeInputCss() + "margin-bottom:12px'>" + typeOpts + "</select>" +
+    fieldLabel("Title") +
+    "<input id='bkTitle' type='text' value='" + (b?esc(b.title):"") + "' placeholder='e.g. Outbound flight DUB-ACE' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+    fieldLabel("Start date & time") +
+    "<input id='bkStart' type='datetime-local' value='" + (b&&b.start?b.start:"") + "' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+    fieldLabel("End date & time (optional, for stays)") +
+    "<input id='bkEnd' type='datetime-local' value='" + (b&&b.end?b.end:"") + "' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+    fieldLabel("Location") +
+    "<input id='bkLocation' type='text' value='" + (b&&b.location?esc(b.location):"") + "' placeholder='e.g. Cork Airport' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+    fieldLabel("Reference / confirmation number") +
+    "<input id='bkRef' type='text' value='" + (b&&b.ref?esc(b.ref):"") + "' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+    fieldLabel("Notes (optional)") +
+    "<textarea id='bkNotes' rows='3' style='" + recipeInputCss() + "margin-bottom:16px;resize:vertical;line-height:1.6'>" + (b&&b.notes?esc(b.notes):"") + "</textarea>" +
+    "<button id='bkSave' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save booking</button>" +
+    (b ? "<button id='bkDelete' style='width:100%;padding:13px;border:1.5px solid #C03030;background:#fff;color:#C03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px'>Delete booking</button>" : "");
+
+  document.getElementById("bkCancelEdit").addEventListener("click", function(){
+    _tripEditing = false; _tripView = "detail"; renderTripDetail();
+  });
+  document.getElementById("bkSave").addEventListener("click", function(){
+    var title = document.getElementById("bkTitle").value.trim();
+    var start = document.getElementById("bkStart").value;
+    if (!title) { toast("Title can't be empty"); return; }
+    if (!start) { toast("Start date & time is required"); return; }
+    var type = document.getElementById("bkType").value;
+    var end = document.getElementById("bkEnd").value;
+    var location = document.getElementById("bkLocation").value.trim();
+    var ref = document.getElementById("bkRef").value.trim();
+    var notes = document.getElementById("bkNotes").value.trim();
+    var trips2 = getTrips();
+    var trip2 = trips2.find(function(x){ return x.id === tripId; });
+    if (!trip2) { _tripView = "list"; renderTrips(); return; }
+    trip2.bookings = trip2.bookings || [];
+    if (isNew) {
+      var nbid = Date.now() + Math.floor(Math.random()*100000);
+      trip2.bookings.push({ id:nbid, type:type, title:title, start:start, end:end||null, location:location, ref:ref, notes:notes, updated:Date.now() });
+    } else {
+      var exb = trip2.bookings.find(function(x){ return x.id === bookingId; });
+      if (exb) { exb.type=type; exb.title=title; exb.start=start; exb.end=end||null; exb.location=location; exb.ref=ref; exb.notes=notes; exb.updated=Date.now(); }
+    }
+    trip2.updated = Date.now();
+    saveTripsStore(trips2);
+    _tripEditing = false;
+    _tripView = "detail";
+    renderTripDetail();
+    toast("Booking saved");
+  });
+  var _bkDel = document.getElementById("bkDelete");
+  if (_bkDel) _bkDel.addEventListener("click", function(){
+    if (!confirm("Delete this booking?")) return;
+    var trips3 = getTrips();
+    var trip3 = trips3.find(function(x){ return x.id === tripId; });
+    if (trip3) {
+      trip3.bookings = (trip3.bookings||[]).filter(function(x){ return x.id !== bookingId; });
+      trip3.updated = Date.now();
+    }
+    addTomb("bookings", bookingId);
+    saveTripsStore(trips3);
+    _tripEditing = false;
+    _tripView = "detail";
+    renderTripDetail();
+    toast("Booking deleted");
+  });
+}
 
 // A section-header line (e.g. "<b>Base</b>" or "Sauce:") — kept for display as a
 // sub-heading but never treated as a buyable ingredient. Pattern-matched so it
@@ -4308,7 +4685,7 @@ function openSavedMealsManager() {
   overlay.addEventListener("click", function(e){ if(e.target===overlay){ document.body.removeChild(overlay); renderFoodView(); } });
 }
 
-var HIDEABLE_SECTIONS = ["home", "train", "notes"]; // lists and baby are always visible
+var HIDEABLE_SECTIONS = ["home", "train", "notes", "trips"]; // lists and baby are always visible
 
 var sectionVisible = (function() {
   var stored = storeGet("fl4_secVisible") || {};
@@ -4320,7 +4697,7 @@ var sectionVisible = (function() {
 function saveSectionVisible() { storeSet("fl4_secVisible", sectionVisible); }
 
 function applySectionVisibility() {
-  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", notes:"bnNotes", baby:"bnBaby" };
+  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", notes:"bnNotes", baby:"bnBaby", trips:"bnTrips" };
   HIDEABLE_SECTIONS.forEach(function(sec) {
     var btn = document.getElementById(navIds[sec]);
     if (btn) btn.style.display = sectionVisible[sec] ? "" : "none";
@@ -4466,7 +4843,7 @@ function exportAllData() {
   //  teeth, bags, babySex), action_log (incl. cardio), food_log, food_notes,
   //  saved_meals, cal_goal, secVisible, syncPrefs, recipes (list import recipes),
   //  travel_tags (Travel tag pool; per-item tags live on the items themselves),
-  //  recipebook (Recipes section).
+  //  recipebook (Recipes section), trips (Trips section, incl. nested bookings).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*, fl4_last_backup, fl4_backup_snooze,
   //  fl4_tomb_* (sync deletion tombstones).
@@ -4480,6 +4857,7 @@ function exportAllData() {
     recipes:storeGet("fl4_recipes")||[],
     travel_tags:storeGet("fl4_travel_tags")||[],
     recipebook:storeGet("fl4_recipebook")||[],
+    trips:storeGet("fl4_trips")||[],
     cal_goal:storeGet("fl4_cal_goal")||2000,
     secVisible:storeGet("fl4_secVisible")||{},
     syncPrefs:storeGet("fl4_syncPrefs")||{}
@@ -5113,6 +5491,9 @@ var d = {};
   d.baby = getBD();
   d.recipebook  = storeGet("fl4_recipebook") || [];
   d.rb_deleted  = purgeTombs(getTombs("recipes"));
+  d.trips       = storeGet("fl4_trips") || [];
+  d.trips_deleted    = purgeTombs(getTombs("trips"));
+  d.bookings_deleted = purgeTombs(getTombs("bookings"));
   fetch(authUrl(userUrl("/data")), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).catch(function(){});
   }, 800);
 }
@@ -5240,6 +5621,18 @@ function applyPersonal(d) {
     if (rbPush) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
   }
 
+  // ── Trips: merge by id, with a nested merge on each trip's bookings ──────
+  if (Array.isArray(d.trips)) {
+    var tpTombsP = mergeTombs(getTombs("trips"), (d.trips_deleted && typeof d.trips_deleted === "object") ? d.trips_deleted : {});
+    storeSet("fl4_tomb_trips", purgeTombs(tpTombsP));
+    var bkTombsP = mergeTombs(getTombs("bookings"), (d.bookings_deleted && typeof d.bookings_deleted === "object") ? d.bookings_deleted : {});
+    storeSet("fl4_tomb_bookings", purgeTombs(bkTombsP));
+    var tpMergeP = mergeTripsData(storeGet("fl4_trips") || [], d.trips, tpTombsP, bkTombsP);
+    storeSet("fl4_trips", tpMergeP.trips);
+    if (currentSection === "trips") renderTrips();
+    if (tpMergeP.push) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
+  }
+
   // ── Baby: merge arrays by date/id, merge teeth object ────────────────────
   if (d.baby && typeof d.baby === "object") {
     var local = getBD(), rb = d.baby;
@@ -5319,6 +5712,10 @@ var data = {};
   // Recipe book is shared household-wide (merge-by-id on the receiving side).
   data["recipebook"] = storeGet("fl4_recipebook") || [];
   data["rb_deleted"] = purgeTombs(getTombs("recipes"));
+  // Trips are shared household-wide too; merge-by-id on both trips and bookings.
+  data["trips"] = storeGet("fl4_trips") || [];
+  data["trips_deleted"]    = purgeTombs(getTombs("trips"));
+  data["bookings_deleted"] = purgeTombs(getTombs("bookings"));
   lastPushTs = Date.now();
   fetch(authUrl(houseUrl("/shared")), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).catch(function(){});
   }, 800);
@@ -5372,6 +5769,7 @@ function switchSection(section) {
   document.getElementById("recipesSection").style.display = section === "recipes" ? "block" : "none";
   document.getElementById("notesSection").style.display = section === "notes"  ? "block" : "none";
   document.getElementById("babySection").style.display  = section === "baby"   ? "block" : "none";
+  document.getElementById("tripsSection").style.display = section === "trips"  ? "block" : "none";
 
   document.getElementById("bnHome").className  = "bn-btn" + (section === "home"   ? " home-active"  : "");
   document.getElementById("bnLife").className  = "bn-btn" + (section === "lists"  ? " life-active"  : "");
@@ -5379,6 +5777,7 @@ function switchSection(section) {
   document.getElementById("bnRecipes").className = "bn-btn" + (section === "recipes" ? " recipes-active" : "");
   document.getElementById("bnNotes").className = "bn-btn" + (section === "notes"  ? " notes-active" : "");
   document.getElementById("bnBaby").className  = "bn-btn" + (section === "baby"   ? " baby-active"  : "");
+  document.getElementById("bnTrips").className = "bn-btn" + (section === "trips"  ? " trips-active" : "");
 
   document.body.classList.toggle("home-mode",  section === "home");
   document.body.classList.toggle("train-mode", section === "train");
@@ -5420,6 +5819,11 @@ function switchSection(section) {
     document.getElementById("appTitle").innerHTML = "&#x1F476; Baby";
     document.getElementById("hdrBadge").style.display = "none";
     renderBabyView();
+  } else if (section === "trips") {
+    document.getElementById("themeColor").setAttribute("content", "#0F8A8A");
+    document.getElementById("appTitle").innerHTML = "&#x1F9F3; Trips";
+    document.getElementById("hdrBadge").style.display = "none";
+    renderTrips();
   }
 }
 
@@ -7048,6 +7452,7 @@ document.getElementById("bnLife").addEventListener("click",  function(){ switchS
 document.getElementById("bnTrain").addEventListener("click", function(){ switchSection("train"); });
 document.getElementById("bnRecipes").addEventListener("click", function(){ switchSection("recipes"); });
 document.getElementById("recipeNewBtn").addEventListener("click", function(){ _recipeView="detail"; openRecipeEditor(null); });
+document.getElementById("tripNewBtn").addEventListener("click", function(){ openTripEditor(null); });
 function closeRecipeImport(){
   var sh = document.getElementById("recipeImportSheet"), bd = document.getElementById("recipeImportBackdrop");
   if (sh) sh.style.display = "none";
@@ -7110,6 +7515,7 @@ function closeRecipeImport(){
 })();
 document.getElementById("bnNotes").addEventListener("click", function(){ switchSection("notes"); });
 document.getElementById("bnBaby").addEventListener("click",  function(){ switchSection("baby");  });
+document.getElementById("bnTrips").addEventListener("click", function(){ switchSection("trips"); });
 
 // ============================================================
 // HOME SCREEN
@@ -8940,6 +9346,18 @@ function applyHousehold(data) {
     }
     if (currentSection === "recipes" && !_recipeEditing) renderRecipes();
     if (rbNeedPush) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
+  }
+  // Trips — shared household-wide; nested merge on each trip's bookings so two
+  // devices editing different bookings in the same trip don't clobber each other.
+  if (Array.isArray(data["trips"])) {
+    var tpTombs = mergeTombs(getTombs("trips"), (data["trips_deleted"] && typeof data["trips_deleted"] === "object") ? data["trips_deleted"] : {});
+    storeSet("fl4_tomb_trips", purgeTombs(tpTombs));
+    var bkTombs = mergeTombs(getTombs("bookings"), (data["bookings_deleted"] && typeof data["bookings_deleted"] === "object") ? data["bookings_deleted"] : {});
+    storeSet("fl4_tomb_bookings", purgeTombs(bkTombs));
+    var tpMerge = mergeTripsData(storeGet("fl4_trips") || [], data["trips"], tpTombs, bkTombs);
+    storeSet("fl4_trips", tpMerge.trips);
+    if (currentSection === "trips") renderTrips();
+    if (tpMerge.push) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
   }
   } catch (err) { console.warn("applyHousehold error (sync continues):", err); }
   finally { syncPaused = false; }
