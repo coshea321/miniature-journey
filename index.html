@@ -757,7 +757,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v278 · 01/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v279 · 01/07/2026</div>
 
   </div>
 </div>
@@ -2319,7 +2319,7 @@ function renderTripDetail() {
   if (_tripDetailView === "timeline") {
     bookings.forEach(function(b){
       viewItems.push({t:"booking", b:b});
-      if (b.end) viewItems.push({t:"checkout", b:b});
+      if (b.end && b.end.slice(0,10) !== (b.start||"").slice(0,10)) viewItems.push({t:"checkout", b:b});
     });
     viewItems.sort(function(x,y){
       var tx = (x.t === "checkout" ? x.b.end : x.b.start) || "";
