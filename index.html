@@ -757,7 +757,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v279 · 01/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v280 · 01/07/2026</div>
 
   </div>
 </div>
@@ -1057,6 +1057,7 @@ body.train-mode #toast{background:#3A3328}
 <div id="tripsSection" style="display:none">
   <div style="display:flex;gap:4px;padding:8px 10px;background:#0F8A8A;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
     <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F9F3; Trips</span>
+    <button id="tripImportBtn" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F4E5;</button>
     <button id="tripNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New trip</button>
   </div>
   <div id="tripsContent" style="padding:14px 14px 100px"></div>
@@ -2153,6 +2154,34 @@ function saveTripsStore(t) {
   if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold();
 }
 
+function importTripFromJSON(raw) {
+  var obj;
+  try { obj = JSON.parse(raw); } catch(e) { return { error: "Couldn't parse JSON — check the format and try again." }; }
+  if (!obj || obj.hearth !== "trip-v1") return { error: "Not a Hearth trip file. Make sure the JSON includes \"hearth\":\"trip-v1\"." };
+  if (!obj.name || typeof obj.name !== "string") return { error: "Missing trip name." };
+  var now = Date.now();
+  var newId = now + Math.floor(Math.random()*100000);
+  var bookings = Array.isArray(obj.bookings) ? obj.bookings.map(function(b){
+    return {
+      id: now + Math.floor(Math.random()*100000),
+      type: b.type || "other",
+      title: b.title || "",
+      start: b.start || "",
+      end: b.end || null,
+      location: b.location || "",
+      ref: b.ref || "",
+      notes: b.notes || "",
+      connectsFrom: !!b.connectsFrom,
+      updated: now
+    };
+  }) : [];
+  var trip = { id: newId, name: obj.name, start: obj.start||null, end: obj.end||null, updated: now, bookings: bookings };
+  var trips = getTrips();
+  trips.unshift(trip);
+  saveTripsStore(trips);
+  return { id: newId };
+}
+
 // Merge two trip lists at both the trip level and the nested booking level.
 // Booking ids are globally unique (Date.now()+random), so booking tombstones
 // are a single flat store regardless of which trip the booking belonged to.
@@ -2216,6 +2245,7 @@ var _tripOpenId = null;
 var _tripEditing = false;
 var _tripExpanded = {};
 var _tripDetailView = "compact"; // "compact" | "timeline"
+var _tripImporting = false;
 
 function todayStr() {
   var d = new Date(), p = function(x){ return x < 10 ? "0"+x : x; };
@@ -2245,6 +2275,36 @@ function renderTrips() {
   _tripEditing = false;
   if (_tripView === "detail" && _tripOpenId != null) { renderTripDetail(); return; }
   var el = document.getElementById("tripsContent");
+
+  if (_tripImporting) {
+    el.innerHTML =
+      "<button id='tripImportCancel' style='border:none;background:none;color:#0F8A8A;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; Cancel</button>" +
+      "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:10px'>Import trip</div>" +
+      "<div style='font-size:13px;color:#6A5A40;background:#F8F4EC;border-radius:10px;padding:12px 14px;margin-bottom:14px;line-height:1.6'>" +
+        "<b>How to use with Claude:</b> Go to Claude.ai, paste your booking confirmation emails and say:<br><br>" +
+        "<i>&ldquo;Read these booking emails and output a Hearth trip JSON with this format:<br>" +
+        '{"hearth":"trip-v1","name":"Trip name","start":"YYYY-MM-DD","end":"YYYY-MM-DD","bookings":[{"type":"flight","title":"...","start":"YYYY-MM-DDTHH:MM","end":"YYYY-MM-DDTHH:MM","location":"...","ref":"...","notes":"..."}]}&rdquo;</i><br><br>' +
+        "Types: flight, parking, car, accommodation, other. Then paste Claude&rsquo;s output below." +
+      "</div>" +
+      "<textarea id='tripImportJson' rows='8' placeholder='Paste Hearth trip JSON here…' style='" + recipeInputCss() + "margin-bottom:14px;resize:vertical;line-height:1.5;font-size:12px;font-family:monospace'></textarea>" +
+      "<button id='tripImportGo' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Import trip</button>";
+
+    document.getElementById("tripImportCancel").addEventListener("click", function(){
+      _tripImporting = false; renderTrips();
+    });
+    document.getElementById("tripImportGo").addEventListener("click", function(){
+      var raw = document.getElementById("tripImportJson").value.trim();
+      var result = importTripFromJSON(raw);
+      if (result.error) { toast(result.error); return; }
+      _tripImporting = false;
+      _tripOpenId = result.id;
+      _tripView = "detail";
+      renderTrips();
+      toast("Trip imported!");
+    });
+    return;
+  }
+
   var trips = getTrips();
   if (!trips.length) {
     el.innerHTML = "<div style='text-align:center;color:#8A7A5A;padding:40px 20px'><div style='font-size:40px;margin-bottom:10px'>&#x1F9F3;</div><div style='font-size:16px;font-weight:600;margin-bottom:4px'>No trips yet</div><div style='font-size:13px'>Tap “+ New trip” to plan one.</div></div>";
@@ -2456,7 +2516,8 @@ function openTripEditor(id) {
     fieldLabel("End date (optional)") +
     "<input id='tpEnd' type='date' value='" + (t&&t.end?t.end:"") + "' style='" + recipeInputCss() + "margin-bottom:16px'>" +
     "<button id='tpSave' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save trip</button>" +
-    (t ? "<button id='tpDelete' style='width:100%;padding:13px;border:1.5px solid #C03030;background:#fff;color:#C03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px'>Delete trip</button>" : "");
+    (t ? "<button id='tpDelete' style='width:100%;padding:13px;border:1.5px solid #C03030;background:#fff;color:#C03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px'>Delete trip</button>" : "") +
+    (t ? "<button id='tpExport' style='width:100%;padding:13px;border:1.5px solid #D8D0C0;background:#fff;color:#6A8A8A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-top:10px'>&#x1F4E4; Export trip (JSON)</button>" : "");
 
   document.getElementById("tripCancelEdit").addEventListener("click", function(){
     _tripEditing = false;
@@ -2495,6 +2556,27 @@ function openTripEditor(id) {
     _tripOpenId = null;
     renderTrips();
     toast("Trip deleted");
+  });
+  var _tpExp = document.getElementById("tpExport");
+  if (_tpExp) _tpExp.addEventListener("click", function(){
+    var trip = getTrips().find(function(x){ return x.id === id; });
+    if (!trip) return;
+    var payload = {
+      hearth: "trip-v1",
+      name: trip.name,
+      start: trip.start,
+      end: trip.end,
+      bookings: (trip.bookings||[]).map(function(b){
+        return { type:b.type, title:b.title, start:b.start, end:b.end, location:b.location, ref:b.ref, notes:b.notes, connectsFrom:!!b.connectsFrom };
+      })
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "hearth-trip-" + (trip.name||"trip").toLowerCase().replace(/[^a-z0-9]+/g,"-") + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
   });
 }
 
@@ -7542,6 +7624,7 @@ document.getElementById("bnTrain").addEventListener("click", function(){ switchS
 document.getElementById("bnRecipes").addEventListener("click", function(){ switchSection("recipes"); });
 document.getElementById("recipeNewBtn").addEventListener("click", function(){ _recipeView="detail"; openRecipeEditor(null); });
 document.getElementById("tripNewBtn").addEventListener("click", function(){ openTripEditor(null); });
+document.getElementById("tripImportBtn").addEventListener("click", function(){ _tripImporting = true; _tripView = "list"; renderTrips(); window.scrollTo(0,0); });
 function closeRecipeImport(){
   var sh = document.getElementById("recipeImportSheet"), bd = document.getElementById("recipeImportBackdrop");
   if (sh) sh.style.display = "none";
