@@ -2721,6 +2721,7 @@ function openBookingEditor(tripId, bookingId) {
     "<button id='bkSave' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save booking</button>" +
     (b ? "<button id='bkDelete' style='width:100%;padding:13px;border:1.5px solid #C03030;background:#fff;color:#C03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px'>Delete booking</button>" : "");
 
+  window.scrollTo(0, 0);
   document.getElementById("bkCancelEdit").addEventListener("click", function(){
     _tripEditing = false; _tripView = "detail"; renderTripDetail();
     if (bookingId != null) {
