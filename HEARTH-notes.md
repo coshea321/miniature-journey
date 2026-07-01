@@ -78,6 +78,7 @@
 - ~~**Manual amount editing.**~~ **Done in v272.**
 - **Pre-v242 recipes are unstamped** (`updated` absent → treated as 0). Edit each once post-v242 to fully protect it under newest-wins. Optional one-off: stamp all existing recipes on next load.
 - **Imported recipes default to "Uncategorised"** — Cathal to categorise over time (the v249 bulk-categorise tool makes this fast: filter to Uncategorised → Select → set).
+- **Trips: expand/collapse all booking cards.** An "Expand all / Collapse all" toggle (or tap-once-to-expand-all gesture) in the trip detail header. When expanded, all cards show their ref, notes, and Maps link at once — useful for a quick pre-trip scan. Currently each card is tapped individually to expand. Implementation: a toggle that sets all keys in `_tripExpanded` to true/false and re-renders.
 - **Possible future backup enhancement:** an auto-copy into Firebase `/backups`, or a periodic reminder independent of app open (current nudge is on-open only).
 - Known minor parser gaps: compound amounts like "1 ¾ cups + 2 tbs Greek yogurt" keep the whole string as the name (don't scale → land as name-only on grocery); "Garlic - 2 cloves" (name-first) doesn't split the amount cleanly. Rare; acceptable.
 - Open question (low priority): whether to sync the travel tag pool / recipe categories across devices (currently localStorage, so per-device; per-item tags DO sync).
