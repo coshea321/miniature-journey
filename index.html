@@ -2486,15 +2486,8 @@ function renderTripDetail() {
     card.addEventListener("click", function(e){
       if (e.target.closest(".booking-edit-btn") || e.target.closest("a")) return;
       var bid = +card.dataset.bid;
-      var expanding = !_tripExpanded[bid];
       _tripExpanded[bid] = !_tripExpanded[bid];
       renderTripDetail();
-      if (expanding) {
-        requestAnimationFrame(function(){
-          var bc = document.querySelector(".booking-card[data-bid='" + bid + "']");
-          if (bc) bc.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-      }
     });
   });
   el.querySelectorAll(".booking-edit-btn").forEach(function(btn){
