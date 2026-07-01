@@ -757,7 +757,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v284 · 01/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v285 · 01/07/2026</div>
 
   </div>
 </div>
@@ -2261,6 +2261,7 @@ var _tripExpanded = {};
 var _tripDetailView = "compact"; // "compact" | "timeline"
 var _tripImporting = false;
 var _tripImportParsed = null;
+var _tripListScrollPos = 0;
 
 function todayStr() {
   var d = new Date(), p = function(x){ return x < 10 ? "0"+x : x; };
@@ -2387,6 +2388,7 @@ function renderTrips() {
 
   el.querySelectorAll(".trip-card").forEach(function(card){
     card.addEventListener("click", function(){
+      _tripListScrollPos = window.scrollY;
       _tripOpenId = +card.dataset.tid;
       _tripView = "detail";
       renderTripDetail();
@@ -2472,9 +2474,10 @@ function renderTripDetail() {
   el.innerHTML = html;
 
   document.getElementById("tripBack").addEventListener("click", function(){
+    var savedPos = _tripListScrollPos;
     _tripView = "list"; _tripOpenId = null; _tripExpanded = {};
     renderTrips();
-    window.scrollTo(0, 0);
+    requestAnimationFrame(function(){ window.scrollTo(0, savedPos); });
   });
   document.getElementById("tripEditBtn").addEventListener("click", function(){ openTripEditor(trip.id); });
   document.getElementById("bookingNewBtn").addEventListener("click", function(){ openBookingEditor(trip.id, null); });
@@ -2483,8 +2486,15 @@ function renderTripDetail() {
     card.addEventListener("click", function(e){
       if (e.target.closest(".booking-edit-btn") || e.target.closest("a")) return;
       var bid = +card.dataset.bid;
+      var expanding = !_tripExpanded[bid];
       _tripExpanded[bid] = !_tripExpanded[bid];
       renderTripDetail();
+      if (expanding) {
+        requestAnimationFrame(function(){
+          var bc = document.querySelector(".booking-card[data-bid='" + bid + "']");
+          if (bc) bc.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
     });
   });
   el.querySelectorAll(".booking-edit-btn").forEach(function(btn){
