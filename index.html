@@ -757,7 +757,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v277 · 01/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v279 · 01/07/2026</div>
 
   </div>
 </div>
@@ -2215,6 +2215,7 @@ var _tripView = "list"; // "list" | "detail"
 var _tripOpenId = null;
 var _tripEditing = false;
 var _tripExpanded = {};
+var _tripDetailView = "compact"; // "compact" | "timeline"
 
 function todayStr() {
   var d = new Date(), p = function(x){ return x < 10 ? "0"+x : x; };
@@ -2304,10 +2305,49 @@ function renderTripDetail() {
     "</div>" +
     "<button id='bookingNewBtn' style='width:100%;padding:12px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px'>+ Add booking</button>";
 
-  if (!bookings.length) {
+  // view toggle
+  html += "<div style='display:flex;gap:6px;margin-bottom:14px'>" +
+    ["compact","timeline"].map(function(v){
+      var on = _tripDetailView === v;
+      return "<button class='trip-view-btn' data-view='" + v + "' style='flex:1;padding:8px;border:" + (on?"none":"1.5px solid #D8D0C0") + ";background:" + (on?"#0F8A8A":"#fff") + ";color:" + (on?"#fff":"#6A8A8A") + ";border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>" +
+        (v === "compact" ? "Compact" : "Timeline") + "</button>";
+    }).join("") +
+  "</div>";
+
+  // build flat items list (timeline mode splits bookings-with-end into two entries)
+  var viewItems = [];
+  if (_tripDetailView === "timeline") {
+    bookings.forEach(function(b){
+      viewItems.push({t:"booking", b:b});
+      if (b.end && b.end.slice(0,10) !== (b.start||"").slice(0,10)) viewItems.push({t:"checkout", b:b});
+    });
+    viewItems.sort(function(x,y){
+      var tx = (x.t === "checkout" ? x.b.end : x.b.start) || "";
+      var ty = (y.t === "checkout" ? y.b.end : y.b.start) || "";
+      return tx < ty ? -1 : tx > ty ? 1 : 0;
+    });
+  } else {
+    bookings.forEach(function(b){ viewItems.push({t:"booking", b:b}); });
+  }
+
+  if (!viewItems.length) {
     html += "<div style='text-align:center;color:#9A8A6A;padding:24px'>No bookings yet. Add a flight, hotel, parking…</div>";
   } else {
-    bookings.forEach(function(b, i){ html += bookingCardHTML(b, i > 0 ? bookings[i-1] : null); });
+    var lastDate = "";
+    var lastBooking = null;
+    viewItems.forEach(function(item){
+      var itemDate = ((item.t === "checkout" ? item.b.end : item.b.start) || "").slice(0,10);
+      if (itemDate && itemDate !== lastDate) {
+        html += dateSeparatorHTML(itemDate);
+        lastDate = itemDate;
+      }
+      if (item.t === "checkout") {
+        html += checkoutCardHTML(item.b);
+      } else {
+        html += bookingCardHTML(item.b, lastBooking);
+        lastBooking = item.b;
+      }
+    });
   }
   el.innerHTML = html;
 
@@ -2333,6 +2373,31 @@ function renderTripDetail() {
       openBookingEditor(trip.id, +btn.dataset.bid);
     });
   });
+  el.querySelectorAll(".trip-view-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      _tripDetailView = btn.dataset.view;
+      renderTripDetail();
+    });
+  });
+}
+
+function dateSeparatorHTML(dateStr) {
+  var d = new Date(dateStr + "T12:00:00");
+  var days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var label = days[d.getDay()] + " " + d.getDate() + " " + TRIP_MONTH_ABBR[d.getMonth()];
+  return "<div style='font-size:11px;font-weight:700;color:#8A7A5A;letter-spacing:.6px;text-transform:uppercase;padding:10px 2px 4px'>" + label + "</div>";
+}
+
+function checkoutCardHTML(b) {
+  var ty = TRIP_BOOKING_TYPES[b.type] || TRIP_BOOKING_TYPES.other;
+  var label = b.type === "accommodation" ? "Check-out" : "End";
+  return "<div style='background:#F8F4EC;border:1px dashed #D8D0C0;border-radius:12px;padding:11px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px'>" +
+    "<span style='font-size:18px;opacity:.55'>" + ty.icon + "</span>" +
+    "<div style='flex:1;min-width:0'>" +
+      "<div style='font-size:13px;font-weight:600;color:#6A5A40'>" + esc(b.title||ty.label) + " — " + label + "</div>" +
+      "<div style='font-size:12px;color:#9A8A6A'>" + bookingDateTimeLabel(b.end) + (b.location ? " &middot; " + esc(b.location) : "") + "</div>" +
+    "</div>" +
+  "</div>";
 }
 
 function bookingCardHTML(b, prevB) {
