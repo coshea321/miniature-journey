@@ -757,7 +757,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v280 · 01/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v281 · 01/07/2026</div>
 
   </div>
 </div>
@@ -2182,6 +2182,20 @@ function importTripFromJSON(raw) {
   return { id: newId };
 }
 
+function mergeBookingsIntoTrip(tripId, bookingObjs) {
+  var trips = getTrips();
+  var trip = trips.find(function(t){ return t.id === tripId; });
+  if (!trip) return { error: "Trip not found." };
+  var now = Date.now();
+  var newBookings = (bookingObjs||[]).map(function(b){
+    return { id: now + Math.floor(Math.random()*100000), type:b.type||"other", title:b.title||"", start:b.start||"", end:b.end||null, location:b.location||"", ref:b.ref||"", notes:b.notes||"", connectsFrom:!!b.connectsFrom, updated:now };
+  });
+  trip.bookings = (trip.bookings||[]).concat(newBookings);
+  trip.updated = now;
+  saveTripsStore(trips);
+  return { id: tripId };
+}
+
 // Merge two trip lists at both the trip level and the nested booking level.
 // Booking ids are globally unique (Date.now()+random), so booking tombstones
 // are a single flat store regardless of which trip the booking belonged to.
@@ -2246,6 +2260,7 @@ var _tripEditing = false;
 var _tripExpanded = {};
 var _tripDetailView = "compact"; // "compact" | "timeline"
 var _tripImporting = false;
+var _tripImportParsed = null;
 
 function todayStr() {
   var d = new Date(), p = function(x){ return x < 10 ? "0"+x : x; };
@@ -2277,31 +2292,75 @@ function renderTrips() {
   var el = document.getElementById("tripsContent");
 
   if (_tripImporting) {
-    el.innerHTML =
-      "<button id='tripImportCancel' style='border:none;background:none;color:#0F8A8A;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; Cancel</button>" +
-      "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:10px'>Import trip</div>" +
-      "<div style='font-size:13px;color:#6A5A40;background:#F8F4EC;border-radius:10px;padding:12px 14px;margin-bottom:14px;line-height:1.6'>" +
-        "<b>How to use with Claude:</b> Go to Claude.ai, paste your booking confirmation emails and say:<br><br>" +
-        "<i>&ldquo;Read these booking emails and output a Hearth trip JSON with this format:<br>" +
-        '{"hearth":"trip-v1","name":"Trip name","start":"YYYY-MM-DD","end":"YYYY-MM-DD","bookings":[{"type":"flight","title":"...","start":"YYYY-MM-DDTHH:MM","end":"YYYY-MM-DDTHH:MM","location":"...","ref":"...","notes":"..."}]}&rdquo;</i><br><br>' +
-        "Types: flight, parking, car, accommodation, other. Then paste Claude&rsquo;s output below." +
-      "</div>" +
-      "<textarea id='tripImportJson' rows='8' placeholder='Paste Hearth trip JSON here…' style='" + recipeInputCss() + "margin-bottom:14px;resize:vertical;line-height:1.5;font-size:12px;font-family:monospace'></textarea>" +
-      "<button id='tripImportGo' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Import trip</button>";
+    if (!_tripImportParsed) {
+      // Step 1: paste JSON
+      el.innerHTML =
+        "<button id='tripImportCancel' style='border:none;background:none;color:#0F8A8A;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; Cancel</button>" +
+        "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:10px'>Import trip</div>" +
+        "<div style='font-size:13px;color:#6A5A40;background:#F8F4EC;border-radius:10px;padding:12px 14px;margin-bottom:14px;line-height:1.6'>" +
+          "<b>How to use with Claude:</b> Go to Claude.ai, paste your booking confirmation emails and say:<br><br>" +
+          "<i>&ldquo;Read these booking emails and output a Hearth trip JSON with this format:<br>" +
+          '{"hearth":"trip-v1","name":"Trip name","start":"YYYY-MM-DD","end":"YYYY-MM-DD","bookings":[{"type":"flight","title":"...","start":"YYYY-MM-DDTHH:MM","end":"YYYY-MM-DDTHH:MM","location":"...","ref":"...","notes":"..."}]}&rdquo;</i><br><br>' +
+          "Types: flight, parking, car, accommodation, other. Then paste Claude&rsquo;s output below." +
+        "</div>" +
+        "<textarea id='tripImportJson' rows='8' placeholder='Paste Hearth trip JSON here…' style='" + recipeInputCss() + "margin-bottom:14px;resize:vertical;line-height:1.5;font-size:12px;font-family:monospace'></textarea>" +
+        "<button id='tripImportGo' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Next ›</button>";
 
-    document.getElementById("tripImportCancel").addEventListener("click", function(){
-      _tripImporting = false; renderTrips();
-    });
-    document.getElementById("tripImportGo").addEventListener("click", function(){
-      var raw = document.getElementById("tripImportJson").value.trim();
-      var result = importTripFromJSON(raw);
-      if (result.error) { toast(result.error); return; }
-      _tripImporting = false;
-      _tripOpenId = result.id;
-      _tripView = "detail";
-      renderTrips();
-      toast("Trip imported!");
-    });
+      document.getElementById("tripImportCancel").addEventListener("click", function(){
+        _tripImporting = false; _tripImportParsed = null; renderTrips();
+      });
+      document.getElementById("tripImportGo").addEventListener("click", function(){
+        var raw = document.getElementById("tripImportJson").value.trim();
+        var obj;
+        try { obj = JSON.parse(raw); } catch(e) { toast("Couldn’t parse JSON — check the format and try again."); return; }
+        if (!obj || obj.hearth !== "trip-v1") { toast("Not a Hearth trip file. Make sure the JSON includes “hearth”:”trip-v1”."); return; }
+        if (!obj.name || typeof obj.name !== "string") { toast("Missing trip name."); return; }
+        _tripImportParsed = obj;
+        renderTrips();
+      });
+    } else {
+      // Step 2: choose destination
+      var existingTrips = getTrips();
+      var nB = (_tripImportParsed.bookings||[]).length;
+      var bLabel = nB + " booking" + (nB !== 1 ? "s" : "");
+      var mergeHtml = "";
+      if (existingTrips.length > 0) {
+        mergeHtml = "<div style='font-size:13px;color:#6A5A40;text-align:center;margin:14px 0 10px;font-weight:600'>— or add bookings to an existing trip —</div>";
+        existingTrips.forEach(function(t){
+          mergeHtml += "<button class='tripMergeTarget' data-id='" + t.id + "' style='display:block;width:100%;text-align:left;padding:11px 14px;margin-bottom:6px;border:1px solid #D8D0C0;background:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;color:#2A3A3A;cursor:pointer'>" + esc(t.name) + "<span style='float:right;color:#0F8A8A;font-size:12px;font-weight:700'>+ " + bLabel + "</span></button>";
+        });
+      }
+      el.innerHTML =
+        "<button id='tripImportBack' style='border:none;background:none;color:#0F8A8A;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; Back</button>" +
+        "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:10px'>Import trip</div>" +
+        "<div style='background:#F0FAF8;border:1px solid #B8E0DC;border-radius:10px;padding:12px 14px;margin-bottom:14px'>" +
+          "<div style='font-size:14px;font-weight:700;color:#2A3A3A;margin-bottom:3px'>" + esc(_tripImportParsed.name) + "</div>" +
+          "<div style='font-size:12px;color:#5A7A7A'>" + bLabel + "</div>" +
+        "</div>" +
+        "<button id='tripImportNew' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Create as new trip</button>" +
+        mergeHtml;
+
+      document.getElementById("tripImportBack").addEventListener("click", function(){
+        _tripImportParsed = null; renderTrips();
+      });
+      document.getElementById("tripImportNew").addEventListener("click", function(){
+        var result = importTripFromJSON(JSON.stringify(_tripImportParsed));
+        if (result.error) { toast(result.error); return; }
+        _tripImporting = false; _tripImportParsed = null;
+        _tripOpenId = result.id; _tripView = "detail";
+        renderTrips(); toast("Trip imported!");
+      });
+      document.querySelectorAll(".tripMergeTarget").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          var tid = parseInt(this.getAttribute("data-id"), 10);
+          var result = mergeBookingsIntoTrip(tid, _tripImportParsed.bookings||[]);
+          if (result.error) { toast(result.error); return; }
+          _tripImporting = false; _tripImportParsed = null;
+          _tripOpenId = tid; _tripView = "detail";
+          renderTrips(); toast("Bookings added to trip!");
+        });
+      });
+    }
     return;
   }
 
