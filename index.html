@@ -757,7 +757,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v282 · 01/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v283 · 01/07/2026</div>
 
   </div>
 </div>
@@ -2282,8 +2282,7 @@ function bookingDateTimeLabel(iso) {
   var d = new Date(iso);
   if (isNaN(d.getTime())) return esc(iso);
   var p = function(x){ return x < 10 ? "0"+x : x; };
-  var h = d.getHours(), h12 = h % 12; if (h12 === 0) h12 = 12;
-  return d.getDate() + " " + TRIP_MONTH_ABBR[d.getMonth()] + ", " + h12 + ":" + p(d.getMinutes()) + (h >= 12 ? "pm" : "am");
+  return d.getDate() + " " + TRIP_MONTH_ABBR[d.getMonth()] + ", " + p(d.getHours()) + ":" + p(d.getMinutes());
 }
 
 function renderTrips() {
@@ -2480,7 +2479,7 @@ function renderTripDetail() {
 
   el.querySelectorAll(".booking-card").forEach(function(card){
     card.addEventListener("click", function(e){
-      if (e.target.closest(".booking-edit-btn")) return;
+      if (e.target.closest(".booking-edit-btn") || e.target.closest("a")) return;
       var bid = +card.dataset.bid;
       _tripExpanded[bid] = !_tripExpanded[bid];
       renderTripDetail();
@@ -2510,11 +2509,22 @@ function dateSeparatorHTML(dateStr) {
 function checkoutCardHTML(b) {
   var ty = TRIP_BOOKING_TYPES[b.type] || TRIP_BOOKING_TYPES.other;
   var label = b.type === "accommodation" ? "Check-out" : "End";
+  var endTimeHtml = "";
+  if (b.end) {
+    var _ed = new Date(b.end);
+    if (!isNaN(_ed.getTime())) {
+      var _eh = _ed.getHours(), _em = _ed.getMinutes();
+      endTimeHtml = _ed.getDate() + " " + TRIP_MONTH_ABBR[_ed.getMonth()] +
+        ", <span style='color:#0F8A8A;font-weight:700'>" + (_eh < 10 ? "0"+_eh : _eh) + ":" + (_em < 10 ? "0"+_em : _em) + "</span>";
+    } else {
+      endTimeHtml = esc(b.end);
+    }
+  }
   return "<div style='background:#F8F4EC;border:1px dashed #D8D0C0;border-radius:12px;padding:11px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px'>" +
     "<span style='font-size:18px;opacity:.55'>" + ty.icon + "</span>" +
     "<div style='flex:1;min-width:0'>" +
       "<div style='font-size:13px;font-weight:600;color:#6A5A40'>" + esc(b.title||ty.label) + " — " + label + "</div>" +
-      "<div style='font-size:12px;color:#9A8A6A'>" + bookingDateTimeLabel(b.end) + (b.location ? " &middot; " + esc(b.location) : "") + "</div>" +
+      "<div style='font-size:12px;color:#9A8A6A'>" + endTimeHtml + (b.location ? " &middot; " + esc(b.location) : "") + "</div>" +
     "</div>" +
   "</div>";
 }
@@ -2542,9 +2552,9 @@ function bookingCardHTML(b, prevB) {
   if (b.start) {
     var _td = new Date(b.start);
     if (!isNaN(_td.getTime())) {
-      var _th = _td.getHours(), _th12 = _th % 12 || 12, _tm = _td.getMinutes();
+      var _th = _td.getHours(), _tm = _td.getMinutes();
       timeLineHtml = _td.getDate() + " " + TRIP_MONTH_ABBR[_td.getMonth()] +
-        ", <span style='color:#0F8A8A;font-weight:700'>" + _th12 + ":" + (_tm < 10 ? "0" + _tm : _tm) + (_th >= 12 ? "pm" : "am") + "</span>";
+        ", <span style='color:#0F8A8A;font-weight:700'>" + (_th < 10 ? "0" + _th : _th) + ":" + (_tm < 10 ? "0" + _tm : _tm) + "</span>";
     } else {
       timeLineHtml = esc(b.start);
     }
@@ -2554,9 +2564,10 @@ function bookingCardHTML(b, prevB) {
   var extra = "";
   if (expanded) {
     extra = "<div style='margin-top:10px;padding-top:10px;border-top:1px dotted #ECE4D6;font-size:13px;color:#5A5040'>" +
+      (b.location ? "<div style='margin-bottom:6px'><a href='https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(b.location) + "' target='_blank' rel='noopener' onclick='event.stopPropagation()' style='color:#0F8A8A;text-decoration:none;font-weight:600'>&#x1F4CD; " + esc(b.location) + "</a></div>" : "") +
       (b.ref ? "<div style='margin-bottom:4px'><b>Ref:</b> " + esc(b.ref) + "</div>" : "") +
       (b.notes ? "<div style='white-space:pre-wrap'>" + esc(b.notes) + "</div>" : "") +
-      (!b.ref && !b.notes ? "<div style='color:#B0A488'>No extra details</div>" : "") +
+      (!b.location && !b.ref && !b.notes ? "<div style='color:#B0A488'>No extra details</div>" : "") +
       "<button class='booking-edit-btn' data-bid='" + b.id + "' style='margin-top:10px;border:1.5px solid #D8D0C0;background:#fff;color:#0F8A8A;border-radius:8px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>Edit booking</button>" +
     "</div>";
   }
