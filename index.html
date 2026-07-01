@@ -2486,15 +2486,8 @@ function renderTripDetail() {
     card.addEventListener("click", function(e){
       if (e.target.closest(".booking-edit-btn") || e.target.closest("a")) return;
       var bid = +card.dataset.bid;
-      var expanding = !_tripExpanded[bid];
       _tripExpanded[bid] = !_tripExpanded[bid];
       renderTripDetail();
-      if (expanding) {
-        requestAnimationFrame(function(){
-          var bc = document.querySelector(".booking-card[data-bid='" + bid + "']");
-          if (bc) bc.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-      }
     });
   });
   el.querySelectorAll(".booking-edit-btn").forEach(function(btn){
@@ -2721,8 +2714,15 @@ function openBookingEditor(tripId, bookingId) {
     "<button id='bkSave' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save booking</button>" +
     (b ? "<button id='bkDelete' style='width:100%;padding:13px;border:1.5px solid #C03030;background:#fff;color:#C03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px'>Delete booking</button>" : "");
 
+  window.scrollTo(0, 0);
   document.getElementById("bkCancelEdit").addEventListener("click", function(){
     _tripEditing = false; _tripView = "detail"; renderTripDetail();
+    if (bookingId != null) {
+      requestAnimationFrame(function(){
+        var bc = document.querySelector(".booking-card[data-bid='" + bookingId + "']");
+        if (bc) bc.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   });
   document.getElementById("bkSave").addEventListener("click", function(){
     var title = document.getElementById("bkTitle").value.trim();
@@ -2739,10 +2739,13 @@ function openBookingEditor(tripId, bookingId) {
     var trip2 = trips2.find(function(x){ return x.id === tripId; });
     if (!trip2) { _tripView = "list"; renderTrips(); return; }
     trip2.bookings = trip2.bookings || [];
+    var targetBid;
     if (isNew) {
       var nbid = Date.now() + Math.floor(Math.random()*100000);
+      targetBid = nbid;
       trip2.bookings.push({ id:nbid, type:type, title:title, start:start, end:end||null, location:location, ref:ref, notes:notes, connectsFrom:connectsFrom||false, updated:Date.now() });
     } else {
+      targetBid = bookingId;
       var exb = trip2.bookings.find(function(x){ return x.id === bookingId; });
       if (exb) { exb.type=type; exb.title=title; exb.start=start; exb.end=end||null; exb.location=location; exb.ref=ref; exb.notes=notes; exb.connectsFrom=connectsFrom||false; exb.updated=Date.now(); }
     }
@@ -2752,6 +2755,10 @@ function openBookingEditor(tripId, bookingId) {
     _tripView = "detail";
     renderTripDetail();
     toast("Booking saved");
+    requestAnimationFrame(function(){
+      var bc = document.querySelector(".booking-card[data-bid='" + targetBid + "']");
+      if (bc) bc.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   });
   var _bkDel = document.getElementById("bkDelete");
   if (_bkDel) _bkDel.addEventListener("click", function(){
