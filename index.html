@@ -757,7 +757,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v276 · 30/06/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v277 · 01/07/2026</div>
 
   </div>
 </div>
@@ -2307,7 +2307,7 @@ function renderTripDetail() {
   if (!bookings.length) {
     html += "<div style='text-align:center;color:#9A8A6A;padding:24px'>No bookings yet. Add a flight, hotel, parking…</div>";
   } else {
-    bookings.forEach(function(b){ html += bookingCardHTML(b); });
+    bookings.forEach(function(b, i){ html += bookingCardHTML(b, i > 0 ? bookings[i-1] : null); });
   }
   el.innerHTML = html;
 
@@ -2335,7 +2335,23 @@ function renderTripDetail() {
   });
 }
 
-function bookingCardHTML(b) {
+function bookingCardHTML(b, prevB) {
+  var transferBadge = "";
+  if (b.connectsFrom && prevB) {
+    var prevEnd = prevB.end ? new Date(prevB.end).getTime() : null;
+    var myStart = b.start ? new Date(b.start).getTime() : null;
+    if (prevEnd && myStart) {
+      var diffMin = Math.round((myStart - prevEnd) / 60000);
+      if (diffMin > 0 && diffMin <= 720) {
+        var h = Math.floor(diffMin / 60), m = diffMin % 60;
+        var tLabel = h > 0 ? (h + "h" + (m > 0 ? " " + m + "m" : "")) : (m + "m");
+        transferBadge = "<div style='display:flex;align-items:center;gap:8px;padding:4px 6px 8px;font-size:12px;color:#5A7A7A;font-weight:600'>" +
+          "<span style='font-size:15px'>&#x21C4;</span>" +
+          "<span>Transfer &middot; " + tLabel + "</span>" +
+          "</div>";
+      }
+    }
+  }
   var ty = TRIP_BOOKING_TYPES[b.type] || TRIP_BOOKING_TYPES.other;
   var expanded = !!_tripExpanded[b.id];
   var timeLabel = bookingDateTimeLabel(b.start) + (b.end ? " &rarr; " + bookingDateTimeLabel(b.end) : "");
@@ -2348,7 +2364,7 @@ function bookingCardHTML(b) {
       "<button class='booking-edit-btn' data-bid='" + b.id + "' style='margin-top:10px;border:1.5px solid #D8D0C0;background:#fff;color:#0F8A8A;border-radius:8px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>Edit booking</button>" +
     "</div>";
   }
-  return "<div class='booking-card' data-bid='" + b.id + "' style='background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer'>" +
+  return transferBadge + "<div class='booking-card' data-bid='" + b.id + "' style='background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer'>" +
     "<div style='display:flex;align-items:center;gap:10px'>" +
       "<span style='font-size:20px'>" + ty.icon + "</span>" +
       "<div style='flex:1;min-width:0'>" +
@@ -2433,6 +2449,13 @@ function openBookingEditor(tripId, bookingId) {
     "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:14px'>" + (isNew?"New booking":"Edit booking") + " &mdash; " + esc(trip.name) + "</div>" +
     fieldLabel("Type") +
     "<select id='bkType' style='" + recipeInputCss() + "margin-bottom:12px'>" + typeOpts + "</select>" +
+    "<div style='display:flex;align-items:center;justify-content:space-between;background:#F0F8F8;border-radius:10px;padding:11px 14px;margin-bottom:14px'>" +
+      "<div>" +
+        "<div style='font-size:14px;font-weight:700;color:#1A2E2E'>Connecting leg</div>" +
+        "<div style='font-size:12px;color:#6A8A8A;margin-top:2px'>Show transfer time from the previous booking</div>" +
+      "</div>" +
+      "<label class='toggle-switch'><input type='checkbox' id='bkConnects'" + (b && b.connectsFrom ? " checked" : "") + "><span class='toggle-slider'></span></label>" +
+    "</div>" +
     fieldLabel("Title") +
     "<input id='bkTitle' type='text' value='" + (b?esc(b.title):"") + "' placeholder='e.g. Outbound flight DUB-ACE' style='" + recipeInputCss() + "margin-bottom:12px'>" +
     fieldLabel("Start date & time") +
@@ -2457,6 +2480,7 @@ function openBookingEditor(tripId, bookingId) {
     if (!title) { toast("Title can't be empty"); return; }
     if (!start) { toast("Start date & time is required"); return; }
     var type = document.getElementById("bkType").value;
+    var connectsFrom = document.getElementById("bkConnects").checked;
     var end = document.getElementById("bkEnd").value;
     var location = document.getElementById("bkLocation").value.trim();
     var ref = document.getElementById("bkRef").value.trim();
@@ -2467,10 +2491,10 @@ function openBookingEditor(tripId, bookingId) {
     trip2.bookings = trip2.bookings || [];
     if (isNew) {
       var nbid = Date.now() + Math.floor(Math.random()*100000);
-      trip2.bookings.push({ id:nbid, type:type, title:title, start:start, end:end||null, location:location, ref:ref, notes:notes, updated:Date.now() });
+      trip2.bookings.push({ id:nbid, type:type, title:title, start:start, end:end||null, location:location, ref:ref, notes:notes, connectsFrom:connectsFrom||false, updated:Date.now() });
     } else {
       var exb = trip2.bookings.find(function(x){ return x.id === bookingId; });
-      if (exb) { exb.type=type; exb.title=title; exb.start=start; exb.end=end||null; exb.location=location; exb.ref=ref; exb.notes=notes; exb.updated=Date.now(); }
+      if (exb) { exb.type=type; exb.title=title; exb.start=start; exb.end=end||null; exb.location=location; exb.ref=ref; exb.notes=notes; exb.connectsFrom=connectsFrom||false; exb.updated=Date.now(); }
     }
     trip2.updated = Date.now();
     saveTripsStore(trips2);
