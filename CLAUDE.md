@@ -35,5 +35,13 @@ Cathal is a **non-coder**; treat him as the reviewer, not a co-developer. Lead w
 ## Council review
 When Cathal says **"use my council"**, run the full **Hearth PWA Review Council**: 7 independent experts — PWA/Mobile UX, Healthcare/Wellness Designer (physio + dosing safety), Firebase/Sync Architect, Accessibility, Privacy Advocate, Non-Technical Parent User, Devil's Advocate — each with assumptions/risks/alternatives, then a consensus with a confidence level. Skip it for small changes unless asked.
 
+## Trip data model — keep export/import in sync
+**Whenever a new field is added to booking objects**, update all three of these in the same change:
+1. **Export map** in `openTripEditor` (the `.map(function(b){ return {...} })` inside the `tpExport` click handler) — add the new field.
+2. **`importTripFromJSON`** — add the field with a safe fallback (e.g. `field: b.field || ""`).
+3. **`mergeBookingsIntoTrip`** — add the field with the same fallback.
+
+Current booking fields in the export: `type`, `title`, `start`, `end`, `location`, `ref`, `notes`, `connectsFrom`. Fields intentionally omitted: `id` (regenerated on import), `updated` (set to now on import).
+
 ## After significant work
 Update `HEARTH-notes.md` (changelog entry + sync the version state) so the next session starts current.
