@@ -2720,7 +2720,7 @@ function openBookingEditor(tripId, bookingId) {
     if (bookingId != null) {
       requestAnimationFrame(function(){
         var bc = document.querySelector(".booking-card[data-bid='" + bookingId + "']");
-        if (bc) bc.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (bc) { var hdr = document.querySelector("header"); var off = hdr ? hdr.offsetHeight + 8 : 80; window.scrollTo({ top: bc.getBoundingClientRect().top + window.pageYOffset - off, behavior: "smooth" }); }
       });
     }
   });
@@ -2757,7 +2757,7 @@ function openBookingEditor(tripId, bookingId) {
     toast("Booking saved");
     requestAnimationFrame(function(){
       var bc = document.querySelector(".booking-card[data-bid='" + targetBid + "']");
-      if (bc) bc.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (bc) { var hdr2 = document.querySelector("header"); var off2 = hdr2 ? hdr2.offsetHeight + 8 : 80; window.scrollTo({ top: bc.getBoundingClientRect().top + window.pageYOffset - off2, behavior: "smooth" }); }
     });
   });
   var _bkDel = document.getElementById("bkDelete");
