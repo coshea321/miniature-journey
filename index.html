@@ -757,7 +757,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v283 · 01/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v284 · 01/07/2026</div>
 
   </div>
 </div>
@@ -2423,13 +2423,15 @@ function renderTripDetail() {
     "</div>" +
     "<button id='bookingNewBtn' style='width:100%;padding:12px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px'>+ Add booking</button>";
 
-  // view toggle
-  html += "<div style='display:flex;gap:6px;margin-bottom:14px'>" +
+  // view toggle + expand/collapse all
+  var _allExp = bookings.length > 0 && bookings.every(function(b){ return !!_tripExpanded[b.id]; });
+  html += "<div style='display:flex;gap:6px;align-items:center;margin-bottom:14px'>" +
     ["compact","timeline"].map(function(v){
       var on = _tripDetailView === v;
       return "<button class='trip-view-btn' data-view='" + v + "' style='flex:1;padding:8px;border:" + (on?"none":"1.5px solid #D8D0C0") + ";background:" + (on?"#0F8A8A":"#fff") + ";color:" + (on?"#fff":"#6A8A8A") + ";border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>" +
         (v === "compact" ? "Compact" : "Timeline") + "</button>";
     }).join("") +
+    (bookings.length ? "<button id='tripExpandToggle' style='margin-left:auto;border:none;background:none;color:#0F8A8A;font-size:12px;font-weight:700;cursor:pointer;padding:4px 2px;white-space:nowrap'>" + (_allExp ? "Collapse all" : "Expand all") + "</button>" : "") +
   "</div>";
 
   // build flat items list (timeline mode splits bookings-with-end into two entries)
@@ -2496,6 +2498,15 @@ function renderTripDetail() {
       _tripDetailView = btn.dataset.view;
       renderTripDetail();
     });
+  });
+  var _expToggle = document.getElementById("tripExpandToggle");
+  if (_expToggle) _expToggle.addEventListener("click", function(){
+    if (bookings.every(function(b){ return !!_tripExpanded[b.id]; })) {
+      _tripExpanded = {};
+    } else {
+      bookings.forEach(function(b){ _tripExpanded[b.id] = true; });
+    }
+    renderTripDetail();
   });
 }
 
