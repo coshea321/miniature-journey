@@ -1,4 +1,4 @@
-# Hearth — Notes & State of Play (as of v271)
+# Hearth — Notes & State of Play (as of v283)
 
 **This is the single source of truth for the Hearth project.** It combines: state-of-play (version log + what's pending), architecture & working notes, hard-won lessons, and the full `sw.js` source. There are no other Hearth context docs — if an older separate `HEARTH-architecture.md` or `HEARTH-state-of-play.md` is still in Project knowledge, delete it; this file supersedes both.
 
@@ -10,7 +10,7 @@
 ## Current version
 **v283 · 01/07/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant).
 
-## Recently completed (v230–v267)
+## Recently completed (v230–v283)
 - **v230:** Silenced routine "SSE stale — falling back to fetch" messages from the red error panel (changed `console.warn` → `console.log`; genuine SSE event-error warnings kept).
 - **v231:** Fixed Notes sub-tab flashing on Grocery at login (set it hidden by default to match the switch-handler logic; Grocery has no Notes sub-tab by design — notes are per-item).
 - **v232:** Built the **Recipes section** (6th nav icon). Recipe objects: name, servings, ingredients (amount/unit/name), method, notes. Servings stepper rescales live. Seeded with the Iced Coffee recipe. Create/edit via a raw-text editor.
