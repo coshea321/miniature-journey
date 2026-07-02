@@ -762,7 +762,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v291 · 02/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v292 · 02/07/2026</div>
 
   </div>
 </div>
@@ -2192,6 +2192,8 @@ function importTripFromJSON(raw) {
       ref: b.ref || "",
       notes: b.notes || "",
       connectsFrom: !!b.connectsFrom,
+      boarding: b.boarding || "",
+      gate: b.gate || "",
       updated: now
     };
   }) : [];
@@ -2208,7 +2210,7 @@ function mergeBookingsIntoTrip(tripId, bookingObjs) {
   if (!trip) return { error: "Trip not found." };
   var now = Date.now();
   var newBookings = (bookingObjs||[]).map(function(b){
-    return { id: now + Math.floor(Math.random()*100000), type:b.type||"other", title:b.title||"", start:b.start||"", end:b.end||null, location:b.location||"", ref:b.ref||"", notes:b.notes||"", connectsFrom:!!b.connectsFrom, updated:now };
+    return { id: now + Math.floor(Math.random()*100000), type:b.type||"other", title:b.title||"", start:b.start||"", end:b.end||null, location:b.location||"", ref:b.ref||"", notes:b.notes||"", connectsFrom:!!b.connectsFrom, boarding:b.boarding||"", gate:b.gate||"", updated:now };
   });
   trip.bookings = (trip.bookings||[]).concat(newBookings);
   trip.updated = now;
@@ -2595,6 +2597,16 @@ function bookingCardHTML(b, prevB) {
   }
   if (b.end) timeLineHtml += " &rarr; " + bookingDateTimeLabel(b.end);
   if (b.location) timeLineHtml += " &middot; " + esc(b.location);
+  // Boarding line (v292) — shown on the COLLAPSED card: at the airport this
+  // is the line you organise around. Renders nothing when both fields are empty.
+  var boardingHtml = "";
+  if (b.boarding || b.gate) {
+    boardingHtml = "<div style='font-size:12px;color:#5A7A7A;margin-top:2px'>&#x1F6EB; " +
+      (b.boarding ? "Boarding <span style='color:#0F8A8A;font-weight:700'>" + esc(b.boarding) + "</span>" : "") +
+      (b.boarding && b.gate ? " &middot; " : "") +
+      (b.gate ? "Gate " + esc(b.gate) : "") +
+      "</div>";
+  }
   var extra = "";
   if (expanded) {
     extra = "<div style='margin-top:10px;padding-top:10px;border-top:1px dotted #ECE4D6;font-size:13px;color:#5A5040'>" +
@@ -2611,6 +2623,7 @@ function bookingCardHTML(b, prevB) {
       "<div style='flex:1;min-width:0'>" +
         "<div style='font-size:15px;font-weight:700;color:#1A2E2E'>" + esc(b.title||ty.label) + "</div>" +
         "<div style='font-size:12px;color:#9A8A6A'>" + timeLineHtml + "</div>" +
+        boardingHtml +
       "</div>" +
     "</div>" +
     extra +
@@ -2683,7 +2696,7 @@ function openTripEditor(id) {
       start: trip.start,
       end: trip.end,
       bookings: (trip.bookings||[]).map(function(b){
-        return { type:b.type, title:b.title, start:b.start, end:b.end, location:b.location, ref:b.ref, notes:b.notes, connectsFrom:!!b.connectsFrom };
+        return { type:b.type, title:b.title, start:b.start, end:b.end, location:b.location, ref:b.ref, notes:b.notes, connectsFrom:!!b.connectsFrom, boarding:b.boarding||"", gate:b.gate||"" };
       })
     };
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -2723,6 +2736,14 @@ function openBookingEditor(tripId, bookingId) {
     "<input id='bkTitle' type='text' value='" + (b?esc(b.title):"") + "' placeholder='e.g. Outbound flight DUB-ACE' style='" + recipeInputCss() + "margin-bottom:12px'>" +
     fieldLabel("Start date & time") +
     "<input id='bkStart' type='datetime-local' value='" + (b&&b.start?b.start:"") + "' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+    "<div id='bkFlightFields'" + ((b ? b.type === "flight" : true) ? "" : " style='display:none'") + ">" +
+      "<div style='display:flex;gap:10px'>" +
+        "<div style='flex:1'>" + fieldLabel("Boarding time (optional)") +
+          "<input id='bkBoarding' type='time' value='" + (b&&b.boarding?esc(b.boarding):"") + "' style='" + recipeInputCss() + "margin-bottom:12px'></div>" +
+        "<div style='flex:1'>" + fieldLabel("Gate (optional)") +
+          "<input id='bkGate' type='text' value='" + (b&&b.gate?esc(b.gate):"") + "' placeholder='e.g. B23' style='" + recipeInputCss() + "margin-bottom:12px'></div>" +
+      "</div>" +
+    "</div>" +
     fieldLabel("End date & time (optional, for stays)") +
     "<input id='bkEnd' type='datetime-local' value='" + (b&&b.end?b.end:"") + "' style='" + recipeInputCss() + "margin-bottom:12px'>" +
     fieldLabel("Location") +
@@ -2731,10 +2752,56 @@ function openBookingEditor(tripId, bookingId) {
     "<input id='bkRef' type='text' value='" + (b&&b.ref?esc(b.ref):"") + "' style='" + recipeInputCss() + "margin-bottom:12px'>" +
     fieldLabel("Notes (optional)") +
     "<textarea id='bkNotes' rows='3' style='" + recipeInputCss() + "margin-bottom:16px;resize:vertical;line-height:1.6'>" + (b&&b.notes?esc(b.notes):"") + "</textarea>" +
+    // Connecting-leg entry (v292): NEW flight bookings only — one Save creates
+    // both legs as separate bookings (same data model, same timeline display),
+    // the second marked connectsFrom and sharing leg 1's reference.
+    (isNew ?
+      "<div id='bkLeg2Wrap' style='" + ((b ? b.type === "flight" : true) ? "" : "display:none;") + "margin-bottom:16px'>" +
+        "<button id='bkAddLeg' type='button' style='width:100%;padding:11px;border:1.5px dashed #0F8A8A;background:#F0F8F8;color:#0F8A8A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>&#x21C4; Add connecting leg</button>" +
+        "<div id='bkLeg2' style='display:none;border:1.5px dashed #B8D8D8;border-radius:12px;padding:12px;margin-top:2px'>" +
+          "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px'>" +
+            "<div style='font-size:14px;font-weight:700;color:#1A2E2E'>&#x21C4; Connecting leg</div>" +
+            "<button id='bkRemoveLeg' type='button' aria-label='Remove connecting leg' style='border:none;background:none;color:#C06060;font-size:16px;cursor:pointer;padding:2px 6px'>&#x2715;</button>" +
+          "</div>" +
+          fieldLabel("Leg 2 title") +
+          "<input id='bkTitle2' type='text' placeholder='e.g. Connecting flight ZRH-BER' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+          fieldLabel("Leg 2 start date & time") +
+          "<input id='bkStart2' type='datetime-local' style='" + recipeInputCss() + "margin-bottom:12px'>" +
+          "<div style='display:flex;gap:10px'>" +
+            "<div style='flex:1'>" + fieldLabel("Boarding time (optional)") +
+              "<input id='bkBoarding2' type='time' style='" + recipeInputCss() + "margin-bottom:12px'></div>" +
+            "<div style='flex:1'>" + fieldLabel("Gate (optional)") +
+              "<input id='bkGate2' type='text' placeholder='e.g. B23' style='" + recipeInputCss() + "margin-bottom:12px'></div>" +
+          "</div>" +
+          fieldLabel("Leg 2 location") +
+          "<input id='bkLocation2' type='text' placeholder='e.g. Zurich Airport' style='" + recipeInputCss() + "margin-bottom:8px'>" +
+          "<div style='font-size:12px;color:#6A8A8A;line-height:1.45'>Uses the same reference as leg 1 and shows as its own card. Set leg 1's <b>End date &amp; time</b> (the arrival) above to show the transfer time between the legs.</div>" +
+        "</div>" +
+      "</div>"
+    : "") +
     "<button id='bkSave' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save booking</button>" +
     (b ? "<button id='bkDelete' style='width:100%;padding:13px;border:1.5px solid #C03030;background:#fff;color:#C03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px'>Delete booking</button>" : "");
 
   window.scrollTo(0, 0);
+  // Flight-only sections follow the type select (v292)
+  document.getElementById("bkType").addEventListener("change", function(){
+    var isFlight = this.value === "flight";
+    var ff = document.getElementById("bkFlightFields");
+    if (ff) ff.style.display = isFlight ? "" : "none";
+    var lw = document.getElementById("bkLeg2Wrap");
+    if (lw) lw.style.display = isFlight ? "" : "none";
+  });
+  var _addLeg = document.getElementById("bkAddLeg");
+  if (_addLeg) _addLeg.addEventListener("click", function(){
+    document.getElementById("bkLeg2").style.display = "";
+    _addLeg.style.display = "none";
+  });
+  var _remLeg = document.getElementById("bkRemoveLeg");
+  if (_remLeg) _remLeg.addEventListener("click", function(){
+    document.getElementById("bkLeg2").style.display = "none";
+    var ab = document.getElementById("bkAddLeg");
+    if (ab) ab.style.display = "";
+  });
   document.getElementById("bkCancelEdit").addEventListener("click", function(){
     _tripEditing = false; _tripView = "detail"; renderTripDetail();
     if (bookingId != null) {
@@ -2750,11 +2817,31 @@ function openBookingEditor(tripId, bookingId) {
     if (!title) { toast("Title can't be empty"); return; }
     if (!start) { toast("Start date & time is required"); return; }
     var type = document.getElementById("bkType").value;
+    var isFlight = type === "flight";
     var connectsFrom = document.getElementById("bkConnects").checked;
     var end = document.getElementById("bkEnd").value;
     var location = document.getElementById("bkLocation").value.trim();
     var ref = document.getElementById("bkRef").value.trim();
     var notes = document.getElementById("bkNotes").value.trim();
+    var boarding = isFlight ? document.getElementById("bkBoarding").value : "";
+    var gate = isFlight ? document.getElementById("bkGate").value.trim() : "";
+    // Connecting leg (v292, new flight bookings only): validate BEFORE saving
+    // leg 1 so a failed leg 2 never half-saves. A visible-but-untouched leg 2
+    // section is skipped silently.
+    var leg2 = null;
+    var leg2El = document.getElementById("bkLeg2");
+    if (isNew && isFlight && leg2El && leg2El.style.display !== "none") {
+      var t2 = document.getElementById("bkTitle2").value.trim();
+      var s2 = document.getElementById("bkStart2").value;
+      var b2 = document.getElementById("bkBoarding2").value;
+      var g2 = document.getElementById("bkGate2").value.trim();
+      var l2 = document.getElementById("bkLocation2").value.trim();
+      if (t2 || s2 || b2 || g2 || l2) {
+        if (!t2) { toast("Leg 2 title can't be empty"); return; }
+        if (!s2) { toast("Leg 2 start date & time is required"); return; }
+        leg2 = { title:t2, start:s2, boarding:b2, gate:g2, location:l2 };
+      }
+    }
     var trips2 = getTrips();
     var trip2 = trips2.find(function(x){ return x.id === tripId; });
     if (!trip2) { _tripView = "list"; renderTrips(); return; }
@@ -2763,18 +2850,21 @@ function openBookingEditor(tripId, bookingId) {
     if (isNew) {
       var nbid = Date.now() + Math.floor(Math.random()*100000);
       targetBid = nbid;
-      trip2.bookings.push({ id:nbid, type:type, title:title, start:start, end:end||null, location:location, ref:ref, notes:notes, connectsFrom:connectsFrom||false, updated:Date.now() });
+      trip2.bookings.push({ id:nbid, type:type, title:title, start:start, end:end||null, location:location, ref:ref, notes:notes, connectsFrom:connectsFrom||false, boarding:boarding, gate:gate, updated:Date.now() });
+      if (leg2) {
+        trip2.bookings.push({ id:nbid + 1 + Math.floor(Math.random()*100000), type:"flight", title:leg2.title, start:leg2.start, end:null, location:leg2.location, ref:ref, notes:"", connectsFrom:true, boarding:leg2.boarding, gate:leg2.gate, updated:Date.now() });
+      }
     } else {
       targetBid = bookingId;
       var exb = trip2.bookings.find(function(x){ return x.id === bookingId; });
-      if (exb) { exb.type=type; exb.title=title; exb.start=start; exb.end=end||null; exb.location=location; exb.ref=ref; exb.notes=notes; exb.connectsFrom=connectsFrom||false; exb.updated=Date.now(); }
+      if (exb) { exb.type=type; exb.title=title; exb.start=start; exb.end=end||null; exb.location=location; exb.ref=ref; exb.notes=notes; exb.connectsFrom=connectsFrom||false; exb.boarding=boarding; exb.gate=gate; exb.updated=Date.now(); }
     }
     trip2.updated = Date.now();
     saveTripsStore(trips2);
     _tripEditing = false;
     _tripView = "detail";
     renderTripDetail();
-    toast("Booking saved");
+    toast(leg2 ? "Both legs saved" : "Booking saved");
     requestAnimationFrame(function(){
       var bc = document.querySelector(".booking-card[data-bid='" + targetBid + "']");
       if (bc) { var hdr2 = document.querySelector("header"); var off2 = hdr2 ? hdr2.offsetHeight + 8 : 80; window.scrollTo({ top: bc.getBoundingClientRect().top + window.pageYOffset - off2, behavior: "smooth" }); }
