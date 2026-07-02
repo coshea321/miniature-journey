@@ -41,7 +41,7 @@ When Cathal says **"use my council"**, run the full **Hearth PWA Review Council*
 2. **`importTripFromJSON`** — add the field with a safe fallback (e.g. `field: b.field || ""`).
 3. **`mergeBookingsIntoTrip`** — add the field with the same fallback.
 
-Current booking fields in the export: `type`, `title`, `start`, `end`, `location`, `ref`, `notes`, `connectsFrom`. Fields intentionally omitted: `id` (regenerated on import), `updated` (set to now on import).
+Current booking fields in the export: `type`, `title`, `start`, `end`, `location`, `ref`, `notes`, `connectsFrom`, `boarding` (v292, "HH:MM" or ""), `gate` (v292). Fields intentionally omitted: `id` (regenerated on import), `updated` (set to now on import).
 
 ## After significant work
 Update `HEARTH-notes.md` (changelog entry + sync the version state) so the next session starts current.
