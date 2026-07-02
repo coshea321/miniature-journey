@@ -10,13 +10,13 @@ Cathal is a **non-coder**; treat him as the reviewer, not a co-developer. Lead w
 - Hosted on **GitHub Pages**; `main` is live. No backend except Firebase Realtime DB (household sync via room codes, REST/EventSource — no SDK).
 
 ## Per-change workflow (every change)
-1. **Create and push a backup branch `backup-vNNN` first** (current version, before any edits). Do this every time without exception — even for small changes. Suggest pruning branches older than 3 versions back. Never touch `main` directly for non-trivial work.
+1. **Create and push a backup branch `backup-vNNN` first** (current version, before any edits). Do this every time without exception — even for small changes. **Keep the newest 10 backup branches** (policy set 02/07/2026); branch deletion is blocked from remote sessions (403), so name the ones outside the window for Cathal to delete on GitHub. Never touch `main` directly for non-trivial work.
 2. **Edit incrementally** — never rewrite the whole file. Make targeted edits.
 3. **Verify the edit landed** (grep for the changed strings) — silent no-op edits have caused real incidents here.
 4. **Syntax-check the main script block**: extract from the `// PREVIEW MODE` comment to the FIRST `</script>` and run `node --check`. (The file also contains an escaped `</script>` inside a JS print-doc string — don't be fooled by it.)
 5. **Verify file integrity**: sane length (~557k, grows slowly — a jump to ~900k+ means the v221-style document-doubling bug), exactly ONE real `<!DOCTYPE>`/`<html lang>`, ONE version label, clean `</body>\n</html>` EOF.
 6. **Bump the version in BOTH `index.html` and `sw.js`.** Format: `vNNN · DD/MM/YYYY` (date only, no time). For `sw.js` this is the one-line `VERSION` edit.
-7. **Commit, push, then immediately open a GitHub PR** — always, without waiting to be asked. The PR is how Cathal reviews the diff and merges to `main`. Describe changes clearly in the PR body. Never push and say "create a PR when you're ready" — create it now.
+7. **Commit, push, then immediately open a GitHub PR** — always, without waiting to be asked. The PR is how Cathal reviews the diff and merges to `main`. Describe changes clearly in the PR body. Never push and say "create a PR when you're ready" — create it now. **One PR per version** (policy set 02/07/2026): Cathal merges within minutes, so never stack a second version onto an existing PR's branch — fetch/rebase onto the latest `main` before starting each new version, and open a fresh PR for it.
 
 ## Design & safety rules (these override a prompt that conflicts)
 - **Confirm feature design before building anything non-trivial.** Cathal has corrected mid-build many times; align upfront.
