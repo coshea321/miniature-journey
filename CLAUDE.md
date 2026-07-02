@@ -20,7 +20,7 @@ Cathal is a **non-coder**; treat him as the reviewer, not a co-developer. Lead w
 
 ## Design & safety rules (these override a prompt that conflicts)
 - **Confirm feature design before building anything non-trivial.** Cathal has corrected mid-build many times; align upfront.
-- **Medicine dosing is safety-sensitive.** Weight-based doses use confirmed product strengths only (Calpol Infant 120mg/5ml @15mg/kg; Nurofen for Children 100mg/5ml @10mg/kg), round DOWN, cap at 10ml, block Nurofen under 5kg, always show the working + "check the leaflet", keep editable. Never silently change strengths or formulas.
+- **Medicine dosing is safety-sensitive.** Weight-based doses use confirmed product strengths only (Calpol Infant 120mg/5ml @15mg/kg; Nurofen for Children 100mg/5ml @10mg/kg), round DOWN, cap at 10ml, block Nurofen under 5kg, always show the working + "check the leaflet", keep editable. Never silently change strengths or formulas. The v291 **interval advisories** (paracetamol ≥4h gap / max 4 per 24h; ibuprofen ≥6h / max 3 per 24h) are advisory only: never disable logging, never drop the "logged" / "check the leaflet" wording, never silently change the intervals.
 - **Never claim a file/feature is missing without grepping first.** Check whether something already exists before building it (features have been rebuilt by accident here).
 - This is a **personal/family app**: no Play Store, no push notifications, no third-party analytics. Don't propose them.
 
