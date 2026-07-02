@@ -1,11 +1,12 @@
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v288 · 02/07/2026';
+const VERSION = 'v290 · 02/07/2026';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './purify.min.js',
   './icon-192.png',
   './icon-512.png'
 ];
