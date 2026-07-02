@@ -762,7 +762,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v290 · 02/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v291 · 02/07/2026</div>
 
   </div>
 </div>
@@ -10141,11 +10141,62 @@ function growthBand(rec, sex) {
   return { label:"Normal", bg:"#E8F5E0", fg:"#508040" };
 }
 
-function latestBabyWeight() {
+function latestBabyWeightRec() {
   var bd = getBD();
   var g = (bd.growth||[]).slice().sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); });
-  for (var i=0;i<g.length;i++){ if (g[i] && typeof g[i].weight==="number" && g[i].weight>0) return g[i].weight; }
+  for (var i=0;i<g.length;i++){ if (g[i] && typeof g[i].weight==="number" && g[i].weight>0) return g[i]; }
   return null;
+}
+
+// ── Dose-interval advisory (v291) — ADVISORY ONLY, never a block ──────────
+// Standard OTC intervals for the two confirmed products, shown to the user
+// rather than silently applied: paracetamol at least 4h between doses / max
+// 4 in 24h; ibuprofen at least 6h / max 3 in 24h. Every check reads the
+// medicine LOG, so all wording MUST say "logged" — a dose that was given but
+// never logged is invisible here, and "last logged 6h ago" must never read
+// as permission. Nothing is ever disabled; the strongest intervention is one
+// OK/Cancel confirm at log time.
+var MED_RULES = [
+  { key:"calpol",  label:"Calpol",  match:["calpol","paracetamol"], gapH:4, max24:4, gapText:"usual gap at least 4h, max 4 doses in 24h" },
+  { key:"nurofen", label:"Nurofen", match:["nurofen","ibuprofen"],  gapH:6, max24:3, gapText:"usual gap at least 6h, max 3 doses in 24h" }
+];
+function medRuleFor(name){
+  var n=(name||"").toLowerCase();
+  for (var i=0;i<MED_RULES.length;i++){
+    for (var j=0;j<MED_RULES[i].match.length;j++){
+      if (n.indexOf(MED_RULES[i].match[j])>=0) return MED_RULES[i];
+    }
+  }
+  return null;
+}
+function medLastFor(rule){
+  var meds=(getBD().medicine||[]), last=null;
+  meds.forEach(function(m){
+    var r = (m && m.ts) ? medRuleFor(m.name) : null;
+    if (r && r.key===rule.key && (!last || m.ts>last.ts)) last=m;
+  });
+  return last;
+}
+// Nearest logged dose of the same medicine to refTs (absolute distance, so a
+// backfilled entry checks against neighbours on BOTH sides), plus the count
+// in the 24h window ending at refTs.
+function medHistoryFor(rule, refTs){
+  var meds=(getBD().medicine||[]), nearest=null, nearestGapMs=Infinity, count24=0;
+  meds.forEach(function(m){
+    if (!m || !m.ts) return;
+    var r=medRuleFor(m.name);
+    if (!r || r.key!==rule.key) return;
+    var gap=Math.abs(refTs-m.ts);
+    if (gap<nearestGapMs){ nearestGapMs=gap; nearest=m; }
+    if (m.ts<=refTs && (refTs-m.ts) < 24*3600*1000) count24++;
+  });
+  return { nearest:nearest, nearestGapMs:nearestGapMs, count24:count24 };
+}
+function medAgoStr(ms){
+  var mins=Math.floor(ms/60000), h=Math.floor(mins/60), m2=mins%60;
+  if (mins<1) return "just now";
+  if (h<=0) return m2+"m ago";
+  return h+"h"+(m2? " "+m2+"m":"")+" ago";
 }
 
 function renderMedicine() {
@@ -10154,7 +10205,26 @@ function renderMedicine() {
   var el = document.getElementById("babyMedicineView");
   var now3=new Date(), p3=function(x){return x<10?"0"+x:""+x;};
   var dtStr=now3.getFullYear()+"-"+p3(now3.getMonth()+1)+"-"+p3(now3.getDate())+"T"+p3(now3.getHours())+":"+p3(now3.getMinutes());
+  // Always-visible last-logged summary per medicine (v291) — neutral when
+  // fine, amber when inside the minimum gap or at the 24h maximum
+  var intervalHtml = "";
+  MED_RULES.forEach(function(rule){
+    var last = medLastFor(rule);
+    if (!last) return;
+    var hist = medHistoryFor(rule, Date.now());
+    var gapMs = Date.now() - last.ts;
+    var warn = (gapMs >= 0 && gapMs < rule.gapH*3600*1000) || (hist.count24 >= rule.max24);
+    var t = new Date(last.ts).toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"});
+    var line = "Last logged "+rule.label+": "+medAgoStr(gapMs)+" ("+t+(last.dose?", "+esc(last.dose):"")+")";
+    if (hist.count24 >= 2 || warn) line += " &#183; "+hist.count24+" dose"+(hist.count24!==1?"s":"")+" in 24h";
+    line += " &#8212; "+rule.gapText+".";
+    if (warn) line += " Based only on logged doses &#8212; check the leaflet.";
+    intervalHtml += "<div style='font-size:13px;line-height:1.45;padding:8px 11px;border-radius:9px;margin-bottom:6px;"+
+      (warn ? "background:#FDF0E0;color:#9A5A10;border:1px solid #E8C89A;font-weight:600" : "background:#F6F2FA;color:#7A5A7A")+
+      "'>"+(warn?"&#x26A0;&#xFE0F; ":"")+line+"</div>";
+  });
   var html = "<div class='baby-log-card'><div class='baby-card-title'>&#x1F48A; Log medicine</div>" +
+    intervalHtml +
     "<div class='med-quick-chips' style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px'>" +
       "<button type='button' class='med-chip' data-med='Calpol' data-conc='Calpol Infant 120mg/5ml' data-mgkg='15' data-mg5='120' data-floor='0' data-cap='10' data-fallback='5ml' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:16px;padding:11px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Calpol</button>" +
       "<button type='button' class='med-chip' data-med='Nurofen' data-conc='Nurofen for Children 100mg/5ml' data-mgkg='10' data-mg5='100' data-floor='5' data-cap='10' data-fallback='2.5ml' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:16px;padding:11px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Nurofen</button>" +
@@ -10178,12 +10248,33 @@ function renderMedicine() {
   document.getElementById("medLogBtn").addEventListener("click",function(){
     var name=document.getElementById("medName").value.trim();
     if(!name){toast("Enter a medicine name");return;}
-    var bd2=getBD(); bd2.medicine=bd2.medicine||[];
     var time=document.getElementById("medTime").value;
-    bd2.medicine.unshift({id:Date.now(),name:name,dose:document.getElementById("medDose").value.trim(),notes:document.getElementById("medNotes").value.trim(),ts:time?new Date(time).getTime():Date.now()});
-    saveBD(bd2);
-    document.getElementById("medName").value="";document.getElementById("medDose").value="";document.getElementById("medNotes").value="";
-    renderMedicine(); toast("&#x1F48A; Logged");
+    var ts=time?new Date(time).getTime():Date.now();
+    if (isNaN(ts)) ts=Date.now();
+    function doLog(){
+      var bd2=getBD(); bd2.medicine=bd2.medicine||[];
+      bd2.medicine.unshift({id:Date.now(),name:name,dose:document.getElementById("medDose").value.trim(),notes:document.getElementById("medNotes").value.trim(),ts:ts});
+      saveBD(bd2);
+      document.getElementById("medName").value="";document.getElementById("medDose").value="";document.getElementById("medNotes").value="";
+      renderMedicine(); toast("&#x1F48A; Logged");
+    }
+    // Interval speed-bump (v291): one OK/Cancel when the numbers look wrong —
+    // never a block. Checked against the ENTERED time, so backfilling an old
+    // dose compares to its own neighbours, not to "now".
+    var rule=medRuleFor(name), warnMsg="";
+    if (rule){
+      var hist=medHistoryFor(rule, ts);
+      if (hist.nearest && hist.nearestGapMs < rule.gapH*3600*1000){
+        warnMsg="There's a "+rule.label+" dose logged only "+medAgoStr(hist.nearestGapMs).replace(" ago","")+" from this one &#8212; "+rule.gapText+".";
+      } else if (hist.count24 >= rule.max24){
+        warnMsg=hist.count24+" "+rule.label+" dose"+(hist.count24!==1?"s":"")+" already logged in the 24h before this time &#8212; the usual maximum is "+rule.max24+".";
+      }
+    }
+    if (warnMsg){
+      confirmDialog("&#x26A0;&#xFE0F; "+warnMsg+" This is based only on logged doses. Check the leaflet or your GP if unsure. Log anyway?", doLog);
+    } else {
+      doLog();
+    }
   });
   el.querySelectorAll(".med-chip").forEach(function(chip){
     chip.addEventListener("click",function(){
@@ -10193,18 +10284,24 @@ function renderMedicine() {
       var dose="", note="";
       if(d.mgkg){
         var mgkg=parseFloat(d.mgkg), mg5=parseFloat(d.mg5), floor=parseFloat(d.floor||"0"), cap=parseFloat(d.cap||"99");
-        var w=latestBabyWeight();
+        var wr=latestBabyWeightRec(), w=wr?wr.weight:null;
+        // v291: show WHEN the weight was logged so a stale weight is self-evident
+        var wDate="";
+        if(wr && wr.date){
+          var dp=String(wr.date).split("-"), monA=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+          if(dp.length===3 && monA[+dp[1]-1]) wDate=" (logged "+(+dp[2])+" "+monA[+dp[1]-1]+")";
+        }
         if(w==null){
           dose=d.fallback||"";
           note="No weight logged - using standard infant dose. Add a weight in Growth for a weight-based estimate.";
         } else if(floor && w<floor){
           dose="";
-          note="Note: "+w+"kg is under "+floor+"kg. "+d.med+" is not advised at this weight - check your GP or pharmacist.";
+          note="Note: "+w+"kg"+wDate+" is under "+floor+"kg. "+d.med+" is not advised at this weight - check your GP or pharmacist.";
         } else {
           var ml=Math.floor((w*mgkg*5/mg5)*4)/4, capped=false;
           if(ml>cap){ ml=cap; capped=true; }
           dose=ml+"ml";
-          note=d.conc+" | "+w+"kg x "+mgkg+"mg/kg ~ "+ml+"ml"+(capped?" (capped)":"")+" | estimate only, check the leaflet.";
+          note=d.conc+" | "+w+"kg"+wDate+" x "+mgkg+"mg/kg ~ "+ml+"ml"+(capped?" (capped)":"")+" | estimate only, check the leaflet.";
         }
       } else {
         dose=d.fallback||"";
