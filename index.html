@@ -762,7 +762,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v292 · 02/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v293 · 02/07/2026</div>
 
   </div>
 </div>
@@ -2194,6 +2194,7 @@ function importTripFromJSON(raw) {
       connectsFrom: !!b.connectsFrom,
       boarding: b.boarding || "",
       gate: b.gate || "",
+      seats: b.seats || "",
       updated: now
     };
   }) : [];
@@ -2210,7 +2211,7 @@ function mergeBookingsIntoTrip(tripId, bookingObjs) {
   if (!trip) return { error: "Trip not found." };
   var now = Date.now();
   var newBookings = (bookingObjs||[]).map(function(b){
-    return { id: now + Math.floor(Math.random()*100000), type:b.type||"other", title:b.title||"", start:b.start||"", end:b.end||null, location:b.location||"", ref:b.ref||"", notes:b.notes||"", connectsFrom:!!b.connectsFrom, boarding:b.boarding||"", gate:b.gate||"", updated:now };
+    return { id: now + Math.floor(Math.random()*100000), type:b.type||"other", title:b.title||"", start:b.start||"", end:b.end||null, location:b.location||"", ref:b.ref||"", notes:b.notes||"", connectsFrom:!!b.connectsFrom, boarding:b.boarding||"", gate:b.gate||"", seats:b.seats||"", updated:now };
   });
   trip.bookings = (trip.bookings||[]).concat(newBookings);
   trip.updated = now;
@@ -2600,12 +2601,12 @@ function bookingCardHTML(b, prevB) {
   // Boarding line (v292) — shown on the COLLAPSED card: at the airport this
   // is the line you organise around. Renders nothing when both fields are empty.
   var boardingHtml = "";
-  if (b.boarding || b.gate) {
-    boardingHtml = "<div style='font-size:12px;color:#5A7A7A;margin-top:2px'>&#x1F6EB; " +
-      (b.boarding ? "Boarding <span style='color:#0F8A8A;font-weight:700'>" + esc(b.boarding) + "</span>" : "") +
-      (b.boarding && b.gate ? " &middot; " : "") +
-      (b.gate ? "Gate " + esc(b.gate) : "") +
-      "</div>";
+  if (b.boarding || b.gate || b.seats) {
+    var bParts = [];
+    if (b.boarding) bParts.push("Boarding <span style='color:#0F8A8A;font-weight:700'>" + esc(b.boarding) + "</span>");
+    if (b.gate) bParts.push("Gate " + esc(b.gate));
+    if (b.seats) bParts.push("Seats " + esc(b.seats));
+    boardingHtml = "<div style='font-size:12px;color:#5A7A7A;margin-top:2px'>&#x1F6EB; " + bParts.join(" &middot; ") + "</div>";
   }
   var extra = "";
   if (expanded) {
@@ -2696,7 +2697,7 @@ function openTripEditor(id) {
       start: trip.start,
       end: trip.end,
       bookings: (trip.bookings||[]).map(function(b){
-        return { type:b.type, title:b.title, start:b.start, end:b.end, location:b.location, ref:b.ref, notes:b.notes, connectsFrom:!!b.connectsFrom, boarding:b.boarding||"", gate:b.gate||"" };
+        return { type:b.type, title:b.title, start:b.start, end:b.end, location:b.location, ref:b.ref, notes:b.notes, connectsFrom:!!b.connectsFrom, boarding:b.boarding||"", gate:b.gate||"", seats:b.seats||"" };
       })
     };
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -2743,6 +2744,8 @@ function openBookingEditor(tripId, bookingId) {
         "<div style='flex:1'>" + fieldLabel("Gate (optional)") +
           "<input id='bkGate' type='text' value='" + (b&&b.gate?esc(b.gate):"") + "' placeholder='e.g. B23' style='" + recipeInputCss() + "margin-bottom:12px'></div>" +
       "</div>" +
+      fieldLabel("Seat(s) (optional)") +
+      "<input id='bkSeats' type='text' value='" + (b&&b.seats?esc(b.seats):"") + "' placeholder='e.g. 14A, 14B' style='" + recipeInputCss() + "margin-bottom:12px'>" +
     "</div>" +
     fieldLabel("End date & time (optional, for stays)") +
     "<input id='bkEnd' type='datetime-local' value='" + (b&&b.end?b.end:"") + "' style='" + recipeInputCss() + "margin-bottom:12px'>" +
@@ -2773,6 +2776,8 @@ function openBookingEditor(tripId, bookingId) {
             "<div style='flex:1'>" + fieldLabel("Gate (optional)") +
               "<input id='bkGate2' type='text' placeholder='e.g. B23' style='" + recipeInputCss() + "margin-bottom:12px'></div>" +
           "</div>" +
+          fieldLabel("Seat(s) (optional)") +
+          "<input id='bkSeats2' type='text' placeholder='e.g. 14A, 14B' style='" + recipeInputCss() + "margin-bottom:12px'>" +
           fieldLabel("Leg 2 location") +
           "<input id='bkLocation2' type='text' placeholder='e.g. Zurich Airport' style='" + recipeInputCss() + "margin-bottom:8px'>" +
           "<div style='font-size:12px;color:#6A8A8A;line-height:1.45'>Uses the same reference as leg 1 and shows as its own card. Set leg 1's <b>End date &amp; time</b> (the arrival) above to show the transfer time between the legs.</div>" +
@@ -2825,6 +2830,7 @@ function openBookingEditor(tripId, bookingId) {
     var notes = document.getElementById("bkNotes").value.trim();
     var boarding = isFlight ? document.getElementById("bkBoarding").value : "";
     var gate = isFlight ? document.getElementById("bkGate").value.trim() : "";
+    var seats = isFlight ? document.getElementById("bkSeats").value.trim() : "";
     // Connecting leg (v292, new flight bookings only): validate BEFORE saving
     // leg 1 so a failed leg 2 never half-saves. A visible-but-untouched leg 2
     // section is skipped silently.
@@ -2835,11 +2841,12 @@ function openBookingEditor(tripId, bookingId) {
       var s2 = document.getElementById("bkStart2").value;
       var b2 = document.getElementById("bkBoarding2").value;
       var g2 = document.getElementById("bkGate2").value.trim();
+      var st2 = document.getElementById("bkSeats2").value.trim();
       var l2 = document.getElementById("bkLocation2").value.trim();
-      if (t2 || s2 || b2 || g2 || l2) {
+      if (t2 || s2 || b2 || g2 || st2 || l2) {
         if (!t2) { toast("Leg 2 title can't be empty"); return; }
         if (!s2) { toast("Leg 2 start date & time is required"); return; }
-        leg2 = { title:t2, start:s2, boarding:b2, gate:g2, location:l2 };
+        leg2 = { title:t2, start:s2, boarding:b2, gate:g2, seats:st2, location:l2 };
       }
     }
     var trips2 = getTrips();
@@ -2850,14 +2857,14 @@ function openBookingEditor(tripId, bookingId) {
     if (isNew) {
       var nbid = Date.now() + Math.floor(Math.random()*100000);
       targetBid = nbid;
-      trip2.bookings.push({ id:nbid, type:type, title:title, start:start, end:end||null, location:location, ref:ref, notes:notes, connectsFrom:connectsFrom||false, boarding:boarding, gate:gate, updated:Date.now() });
+      trip2.bookings.push({ id:nbid, type:type, title:title, start:start, end:end||null, location:location, ref:ref, notes:notes, connectsFrom:connectsFrom||false, boarding:boarding, gate:gate, seats:seats, updated:Date.now() });
       if (leg2) {
-        trip2.bookings.push({ id:nbid + 1 + Math.floor(Math.random()*100000), type:"flight", title:leg2.title, start:leg2.start, end:null, location:leg2.location, ref:ref, notes:"", connectsFrom:true, boarding:leg2.boarding, gate:leg2.gate, updated:Date.now() });
+        trip2.bookings.push({ id:nbid + 1 + Math.floor(Math.random()*100000), type:"flight", title:leg2.title, start:leg2.start, end:null, location:leg2.location, ref:ref, notes:"", connectsFrom:true, boarding:leg2.boarding, gate:leg2.gate, seats:leg2.seats, updated:Date.now() });
       }
     } else {
       targetBid = bookingId;
       var exb = trip2.bookings.find(function(x){ return x.id === bookingId; });
-      if (exb) { exb.type=type; exb.title=title; exb.start=start; exb.end=end||null; exb.location=location; exb.ref=ref; exb.notes=notes; exb.connectsFrom=connectsFrom||false; exb.boarding=boarding; exb.gate=gate; exb.updated=Date.now(); }
+      if (exb) { exb.type=type; exb.title=title; exb.start=start; exb.end=end||null; exb.location=location; exb.ref=ref; exb.notes=notes; exb.connectsFrom=connectsFrom||false; exb.boarding=boarding; exb.gate=gate; exb.seats=seats; exb.updated=Date.now(); }
     }
     trip2.updated = Date.now();
     saveTripsStore(trips2);
