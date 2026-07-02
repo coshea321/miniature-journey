@@ -757,7 +757,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v286 · 01/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v287 · 02/07/2026</div>
 
   </div>
 </div>
@@ -1453,7 +1453,8 @@ body.train-mode #toast{background:#3A3328}
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <div class="sync-section-title" style="margin-bottom:8px">Import / Export</div>
     <button class="sync-btn" id="exportBtn">&#x2B07;&#xFE0F; Export all data</button>
-    <div id="lastBackupInfo" style="font-size:12px;color:#8A7A5A;margin:-2px 2px 10px;text-align:center">Last backup: never</div>
+    <div id="lastBackupInfo" style="font-size:12px;color:#8A7A5A;margin:-2px 2px 2px;text-align:center">Last backup: never</div>
+    <div id="lastCloudBackupInfo" style="font-size:12px;color:#8A7A5A;margin:0 2px 10px;text-align:center">Last cloud backup: never</div>
     <label class="sync-btn outline" id="importLabel" style="text-align:center;cursor:pointer;display:block;margin-bottom:6px">
       &#x2B06;&#xFE0F; Import data
       <input type="file" id="importFile" accept=".json" style="display:none">
@@ -5110,7 +5111,7 @@ document.querySelectorAll(".section-chk").forEach(function(chk) {
 });
 
 // ── Export ────────────────────────────────────────────────
-function exportAllData() {
+function buildExportPayload() {
   ["grocery","todo","travel","personal","baby"].forEach(function(lt){ loadListData(lt); });
   var now=new Date(), pad=function(x){return x<10?"0"+x:""+x;};
   var localDate=now.getFullYear()+"-"+pad(now.getMonth()+1)+"-"+pad(now.getDate());
@@ -5127,7 +5128,9 @@ function exportAllData() {
   //  recipebook (Recipes section), trips (Trips section, incl. nested bookings).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*, fl4_last_backup, fl4_backup_snooze,
-  //  fl4_tomb_* (sync deletion tombstones).
+  //  fl4_last_cloudbackup, fl4_tomb_* (sync deletion tombstones).
+  //  Used by BOTH the manual file export and the daily cloud backup — one
+  //  payload definition, so coverage can never drift between the two.
   var exportData = {
     version:5, exportedAt:localIso,
     lists:{}, notes:{}, customCats:{},
@@ -5151,6 +5154,12 @@ function exportAllData() {
   });
   exportData.notes["global"]=storeGet("fl4_notes_global")||[];
   exportData.notes["global_work"]=storeGet("fl4_notes_global_work")||[];
+  return exportData;
+}
+function exportAllData() {
+  var exportData=buildExportPayload();
+  var now=new Date(), pad=function(x){return x<10?"0"+x:""+x;};
+  var localDate=now.getFullYear()+"-"+pad(now.getMonth()+1)+"-"+pad(now.getDate());
   var blob=new Blob([JSON.stringify(exportData,null,2)],{type:"application/json"});
   var url=URL.createObjectURL(blob), a=document.createElement("a");
   a.href=url; a.download="hearth-backup-"+localDate+"_"+pad(now.getHours())+pad(now.getMinutes())+".json";
@@ -5178,12 +5187,15 @@ function updateLastBackupInfo(){
 function maybeShowBackupNudge(){
   try {
     var DAY = 24*3600*1000;
-    var WEEK = 7*DAY;             // suggest a backup if none in the last 7 days
+    var GAP = 30*DAY;             // suggest a file export if none in 30 days
+                                  // (was 7 — relaxed in v287: the daily cloud
+                                  // backup covers everyday risk; the downloaded
+                                  // file guards against losing Firebase itself)
     var SNOOZE = 2*DAY;           // after dismiss, stay quiet for 2 days
     var last = storeGet("fl4_last_backup") || 0;
     var snooze = storeGet("fl4_backup_snooze") || 0;
     if (Date.now() - snooze < SNOOZE) return;   // recently dismissed
-    if (Date.now() - last < WEEK)     return;   // backed up recently
+    if (Date.now() - last < GAP)      return;   // backed up recently
     var days = last ? Math.floor((Date.now()-last)/DAY) : 0;
     var sub = document.getElementById("backupNudgeSub");
     if (sub) sub.textContent = last
@@ -5198,12 +5210,61 @@ function maybeShowBackupNudge(){
   var later = document.getElementById("backupNudgeLater");
   if (later) later.addEventListener("click", function(){ storeSet("fl4_backup_snooze", Date.now()); dismissBackupNudge(); });
   updateLastBackupInfo();
+  if (typeof updateCloudBackupInfo === "function") updateCloudBackupInfo();
 })();
+// ── Daily cloud backup (v287) ──────────────────────────────
+// Once a day (per device), quietly PUT the full export payload to the user's
+// own Firebase area: /hearth/users/<user>/backups/<YYYY-MM-DD>. Date-keyed, so
+// a second device writing the same day is a harmless idempotent overwrite.
+// Keeps the newest CLOUD_BACKUP_KEEP snapshots, prunes older after each write.
+// Silent on any failure (offline, no token) — simply retries on the next app
+// open. fl4_last_cloudbackup is transient device-local state (NOT exported).
+var CLOUD_BACKUP_KEEP = 7;
+function cloudBackupDateKey(ts){
+  var d=new Date(ts), p=function(x){return x<10?"0"+x:""+x;};
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+}
+function updateCloudBackupInfo(){
+  var el=document.getElementById("lastCloudBackupInfo");
+  if(el) el.textContent="Last cloud backup: "+fmtBackupTime(storeGet("fl4_last_cloudbackup")||0);
+}
+function maybeCloudBackup(){
+  try {
+    if (!isLoggedIn() || navigator.onLine === false) return;
+    var last = storeGet("fl4_last_cloudbackup") || 0;
+    if (last && cloudBackupDateKey(last) === cloudBackupDateKey(Date.now())) return; // already done today
+    getAuthToken(function(token){
+      var payload;
+      try { payload = buildExportPayload(); } catch(e){ return; }
+      var key = cloudBackupDateKey(Date.now());
+      var url = userUrl("/backups/" + key) + (token ? "?auth=" + token : "");
+      fetch(url, { method:"PUT", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) })
+        .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); })
+        .then(function(){
+          storeSet("fl4_last_cloudbackup", Date.now());
+          updateCloudBackupInfo();
+          pruneCloudBackups(token);
+        })
+        .catch(function(e){ console.log("cloud backup skipped (will retry next open): " + (e&&e.message)); });
+    });
+  } catch(e){}
+}
+function pruneCloudBackups(token){
+  var url = userUrl("/backups") + "?shallow=true" + (token ? "&auth=" + token : "");
+  fetch(url).then(function(r){ return r.json(); }).then(function(keys){
+    if (!keys || typeof keys !== "object") return;
+    var names = Object.keys(keys).sort(); // YYYY-MM-DD keys sort chronologically
+    for (var i = 0; i < names.length - CLOUD_BACKUP_KEEP; i++) {
+      fetch(userUrl("/backups/" + names[i]) + (token ? "?auth=" + token : ""), { method:"DELETE" });
+    }
+  }).catch(function(){});
+}
 // Re-check on app open: resume from background after being away a while (not quick switches).
 var _bgHiddenAt = 0;
 document.addEventListener("visibilitychange", function(){
   if (document.hidden) { _bgHiddenAt = Date.now(); return; }
   if (Date.now() - _bgHiddenAt > 30*1000 && isLoggedIn() && typeof maybeShowBackupNudge === "function") maybeShowBackupNudge();
+  if (Date.now() - _bgHiddenAt > 30*1000 && isLoggedIn() && typeof maybeCloudBackup === "function") maybeCloudBackup();
 });
 
 // ── Import ────────────────────────────────────────────────
@@ -5690,6 +5751,7 @@ function onLoginSuccess() {
   if (typeof updateListTabDots === "function") updateListTabDots();
 
   setTimeout(function(){ if (isLoggedIn() && typeof maybeShowBackupNudge === "function") maybeShowBackupNudge(); }, 1800);
+  setTimeout(function(){ if (typeof maybeCloudBackup === "function") maybeCloudBackup(); }, 8000);
 
   // Stale-data banner: tapping it triggers re-login
   var sb2 = document.getElementById("staleDataBanner");
