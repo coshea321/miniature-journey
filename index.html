@@ -762,7 +762,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v293 · 02/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v294 · 02/07/2026</div>
 
   </div>
 </div>
@@ -773,8 +773,6 @@ body.train-mode #toast{background:#3A3328}
   <button class="type-btn" data-lt="todo">&#x2705; General</button>
   <button class="type-btn" data-lt="personal">&#x1F464; Personal</button>
   <button class="type-btn" data-lt="travel">&#x2708;&#xFE0F; Travel</button>
-  <button class="type-btn" data-lt="testdue" id="testListTab" style="display:none">&#x1F9EA; Test</button>
-  <button class="type-btn" data-lt="testgrocery" id="testGroceryTab" style="display:none">&#x1F9EA; Test 2</button>
 </div>
 
 <div class="content">
@@ -1533,9 +1531,6 @@ var LIST_TYPES = {
   grocery:{ name:"&#x1F6D2; Grocery", placeholder:"Add an item...", color:"#2D6B35", emptyIco:"&#x1F6D2;", emptyTitle:"Your list is empty",  emptySub:"Start typing - categories detect automatically." },
   todo:   { name:"&#x2705; General",  placeholder:"Add a task...",   color:"#5A3AA0", emptyIco:"&#x2705;", emptyTitle:"No tasks yet",         emptySub:"Add a task - it'll be categorised automatically." },
   personal:{ name:"&#x1F464; Personal", placeholder:"Add a task...",   color:"#A0205A", emptyIco:"&#x1F464;", emptyTitle:"No personal tasks yet", emptySub:"Add a personal task - it'll be categorised automatically." },
-  testgrocery: { name:"&#x1F9EA; Test 2 (grocery-style)", placeholder:"Add a test item...", color:"#0d9488", emptyIco:"&#x1F9EA;", emptyTitle:"Test 2 list", emptySub:"Testing per-card edit without dates." },
-  testdue: { name:"&#x1F9EA; Test (due dates)", placeholder:"Add a test task...", color:"#0891b2", emptyIco:"&#x1F9EA;", emptyTitle:"Test list", emptySub:"Testing due date feature." },
-  baby:    { name:"&#x1F476; Baby list", placeholder:"Add baby item...",  color:"#7E22CE", emptyIco:"&#x1F476;", emptyTitle:"Baby list is empty", emptySub:"Add nappies, formula, clothing and more." },
   travel: { name:"&#x2708; Travel",   placeholder:"Add to pack...",  color:"#1A5A8A", emptyIco:"&#x2708;", emptyTitle:"Nothing packed yet",  emptySub:"Add items to pack - categories detect automatically." },
   notes:  { name:"&#x1F4DD; Notes",   placeholder:"",                color:"#A05A10", emptyIco:"&#x1F4DD;", emptyTitle:"No notes yet",        emptySub:"" },
 };
@@ -1776,33 +1771,11 @@ var TRAVEL_KW = [
   ["carry on","luggage"],["travel bag","luggage"],["luggage","luggage"],
 ];
 
-var BABY_CATS = [
-  {id:"nappies",   name:"Nappies",      emoji:"&#x1F4A7;", bg:"#D8F0FF", fg:"#0A3A6A"},
-  {id:"feeding",   name:"Feeding",      emoji:"&#x1F37C;", bg:"#FFF0D8", fg:"#7A4A1A"},
-  {id:"clothing",  name:"Clothing",     emoji:"&#x1F455;", bg:"#EED8FF", fg:"#3A1A7A"},
-  {id:"toiletries",name:"Toiletries",   emoji:"&#x1F6C1;", bg:"#D8FFE8", fg:"#0A4A1A"},
-  {id:"medicine",  name:"Medicine",     emoji:"&#x1F48A;", bg:"#FDDEDD", fg:"#7A1A1A"},
-  {id:"toys",      name:"Toys",         emoji:"&#x1F9F8;", bg:"#FFD8EC", fg:"#7A1A4A"},
-  {id:"health",    name:"Health",       emoji:"&#x2764;",  bg:"#D9EDDA", fg:"#1A4A1E"},
-  {id:"other",     name:"Other",        emoji:"&#x1F4E6;", bg:"#E8E8E8", fg:"#3A3A3A"},
-];
-var BABY_KW = [
-  ["nappy","nappies"],["pampers","nappies"],["huggies","nappies"],
-  ["formula","feeding"],["bottle","feeding"],["spoon","feeding"],["bib","feeding"],["wipes","nappies"],
-  ["babygro","clothing"],["onesie","clothing"],["vest","clothing"],["sock","clothing"],
-  ["shampoo","toiletries"],["cream","toiletries"],["lotion","toiletries"],["bath","toiletries"],
-  ["calpol","medicine"],["nurofen","medicine"],["vitamin","medicine"],["medicine","medicine"],
-  ["toy","toys"],["book","toys"],["dummy","toys"],
-];
-
 var LIST_CONFIG = {
   grocery:{ cats:GROCERY_CATS, kw:GROCERY_KW, key:"fl4_grocery" },
   todo:   { cats:TODO_CATS,    kw:TODO_KW,    key:"fl4_todo"    },
   travel:   { cats:TRAVEL_CATS, kw:TRAVEL_KW,  key:"fl4_travel"   },
   personal: { cats:TODO_CATS,   kw:TODO_KW,    key:"fl4_personal"  },
-  baby:     { cats:BABY_CATS,   kw:BABY_KW,    key:"fl4_babylist"   },
-  testdue:  { cats:TODO_CATS,   kw:TODO_KW,    key:"fl4_testdue"    },
-  testgrocery: { cats:GROCERY_CATS, kw:GROCERY_KW, key:"fl4_testgrocery" },
 };
 
 // ============================================================
@@ -1994,7 +1967,7 @@ document.getElementById("typeBar").addEventListener("click", function(e) {
   updateDueDateRowVisibility();
   clearUnseen(currentList);
   var tabNotes = document.getElementById("tabNotes");
-  if (tabNotes) tabNotes.style.display = (currentList === "grocery" || currentList === "travel" || currentList === "todo" || currentList === "personal" || currentList === "testdue" || currentList === "testgrocery") ? "none" : "";
+  if (tabNotes) tabNotes.style.display = (currentList === "grocery" || currentList === "travel" || currentList === "todo" || currentList === "personal") ? "none" : "";
 });
 
 // ============================================================
@@ -2005,7 +1978,7 @@ document.getElementById("tabHistory").addEventListener("click", function(){ swit
 function updateDueDateRowVisibility() {
   var row = document.getElementById("dueDateRow");
   if (!row) return;
-  row.style.display = (currentList === "todo" || currentList === "personal" || currentList === "testdue") ? "block" : "none";
+  row.style.display = (currentList === "todo" || currentList === "personal") ? "block" : "none";
 }
 
 function switchTab(t) {
@@ -2099,7 +2072,7 @@ function doAdd() {
       }
     }
   }
-  var dueD = (currentList === "todo" || currentList === "personal" || currentList === "testdue") ? (document.getElementById("dueDateInput").value || null) : null;
+  var dueD = (currentList === "todo" || currentList === "personal") ? (document.getElementById("dueDateInput").value || null) : null;
   listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false, dueDate:dueD, addedBy:hearthUser, updated:Date.now() });
   addToHist(name, catId);
   saveCurrentList(); resetInput(); renderList(); switchTab("list");
@@ -3860,7 +3833,7 @@ function renderList() {
       // Zone 5: detail lists → open notes ONLY when the item body (name/notes) is tapped.
       // The gap between the checkbox and the body is now a neutral buffer, so a near-miss
       // on the checkbox no longer opens the notes sheet by accident. Applies to all lists.
-      if (currentList === "testdue" || currentList === "todo" || currentList === "personal" || currentList === "testgrocery" || currentList === "grocery" || currentList === "travel") {
+      if (currentList === "todo" || currentList === "personal" || currentList === "grocery" || currentList === "travel") {
         if (e.target.closest(".item-body")) openItemSheet(id);
         return;
       }
@@ -3926,8 +3899,8 @@ function alarmLink(item) {
 }
 
 function cardHTML(item, c) {
-  var isTask   = currentList === "todo" || currentList === "personal" || currentList === "testdue";
-  var isDetail = currentList === "testdue" || currentList === "todo" || currentList === "personal" || currentList === "testgrocery" || currentList === "grocery" || currentList === "travel";
+  var isTask   = currentList === "todo" || currentList === "personal";
+  var isDetail = currentList === "todo" || currentList === "personal" || currentList === "grocery" || currentList === "travel";
   var dueLabel = isTask ? dueDateLabel(item) : "";
   var calBtn   = isTask && item.dueDate ? calLink(item) : "";
   var alarmBtn = "";
@@ -5134,7 +5107,7 @@ document.getElementById("settingsClose").addEventListener("click", function(){ d
 function renderCustomCatsList() {
   var el = document.getElementById("customCatsList");
   var allCustom = {}, hasAny = false;
-  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
+  ["grocery","todo","travel","personal"].forEach(function(lt) {
     var cc = getCustomCats(lt);
     if (cc.length) { allCustom[lt] = cc; hasAny = true; }
   });
@@ -5143,7 +5116,7 @@ function renderCustomCatsList() {
     return;
   }
   var html = "";
-  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
+  ["grocery","todo","travel","personal"].forEach(function(lt) {
     var cc = allCustom[lt]; if (!cc) return;
     html += "<div style='font-size:12px;font-weight:700;color:#7A8772;margin-bottom:6px;margin-top:12px;text-transform:uppercase'>"+lt+"</div>";
     cc.forEach(function(c, idx) {
@@ -5228,7 +5201,7 @@ document.querySelectorAll(".section-chk").forEach(function(chk) {
 
 // ── Export ────────────────────────────────────────────────
 function buildExportPayload() {
-  ["grocery","todo","travel","personal","baby"].forEach(function(lt){ loadListData(lt); });
+  ["grocery","todo","travel","personal"].forEach(function(lt){ loadListData(lt); });
   var now=new Date(), pad=function(x){return x<10?"0"+x:""+x;};
   var localDate=now.getFullYear()+"-"+pad(now.getMonth()+1)+"-"+pad(now.getDate());
   var localTime=pad(now.getHours())+":"+pad(now.getMinutes())+":"+pad(now.getSeconds());
@@ -5262,7 +5235,7 @@ function buildExportPayload() {
     secVisible:storeGet("fl4_secVisible")||{},
     syncPrefs:storeGet("fl4_syncPrefs")||{}
   };
-  ["grocery","todo","travel","personal","baby"].forEach(function(lt){
+  ["grocery","todo","travel","personal"].forEach(function(lt){
     var d=listData[lt]||{items:[],hist:[]};
     exportData.lists[lt]={items:d.items,hist:d.hist};
     exportData.notes[lt]=getNotes(lt);
@@ -5396,7 +5369,7 @@ document.addEventListener("visibilitychange", function(){
 function importBackupData(data) {
   var imported={lists:0,recipes:0,trips:0,notes:0};
   if(data.lists){
-    ["grocery","todo","travel","personal","baby"].forEach(function(lt){
+    ["grocery","todo","travel","personal"].forEach(function(lt){
       if(!data.lists[lt]) return;
       var d=data.lists[lt]; loadListData(lt);
       var ex=listData[lt]||{items:[],hist:[]}, exIds={};
@@ -5460,7 +5433,7 @@ function importBackupData(data) {
     imported.trips=newTrips.length;
   }
   if(data.notes){
-    ["grocery","todo","travel","personal","baby"].forEach(function(lt){
+    ["grocery","todo","travel","personal"].forEach(function(lt){
       var inc=data.notes[lt]; if(!Array.isArray(inc)||!inc.length) return;
       var cur=getNotes(lt), nIds={};
       cur.forEach(function(n){ if(n) nIds[n.id]=true; });
@@ -5476,7 +5449,7 @@ function importBackupData(data) {
     });
   }
   if(data.customCats){
-    ["grocery","todo","travel","personal","baby"].forEach(function(lt){
+    ["grocery","todo","travel","personal"].forEach(function(lt){
       var inc=data.customCats[lt]; if(!Array.isArray(inc)||!inc.length) return;
       var cur=getCustomCats(lt)||[];
       var keyOf=function(c){ return (c&&typeof c==="object") ? String(c.name||"").toLowerCase() : String(c).toLowerCase(); };
@@ -5623,7 +5596,7 @@ document.getElementById("clearAllBtn").addEventListener("click", function() {
   btn.addEventListener("click", function() {
     if (input.value.trim().toUpperCase() !== "DELETE") return;
     // Clear local data
-    ["grocery","todo","travel","personal","baby","testdue"].forEach(function(lt) {
+    ["grocery","todo","travel","personal"].forEach(function(lt) {
       var cfg = LIST_CONFIG[lt]; if (cfg) storeSet(cfg.key, {items:[],hist:[]});
       listData[lt] = null;
       storeSet("fl4_notes_" + lt, []);
@@ -6009,12 +5982,6 @@ function onLoginSuccess() {
   setLoginSpinner(false);
   updateSyncStatus();
 
-  // Test list is owner-only (development feature) — hide for everyone else
-  // Test features fully rolled out — both test lists hidden
-  var testTab = document.getElementById("testListTab");
-  if (testTab) testTab.style.display = "none";
-  var testGroceryTab = document.getElementById("testGroceryTab");
-  if (testGroceryTab) testGroceryTab.style.display = "none";
 
   if (typeof updateListTabDots === "function") updateListTabDots();
 
@@ -6089,7 +6056,7 @@ function pushPersonal() {
   _pushPersonalTimer = setTimeout(function() {
 var d = {};
   d.health = getWD();
-  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
+  ["grocery","todo","travel","personal"].forEach(function(lt) {
     var ld = listData[lt], notes = storeGet("fl4_notes_" + lt) || [];
     if (ld) d["list_" + lt] = { items:ld.items, hist:ld.hist, notes:notes, customCats:getCustomCats(lt), deleted:purgeTombs(getTombs(lt)) };
   });
@@ -6139,7 +6106,7 @@ function applyPersonal(d) {
 
   // ── Lists: merge remote + local by item ID (union, no overwrites) ─────────
   var _pListRepush = false;
-  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
+  ["grocery","todo","travel","personal"].forEach(function(lt) {
     var ld = d["list_" + lt];
     if (!ld || typeof ld !== "object") return;
     loadListData(lt);
@@ -6308,7 +6275,7 @@ function pushHousehold() {
   clearTimeout(_pushHouseholdTimer);
   _pushHouseholdTimer = setTimeout(function() {
 var data = {};
-  ["grocery","todo","travel","personal","baby"].forEach(function(lt) {
+  ["grocery","todo","travel","personal"].forEach(function(lt) {
     if (!isSynced(lt)) return;
     var d = listData[lt], notes = storeGet("fl4_notes_" + lt) || [];
     var cc = getCustomCats(lt);
@@ -6692,7 +6659,7 @@ function openItemSheet(itemId) {
   }
   // Due date only relevant for task-type lists
   var dueRow = document.getElementById("itemSheetDueRow");
-  var isTask = currentList === "todo" || currentList === "personal" || currentList === "testdue";
+  var isTask = currentList === "todo" || currentList === "personal";
   if (dueRow) dueRow.style.display = isTask ? "block" : "none";
   document.getElementById("itemSheetDueInput").value = item.dueDate || "";
 
@@ -6972,7 +6939,7 @@ window.addEventListener("DOMContentLoaded", function() {
     if (currentList === "travel") {
       item.tags = (_sheetTags && _sheetTags.length) ? _sheetTags.slice() : null;
     }
-    var isTask = currentList === "todo" || currentList === "personal" || currentList === "testdue";
+    var isTask = currentList === "todo" || currentList === "personal";
     if (isTask) {
       var dueVal = document.getElementById("itemSheetDueInput").value;
       item.dueDate = dueVal || null;
