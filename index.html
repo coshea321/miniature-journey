@@ -762,7 +762,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v289 · 02/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v290 · 02/07/2026</div>
 
   </div>
 </div>
@@ -5426,7 +5426,9 @@ function fmtBackupDateKey(k){
 function openCloudBackupsSheet() {
   if (!isLoggedIn()) { toast("Log in to see cloud backups"); return; }
   var ov = document.createElement("div");
-  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:950;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box";
+  // z-index 890: above the Settings overlay (400) but BELOW confirmDialog
+  // (900) — at 950 the restore confirmation appeared behind this sheet
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:890;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box";
   ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); ov.setAttribute("aria-label","Cloud backups");
   ov.innerHTML =
     "<div style='background:#fff;border-radius:16px;padding:20px;width:100%;max-width:340px;max-height:70vh;overflow-y:auto'>" +
@@ -5874,37 +5876,34 @@ function doLogin(username, password) {
 
 function verifySession() {
   if (!isLoggedIn()) { showLoginOverlay(); return; }
+  // Boot watchdog (v290): every path below is already lenient — stored
+  // credentials are trusted on any FAILURE — but a network call that HANGS
+  // (flaky mobile radio on app wake) neither succeeds nor fails, so
+  // onLoginSuccess never ran and the boot screen stayed up forever.
+  // Guarantee entry after 6s no matter what; the flag makes whichever
+  // callback arrives second a no-op.
+  var _entered = false;
+  function enterApp() { if (_entered) return; _entered = true; onLoginSuccess(); }
+  setTimeout(enterApp, 6000);
   // If API key + refresh token → re-auth silently via Firebase Auth
   if (hearthApiKey && storeGet("hearth_refresh_token")) {
     getAuthToken(function(token) {
-      if (token) { onLoginSuccess(); }
-      else {
-        // Refresh failed but we have stored creds — allow access
-        onLoginSuccess();
-      }
+      // Token or not — allow access with stored creds
+      enterApp();
     });
     return;
   }
-  // Legacy OR no API key: trust stored credentials, verify lazily
-  // Don't wipe credentials on a failed fetch — just let them in
+  // Legacy OR no API key: trust stored credentials, verify lazily.
+  // Don't wipe credentials on a failed fetch — just let them in.
   fetch(hearthBase() + "/hearth/users/" + hearthUser + "/auth.json")
     .then(function(r) {
-      if (!r.ok) {
-        // Rules locked or network issue — trust stored creds
-        onLoginSuccess(); return;
-      }
+      if (!r.ok) { enterApp(); return; } // rules locked or network issue — trust stored creds
       return r.json().then(function(authRec) {
-        if (authRec && (authRec.hash === hearthToken || authRec.uid)) {
-          onLoginSuccess();
-        } else {
-          // Hash mismatch only logs out if we got a real response
-          onLoginSuccess(); // be lenient — don't wipe data
-        }
+        enterApp(); // be lenient regardless of hash match — don't wipe data
       });
     })
     .catch(function() {
-      // Network error — allow offline use
-      onLoginSuccess();
+      enterApp(); // network error — allow offline use
     });
 }
 
