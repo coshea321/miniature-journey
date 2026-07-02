@@ -56,7 +56,11 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 .sec-count{font-size:11px;font-weight:700;color:#5A6455;background:#F4EEE4;padding:1px 7px;border-radius:10px}
 .item-card{background:#fff;border-radius:9px;padding:12px 12px 12px 13px;margin-bottom:5px;display:flex;align-items:center;gap:11px;box-shadow:0 1px 4px rgba(20,50,20,.07);cursor:pointer;border-left:3px solid transparent}
 .item-card.done{opacity:.65;background:#F8FAF8}
-.chk{width:26px;height:26px;flex-shrink:0;border:2.5px solid #D8D0C0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;transition:all .18s}
+.chk{width:26px;height:26px;flex-shrink:0;border:2.5px solid #D8D0C0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;transition:all .18s;position:relative}
+/* v289: expand the tap target to ~44px without changing the visible circle.
+   The pseudo-element extends 9px into the card's neutral buffer, so a
+   near-miss checks off instead of doing nothing (the v257 escalation). */
+.chk::before{content:"";position:absolute;top:-9px;right:-9px;bottom:-9px;left:-9px;border-radius:50%}
 .item-card.done .chk{background:var(--accent);border-color:var(--accent);color:#fff}
 .item-name{flex:1;font-size:15px;font-weight:500}
 .item-card.done .item-name{text-decoration:line-through;color:#5A6455}
@@ -652,7 +656,8 @@ body.train-mode #toast{background:#3A3328}
 .ses-done-btn{padding:14px 36px;border:none;background:#3B6FE0;color:#fff;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .ses-done-link{background:none;border:none;color:#A89A80;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 </style>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
+  <!-- DOMPurify 3.0.8, vendored locally (v289) — was a jsdelivr CDN load; the exact npm-published minified build -->
+  <script src="purify.min.js"></script>
 </head>
 <body>
 
@@ -757,7 +762,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v288 · 02/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v289 · 02/07/2026</div>
 
   </div>
 </div>
@@ -1865,7 +1870,7 @@ function saveCurrentList() {
 // deletions propagating (via tombstones) across both sync channels.
 function getTombs(lt){ var t = storeGet("fl4_tomb_" + lt); return (t && typeof t === "object") ? t : {}; }
 function addTomb(lt, id){ if (id == null) return; var t = getTombs(lt); t[id] = Date.now(); storeSet("fl4_tomb_" + lt, t); }
-function purgeTombs(t){ var cut = Date.now() - 7*24*3600*1000, o = {}; Object.keys(t||{}).forEach(function(k){ if (t[k] > cut) o[k] = t[k]; }); return o; }
+function purgeTombs(t){ var cut = Date.now() - 30*24*3600*1000, o = {}; Object.keys(t||{}).forEach(function(k){ if (t[k] > cut) o[k] = t[k]; }); return o; } // 30d (was 7d, v289): a device offline longer than the purge window can resurrect deleted items
 function mergeTombs(a, b){ var o = {}; [a,b].forEach(function(t){ Object.keys(t||{}).forEach(function(k){ if (!(k in o) || t[k] > o[k]) o[k] = t[k]; }); }); return o; }
 // Union two item lists by id (preserve adds from both sides); newest-wins on
 // conflict by `updated` (tie → remote); then drop any id deleted at/after its
@@ -2141,6 +2146,19 @@ function fuzzyMatch(query, text) {
 // ============================================================
 function getRecipeBook() { return storeGet("fl4_recipebook") || []; }
 function saveRecipeBook(r) { storeSet("fl4_recipebook", r); if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold(); }
+// One-off migration (v289): recipes created before v242 carry no `updated`
+// stamp and count as 0 in the newest-wins merge. Stamp them with a fixed
+// ancient-but-nonzero constant — deliberately NOT Date.now(), which would make
+// a stale copy beat the partner's genuinely newer edit of the same recipe.
+// Every device converges on the same constant; any real edit, import or
+// deletion tombstone still wins over it.
+(function(){
+  var rb = storeGet("fl4_recipebook");
+  if (!Array.isArray(rb)) return;
+  var changed = false;
+  rb.forEach(function(r){ if (r && !r.updated) { r.updated = 1; changed = true; } });
+  if (changed) storeSet("fl4_recipebook", rb);
+})();
 
 // ============================================================
 // TRIPS — household-shared, like recipebook, but with a nested
@@ -10139,13 +10157,13 @@ function renderMedicine() {
   var dtStr=now3.getFullYear()+"-"+p3(now3.getMonth()+1)+"-"+p3(now3.getDate())+"T"+p3(now3.getHours())+":"+p3(now3.getMinutes());
   var html = "<div class='baby-log-card'><div class='baby-card-title'>&#x1F48A; Log medicine</div>" +
     "<div class='med-quick-chips' style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px'>" +
-      "<button type='button' class='med-chip' data-med='Calpol' data-conc='Calpol Infant 120mg/5ml' data-mgkg='15' data-mg5='120' data-floor='0' data-cap='10' data-fallback='5ml' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:14px;padding:5px 12px;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation'>Calpol</button>" +
-      "<button type='button' class='med-chip' data-med='Nurofen' data-conc='Nurofen for Children 100mg/5ml' data-mgkg='10' data-mg5='100' data-floor='5' data-cap='10' data-fallback='2.5ml' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:14px;padding:5px 12px;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation'>Nurofen</button>" +
-      "<button type='button' class='med-chip' data-med='Antibiotic' data-mgkg='' data-fallback='' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:14px;padding:5px 12px;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation'>Antibiotic</button>" +
+      "<button type='button' class='med-chip' data-med='Calpol' data-conc='Calpol Infant 120mg/5ml' data-mgkg='15' data-mg5='120' data-floor='0' data-cap='10' data-fallback='5ml' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:16px;padding:11px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Calpol</button>" +
+      "<button type='button' class='med-chip' data-med='Nurofen' data-conc='Nurofen for Children 100mg/5ml' data-mgkg='10' data-mg5='100' data-floor='5' data-cap='10' data-fallback='2.5ml' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:16px;padding:11px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Nurofen</button>" +
+      "<button type='button' class='med-chip' data-med='Antibiotic' data-mgkg='' data-fallback='' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:16px;padding:11px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Antibiotic</button>" +
     "</div>" +
     "<input id='medName' type='text' class='med-input' placeholder='Medicine name' autocomplete='off' style='margin-bottom:6px'>" +
     "<div style='display:flex;gap:8px;margin-bottom:6px'><input id='medDose' type='text' class='med-input' style='flex:1' placeholder='Dose'><input id='medTime' type='datetime-local' class='med-input' style='flex:1' value='"+dtStr+"'></div>" +
-    "<div id='medDoseNote' style='font-size:11px;line-height:1.35;color:#8A6A8A;margin:-2px 0 6px;min-height:0'></div>" +
+    "<div id='medDoseNote' style='font-size:13px;line-height:1.4;color:#7A5A7A;margin:-2px 0 6px;min-height:0'></div>" +
     "<input id='medNotes' type='text' class='med-input' placeholder='Notes (optional)' style='margin-bottom:6px'>" +
     "<button class='baby-log-btn' id='medLogBtn'>Log</button></div>";
   if (meds.length) {
