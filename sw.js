@@ -1,5 +1,5 @@
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v285 · 01/07/2026';
+const VERSION = 'v286 · 01/07/2026';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
@@ -40,25 +40,45 @@ self.addEventListener('message', e => {
   }
 });
 
-// Fetch: cache-first for same-origin assets, but never cache sw.js itself
+// Fetch strategy:
+//  - sw.js itself: never intercepted (browser always fetches it fresh)
+//  - app shell ('/' and index.html): NETWORK-FIRST so updates land
+//    immediately, falling back to the cached copy when offline —
+//    without the fallback the installed app fails to open offline
+//  - other same-origin assets: cache-first
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  // Never intercept requests for the SW file itself
-  // Never cache sw.js or index.html — always fetch fresh
   if (url.pathname.endsWith('/sw.js')) return;
-  if (url.pathname.endsWith('/') || url.pathname.endsWith('/index.html')) return;
-  if (url.origin === self.location.origin) {
+  if (url.origin !== self.location.origin) return;
+
+  const isShell = e.request.mode === 'navigate' ||
+                  url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
+  if (isShell) {
     e.respondWith(
-      caches.match(e.request).then(cached => {
-        if (cached) return cached;
-        return fetch(e.request).then(response => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE).then(c => c.put(e.request, clone));
-          }
-          return response;
-        });
-      })
+      fetch(e.request).then(response => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return response;
+      }).catch(() =>
+        caches.match(e.request, { ignoreSearch: true })
+          .then(cached => cached || caches.match('./index.html'))
+      )
     );
+    return;
   }
+
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).then(response => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return response;
+      });
+    })
+  );
 });
