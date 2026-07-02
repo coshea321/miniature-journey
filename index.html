@@ -757,7 +757,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v287 · 02/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v288 · 02/07/2026</div>
 
   </div>
 </div>
@@ -1455,6 +1455,7 @@ body.train-mode #toast{background:#3A3328}
     <button class="sync-btn" id="exportBtn">&#x2B07;&#xFE0F; Export all data</button>
     <div id="lastBackupInfo" style="font-size:12px;color:#8A7A5A;margin:-2px 2px 2px;text-align:center">Last backup: never</div>
     <div id="lastCloudBackupInfo" style="font-size:12px;color:#8A7A5A;margin:0 2px 10px;text-align:center">Last cloud backup: never</div>
+    <button class="sync-btn outline" id="cloudBackupsBtn" style="margin-bottom:6px">&#x2601;&#xFE0F; Cloud backups</button>
     <label class="sync-btn outline" id="importLabel" style="text-align:center;cursor:pointer;display:block;margin-bottom:6px">
       &#x2B06;&#xFE0F; Import data
       <input type="file" id="importFile" accept=".json" style="display:none">
@@ -5268,52 +5269,205 @@ document.addEventListener("visibilitychange", function(){
 });
 
 // ── Import ────────────────────────────────────────────────
+// importBackupData(data) — shared merge used by BOTH the file import and the
+// cloud-backup restore (v288). Additive only: items/recipes/trips/notes whose
+// id is missing locally are added; existing entries are never overwritten or
+// deleted. Every ADDED list item, recipe, trip and booking is stamped
+// updated=now and any matching deletion tombstone is cleared — without this,
+// restoring something deleted since the snapshot would be silently re-deleted
+// by the newest-wins + tombstone sync merge on the next pull.
+// (Edge case accepted: a restored copy of an item the partner edited under the
+// same id wins over their edit via the fresh stamp — rare, additive-only.)
+function importBackupData(data) {
+  var imported={lists:0,recipes:0,trips:0,notes:0};
+  if(data.lists){
+    ["grocery","todo","travel","personal","baby"].forEach(function(lt){
+      if(!data.lists[lt]) return;
+      var d=data.lists[lt]; loadListData(lt);
+      var ex=listData[lt]||{items:[],hist:[]}, exIds={};
+      ex.items.forEach(function(x){exIds[x.id]=true;});
+      var newItems=(d.items||[]).filter(function(x){return x&&!exIds[x.id];});
+      if(newItems.length){
+        var tombs=getTombs(lt), tChanged=false;
+        newItems.forEach(function(x){ x.updated=Date.now(); if(tombs[x.id]!==undefined){ delete tombs[x.id]; tChanged=true; } });
+        if(tChanged) storeSet("fl4_tomb_"+lt, tombs);
+      }
+      listData[lt]={items:newItems.concat(ex.items),hist:mergeHist(ex.hist,d.hist||[])};
+      storeSet(LIST_CONFIG[lt].key,listData[lt]); imported.lists+=newItems.length;
+    });
+  }
+  if(data.workouts&&typeof data.workouts==="object"){
+    var wd=getWD(); var wIds={}; wd.workouts.forEach(function(w){wIds[w.id]=true;});
+    var newW=(data.workouts.workouts||[]).filter(function(w){return w&&!wIds[w.id];});
+    wd.workouts=newW.concat(wd.workouts); saveWD(wd);
+  }
+  if(data.baby&&typeof data.baby==="object"){
+    var bd=getBD(),bd2=data.baby;
+    var mArr=function(a,b,key){var s={};a.forEach(function(x){if(x)s[x[key]]=true;});return a.concat((b||[]).filter(function(x){return x&&!s[x[key]];}));};
+    bd.growth=mArr(bd.growth||[],bd2.growth,"date"); bd.medicine=mArr(bd.medicine||[],bd2.medicine,"id");
+    bd.milestones=mArr(bd.milestones||[],bd2.milestones,"id"); bd.teeth=Object.assign({},bd2.teeth||{},bd.teeth||{});
+    if(bd2.babySex && !bd.babySex) bd.babySex=bd2.babySex;
+    if(Array.isArray(bd2.bags) && (!Array.isArray(bd.bags)||!bd.bags.length)) bd.bags=bd2.bags;
+    saveBD(bd);
+  }
+  if(Array.isArray(data.action_log)){var al=getActionLog(),alIds={};al.forEach(function(x){alIds[x.id]=true;});var newAl=data.action_log.filter(function(x){return x&&!alIds[x.id];});if(newAl.length)storeSet("fl4_action_log",newAl.concat(al));}
+  if(Array.isArray(data.food_log)){var fl=getFoodLog(),flIds={};fl.forEach(function(x){flIds[x.id]=true;});var newFl=data.food_log.filter(function(x){return x&&!flIds[x.id];});if(newFl.length)storeSet("fl4_food_log",newFl.concat(fl));}
+  if(data.food_notes){var fn=storeGet("fl4_food_notes")||{};Object.keys(data.food_notes).forEach(function(k){if(!fn[k])fn[k]=data.food_notes[k];});storeSet("fl4_food_notes",fn);}
+  if(Array.isArray(data.saved_meals)){var sm=storeGet("fl4_saved_meals")||[],smIds={};sm.forEach(function(m){smIds[m.id]=true;});storeSet("fl4_saved_meals",sm.concat(data.saved_meals.filter(function(m){return m&&!smIds[m.id];})));}
+  if(Array.isArray(data.recipes)){var rc=storeGet("fl4_recipes")||[],rcN={};rc.forEach(function(m){if(m)rcN[m.name.toLowerCase()]=true;});storeSet("fl4_recipes",rc.concat(data.recipes.filter(function(m){return m&&m.name&&!rcN[m.name.toLowerCase()];})));}
+  if(Array.isArray(data.travel_tags)){var tt=storeGet("fl4_travel_tags")||[];data.travel_tags.forEach(function(t){if(t&&!tt.some(function(x){return x.toLowerCase()===t.toLowerCase();}))tt.push(t);});storeSet("fl4_travel_tags",tt);}
+  if(Array.isArray(data.recipebook)){
+    var rb2=storeGet("fl4_recipebook")||[],rbIds={};rb2.forEach(function(m){if(m)rbIds[m.id]=true;});
+    var newRb=data.recipebook.filter(function(m){return m&&m.id!=null&&!rbIds[m.id];});
+    if(newRb.length){
+      var rTombs=getTombs("recipes"), rChanged=false;
+      newRb.forEach(function(r){ r.updated=Date.now(); if(rTombs[r.id]!==undefined){ delete rTombs[r.id]; rChanged=true; } });
+      if(rChanged) storeSet("fl4_tomb_recipes", rTombs);
+      storeSet("fl4_recipebook", rb2.concat(newRb));
+    }
+    imported.recipes=newRb.length;
+  }
+  // Trips + notes were exported but never imported before v288 — covered now.
+  if(Array.isArray(data.trips)&&data.trips.length){
+    var trips=getTrips(), tpIds={};
+    trips.forEach(function(t){ if(t) tpIds[t.id]=true; });
+    var newTrips=data.trips.filter(function(t){ return t&&t.id!=null&&!tpIds[t.id]; });
+    if(newTrips.length){
+      var tpTombs=getTombs("trips"), bkTombs=getTombs("bookings"), tombChanged=false;
+      newTrips.forEach(function(t){
+        t.updated=Date.now();
+        if(tpTombs[t.id]!==undefined){ delete tpTombs[t.id]; tombChanged=true; }
+        (t.bookings||[]).forEach(function(b){ if(!b) return; b.updated=Date.now(); if(bkTombs[b.id]!==undefined){ delete bkTombs[b.id]; tombChanged=true; } });
+      });
+      if(tombChanged){ storeSet("fl4_tomb_trips", tpTombs); storeSet("fl4_tomb_bookings", bkTombs); }
+      storeSet("fl4_trips", trips.concat(newTrips));
+    }
+    imported.trips=newTrips.length;
+  }
+  if(data.notes){
+    ["grocery","todo","travel","personal","baby"].forEach(function(lt){
+      var inc=data.notes[lt]; if(!Array.isArray(inc)||!inc.length) return;
+      var cur=getNotes(lt), nIds={};
+      cur.forEach(function(n){ if(n) nIds[n.id]=true; });
+      var add=inc.filter(function(n){ return n&&n.id!=null&&!nIds[n.id]; });
+      if(add.length){ saveNotes(add.concat(cur), lt); imported.notes+=add.length; }
+    });
+    ["global","global_work"].forEach(function(g){
+      var inc=data.notes[g]; if(!Array.isArray(inc)||!inc.length) return;
+      var key="fl4_notes_"+g, cur=storeGet(key)||[], nIds={};
+      cur.forEach(function(n){ if(n) nIds[n.id]=true; });
+      var add=inc.filter(function(n){ return n&&n.id!=null&&!nIds[n.id]; });
+      if(add.length){ storeSet(key, add.concat(cur)); imported.notes+=add.length; }
+    });
+  }
+  if(data.customCats){
+    ["grocery","todo","travel","personal","baby"].forEach(function(lt){
+      var inc=data.customCats[lt]; if(!Array.isArray(inc)||!inc.length) return;
+      var cur=getCustomCats(lt)||[];
+      var keyOf=function(c){ return (c&&typeof c==="object") ? String(c.name||"").toLowerCase() : String(c).toLowerCase(); };
+      var have={}; cur.forEach(function(c){ have[keyOf(c)]=true; });
+      var add=inc.filter(function(c){ var k=keyOf(c); return k&&!have[k]; });
+      if(add.length) saveCustomCats(lt, cur.concat(add));
+    });
+  }
+  if(data.cal_goal&&!storeGet("fl4_cal_goal"))storeSet("fl4_cal_goal",data.cal_goal);
+  return imported;
+}
+function importedSummary(n){
+  var parts=[];
+  if(n.lists)   parts.push(n.lists+" list item"+(n.lists!==1?"s":""));
+  if(n.recipes) parts.push(n.recipes+" recipe"+(n.recipes!==1?"s":""));
+  if(n.trips)   parts.push(n.trips+" trip"+(n.trips!==1?"s":""));
+  if(n.notes)   parts.push(n.notes+" note"+(n.notes!==1?"s":""));
+  return parts.join(", ");
+}
 document.getElementById("importFile").addEventListener("change", function(e) {
   var file=e.target.files[0]; if(!file) return;
   var reader=new FileReader();
   reader.onload=function(ev){
     try {
       var data=JSON.parse(ev.target.result); if(!data) throw new Error("Invalid file");
-      var imported={lists:0};
-      if(data.lists){
-        ["grocery","todo","travel","personal","baby"].forEach(function(lt){
-          if(!data.lists[lt]) return;
-          var d=data.lists[lt]; loadListData(lt);
-          var ex=listData[lt]||{items:[],hist:[]}, exIds={};
-          ex.items.forEach(function(x){exIds[x.id]=true;});
-          var newItems=(d.items||[]).filter(function(x){return x&&!exIds[x.id];});
-          listData[lt]={items:newItems.concat(ex.items),hist:mergeHist(ex.hist,d.hist||[])};
-          storeSet(LIST_CONFIG[lt].key,listData[lt]); imported.lists+=newItems.length;
-        });
-      }
-      if(data.workouts&&typeof data.workouts==="object"){
-        var wd=getWD(); var wIds={}; wd.workouts.forEach(function(w){wIds[w.id]=true;});
-        var newW=(data.workouts.workouts||[]).filter(function(w){return w&&!wIds[w.id];});
-        wd.workouts=newW.concat(wd.workouts); saveWD(wd);
-      }
-      if(data.baby&&typeof data.baby==="object"){
-        var bd=getBD(),bd2=data.baby;
-        function mArr(a,b,key){var s={};a.forEach(function(x){if(x)s[x[key]]=true;});return a.concat((b||[]).filter(function(x){return x&&!s[x[key]];}));}
-        bd.growth=mArr(bd.growth||[],bd2.growth,"date"); bd.medicine=mArr(bd.medicine||[],bd2.medicine,"id");
-        bd.milestones=mArr(bd.milestones||[],bd2.milestones,"id"); bd.teeth=Object.assign({},bd2.teeth||{},bd.teeth||{});
-        if(bd2.babySex && !bd.babySex) bd.babySex=bd2.babySex;
-        if(Array.isArray(bd2.bags) && (!Array.isArray(bd.bags)||!bd.bags.length)) bd.bags=bd2.bags;
-        saveBD(bd);
-      }
-      if(Array.isArray(data.action_log)){var al=getActionLog(),alIds={};al.forEach(function(x){alIds[x.id]=true;});var newAl=data.action_log.filter(function(x){return x&&!alIds[x.id];});if(newAl.length)storeSet("fl4_action_log",newAl.concat(al));}
-      if(Array.isArray(data.food_log)){var fl=getFoodLog(),flIds={};fl.forEach(function(x){flIds[x.id]=true;});var newFl=data.food_log.filter(function(x){return x&&!flIds[x.id];});if(newFl.length)storeSet("fl4_food_log",newFl.concat(fl));}
-      if(data.food_notes){var fn=storeGet("fl4_food_notes")||{};Object.keys(data.food_notes).forEach(function(k){if(!fn[k])fn[k]=data.food_notes[k];});storeSet("fl4_food_notes",fn);}
-      if(Array.isArray(data.saved_meals)){var sm=storeGet("fl4_saved_meals")||[],smIds={};sm.forEach(function(m){smIds[m.id]=true;});storeSet("fl4_saved_meals",sm.concat(data.saved_meals.filter(function(m){return m&&!smIds[m.id];})));}
-      if(Array.isArray(data.recipes)){var rc=storeGet("fl4_recipes")||[],rcN={};rc.forEach(function(m){if(m)rcN[m.name.toLowerCase()]=true;});storeSet("fl4_recipes",rc.concat(data.recipes.filter(function(m){return m&&m.name&&!rcN[m.name.toLowerCase()];})));}
-      if(Array.isArray(data.travel_tags)){var tt=storeGet("fl4_travel_tags")||[];data.travel_tags.forEach(function(t){if(t&&!tt.some(function(x){return x.toLowerCase()===t.toLowerCase();}))tt.push(t);});storeSet("fl4_travel_tags",tt);}
-      if(Array.isArray(data.recipebook)){var rb2=storeGet("fl4_recipebook")||[],rbIds={};rb2.forEach(function(m){if(m)rbIds[m.id]=true;});storeSet("fl4_recipebook",rb2.concat(data.recipebook.filter(function(m){return m&&!rbIds[m.id];})));}
-      if(data.cal_goal&&!storeGet("fl4_cal_goal"))storeSet("fl4_cal_goal",data.cal_goal);
-      renderList(); toast("Imported: "+imported.lists+" list items");
+      var n=importBackupData(data);
+      renderList();
+      pushPersonal(); if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold();
+      var s=importedSummary(n);
+      toast(s ? "Imported: "+s : "Nothing new to import");
     } catch(err){ toast("Import failed: "+err.message); }
     e.target.value="";
   };
   reader.readAsText(file);
 });
+
+// ── Cloud backups sheet (v288) — list + restore ────────────
+function fmtBackupDateKey(k){
+  var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(k); if(!m) return k;
+  var d=new Date(+m[1], +m[2]-1, +m[3]);
+  var days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], mon=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return days[d.getDay()]+" "+d.getDate()+" "+mon[d.getMonth()]+" "+d.getFullYear();
+}
+function openCloudBackupsSheet() {
+  if (!isLoggedIn()) { toast("Log in to see cloud backups"); return; }
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:950;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box";
+  ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); ov.setAttribute("aria-label","Cloud backups");
+  ov.innerHTML =
+    "<div style='background:#fff;border-radius:16px;padding:20px;width:100%;max-width:340px;max-height:70vh;overflow-y:auto'>" +
+      "<div style='font-size:16px;font-weight:800;color:#4A3A20;margin-bottom:4px'>&#x2601;&#xFE0F; Cloud backups</div>" +
+      "<div style='font-size:12px;color:#8A7A5A;line-height:1.45;margin-bottom:12px'>Restoring adds anything missing back into your data &#8212; nothing is deleted, and the change syncs to both of you.</div>" +
+      "<div id='cbList' style='font-size:13px;color:#8A7A5A'>Loading&#8230;</div>" +
+      "<button id='cbClose' style='width:100%;margin-top:12px;padding:11px;border:none;background:none;color:#7A8772;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Close</button>" +
+    "</div>";
+  document.body.appendChild(ov);
+  function closeOv(){ if (ov.parentNode) ov.parentNode.removeChild(ov); }
+  ov.querySelector("#cbClose").addEventListener("click", closeOv);
+  ov.addEventListener("click", function(e){ if (e.target === ov) closeOv(); });
+  getAuthToken(function(token){
+    fetch(userUrl("/backups") + "?shallow=true" + (token ? "&auth="+token : ""))
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(function(keys){
+        var list = ov.querySelector("#cbList"); if (!list) return;
+        var names = Object.keys(keys || {}).sort().reverse();
+        if (!names.length) { list.textContent = "No cloud backups yet — the first one is saved automatically shortly after opening the app."; return; }
+        list.innerHTML = "";
+        names.forEach(function(k){
+          var row = document.createElement("div");
+          row.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid #EEE9E0";
+          var lbl = document.createElement("span");
+          lbl.style.cssText = "font-size:14px;color:#4A3A20;font-weight:600";
+          lbl.textContent = fmtBackupDateKey(k);
+          var btn = document.createElement("button");
+          btn.style.cssText = "padding:8px 14px;border:1.5px solid #C4833A;background:none;color:#C4833A;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation";
+          btn.textContent = "Restore";
+          btn.addEventListener("click", function(){ restoreCloudBackup(k, token, closeOv); });
+          row.appendChild(lbl); row.appendChild(btn); list.appendChild(row);
+        });
+      })
+      .catch(function(){ var list = ov.querySelector("#cbList"); if (list) list.textContent = "Couldn't load backups — check your connection and try again."; });
+  });
+}
+function restoreCloudBackup(dateKey, token, closeOv) {
+  confirmDialog("Restore the cloud backup from " + fmtBackupDateKey(dateKey) + "? Anything missing is added back (nothing is deleted). The change will sync to both of you.", function(){
+    fetch(userUrl("/backups/" + dateKey) + (token ? "?auth="+token : ""))
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(function(data){
+        if (!data || typeof data !== "object") throw new Error("empty snapshot");
+        var n = importBackupData(data);
+        pushPersonal(); if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold();
+        renderList();
+        if (currentSection === "recipes" && typeof renderRecipes === "function") renderRecipes();
+        if (currentSection === "trips"   && typeof renderTrips   === "function") renderTrips();
+        if (currentSection === "home"    && typeof renderHomeScreen === "function") renderHomeScreen();
+        if (closeOv) closeOv();
+        var s = importedSummary(n);
+        toast(s ? "Restored: " + s : "Nothing to restore — you already have everything in that backup");
+      })
+      .catch(function(e){ toast("Restore failed: " + e.message); });
+  });
+}
+(function(){
+  var cbBtn = document.getElementById("cloudBackupsBtn");
+  if (cbBtn) cbBtn.addEventListener("click", openCloudBackupsSheet);
+})();
 
 document.getElementById("clearAllBtn").addEventListener("click", function() {
   // Multi-step safeguarded deletion — requires typing DELETE
