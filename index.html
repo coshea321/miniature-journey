@@ -762,7 +762,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v297 · 03/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v298 · 03/07/2026</div>
 
   </div>
 </div>
@@ -2400,6 +2400,35 @@ function renderTrips() {
   });
 }
 
+// Whole-day delta from today's local midnight to a "YYYY-MM-DD" date;
+// null if unparseable. Both endpoints are local midnight, so DST can't
+// shift the count (v298).
+function tripDaysUntil(dateStr) {
+  if (!dateStr) return null;
+  var p = String(dateStr).split("-");
+  if (p.length !== 3) return null;
+  var target = new Date(+p[0], +p[1]-1, +p[2]);
+  if (isNaN(target.getTime())) return null;
+  var now = new Date();
+  var todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((target - todayMid) / 86400000);
+}
+// Countdown pill for a trip card (v298). "Today" / "Tomorrow" / "In N days"
+// for upcoming departures, "Now" while a trip is in progress, "" otherwise.
+function tripCountdownBadge(t) {
+  var d = tripDaysUntil(t.start);
+  if (d === null) return "";
+  var label;
+  if (d > 1)      label = "In " + d + " days";
+  else if (d === 1) label = "Tomorrow";
+  else if (d === 0) label = "Today";
+  else {
+    var end = tripDaysUntil(t.end);
+    if (end !== null && end >= 0) label = "Now"; // started, not yet ended
+    else return "";                              // fully in the past
+  }
+  return "<div style='flex-shrink:0;background:#E4F3F1;color:#0F8A8A;font-size:12px;font-weight:700;border-radius:20px;padding:5px 11px;white-space:nowrap'>" + label + "</div>";
+}
 function tripCardHTML(t) {
   var n = (t.bookings||[]).length;
   return "<div class='trip-card' data-tid='" + t.id + "' style='display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer'>" +
@@ -2407,6 +2436,7 @@ function tripCardHTML(t) {
       "<div style='font-size:16px;font-weight:700;color:#1A2E2E;margin-bottom:3px'>" + esc(t.name||"Untitled trip") + "</div>" +
       "<div style='font-size:12px;color:#9A8A6A'>" + esc(tripRangeLabel(t.start, t.end)) + " &middot; " + n + " booking" + (n!==1?"s":"") + "</div>" +
     "</div>" +
+    tripCountdownBadge(t) +
   "</div>";
 }
 
