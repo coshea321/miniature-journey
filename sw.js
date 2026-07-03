@@ -1,5 +1,5 @@
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v294 · 02/07/2026';
+const VERSION = 'v295 · 02/07/2026';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
@@ -55,18 +55,29 @@ self.addEventListener('fetch', e => {
   const isShell = e.request.mode === 'navigate' ||
                   url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
   if (isShell) {
-    e.respondWith(
-      fetch(e.request).then(response => {
+    // Network-first with a 3.5s cap (v295). On a connection that is present
+    // but not passing data ("lie-fi"), plain network-first waited for the
+    // browser's own timeout — a near-blank screen for up to a minute. If the
+    // network hasn't answered within 3.5s, serve the cached shell; a late
+    // network response still lands in the cache for next open. With no cached
+    // copy yet (first ever visit) we keep waiting on the network as before.
+    e.respondWith((() => {
+      const network = fetch(e.request).then(response => {
         if (response && response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return response;
-      }).catch(() =>
+      });
+      const cachedShell = () =>
         caches.match(e.request, { ignoreSearch: true })
-          .then(cached => cached || caches.match('./index.html'))
-      )
-    );
+          .then(cached => cached || caches.match('./index.html'));
+      const timer = new Promise(resolve => setTimeout(resolve, 3500, '__timeout__'));
+      return Promise.race([network.catch(() => '__failed__'), timer]).then(winner => {
+        if (winner !== '__timeout__' && winner !== '__failed__') return winner;
+        return cachedShell().then(cached => cached || network);
+      });
+    })());
     return;
   }
 
