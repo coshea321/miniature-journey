@@ -762,7 +762,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v296 · 03/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v297 · 03/07/2026</div>
 
   </div>
 </div>
@@ -1423,8 +1423,6 @@ body.train-mode #toast{background:#3A3328}
   </div>
 </div>
 
-
-
 <!-- SETTINGS MODAL -->
 <div class="overlay" id="settingsOverlay">
   <div class="modal-box" style="position:relative">
@@ -1508,8 +1506,6 @@ body.train-mode #toast{background:#3A3328}
   <button id="backupNudgeLater" aria-label="Dismiss" style="background:none;border:none;color:#9FB89F;font-size:18px;cursor:pointer;padding:0 2px;touch-action:manipulation">&#x2715;</button>
 </div>
 <div class="ver">v14</div>
-
-
 
 <script>
 // ============================================================
@@ -1908,8 +1904,6 @@ var syncPaused = false;
 var lastPushTs = 0;       // timestamp of our last push to Firebase
 // Per-section sync prefs: default grocery/todo/travel ON, notes OFF
 var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, personal:false, notes:false, baby:false };
-
-
 
 // ============================================================
 // DOM REFS
@@ -4540,7 +4534,6 @@ function openNoteEditor(title, body, onSave, onDelete) {
   setTimeout(function(){ bodyEl.focus(); }, 80);
 }
 
-
 // ============================================================
 // ACTION LOG
 // ============================================================
@@ -5032,7 +5025,6 @@ document.getElementById("saveMealBtn").addEventListener("click", function() {
   document.getElementById("_mealCancel").addEventListener("click", function(){ document.body.removeChild(ov); });
   inp.addEventListener("keydown", function(e){ if (e.key === "Enter") doSave(); });
 });
-
 
 function openSavedMealsManager() {
   var saved = storeGet("fl4_saved_meals") || [];
@@ -5700,7 +5692,6 @@ function hearthBase()   { return hearthFbId.replace(/\/+$/, ""); } // hearthFbId
 function userUrl(path)  { return hearthBase() + "/hearth/users/" + hearthUser + (path||"") + ".json"; }
 function houseUrl(path) { return hearthBase() + "/hearth/households/" + hearthHouse + (path||"") + ".json"; }
 
-
 // ── Firebase Auth REST API ────────────────────────────────
 function getAuthToken(cb) {
   // Return cached token if still valid (with 5-min buffer)
@@ -5994,7 +5985,6 @@ function onLoginSuccess() {
   hideLoginOverlay();
   setLoginSpinner(false);
   updateSyncStatus();
-
 
   if (typeof updateListTabDots === "function") updateListTabDots();
 
@@ -6321,14 +6311,11 @@ var data = {};
   }, 800);
 }
 
-
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
-
 
 function escNl(s) {
   return esc(s).replace(/\n/g, "<br>");
 }
-
 
 function toast(msg) {
   // Decode any HTML entities (e.g. &#x1FAB4; emoji, &amp;) to real characters
@@ -6340,9 +6327,7 @@ function toast(msg) {
   toastTimer=setTimeout(function(){ elToast.classList.remove("show"); }, 2200);
 }
 
-
 function clearST() { if (ST) { clearInterval(ST); ST = null; } }
-
 
 function playChime(){
   try{
@@ -6357,7 +6342,6 @@ function playChime(){
     });
   }catch(e){}
 }
-
 
 function switchSection(section) {
   currentSection = section;
@@ -6426,7 +6410,6 @@ function switchSection(section) {
     renderTrips();
   }
 }
-
 
 function updateSyncStatus() {
   var btn = document.getElementById("syncBtn");
@@ -6690,7 +6673,6 @@ function openItemSheet(itemId) {
   document.body.style.overflow = "hidden";
   setTimeout(function(){ document.getElementById("itemSheetNameInput").focus(); }, 150);
 }
-
 
 function closeItemSheet() {
   document.getElementById("itemSheet").style.display         = "none";
@@ -6974,7 +6956,6 @@ window.addEventListener("DOMContentLoaded", function() {
   });
 });
 
-
 // ── Swipe left/right to switch lists ─────────────────────
 (function() {
   var startX = 0, startY = 0, startT = 0;
@@ -7107,21 +7088,6 @@ function renderSyncModal() {
   });
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function doAddExercise(name) {
   if (!name) return;
   getOrMakeWorkout(workoutDate);
@@ -7141,8 +7107,6 @@ function doAddExercise(name) {
   }
 }
 
-
-
 function mergeHist(existing, incoming) {
   var merged = existing.slice();
   var existingNames = {};
@@ -7154,19 +7118,16 @@ function mergeHist(existing, incoming) {
   return merged.slice(0, 150);
 }
 
-
 function saveNotes(notes, lt) {
   var key = lt || currentList;
   storeSet("fl4_notes_" + key, notes);
 }
-
 
 function getNotes(lt) {
   var key = lt || currentList;
   var v = storeGet("fl4_notes_" + key);
   return Array.isArray(v) ? v : [];
 }
-
 
 function addNote(lt, inputId, renderFn) {
   var text = document.getElementById(inputId).value.trim();
@@ -7180,7 +7141,6 @@ function addNote(lt, inputId, renderFn) {
   if (fbUrl && syncRoom) pushSync();
 }
 
-
 function saveSession(entry) {
   var data = getWD();
   data.workouts.unshift(entry);
@@ -7188,10 +7148,7 @@ function saveSession(entry) {
   saveWD(data);
 }
 
-
 function saveWD(data) { storeSet("fl4_workouts", data); }
-
-
 
 // ── Calorie estimate for training sessions ────────────────
 function latestBodyweightKg() {
@@ -7205,13 +7162,11 @@ function estimateSessionKcal(met, minutes) {
 
 function getWD()      { return storeGet("fl4_workouts") || { workouts:[], bodyweight:[] }; }
 
-
 function getWorkoutForDate(date) {
   var data = getWD();
   for (var i=0;i<data.workouts.length;i++) if (data.workouts[i].date===date) return data.workouts[i];
   return null;
 }
-
 
 function getOrMakeWorkout(date) {
   var data = getWD();
@@ -7220,7 +7175,6 @@ function getOrMakeWorkout(date) {
   data.workouts.sort(function(a,b){ return b.date.localeCompare(a.date); });
   saveWD(data);
 }
-
 
 function openSessionOverlay(title) {
   clearST();
@@ -7232,7 +7186,6 @@ function openSessionOverlay(title) {
   document.body.style.overflow = "hidden";
 }
 
-
 function closeSessionOverlay() {
   clearST();
   document.getElementById("sessionOverlay").style.display = "none";
@@ -7240,17 +7193,6 @@ function closeSessionOverlay() {
   // Refresh home dashboard if visible
   if (currentSection === "home") renderHomeScreen();
 }
-
-
-
-
-
-
-
-
-
-
-
 
 function startYogaTimer() {
   clearST();
@@ -7288,26 +7230,12 @@ function startYogaTimer() {
   }, 1000);
 }
 
-
-
-
 function openPhysioSession(progIdx) {
   SS = { type:"physio", pProgIdx:progIdx, pExIdx:0, pSetNum:1, pTime:0, pRunning:false, pPhase:"intro" };
   openSessionOverlay(PROGRAMMES_TRAIN[progIdx].name.replace(/&amp;/g,"&"));
   document.getElementById("sesProgFill").style.background = "#14b8a6";
   renderPhysioSession();
 }
-
-
-
-
-
-
-
-
-
-
-
 
 function openWorkoutSession(wType) {
   SS = { type:"workout", wType:wType, wSsIdx:0, wRound:1, wPhase:"intro", wRestTime:0, wRestDur:0, wCondRound:1, wEntries:{} };
@@ -7317,12 +7245,10 @@ function openWorkoutSession(wType) {
   renderWorkoutSession();
 }
 
-
 function beginWorkout() {
   SS.wPhase = "log";
   renderWorkoutSession();
 }
-
 
 function renderWorkoutSession() {
   var wk   = WK_TRAIN[SS.wType];
@@ -7438,7 +7364,6 @@ function renderWorkoutSession() {
   wireInputs();
 }
 
-
 function completeWktRound() {
   var wk = WK_TRAIN[SS.wType], ss2 = wk.supersets[SS.wSsIdx];
   if (SS.wRound < ss2.rounds) {
@@ -7450,7 +7375,6 @@ function completeWktRound() {
     renderWorkoutSession();
   }
 }
-
 
 function startWorkoutRest(dur, onDone) {
   SS.wPhase   = "rest";
@@ -7476,22 +7400,18 @@ function startWorkoutRest(dur, onDone) {
   },1000);
 }
 
-
 function skipWorkoutRest() {
   clearST();
   SS.wPhase = "log";
   if (SS._onRestDone) { SS._onRestDone(); SS._onRestDone=null; }
 }
 
-
 function startConditioning() { SS.wPhase="cond"; SS.wCondRound=1; renderWorkoutSession(); }
-
 
 function completeCondRound() {
   if (SS.wCondRound < COND_TRAIN.rounds) { SS.wCondRound++; renderWorkoutSession(); }
   else { finishWorkoutSession(true); }
 }
-
 
 function finishWorkoutSession(withCond) {
   var wk = WK_TRAIN[SS.wType];
@@ -7513,7 +7433,6 @@ function finishWorkoutSession(withCond) {
   renderWorkoutSession();
   toast("&#x1F4AA; "+wk.name+" saved!");
 }
-
 
 function renderWorkoutLog() {
   document.getElementById("workoutDateLabel").textContent = trainFmtDate(workoutDate);
@@ -7554,7 +7473,6 @@ function renderWorkoutLog() {
   el.innerHTML = html;
   wireWorkoutLog();
 }
-
 
 // ── Set sheet state ───────────────────────────────────────
 var _ssEi = 0, _ssSi = 0;
@@ -7612,47 +7530,6 @@ window.addEventListener("DOMContentLoaded", function() {
     toast("&#x2713; " + ex.name + " — set "+(_ssSi+1)+": "+(wt>0?wt+"kg × ":"")+rep+" reps");
   });
 });
-
-function wireWorkoutLog() {
-  // Set pills → open sheet to edit
-  document.querySelectorAll(".set-pill").forEach(function(pill) {
-    pill.addEventListener("click", function() {
-      openSetSheet(+pill.dataset.ei, +pill.dataset.si);
-    });
-  });
-  // Delete exercise
-  document.querySelectorAll(".ex-del").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      confirmDialog("Remove " + (getWorkoutForDate(workoutDate).exercises[+btn.dataset.ei]||{}).name + "?", function() {
-        var data=getWD();
-        for (var i=0;i<data.workouts.length;i++) {
-          if (data.workouts[i].date===workoutDate) { data.workouts[i].exercises.splice(+btn.dataset.ei,1); break; }
-        }
-        saveWD(data); renderWorkoutLog();
-      });
-    });
-  });
-  // Add set → open sheet on the new (empty) set
-  document.querySelectorAll(".add-set-btn").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      var ei = +btn.dataset.ei;
-      var data=getWD();
-      for (var i=0;i<data.workouts.length;i++) {
-        if (data.workouts[i].date===workoutDate) {
-          var sets=data.workouts[i].exercises[ei].sets;
-          var prev=sets.length?sets[sets.length-1]:{weight:0,reps:0};
-          sets.push({weight:prev.weight, reps:0});
-          saveWD(data);
-          renderWorkoutLog();
-          openSetSheet(ei, sets.length-1);
-          return;
-        }
-      }
-    });
-  });
-  renderCardioLog();
-}
-
 
 function renderWorkoutHistory() {
   var data = getWD(), el = document.getElementById("trainHistoryContent");
@@ -7745,7 +7622,6 @@ function renderWorkoutHistory() {
     });
   });
 }
-
 
 function renderBodyView() {
   var data=getWD(), bw=(data.bodyweight||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
@@ -7850,7 +7726,6 @@ function renderBodyView() {
   });
 }
 
-
 function renderTrainView() {
   if (currentTrainView==="programs") renderTrainPrograms();
   if (currentTrainView==="log")      renderWorkoutLog();
@@ -7858,49 +7733,7 @@ function renderTrainView() {
   if (currentTrainView==="body")     renderBodyView();
 }
 
-function trainTodayStr() {
-  var d = new Date();
-  return d.getFullYear() + "-" + t2(d.getMonth()+1) + "-" + t2(d.getDate());
-}
-
-
 function t2(n) { return n < 10 ? "0"+n : ""+n; }
-
-
-function trainShiftDay(dateStr, delta) {
-  var d = new Date(dateStr + "T12:00:00");
-  d.setDate(d.getDate() + delta);
-  return d.getFullYear() + "-" + t2(d.getMonth()+1) + "-" + t2(d.getDate());
-}
-
-
-function trainFmtDate(dateStr) {
-  var today = trainTodayStr(), yest = trainShiftDay(today,-1);
-  if (dateStr === today) return "Today";
-  if (dateStr === yest)  return "Yesterday";
-  var d = new Date(dateStr + "T12:00:00");
-  return d.toLocaleDateString("en-IE", { weekday:"short", day:"numeric", month:"short" });
-}
-
-
-function trainFmtDateLong(dateStr) {
-  var d = new Date(dateStr + "T12:00:00");
-  return d.toLocaleDateString("en-IE", { weekday:"long", day:"numeric", month:"long" });
-}
-
-
-function timerCircle(time, total, color, paused) {
-  var R=58, circ=2*Math.PI*R, pct=total>0?time/total:1;
-  var ringColor = paused ? '#333' : (color || '#818cf8');
-  return '<svg width="140" height="140" style="display:block;margin:0 auto 8px">' +
-    '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="#1a1a2e" stroke-width="10"/>' +
-    '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+ringColor+'" stroke-width="10"' +
-    ' stroke-dasharray="'+circ+'" stroke-dashoffset="'+(circ*(1-pct))+'"' +
-    ' stroke-linecap="round" transform="rotate(-90 70 70)" style="transition:stroke-dashoffset 0.95s linear"/>' +
-    '<text x="70" y="78" text-anchor="middle" fill="'+(paused?'#B8AE9C':'#2A2010')+'" font-size="38" font-weight="800" font-family="inherit">'+time+'</text>' +
-    '</svg>';
-}
-
 
 function getPosePhoto(name) {
   var n = name.toLowerCase();
@@ -7921,7 +7754,6 @@ function getPosePhoto(name) {
   return null;
 }
 
-
 function inputsHtml(ex, key, val) {
   if (ex.type === "weighted") return "" +
     "<div class='ss-field'><div class='ss-field-label'>Reps</div><input class='ss-input' type='number' inputmode='numeric' placeholder='--' value='"+(val.reps||"")+"' data-key='"+key+"' data-field='reps'></div>" +
@@ -7930,18 +7762,6 @@ function inputsHtml(ex, key, val) {
     "<div class='ss-field'><div class='ss-field-label'>Seconds</div><input class='ss-input' type='number' inputmode='numeric' placeholder='--' value='"+(val.duration||"")+"' data-key='"+key+"' data-field='duration'></div>";
   return "<div class='ss-field'><div class='ss-field-label'>Reps</div><input class='ss-input' type='number' inputmode='numeric' placeholder='--' value='"+(val.reps||"")+"' data-key='"+key+"' data-field='reps'></div>";
 }
-
-
-function wireInputs() {
-  document.querySelectorAll(".ss-input").forEach(function(inp) {
-    inp.addEventListener("change", function() {
-      var key=inp.dataset.key, field=inp.dataset.field;
-      if (!SS.wEntries[key]) SS.wEntries[key]={};
-      SS.wEntries[key][field] = inp.value;
-    });
-  });
-}
-
 
 function insertBlock(tag) {
   var sel = window.getSelection();
@@ -7957,7 +7777,6 @@ function insertBlock(tag) {
   sel.addRange(range);
 }
 
-
 function wrapCode() {
   var sel = window.getSelection();
   if (!sel.rangeCount) return;
@@ -7969,7 +7788,6 @@ function wrapCode() {
   range.insertNode(el);
 }
 
-
 function updateFmtButtons() {
   ["bold","italic","underline","strikeThrough"].forEach(function(cmd) {
     var key = cmd === "strikeThrough" ? "strikethrough" : cmd;
@@ -7978,7 +7796,6 @@ function updateFmtButtons() {
   });
 }
 
-
 function closeNoteEditor() {
   document.getElementById("noteEditorOverlay").style.display = "none";
   noteEditorId = null;
@@ -7986,12 +7803,9 @@ function closeNoteEditor() {
   noteEditorRenderFn = null;
 }
 
-
 function renderNotes()     { renderNotesIn("notesContent",     currentList, renderNotes); }
 
-
 function renderNotesFull() { renderNotesIn("notesFullContent", "global",    renderNotesFull); }
-
 
 function renderNotesIn(elId, lt, renderFn) {
   var el = document.getElementById(elId);
@@ -8031,13 +7845,11 @@ function renderNotesIn(elId, lt, renderFn) {
   });
 }
 
-
 function fmtDate(ts) {
   var d = new Date(ts);
   var p = function(x){ return x < 10 ? "0"+x : x; };
   return d.getDate()+"/"+p(d.getMonth()+1)+"/"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes());
 }
-
 
 function btnBusy(el) {
   if (el._busy) return true;
@@ -8045,7 +7857,6 @@ function btnBusy(el) {
   setTimeout(function(){ el._busy = false; }, 800);
   return false;
 }
-
 
 document.getElementById("bnHome").addEventListener("click",  function(){ switchSection("home");  });
 document.getElementById("bnLife").addEventListener("click",  function(){ switchSection("lists"); });
@@ -8578,7 +8389,6 @@ function doHqpAdd() {
   renderHomeScreen();
 }
 
-
 function addToHistFor(lt, name, catId) {
   var hist = loadListData(lt).hist, found = null;
   for (var i = 0; i < hist.length; i++) { if (hist[i].name.toLowerCase() === name.toLowerCase()) { found = hist[i]; break; } }
@@ -8848,7 +8658,6 @@ function doAddExercise(name) {
   }
 }
 
-
 (function buildChips(){
   var el = document.getElementById("quickChips"), html="";
   for (var i=0;i<QUICK_EXERCISES.length;i++)
@@ -8946,7 +8755,6 @@ function timerCircle(time, total, color, paused) {
     '<text x="70" y="78" text-anchor="middle" fill="'+(paused?'#B8AE9C':'#2A2010')+'" font-size="38" font-weight="800" font-family="inherit">'+time+'</text>' +
     '</svg>';
 }
-
 
 // ── Save session to workout log ───────────────────────────
 function saveSession(entry) {
@@ -9152,7 +8960,6 @@ function renderPhysioSession() {
     "</div>" +
     "<button class='ses-exit-link' onclick=\"confirmDialog('Exit?',function(){closeSessionOverlay()})\">Exit</button>";
 }
-
 
 function beginPhysio() {
   SS.pPhase   = "running";
@@ -10110,7 +9917,6 @@ function confirmDialog(msg, onYes, onNo) {
   document.getElementById("_cfNo").addEventListener("click",  function(){ document.body.removeChild(ov); if(onNo)  onNo();  });
 }
 
-
 // ============================================================
 // BABY — Growth, Medicine, Milestones, Teeth
 // ============================================================
@@ -10666,7 +10472,6 @@ if ("serviceWorker" in navigator && !_isPreview) {
   });
 }
 
-
 // ── Debug overlay (temporary) ─────────────────────────────
 (function() {
   var errors = [];
@@ -10718,7 +10523,6 @@ if ("serviceWorker" in navigator && !_isPreview) {
 </div>
 <div id="dbgBadge" style="display:none;position:fixed;bottom:75px;right:8px;z-index:10000;background:#ff4444;color:#fff;border-radius:50%;width:28px;height:28px;font-size:12px;font-weight:700;text-align:center;line-height:28px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5)" onclick="document.getElementById('dbgBox').style.display='block';this.style.display='none'">!</div>
 
-
 <!-- Set logging bottom sheet -->
 <div id="setSheet" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:700;background:#fff;border-top:1.5px solid #E0DCD4;box-shadow:0 -4px 20px rgba(0,0,0,.12);border-radius:18px 18px 0 0;padding:18px 16px 32px;box-shadow:0 -8px 32px rgba(0,0,0,.6);max-width:480px;margin:0 auto">
   <div style="width:36px;height:4px;background:#D8D0C0;border-radius:2px;margin:0 auto 16px"></div>
@@ -10746,7 +10550,6 @@ if ("serviceWorker" in navigator && !_isPreview) {
   <button id="setSheetCancel" aria-label="Cancel set" style="width:100%;padding:10px;border:none;background:none;color:#8A7A5A;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;margin-top:6px">Cancel</button>
 </div>
 <div id="setSheetBackdrop" style="display:none;position:fixed;inset:0;z-index:699;background:rgba(0,0,0,.4)"></div>
-
 
 <!-- Item detail sheet -->
 <div id="itemSheet" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:700;background:#fff;border-top:1.5px solid #E0DCD4;box-shadow:0 -4px 20px rgba(0,0,0,.12);border-radius:18px 18px 0 0;padding:18px 16px 36px;box-shadow:0 -8px 32px rgba(0,0,0,.6);max-width:480px;margin:0 auto;max-height:85vh;overflow-y:auto">
