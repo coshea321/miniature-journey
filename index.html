@@ -762,7 +762,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v295 · 02/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v296 · 03/07/2026</div>
 
   </div>
 </div>
@@ -2208,9 +2208,18 @@ function mergeTripsData(localTrips, incomingTrips, tripTombs, bookingTombs) {
       localIds[b.id] = true;
       var inc = incById[b.id];
       if (!inc) { push = true; return b; }                    // partner missing this → push
-      if ((inc.updated||0) > (b.updated||0)) return inc;       // incoming newer → take it
-      if ((b.updated||0) > (inc.updated||0)) push = true;      // local newer → push to converge
-      return b;
+      var winner, loser;
+      if ((inc.updated||0) > (b.updated||0)) { winner = inc; loser = b; } // incoming newer → take it
+      else {
+        if ((b.updated||0) > (inc.updated||0)) push = true;   // local newer → push to converge
+        winner = b; loser = inc;
+      }
+      // v296: fields the winner's copy doesn't know about (older app version
+      // that predates e.g. boarding/gate/seats) must not wipe them — fill
+      // keys UNDEFINED on the winner from the loser. A deliberately cleared
+      // field is "" (defined) and stays cleared.
+      Object.keys(loser).forEach(function(k){ if (winner[k] === undefined) winner[k] = loser[k]; });
+      return winner;
     });
     var fresh = (incB || []).filter(function(b){ return b && b.id != null && !localIds[b.id]; });
     var full = fresh.concat(merged);
@@ -2227,11 +2236,15 @@ function mergeTripsData(localTrips, incomingTrips, tripTombs, bookingTombs) {
     var inc = incById[t.id];
     if (!inc) { push = true; return t; }
     var winner = (inc.updated||0) > (t.updated||0) ? inc : t;
+    var loser  = winner === t ? inc : t;
     if ((t.updated||0) > (inc.updated||0)) push = true;
-    return {
-      id: t.id, name: winner.name, start: winner.start, end: winner.end, updated: winner.updated,
-      bookings: mergeBookings(t.bookings, inc.bookings)
-    };
+    // v296: build from BOTH copies (winner's keys win, loser fills gaps)
+    // instead of a hand-typed field list, so future trip-level fields can't
+    // be silently dropped by the merge.
+    var out = Object.assign({}, loser, winner);
+    out.id = t.id;
+    out.bookings = mergeBookings(t.bookings, inc.bookings);
+    return out;
   });
   var fresh = (incomingTrips || []).filter(function(t){ return t && t.id != null && !localIds[t.id]; });
   var full = fresh.concat(merged);
@@ -6220,14 +6233,23 @@ function applyPersonal(d) {
       (b||[]).forEach(function(x){ if(x) idx[x[key]]=x; }); // remote wins on same key
       return Object.values(idx);
     }
-    storeSet("fl4_baby", {
+    var mergedBaby = {
       growth:     mergeByKey(local.growth,     rb.growth,     "date"),
       medicine:   mergeByKey(local.medicine,   rb.medicine,   "id"),
       milestones: mergeByKey(local.milestones, rb.milestones, "id"),
       teeth:      Object.assign({}, local.teeth||{}, rb.teeth||{}),
-      bags:       rb.bags || local.bags,
-      babySex:    local.babySex || rb.babySex
+      bags:       rb.bags || local.bags
+    };
+    // v296: carry EVERY other key through generically (local wins when set,
+    // remote fills gaps). The old hand-typed field list silently wiped any
+    // field it didn't name — the babySex bug as a class. New Baby fields now
+    // survive sync without anyone having to remember to add them here.
+    Object.keys(local).concat(Object.keys(rb)).forEach(function(k){
+      if (k in mergedBaby) return;
+      var lv = local[k], rv = rb[k];
+      mergedBaby[k] = (lv === undefined || lv === null || lv === "") ? (rv !== undefined ? rv : lv) : lv;
     });
+    storeSet("fl4_baby", mergedBaby);
     if (currentSection === "baby") renderBabyView();
   }
 
@@ -9880,7 +9902,11 @@ function applyHousehold(data) {
   if (_listRepush) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0); // converge /shared to the union
   if (isSynced("notes") && Array.isArray(data["global_notes"])) storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
   if (isSynced("baby") && data["baby"] && typeof data["baby"] === "object") {
-    storeSet("fl4_baby", data["baby"]);
+    // v296: was a wholesale replace — any local-only field (or a field from a
+    // newer app version the sender doesn't have) was silently wiped. Remote
+    // still wins for every key it carries (household semantics unchanged),
+    // but local keys the remote copy doesn't know about now survive.
+    storeSet("fl4_baby", Object.assign({}, getBD(), data["baby"]));
     if (currentSection === "baby") renderBabyView();
   }
   // Recipe book — merge by id with NEWEST-WINS (by `updated` timestamp), so a
