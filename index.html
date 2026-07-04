@@ -765,7 +765,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v302 · 03/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v303 · 03/07/2026</div>
 
   </div>
 </div>
@@ -2081,13 +2081,26 @@ function resetInput() {
   var dd = document.getElementById("dueDateInput"); if (dd) dd.value = "";
 
 }
+// v303 (predictive-replenishment foundation): record today's add-date on a
+// history entry as a rolling series, so a future feature can learn how often
+// an item is needed. Deduped per day, capped at 8 dates (→ up to 7 intervals).
+// Backward-compatible: absent on pre-v303 entries until their next add. Purely
+// additive data — no UI yet; rides through export/import/sync inside `hist`.
+function histRecordDate(entry) {
+  var todayS = todayStr();
+  if (!Array.isArray(entry.dates)) entry.dates = [];
+  if (entry.dates[entry.dates.length-1] !== todayS) {
+    entry.dates.push(todayS);
+    if (entry.dates.length > 8) entry.dates = entry.dates.slice(-8);
+  }
+}
 function addToHist(name, catId) {
   var hist = getHist(), found = null;
   for (var i = 0; i < hist.length; i++) {
     if (hist[i].name.toLowerCase()===name.toLowerCase()) { found = hist[i]; break; }
   }
-  if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); }
-  else { hist.unshift({ name:name, catId:catId, count:1, lastUsed:Date.now() }); }
+  if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); histRecordDate(found); }
+  else { var e = { name:name, catId:catId, count:1, lastUsed:Date.now() }; histRecordDate(e); hist.unshift(e); }
   if (hist.length > 150) listData[currentList].hist = hist.slice(0,150);
   listData[currentList].hist.sort(function(a,b){ return (b.count-a.count)||(b.lastUsed-a.lastUsed); });
 }
@@ -8562,8 +8575,8 @@ function doHqpAdd() {
 function addToHistFor(lt, name, catId) {
   var hist = loadListData(lt).hist, found = null;
   for (var i = 0; i < hist.length; i++) { if (hist[i].name.toLowerCase() === name.toLowerCase()) { found = hist[i]; break; } }
-  if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); }
-  else { hist.unshift({ name:name, catId:catId, count:1, lastUsed:Date.now() }); }
+  if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); histRecordDate(found); }
+  else { var e = { name:name, catId:catId, count:1, lastUsed:Date.now() }; histRecordDate(e); hist.unshift(e); }
   if (hist.length > 150) listData[lt].hist = hist.slice(0,150);
 }
 
