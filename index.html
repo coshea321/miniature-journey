@@ -762,7 +762,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v298 · 03/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v299 · 03/07/2026</div>
 
   </div>
 </div>
@@ -1457,6 +1457,7 @@ body.train-mode #toast{background:#3A3328}
     <div id="lastBackupInfo" style="font-size:12px;color:#8A7A5A;margin:-2px 2px 2px;text-align:center">Last backup: never</div>
     <div id="lastCloudBackupInfo" style="font-size:12px;color:#8A7A5A;margin:0 2px 10px;text-align:center">Last cloud backup: never</div>
     <button class="sync-btn outline" id="cloudBackupsBtn" style="margin-bottom:6px">&#x2601;&#xFE0F; Cloud backups</button>
+    <button class="sync-btn outline" id="syncHealthBtn" style="margin-bottom:6px">&#x1F4E1; Sync health</button>
     <label class="sync-btn outline" id="importLabel" style="text-align:center;cursor:pointer;display:block;margin-bottom:6px">
       &#x2B06;&#xFE0F; Import data
       <input type="file" id="importFile" accept=".json" style="display:none">
@@ -5594,6 +5595,69 @@ function restoreCloudBackup(dateKey, token, closeOv) {
   if (cbBtn) cbBtn.addEventListener("click", openCloudBackupsSheet);
 })();
 
+// ── Sync health panel (v299) — read-only diagnostics ───────
+function syncAgo(ts){ return ts ? medAgoStr(Date.now() - ts) : "—"; }
+function countAllTombs(){
+  var n = 0;
+  for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i);
+    if (k && k.indexOf("fl4_tomb_") === 0) {
+      try { var o = JSON.parse(localStorage.getItem(k)); if (o && typeof o === "object") n += Object.keys(o).length; } catch(e){}
+    }
+  }
+  return n;
+}
+function esState(es){
+  if (!es) return "off";
+  return es.readyState === 1 ? "live" : es.readyState === 0 ? "connecting…" : "reconnecting…";
+}
+function openSyncHealthSheet(){
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:890;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box";
+  ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); ov.setAttribute("aria-label","Sync health");
+  var online = (typeof navigator.onLine === "boolean") ? navigator.onLine : true;
+  var paired = isHouseholdSet();
+  var lastUp = Math.max(_syncStats.lastPersonalPush, _syncStats.lastHouseholdPush);
+  function row(label, value, tint){
+    return "<div style='display:flex;justify-content:space-between;gap:12px;padding:9px 2px;border-bottom:1px solid #EEE9E0'>" +
+      "<span style='color:#8A7A5A'>" + label + "</span>" +
+      "<span style='font-weight:700;color:" + (tint||"#4A3A20") + ";text-align:right'>" + value + "</span></div>";
+  }
+  var body =
+    row("Status", online ? (isLoggedIn() ? "Signed in" : "Logged out") : "Offline", online ? (isLoggedIn() ? "#2D8A4E" : "#9A5A10") : "#9A5A10") +
+    row("This device", online ? "Online" : "Offline", online ? "#2D8A4E" : "#9A5A10") +
+    row("Household", paired ? "Paired" : "This device only", paired ? "#4A3A20" : "#8A7A5A") +
+    row("Live updates (personal)", esState(hearthHealthES), esState(hearthHealthES) === "live" ? "#2D8A4E" : "#9A5A10") +
+    (paired ? row("Live updates (household)", esState(hearthSyncES), esState(hearthSyncES) === "live" ? "#2D8A4E" : "#9A5A10") : "") +
+    row("Last sent up", syncAgo(lastUp)) +
+    row("Last received", syncAgo(_syncStats.lastEvent)) +
+    row("Pending deletions", String(countAllTombs())) +
+    row("Last cloud backup", fmtBackupTime(storeGet("fl4_last_cloudbackup") || 0));
+  ov.innerHTML =
+    "<div style='background:#fff;border-radius:16px;padding:20px;width:100%;max-width:360px;max-height:75vh;overflow-y:auto'>" +
+      "<div style='font-size:16px;font-weight:800;color:#4A3A20;margin-bottom:4px'>&#x1F4E1; Sync health</div>" +
+      "<div style='font-size:12px;color:#8A7A5A;line-height:1.45;margin-bottom:12px'>A quick read on syncing between your devices. Nothing here needs action &#8212; it's for peace of mind and troubleshooting.</div>" +
+      "<div style='font-size:14px'>" + body + "</div>" +
+      "<div style='display:flex;gap:8px;margin-top:14px'>" +
+        "<button id='shRefresh' style='flex:1;padding:11px;border:1.5px solid #C4833A;background:none;color:#C4833A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Sync now</button>" +
+        "<button id='shClose' style='flex:1;padding:11px;border:none;background:#F0EBE2;color:#7A6A4A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Close</button>" +
+      "</div>" +
+    "</div>";
+  document.body.appendChild(ov);
+  function closeOv(){ if (ov.parentNode) ov.parentNode.removeChild(ov); }
+  ov.querySelector("#shClose").addEventListener("click", closeOv);
+  ov.addEventListener("click", function(e){ if (e.target === ov) closeOv(); });
+  ov.querySelector("#shRefresh").addEventListener("click", function(){
+    if (isLoggedIn()) { fetchPersonal(); pushPersonal(); if (isHouseholdSet()) { fetchHousehold(); pushHousehold(); } toast("Syncing…"); }
+    closeOv();
+    setTimeout(function(){ if (document.getElementById("settingsOverlay") && document.getElementById("settingsOverlay").classList.contains("open")) openSyncHealthSheet(); }, 1200);
+  });
+}
+(function(){
+  var shBtn = document.getElementById("syncHealthBtn");
+  if (shBtn) shBtn.addEventListener("click", openSyncHealthSheet);
+})();
+
 document.getElementById("clearAllBtn").addEventListener("click", function() {
   // Multi-step safeguarded deletion — requires typing DELETE
   var ov = document.createElement("div");
@@ -5692,6 +5756,9 @@ var hearthHealthES = null;
 var syncPaused    = false;
 var lastPushTs    = 0;
 var _personalFetchOk = false; // becomes true after first successful remote fetch
+// Sync diagnostics (v299) — surfaced read-only in the Settings "Sync health"
+// panel; purely observational, nothing depends on these.
+var _syncStats = { lastPersonalPush: 0, lastHouseholdPush: 0, lastEvent: 0 };
 var _homeAwaitingFetch = false; // true between sign-in and first home data fetch
 
 // Migrate from old keys
@@ -6105,7 +6172,7 @@ var d = {};
   d.trips       = storeGet("fl4_trips") || [];
   d.trips_deleted    = purgeTombs(getTombs("trips"));
   d.bookings_deleted = purgeTombs(getTombs("bookings"));
-  fetch(authUrl(userUrl("/data")), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).catch(function(){});
+  fetch(authUrl(userUrl("/data")), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastPersonalPush = Date.now(); }).catch(function(){});
   }, 800);
 }
 
@@ -6337,7 +6404,7 @@ var data = {};
   data["trips_deleted"]    = purgeTombs(getTombs("trips"));
   data["bookings_deleted"] = purgeTombs(getTombs("bookings"));
   lastPushTs = Date.now();
-  fetch(authUrl(houseUrl("/shared")), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).catch(function(){});
+  fetch(authUrl(houseUrl("/shared")), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastHouseholdPush = Date.now(); }).catch(function(){});
   }, 800);
 }
 
@@ -6495,6 +6562,7 @@ function startPersonalListening() {
 function handlePersonalEvent(e) {
   // Apply immediately (see handleHouseholdEvent) — the merges are clobber-proof.
   try {
+    _syncStats.lastEvent = Date.now();
     var p = JSON.parse(e.data);
     if (e.type === "put" && p.data && typeof p.data === "object") {
       syncPaused = false;
@@ -6527,6 +6595,7 @@ function handleHouseholdEvent(e) {
   // newest-wins + deletion tombstones) preserve local unpushed changes and make
   // our own echo an idempotent no-op, so no grace window / bounce guard is needed.
   try {
+    _syncStats.lastEvent = Date.now();
     var p = JSON.parse(e.data);
     if (e.type === "put" && p.data && typeof p.data === "object") {
       applyHousehold(p.data);
