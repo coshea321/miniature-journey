@@ -762,7 +762,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v300 · 03/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v301 · 03/07/2026</div>
 
   </div>
 </div>
@@ -10034,6 +10034,13 @@ function renderGrowth() {
     "<button id='sexBoy' style='border:1.5px solid "+(bd.babySex==="boy"?"#5A8AC2":"#E0E5F0")+";background:"+(bd.babySex==="boy"?"#EFF4FB":"#fff")+";color:#5A8AC2;border-radius:7px;padding:4px 10px;font-family:inherit;font-size:12px;cursor:pointer'>Boy</button>" +
     "</div>";
   html += sexSel;
+  var trend = growthTrendSummary();
+  if (trend) {
+    html += "<div style='margin:0 12px 10px;padding:10px 13px;border-radius:10px;background:" + trend.bg + ";color:" + trend.fg + ";font-size:13px;line-height:1.4;font-weight:600'>" +
+      "&#x1F4C8; " + trend.text +
+      "<div style='font-size:11px;font-weight:400;opacity:.8;margin-top:2px'>weight-for-length vs WHO median &middot; not medical advice</div>" +
+    "</div>";
+  }
   if (growth.length) {
     html += "<div style='padding:0 12px'>";
     growth.forEach(function(e) {
@@ -10121,19 +10128,53 @@ var WHO_WFL = {
   girl: {45:2.46,50:3.36,55:4.48,60:5.90,65:7.25,70:8.47,75:9.58,80:10.62,85:11.74,90:12.93,95:14.23,100:15.69,105:17.40,110:19.43},
   boy:  {45:2.44,50:3.37,55:4.53,60:6.04,65:7.43,70:8.69,75:9.84,80:10.86,85:11.93,90:13.05,95:14.31,100:15.71,105:17.37,110:19.33}
 };
-function growthBand(rec, sex) {
-  if (!sex || !rec.weight || !rec.height) return null;
-  var t = WHO_WFL[sex]; if (!t) return null;
-  var h = rec.height;
-  if (h < 45 || h > 110) return null;
+// WHO weight-for-length median (kg) for a given length (cm), linearly
+// interpolated between the 5 cm table points. Null outside 45–110 cm or
+// with no sex set. Shared by growthBand and the growth-trend summary (v301).
+function growthMedianForLength(h, sex) {
+  var t = WHO_WFL[sex]; if (!t || !h || h < 45 || h > 110) return null;
   var lo = Math.floor(h/5)*5, hi = lo+5;
   if (hi > 110) hi = 110;
   var mLo = t[lo], mHi = t[hi];
-  var median = (lo===hi) ? mLo : mLo + (mHi-mLo) * (h-lo)/5;
+  return (lo===hi) ? mLo : mLo + (mHi-mLo) * (h-lo)/5;
+}
+function growthBand(rec, sex) {
+  if (!sex || !rec.weight || !rec.height) return null;
+  var median = growthMedianForLength(rec.height, sex);
+  if (median == null) return null;
   var ratio = rec.weight / median;
   if (ratio < 0.90) return { label:"Below avg", bg:"#FDF0E0", fg:"#B07030" };
   if (ratio > 1.10) return { label:"Above avg", bg:"#E8F0FD", fg:"#5070B0" };
   return { label:"Normal", bg:"#E8F5E0", fg:"#508040" };
+}
+// Growth-trend summary (v301) — HONEST band-trend, NOT a percentile.
+// The app only has WHO median values (no percentile spread), so it never
+// claims a percentile number. It reports the current weight-for-length band
+// and whether the child is holding steady / drifting up / drifting down
+// relative to the median over the last few readings. Advisory only; the
+// "not medical advice" disclaimer already sits under the Growth list.
+function growthTrendSummary() {
+  var bd = getBD(), sex = bd.babySex;
+  if (!sex) return null;
+  var recs = (bd.growth||[]).filter(function(r){
+    return r && r.weight && r.height && growthMedianForLength(r.height, sex) != null;
+  }).sort(function(a,b){ return (a.date||"").localeCompare(b.date||""); });
+  if (!recs.length) return null;
+  var latest = recs[recs.length-1];
+  var band = growthBand(latest, sex);
+  if (!band) return null;
+  var pos = band.label === "Normal" ? "around average" : band.label === "Below avg" ? "a little below average" : "a little above average";
+  var pron = sex === "girl" ? "her" : "his";
+  var text = "Tracking " + pos + " for " + pron + " length";
+  if (recs.length >= 2) {
+    var win = recs.slice(Math.max(0, recs.length - 3));
+    var firstRatio = win[0].weight / growthMedianForLength(win[0].height, sex);
+    var lastRatio  = latest.weight / growthMedianForLength(latest.height, sex);
+    var delta = lastRatio - firstRatio;
+    var dir = Math.abs(delta) < 0.03 ? "holding steady" : (delta > 0 ? "drifting up" : "drifting down");
+    text += ", " + dir + " over the last " + win.length + " readings";
+  }
+  return { text: text + ".", bg: band.bg, fg: band.fg };
 }
 
 function latestBabyWeightRec() {
