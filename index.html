@@ -762,7 +762,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v299 · 03/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v300 · 03/07/2026</div>
 
   </div>
 </div>
@@ -1301,7 +1301,7 @@ body.train-mode #toast{background:#3A3328}
       <div id="loginApiKeyRow" style="display:none;margin-top:10px">
         <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:5px">Web API Key <span style="opacity:.5">(Project Settings → General)</span></div>
         <div style="display:flex;gap:8px">
-          <input id="loginApiKeyInput" type="password" placeholder="AIza..." style="flex:1;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.15);border-radius:9px;color:#fff;padding:10px 12px;font-family:inherit;font-size:13px;outline:none">
+          <input id="loginApiKeyInput" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="AIza..." style="flex:1;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.15);border-radius:9px;color:#fff;padding:10px 12px;font-family:inherit;font-size:13px;outline:none">
           <button id="loginApiKeySaveBtn" style="padding:11px 16px;background:#C4833A;border:none;border-radius:9px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap">Set</button>
         </div>
         <div id="loginApiKeyOk" style="display:none;font-size:12px;color:#6BCF86;margin-top:6px">✓ API key set</div>
@@ -1324,8 +1324,8 @@ body.train-mode #toast{background:#3A3328}
     <!-- Step 2: Account -->
     <div id="loginStepAccount" style="background:rgba(255,255,255,.06);border-radius:16px;padding:20px;margin-bottom:12px;opacity:.4;pointer-events:none" >
       <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Your account</div>
-      <input id="loginUsernameInput" style="width:100%;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.15);border-radius:9px;padding:11px 13px;color:#fff;font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px" placeholder="Username" autocapitalize="none" autocorrect="off" spellcheck="false">
-      <input id="loginPasswordInput" type="password" style="width:100%;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.15);border-radius:9px;padding:11px 13px;color:#fff;font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:12px" placeholder="Password">
+      <input id="loginUsernameInput" name="username" autocomplete="username" style="width:100%;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.15);border-radius:9px;padding:11px 13px;color:#fff;font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px" placeholder="Username" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <input id="loginPasswordInput" type="password" name="password" autocomplete="current-password" style="width:100%;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.15);border-radius:9px;padding:11px 13px;color:#fff;font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:12px" placeholder="Password">
       <div id="loginError" style="font-size:13px;color:#f87171;margin-bottom:10px;display:none"></div>
       <button id="loginBtn" style="width:100%;padding:13px;background:#C4833A;border:none;border-radius:10px;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px">Log in</button>
       <button id="createAccountBtn" style="width:100%;padding:13px;background:transparent;border:1.5px solid rgba(255,255,255,.2);border-radius:10px;color:rgba(255,255,255,.7);font-family:inherit;font-size:15px;cursor:pointer">Create account</button>
@@ -1346,7 +1346,7 @@ body.train-mode #toast{background:#3A3328}
       <div class="sync-section-title">Firebase Auth (optional)</div>
       <div style="font-size:12px;color:#7A8772;margin-bottom:8px">Add your Web API Key to secure your data. Found in Firebase Console → Project Settings → General → Your Apps → Config</div>
       <div style="display:flex;gap:8px;margin-bottom:6px">
-        <input id="syncApiKeyInput" type="password" placeholder="AIza..." class="sync-input" style="flex:1">
+        <input id="syncApiKeyInput" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="AIza..." class="sync-input" style="flex:1">
         <button id="syncApiKeySaveBtn" class="sync-btn" style="margin:0;padding:10px 14px;white-space:nowrap">Set</button>
       </div>
       <div id="syncApiKeyStatus" style="font-size:12px;margin-bottom:4px"></div>
