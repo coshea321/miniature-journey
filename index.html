@@ -32,6 +32,11 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 #itemInput::placeholder{color:#5A6455}
 .add-btn{width:44px;height:44px;flex-shrink:0;border:none;background:var(--accent);color:#fff;border-radius:9px;font-size:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
 .add-btn:active{opacity:.85}
+/* Voice capture mic (v304) — hidden until feature-detected on boot */
+.voice-mic-btn{width:44px;height:44px;flex-shrink:0;border:none;background:#EEE9F6;color:#7E22CE;border-radius:9px;font-size:19px;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.voice-mic-btn:active{opacity:.85}
+.voice-mic-btn.listening{background:#E5484D;color:#fff;animation:vcPulse 1s ease-in-out infinite}
+@keyframes vcPulse{0%,100%{box-shadow:0 0 0 0 rgba(229,72,77,.5)}50%{box-shadow:0 0 0 7px rgba(229,72,77,0)}}
 .cat-row{display:none;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap}
 .cat-label{font-size:12px;color:#5A6455;font-weight:600}
 .cat-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid rgba(0,0,0,.12)}
@@ -765,7 +770,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v303 · 03/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v304 · 03/07/2026</div>
 
   </div>
 </div>
@@ -793,6 +798,7 @@ body.train-mode #toast{background:#3A3328}
   <div class="input-card">
     <div class="input-row">
       <input id="itemInput" type="text" placeholder="Add an item..." autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="voice-mic-btn" id="voiceMicBtn" aria-label="Add by voice" style="display:none">&#x1F3A4;</button>
       <button class="add-btn" id="addBtn" aria-label="Add item">+</button>
     </div>
     <div class="cat-row" id="catRow">
@@ -2051,35 +2057,134 @@ function showAC(query) {
 // ADD ITEM
 // ============================================================
 document.getElementById("addBtn").addEventListener("click", doAdd);
+// Show the voice mic only where the browser supports speech recognition (v304)
+(function(){
+  var vb = document.getElementById("voiceMicBtn");
+  if (vb && voiceSupported()) { vb.style.display = ""; vb.addEventListener("click", startVoiceAdd); }
+})();
+// Core add for the current list; returns "added" | "exists" | "restored".
+// Shared by manual add (doAdd) and voice capture (v304). `restoreCat`, when
+// set, re-categorises a matched done item as it's moved back to the list.
+// Does NOT save/render/toast — callers do that once (so voice can batch).
+function addItemToCurrent(name, catId, dueD, restoreCat) {
+  var items = getItems();
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].name.toLowerCase()===name.toLowerCase()) {
+      if (!items[i].done) return "exists";
+      // Matching item is in the Done/Packed section — uncheck it instead of duplicating
+      items[i].done = false;
+      if (restoreCat) items[i].catId = restoreCat;
+      return "restored";
+    }
+  }
+  // +random so several items added in the same millisecond (voice) get unique ids
+  listData[currentList].items.unshift({ id:Date.now()+Math.floor(Math.random()*1000), name:name, catId:catId, done:false, dueDate:dueD||null, addedBy:hearthUser, updated:Date.now() });
+  addToHist(name, catId);
+  return "added";
+}
 function doAdd() {
   var name = elInput.value.trim();
   if (!name) { elInput.focus(); return; }
   var catId = manualCatId || detectCat(name);
-  var items = getItems();
-  for (var i = 0; i < items.length; i++) {
-    if (items[i].name.toLowerCase()===name.toLowerCase()) {
-      if (!items[i].done) {
-        toast("Already in your list!"); resetInput(); return;
-      } else {
-        // Matching item is in the Done/Packed section — uncheck it instead of duplicating
-        items[i].done = false;
-        if (manualCatId) items[i].catId = manualCatId;
-        saveCurrentList(); resetInput(); renderList(); switchTab("list");
-        toast("Moved back to list: " + name);
-        return;
-      }
-    }
-  }
   var dueD = (currentList === "todo" || currentList === "personal") ? (document.getElementById("dueDateInput").value || null) : null;
-  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false, dueDate:dueD, addedBy:hearthUser, updated:Date.now() });
-  addToHist(name, catId);
+  var res = addItemToCurrent(name, catId, dueD, manualCatId);
+  if (res === "exists") { toast("Already in your list!"); resetInput(); return; }
   saveCurrentList(); resetInput(); renderList(); switchTab("list");
-  toast("Added: "+name);
+  toast(res === "restored" ? ("Moved back to list: " + name) : ("Added: "+name));
 }
 function resetInput() {
   elInput.value = ""; hideCatRow(); hideAC(); currentCatId = null; manualCatId = null;
   var dd = document.getElementById("dueDateInput"); if (dd) dd.value = "";
 
+}
+
+// ── Voice capture (v304) — speak a list, get items parsed & added ──────────
+// Uses the browser Web Speech API (on Android that transcribes via Google —
+// Cathal OK'd this, same as the keyboard mic). Scoped to the list add row, so
+// it only ever touches grocery/todo/travel/personal — NEVER medicine/dosing.
+// Always shows a review step before adding: never silently commits mis-hears.
+var _voiceRec = null;
+function voiceSupported(){ return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+// Split a spoken phrase into items on commas / "and" / "then" / "plus" /
+// semicolons / newlines. Trims, collapses spaces, drops empties, de-dupes
+// (case-insensitive), capitalises the first letter, caps at 20. The "and"
+// split can over-split compound names ("fish and chips") — the review step
+// lets the user drop those before adding.
+function parseVoiceItems(text){
+  var seen = {}, out = [];
+  String(text||"").split(/,|\bthen\b|\band\b|\bplus\b|;|\n/i).forEach(function(s){
+    s = s.replace(/\s+/g," ").trim();
+    if (!s) return;
+    var key = s.toLowerCase();
+    if (seen[key]) return;
+    seen[key] = true;
+    out.push(s.charAt(0).toUpperCase() + s.slice(1));
+  });
+  return out.slice(0, 20);
+}
+function startVoiceAdd(){
+  if (!voiceSupported()) { toast("Voice input isn't available on this browser"); return; }
+  if (_voiceRec) { try { _voiceRec.stop(); } catch(e){} return; } // tap again to stop
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var rec = new SR(); _voiceRec = rec;
+  rec.lang = "en-IE"; rec.interimResults = false; rec.maxAlternatives = 1; rec.continuous = false;
+  var micBtn = document.getElementById("voiceMicBtn");
+  if (micBtn) micBtn.classList.add("listening");
+  rec.onresult = function(e){
+    var transcript = "";
+    for (var i=0;i<e.results.length;i++){ transcript += e.results[i][0].transcript; }
+    var items = parseVoiceItems(transcript);
+    if (!items.length) { toast("Didn't catch that — try again"); return; }
+    showVoiceReview(transcript, items);
+  };
+  rec.onerror = function(ev){
+    if (ev.error === "not-allowed" || ev.error === "service-not-allowed") toast("Allow microphone access to add by voice");
+    else if (ev.error === "no-speech") toast("Didn't hear anything — try again");
+    else if (ev.error !== "aborted") toast("Voice error — try again");
+  };
+  rec.onend = function(){ if (micBtn) micBtn.classList.remove("listening"); _voiceRec = null; };
+  try { rec.start(); } catch(e){ if (micBtn) micBtn.classList.remove("listening"); _voiceRec = null; }
+}
+function showVoiceReview(transcript, items){
+  var listName = (LIST_TYPES[currentList] ? LIST_TYPES[currentList].name.replace(/&#x[0-9A-Fa-f]+;\s*/,"") : "list").trim();
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:900;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box";
+  ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); ov.setAttribute("aria-label","Add by voice");
+  var chips = items.map(function(it,idx){
+    return "<span class='vc-chip' data-idx='"+idx+"' style='display:inline-flex;align-items:center;gap:6px;background:#F0EBF8;color:#4A3A20;border-radius:16px;padding:6px 10px;margin:0 6px 6px 0;font-size:14px'>"+esc(it)+"<span class='vc-x' data-idx='"+idx+"' style='cursor:pointer;color:#B07070;font-weight:800'>&times;</span></span>";
+  }).join("");
+  ov.innerHTML =
+    "<div style='background:#fff;border-radius:16px;padding:20px;width:100%;max-width:360px;max-height:75vh;overflow-y:auto'>" +
+      "<div style='font-size:16px;font-weight:800;color:#4A3A20;margin-bottom:2px'>&#x1F3A4; Add by voice</div>" +
+      "<div style='font-size:12px;color:#8A7A5A;margin-bottom:12px'>Heard: &ldquo;" + esc(transcript) + "&rdquo; &middot; tap &times; to drop one</div>" +
+      "<div id='vcChips'>" + chips + "</div>" +
+      "<div style='display:flex;gap:8px;margin-top:14px'>" +
+        "<button id='vcAdd' style='flex:1;padding:11px;border:none;background:var(--accent,#2D6B35);color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Add to " + esc(listName) + "</button>" +
+        "<button id='vcCancel' style='padding:11px 14px;border:none;background:#F0EBE2;color:#7A6A4A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Cancel</button>" +
+      "</div>" +
+    "</div>";
+  document.body.appendChild(ov);
+  var current = items.slice();
+  function close(){ if (ov.parentNode) ov.parentNode.removeChild(ov); }
+  ov.addEventListener("click", function(e){ if (e.target===ov) close(); });
+  ov.querySelector("#vcCancel").addEventListener("click", close);
+  ov.querySelectorAll(".vc-x").forEach(function(x){
+    x.addEventListener("click", function(){
+      current[+x.dataset.idx] = null;
+      var chip = x.closest(".vc-chip"); if (chip) chip.remove();
+      if (!current.filter(Boolean).length) close();
+    });
+  });
+  ov.querySelector("#vcAdd").addEventListener("click", function(){
+    var toAdd = current.filter(Boolean), added = 0, existed = 0;
+    toAdd.forEach(function(nm){
+      var res = addItemToCurrent(nm, detectCat(nm), null, null);
+      if (res === "exists") existed++; else added++;
+    });
+    if (added) { saveCurrentList(); renderList(); switchTab("list"); }
+    close();
+    toast(added ? ("Added " + added + " item" + (added!==1?"s":"") + (existed?" (" + existed + " already there)":"")) : "Those are already in your list");
+  });
 }
 // v303 (predictive-replenishment foundation): record today's add-date on a
 // history entry as a rolling series, so a future feature can learn how often
