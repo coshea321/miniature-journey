@@ -692,6 +692,9 @@ body.train-mode #toast{background:#3A3328}
       <div class="hw-meta" id="hwMeta"></div>
     </div>
 
+    <!-- Today summary card (v302) — self-suppressing one-line-per-domain glance -->
+    <div id="homeTodayCard"></div>
+
     <!-- Today at a glance — 2+2 split -->
     <div class="today-split">
       <div class="today-card today-card-train" id="tcTrainCard" style="grid-column:span 2">
@@ -762,7 +765,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v301 · 03/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v302 · 03/07/2026</div>
 
   </div>
 </div>
@@ -2416,18 +2419,21 @@ function tripDaysUntil(dateStr) {
 }
 // Countdown pill for a trip card (v298). "Today" / "Tomorrow" / "In N days"
 // for upcoming departures, "Now" while a trip is in progress, "" otherwise.
-function tripCountdownBadge(t) {
+// Countdown label text (v298; extracted v302 for reuse by the Today card):
+// "Today" / "Tomorrow" / "In N days" upcoming, "Now" in progress, "" for past.
+function tripCountdownLabel(t) {
   var d = tripDaysUntil(t.start);
   if (d === null) return "";
-  var label;
-  if (d > 1)      label = "In " + d + " days";
-  else if (d === 1) label = "Tomorrow";
-  else if (d === 0) label = "Today";
-  else {
-    var end = tripDaysUntil(t.end);
-    if (end !== null && end >= 0) label = "Now"; // started, not yet ended
-    else return "";                              // fully in the past
-  }
+  if (d > 1)      return "In " + d + " days";
+  if (d === 1)    return "Tomorrow";
+  if (d === 0)    return "Today";
+  var end = tripDaysUntil(t.end);
+  if (end !== null && end >= 0) return "Now"; // started, not yet ended
+  return "";                                  // fully in the past
+}
+function tripCountdownBadge(t) {
+  var label = tripCountdownLabel(t);
+  if (!label) return "";
   return "<div style='flex-shrink:0;background:#E4F3F1;color:#0F8A8A;font-size:12px;font-weight:700;border-radius:20px;padding:5px 11px;white-space:nowrap'>" + label + "</div>";
 }
 function tripCardHTML(t) {
@@ -8262,6 +8268,68 @@ function openWeatherSheet() {
   fetchWeather(true); // ensure fresh 3-day data; re-renders sheet on arrival
 }
 
+// ── Today summary card (v302) ──────────────────────────────
+// One tappable line per domain, each self-suppressing when it has nothing to
+// say. Shows what needs attention (groceries, starred tasks, upcoming trip)
+// plus positive confirmations (workout done, medicine given today). Reads
+// only existing data; jumps to the relevant section on tap.
+function _tcIsToday(ts){
+  if (!ts) return false;
+  var d = new Date(ts), n = new Date();
+  return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
+}
+function renderTodayCard() {
+  var el = document.getElementById("homeTodayCard");
+  if (!el) return;
+  var rows = [];
+  loadListData("grocery");
+  var gN = ((listData.grocery||{items:[]}).items||[]).filter(function(x){ return x && !x.done; }).length;
+  if (gN) rows.push({ ico:"&#x1F6D2;", text: gN + " grocer" + (gN===1?"y":"ies") + " to buy", act:"grocery" });
+  loadListData("todo");
+  var tN = ((listData.todo||{items:[]}).items||[]).filter(function(x){ return x && !x.done && x.today; }).length;
+  if (tN) rows.push({ ico:"&#x2B50;", text: tN + " task" + (tN===1?"":"s") + " starred for today", act:"todo" });
+  var today = trainTodayStr();
+  var sess = ((getWD().workouts)||[]).filter(function(w){ return w && w.date===today; }).length;
+  ((getActionLog())||[]).forEach(function(e){ if (e && e.type==="cardio" && e.date===today) sess++; });
+  if (sess) rows.push({ ico:"&#x1F4AA;", text: sess + " workout" + (sess===1?"":"s") + " done today", act:"train" });
+  var meds = ((getBD().medicine)||[]).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+  if (meds.length && _tcIsToday(meds[0].ts)) {
+    var m = meds[0], h = Math.floor((Date.now()-(m.ts||0))/3600000);
+    var agoTxt = h<1 ? "under 1h ago" : h+"h ago";
+    rows.push({ ico:"&#x1F476;", text: esc(m.name||"Medicine") + (m.dose?" ("+esc(m.dose)+")":"") + " &middot; " + agoTxt, act:"baby" });
+  }
+  var trips = ((getTrips())||[]).filter(function(t){ return t && tripCountdownLabel(t); })
+    .sort(function(a,b){ return (a.start||"").localeCompare(b.start||""); });
+  if (trips.length) {
+    var t0 = trips[0], lab = tripCountdownLabel(t0);
+    var tripText = lab==="Now" ? ("On your " + esc(t0.name||"trip")) : (esc(t0.name||"Trip") + " " + lab.toLowerCase());
+    rows.push({ ico:"&#x2708;&#xFE0F;", text: tripText, act:"trips" });
+  }
+  if (!rows.length) {
+    el.innerHTML = "<div style='background:#fff;border-radius:14px;padding:16px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(20,50,20,.07);text-align:center;font-size:14px;color:#8A8A6A;font-weight:600'>&#x2728; All caught up for today</div>";
+    return;
+  }
+  var html = "<div style='background:#fff;border-radius:14px;padding:2px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(20,50,20,.07)'>";
+  rows.forEach(function(r, i){
+    html += "<div class='today-row' data-act='" + r.act + "' style='display:flex;align-items:center;gap:11px;padding:11px 0;cursor:pointer;touch-action:manipulation" + (i<rows.length-1?";border-bottom:1px solid #F0EDE6":"") + "'>" +
+      "<span style='font-size:17px'>" + r.ico + "</span>" +
+      "<span style='flex:1;font-size:14px;font-weight:600;color:#2A2A1E'>" + r.text + "</span>" +
+      "<span style='color:#C8BEA8;font-size:18px'>&#x203A;</span>" +
+    "</div>";
+  });
+  html += "</div>";
+  el.innerHTML = html;
+  el.querySelectorAll(".today-row").forEach(function(row){
+    row.addEventListener("click", function(){
+      var act = row.dataset.act;
+      if (act==="grocery" || act==="todo") { switchSection("lists"); currentList = act; applyListTheme(); switchTab("list"); renderList(); }
+      else if (act==="train") { switchSection("train"); }
+      else if (act==="baby")  { switchSection("baby"); }
+      else if (act==="trips") { switchSection("trips"); if (typeof renderTrips==="function"){ _tripView="list"; _tripOpenId=null; renderTrips(); } }
+    });
+  });
+}
+
 function renderHomeScreen() {
   // While awaiting the first remote fetch after sign-in, show a gentle loading
   // state instead of painting stale local data (prevents the flash of old content)
@@ -8323,6 +8391,9 @@ function renderHomeScreen() {
     var _wEl = document.getElementById("tcBabyWeight");
     if (_wEl) _wEl.textContent = _gw.length ? (_gw[0].weight + " kg") : "—";
   } catch(e) {}
+
+  // ── Today summary card (v302) ────────────────────────────
+  try { renderTodayCard(); } catch(e){ console.error("renderTodayCard: "+e.message); }
 
   // ── Grocery spotlight (top 5 undone) ─────────────────────
   try { renderSpotlight("homeGrocerySpot", "grocery", 5); } catch(e){ console.error("renderSpotlight grocery: "+e.message); }
