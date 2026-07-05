@@ -314,6 +314,7 @@ body.home-mode .bn-btn.home-active{color:#C2691A}
 .bn-btn.baby-active{color:#c084fc}
 .bn-btn.notes-active{color:#A05A10}
 .bn-btn.trips-active{color:#0F8A8A}
+.bn-btn.sports-active{color:#2A7A3A}
 .notes-tab-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .notes-tab-btn.active{color:#fff;background:rgba(255,255,255,.2)}
 
@@ -770,7 +771,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v307 · 03/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v308 · 03/07/2026</div>
 
   </div>
 </div>
@@ -1459,6 +1460,10 @@ body.train-mode #toast{background:#3A3328}
         <span class="sync-toggle-label">&#x1F9F3; Trips</span>
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="trips" checked><span class="toggle-slider"></span></label>
       </div>
+      <div class="sync-toggle-row">
+        <span class="sync-toggle-label">&#x26BD; Sports</span>
+        <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="sports"><span class="toggle-slider"></span></label>
+      </div>
     </div>
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <div class="sync-section-title" style="margin-bottom:8px">Import / Export</div>
@@ -1475,6 +1480,11 @@ body.train-mode #toast{background:#3A3328}
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <button class="sync-btn outline" id="clearAllBtn" style="border-color:#C03030;color:#C03030">&#x1F5D1;&#xFE0F; Delete all my data</button>
   </div>
+</div>
+
+<!-- Sports section (v308) — hideable, device-local, pull-on-open scoreboard -->
+<div id="sportsSection" style="display:none">
+  <div style="padding:14px 14px 100px" id="sportsContent"></div>
 </div>
 
 <nav class="bottom-nav">
@@ -1498,6 +1508,9 @@ body.train-mode #toast{background:#3A3328}
   </button>
   <button class="bn-btn" id="bnTrips" aria-label="Trips">
     <span class="bn-ico">&#x1F9F3;</span>Trips
+  </button>
+  <button class="bn-btn" id="bnSports" aria-label="Sports" style="display:none">
+    <span class="bn-ico">&#x26BD;</span>Sports
   </button>
 </nav>
 
@@ -5300,19 +5313,21 @@ function openSavedMealsManager() {
   overlay.addEventListener("click", function(e){ if(e.target===overlay){ document.body.removeChild(overlay); renderFoodView(); } });
 }
 
-var HIDEABLE_SECTIONS = ["home", "train", "notes", "trips"]; // lists and baby are always visible
+var HIDEABLE_SECTIONS = ["home", "train", "notes", "trips", "sports"]; // lists and baby are always visible
 
 var sectionVisible = (function() {
   var stored = storeGet("fl4_secVisible") || {};
-  // Default: all visible
-  HIDEABLE_SECTIONS.forEach(function(s) { if (stored[s] === undefined) stored[s] = true; });
+  // Default: all visible, EXCEPT Sports (v308) which is opt-in so it doesn't
+  // add an 8th nav icon for anyone who doesn't want it. A missing key means
+  // the user hasn't chosen, so sports→false, everything else→true.
+  HIDEABLE_SECTIONS.forEach(function(s) { if (stored[s] === undefined) stored[s] = (s !== "sports"); });
   return stored;
 })();
 
 function saveSectionVisible() { storeSet("fl4_secVisible", sectionVisible); }
 
 function applySectionVisibility() {
-  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", notes:"bnNotes", baby:"bnBaby", trips:"bnTrips" };
+  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", notes:"bnNotes", baby:"bnBaby", trips:"bnTrips", sports:"bnSports" };
   HIDEABLE_SECTIONS.forEach(function(sec) {
     var btn = document.getElementById(navIds[sec]);
     if (btn) btn.style.display = sectionVisible[sec] ? "" : "none";
@@ -6648,6 +6663,141 @@ function playChime(){
   }catch(e){}
 }
 
+// ══════════════════════════════════════════════════════════
+// SPORTS (v308) — hideable pull-on-open scoreboard. Data from TheSportsDB
+// free key "3" (public sports data only; nothing personal is ever sent).
+// Teams + cache are DEVICE-LOCAL (fl4_sports_teams / fl4_sports_cache) —
+// not exported, not synced. No live scores/alerts (no push) — a team's data
+// refreshes when the Sports tab is opened, at most every 2h.
+// ══════════════════════════════════════════════════════════
+var SPORTS_API = "https://www.thesportsdb.com/api/v1/json/3/";
+var SPORTS_CACHE_TTL = 2 * 3600 * 1000;
+var _sportsFetching = {};
+function getSportsTeams(){ var t = storeGet("fl4_sports_teams"); return Array.isArray(t) ? t : [ { id:"133612", name:"Manchester United", sport:"Soccer" } ]; }
+function saveSportsTeams(t){ storeSet("fl4_sports_teams", t); }
+function sportsCache(){ var c = storeGet("fl4_sports_cache"); return (c && typeof c==="object") ? c : {}; }
+function saveSportsCache(c){ storeSet("fl4_sports_cache", c); }
+function sportsAgo(ts){ return ts ? medAgoStr(Date.now()-ts) : "—"; }
+// Kickoff in the user's local time from strTimestamp (treated as UTC if no tz).
+function sportsWhen(ev){
+  var ts = ev.strTimestamp, d;
+  if (ts) d = new Date(/Z|[+-]\d\d:?\d\d$/.test(ts) ? ts : ts + "Z");
+  else if (ev.dateEvent) d = new Date(ev.dateEvent + "T" + (ev.strTime||"00:00:00") + "Z");
+  if (!d || isNaN(d.getTime())) return ev.dateEvent || "TBC";
+  var days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], mon=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], p=function(x){return x<10?"0"+x:""+x;};
+  return days[d.getDay()]+" "+d.getDate()+" "+mon[d.getMonth()]+", "+p(d.getHours())+":"+p(d.getMinutes());
+}
+// Reduce a team's next+last events to display text (from the team's viewpoint).
+function sportsSummarise(team, next, last){
+  var out = { nextText:"", lastText:"" };
+  var nx = (next && next[0]) ? next[0] : null;
+  if (nx){
+    var home = String(nx.idHomeTeam) === String(team.id), opp = home ? nx.strAwayTeam : nx.strHomeTeam;
+    out.nextText = "vs " + opp + " (" + (home?"H":"A") + ") · " + sportsWhen(nx) + (nx.strLeague ? " · " + nx.strLeague : "");
+  }
+  var ls = (last && last[0]) ? last[0] : null;
+  if (ls){
+    var lhome = String(ls.idHomeTeam) === String(team.id), lopp = lhome ? ls.strAwayTeam : ls.strHomeTeam;
+    var us = lhome ? ls.intHomeScore : ls.intAwayScore, them = lhome ? ls.intAwayScore : ls.intHomeScore;
+    if (us != null && them != null && us !== "" && them !== ""){
+      var res = (+us > +them) ? "W" : (+us < +them) ? "L" : "D";
+      out.lastText = res + " " + us + "–" + them + " vs " + lopp;
+    } else { out.lastText = "vs " + lopp + " · " + (ls.dateEvent||""); }
+  }
+  return out;
+}
+function fetchSportsForTeam(team, cb){
+  if (_sportsFetching[team.id]) { cb && cb(); return; }
+  _sportsFetching[team.id] = true;
+  var got = { next:null, last:null, n:0 };
+  function step(){ if (++got.n >= 2){ _sportsFetching[team.id]=false;
+    var c = sportsCache(); c[team.id] = { next:got.next, last:got.last, at:Date.now(), name:team.name }; saveSportsCache(c); cb && cb(); } }
+  fetch(SPORTS_API + "eventsnext.php?id=" + encodeURIComponent(team.id)).then(function(r){return r.json();})
+    .then(function(j){ got.next = (j && j.events) ? j.events : []; step(); }).catch(function(){ step(); });
+  fetch(SPORTS_API + "eventslast.php?id=" + encodeURIComponent(team.id)).then(function(r){return r.json();})
+    .then(function(j){ got.last = (j && (j.results||j.events)) ? (j.results||j.events) : []; step(); }).catch(function(){ step(); });
+}
+function refreshSports(force){
+  if (typeof navigator!=="undefined" && navigator.onLine === false) return;
+  var teams = getSportsTeams(), c = sportsCache();
+  teams.forEach(function(t){
+    var cached = c[t.id];
+    if (force || !cached || (Date.now() - (cached.at||0)) > SPORTS_CACHE_TTL){
+      fetchSportsForTeam(t, function(){ if (currentSection==="sports") renderSports(); });
+    }
+  });
+}
+function renderSports(){
+  var el = document.getElementById("sportsContent");
+  if (!el) return;
+  var teams = getSportsTeams(), c = sportsCache();
+  var html = "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px'>" +
+    "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600'>&#x26BD; Sports</div>" +
+    "<button id='sportsManageBtn' style='border:1.5px solid #C4833A;background:none;color:#C4833A;border-radius:9px;padding:7px 12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Manage teams</button></div>";
+  if (!teams.length){
+    html += "<div style='text-align:center;color:#8A7A5A;padding:30px 16px'><div style='font-size:40px'>&#x26BD;</div><div style='font-size:15px;font-weight:600;margin:8px 0 4px'>No teams yet</div><div style='font-size:13px'>Tap &ldquo;Manage teams&rdquo; to add yours.</div></div>";
+  } else {
+    teams.forEach(function(t){
+      var cached = c[t.id], s = cached ? sportsSummarise(t, cached.next, cached.last) : null;
+      html += "<div style='background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:13px 14px;margin-bottom:10px'>" +
+        "<div style='font-size:15px;font-weight:700;color:#1A2E2E;margin-bottom:5px'>"+esc(t.name)+"</div>" +
+        (s && s.nextText ? "<div style='font-size:13px;color:#2A6A4A;margin-bottom:3px'>&#x1F4C5; Next: "+esc(s.nextText)+"</div>" : "<div style='font-size:13px;color:#9A8A6A;margin-bottom:3px'>"+(cached?"No upcoming fixture":"Loading…")+"</div>") +
+        (s && s.lastText ? "<div style='font-size:13px;color:#6A5A40'>&#x1F3C1; Last: "+esc(s.lastText)+"</div>" : "") +
+        "</div>";
+    });
+    var stamp = teams.map(function(t){ return c[t.id] && c[t.id].at; }).filter(Boolean).sort().pop();
+    html += "<div style='font-size:11px;color:#B0A488;text-align:center;margin-top:6px;line-height:1.5'>"+(stamp? "as of "+sportsAgo(stamp) : "Loading…")+"<br>updates when you open this tab &middot; not live</div>";
+  }
+  el.innerHTML = html;
+  var mb = document.getElementById("sportsManageBtn");
+  if (mb) mb.addEventListener("click", openSportsManage);
+  refreshSports(false);
+}
+function openSportsManage(){
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box";
+  ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); ov.setAttribute("aria-label","Manage teams");
+  function close(){ if (ov.parentNode) ov.parentNode.removeChild(ov); renderSports(); }
+  function doSearch(){
+    var q = ov.querySelector("#sptSearch").value.trim(); if (!q) return;
+    var rd = ov.querySelector("#sptResults"); rd.innerHTML = "<div style='font-size:13px;color:#8A7A5A;padding:4px 2px'>Searching…</div>";
+    fetch(SPORTS_API + "searchteams.php?t=" + encodeURIComponent(q)).then(function(r){return r.json();}).then(function(j){
+      var res = (j && j.teams) ? j.teams.slice(0,8) : [];
+      if (!res.length){ rd.innerHTML = "<div style='font-size:13px;color:#8A7A5A;padding:4px 2px'>No teams found.</div>"; return; }
+      rd.innerHTML = res.map(function(t){
+        return "<div class='sptAdd' data-id='"+esc(t.idTeam)+"' data-name='"+esc(t.strTeam)+"' data-sport='"+esc(t.strSport||"")+"' style='display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid #EEE9E0;cursor:pointer'><span style='font-size:14px;color:#2A2010'>"+esc(t.strTeam)+" <span style='font-size:11px;color:#9A8A6A'>"+esc(t.strSport||"")+(t.strLeague?" · "+esc(t.strLeague):"")+"</span></span><span style='color:#2D6B35;font-weight:800;font-size:18px'>+</span></div>";
+      }).join("");
+      rd.querySelectorAll(".sptAdd").forEach(function(row){ row.addEventListener("click", function(){
+        var t = getSportsTeams();
+        if (t.some(function(x){ return String(x.id)===String(row.dataset.id); })){ toast("Already added"); return; }
+        t.push({ id:row.dataset.id, name:row.dataset.name, sport:row.dataset.sport }); saveSportsTeams(t);
+        toast("Added "+row.dataset.name); draw();
+      }); });
+    }).catch(function(){ rd.innerHTML = "<div style='font-size:13px;color:#C06060;padding:4px 2px'>Search failed — check your connection.</div>"; });
+  }
+  function draw(){
+    var teams = getSportsTeams();
+    var list = teams.map(function(t,i){
+      return "<div style='display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid #EEE9E0'><span style='font-size:14px;color:#2A2010'>"+esc(t.name)+"</span><button class='sptRm' data-idx='"+i+"' aria-label='Remove' style='border:none;background:none;color:#C06060;font-size:17px;cursor:pointer;padding:0 6px'>&times;</button></div>";
+    }).join("") || "<div style='font-size:13px;color:#8A7A5A;padding:6px 2px'>No teams yet.</div>";
+    ov.innerHTML = "<div style='background:#fff;border-radius:16px;padding:20px;width:100%;max-width:360px;max-height:82vh;overflow-y:auto'>" +
+      "<div style='font-size:16px;font-weight:800;color:#4A3A20;margin-bottom:10px'>&#x26BD; Manage teams</div>" +
+      "<div>"+list+"</div>" +
+      "<div style='margin-top:14px;font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.4px'>Add a team</div>" +
+      "<div style='display:flex;gap:8px;margin-top:6px'><input id='sptSearch' type='text' placeholder='Team or country name…' autocomplete='off' autocorrect='off' style='flex:1;padding:9px 11px;border:1.5px solid #D8D0C0;border-radius:9px;font-family:inherit;font-size:14px;outline:none'><button id='sptSearchBtn' style='padding:9px 13px;border:none;background:#C4833A;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Search</button></div>" +
+      "<div id='sptResults' style='margin-top:8px'></div>" +
+      "<button id='sptClose' style='width:100%;margin-top:16px;padding:11px;border:none;background:#F0EBE2;color:#7A6A4A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Done</button>" +
+    "</div>";
+    ov.querySelectorAll(".sptRm").forEach(function(bt){ bt.addEventListener("click", function(){ var t=getSportsTeams(); t.splice(+bt.dataset.idx,1); saveSportsTeams(t); draw(); }); });
+    ov.querySelector("#sptClose").addEventListener("click", close);
+    ov.querySelector("#sptSearchBtn").addEventListener("click", doSearch);
+    ov.querySelector("#sptSearch").addEventListener("keydown", function(e){ if (e.key==="Enter") doSearch(); });
+  }
+  ov.addEventListener("click", function(e){ if (e.target===ov) close(); });
+  document.body.appendChild(ov);
+  draw();
+}
+
 function switchSection(section) {
   currentSection = section;
   window.scrollTo(0, 0);
@@ -6659,6 +6809,7 @@ function switchSection(section) {
   document.getElementById("notesSection").style.display = section === "notes"  ? "block" : "none";
   document.getElementById("babySection").style.display  = section === "baby"   ? "block" : "none";
   document.getElementById("tripsSection").style.display = section === "trips"  ? "block" : "none";
+  document.getElementById("sportsSection").style.display = section === "sports" ? "block" : "none";
 
   document.getElementById("bnHome").className  = "bn-btn" + (section === "home"   ? " home-active"  : "");
   document.getElementById("bnLife").className  = "bn-btn" + (section === "lists"  ? " life-active"  : "");
@@ -6667,6 +6818,8 @@ function switchSection(section) {
   document.getElementById("bnNotes").className = "bn-btn" + (section === "notes"  ? " notes-active" : "");
   document.getElementById("bnBaby").className  = "bn-btn" + (section === "baby"   ? " baby-active"  : "");
   document.getElementById("bnTrips").className = "bn-btn" + (section === "trips"  ? " trips-active" : "");
+  document.getElementById("bnSports").className = "bn-btn" + (section === "sports" ? " sports-active" : "");
+  if (section === "sports" && typeof renderSports === "function") renderSports();
 
   document.body.classList.toggle("home-mode",  section === "home");
   document.body.classList.toggle("train-mode", section === "train");
@@ -8235,6 +8388,7 @@ function closeRecipeImport(){
 document.getElementById("bnNotes").addEventListener("click", function(){ switchSection("notes"); });
 document.getElementById("bnBaby").addEventListener("click",  function(){ switchSection("baby");  });
 document.getElementById("bnTrips").addEventListener("click", function(){ switchSection("trips"); });
+document.getElementById("bnSports").addEventListener("click", function(){ switchSection("sports"); });
 
 // ============================================================
 // HOME SCREEN
