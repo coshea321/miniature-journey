@@ -770,7 +770,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v306 · 03/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v307 · 03/07/2026</div>
 
   </div>
 </div>
@@ -3808,14 +3808,34 @@ function buildSuggestionsStrip(){
   if (!sugg.length) return "";
   var chips = sugg.map(function(s){
     var cat = esc(s.catId||"other"), nm = esc(s.name);
-    return "<span class='sugg-chip' style='display:inline-flex;align-items:center;gap:6px;background:#F3EFE6;border:1px solid #E4DCC8;border-radius:16px;padding:5px 8px 5px 11px;margin:0 6px 6px 0;font-size:13px'>" +
-      "<span class='sugg-add' data-name='"+nm+"' data-cat='"+cat+"' style='cursor:pointer;font-weight:600;color:#4A3A20'>"+nm+"</span>" +
-      "<span style='font-size:10px;color:#9A8A6A'>"+esc(s.reason)+"</span>" +
-      "<span class='sugg-add' data-name='"+nm+"' data-cat='"+cat+"' aria-label='Add "+nm+"' style='cursor:pointer;color:#2D6B35;font-weight:800;font-size:16px;line-height:1'>+</span>" +
-      "<span class='sugg-x' data-name='"+nm+"' aria-label='Dismiss "+nm+"' style='cursor:pointer;color:#B0A488;font-weight:700;font-size:15px;line-height:1'>&times;</span>" +
+    // Two large, clearly-separated tap targets (v307): the whole left block
+    // adds; the divider-split × on the right dismisses. Each ~40px so they
+    // can't be mis-tapped for each other.
+    return "<span class='sugg-chip' style='display:inline-flex;align-items:stretch;background:#F3EFE6;border:1px solid #E4DCC8;border-radius:16px;margin:0 8px 8px 0;font-size:13px;overflow:hidden'>" +
+      "<span class='sugg-add' data-name='"+nm+"' data-cat='"+cat+"' aria-label='Add "+nm+"' style='display:inline-flex;align-items:center;gap:7px;padding:13px 12px 13px 14px;cursor:pointer;touch-action:manipulation'>" +
+        "<span style='color:#2D6B35;font-weight:800;font-size:17px;line-height:1'>+</span>" +
+        "<span style='font-weight:600;color:#4A3A20'>"+nm+"</span>" +
+        "<span style='font-size:10px;color:#9A8A6A'>"+esc(s.reason)+"</span>" +
+      "</span>" +
+      "<span class='sugg-x' data-name='"+nm+"' aria-label='Dismiss "+nm+"' style='display:inline-flex;align-items:center;padding:13px 14px;border-left:1px solid #E4DCC8;color:#B0705E;font-weight:700;font-size:16px;line-height:1;cursor:pointer;touch-action:manipulation'>&times;</span>" +
     "</span>";
   }).join("");
   return "<div style='padding:2px 2px 4px'><div style='font-size:11px;font-weight:700;color:#9A8A6A;text-transform:uppercase;letter-spacing:.5px;margin:2px 2px 7px'>&#x1F52E; Suggested</div>" + chips + "</div>";
+}
+// Wire the suggestion chips after renderList sets innerHTML (called from both
+// the empty-list and populated paths, so suggestions work on an empty list too).
+function wireSuggestionChips(){
+  elListC.querySelectorAll(".sugg-add").forEach(function(el){
+    el.addEventListener("click", function(){
+      var nm = el.dataset.name; if (!nm) return;
+      var res = addItemToCurrent(nm, el.dataset.cat || detectCat(nm), null, null);
+      saveCurrentList(); renderList(); switchTab("list");
+      toast(res === "exists" ? "Already in your list" : ("Added: " + nm));
+    });
+  });
+  elListC.querySelectorAll(".sugg-x").forEach(function(el){
+    el.addEventListener("click", function(){ if (el.dataset.name){ suggSnooze(el.dataset.name); renderList(); } });
+  });
 }
 
 function renderList() {
@@ -3866,8 +3886,12 @@ function renderList() {
     elClearBtn.innerHTML  = "&#x2715; Clear completed";
     elReopenBtn.innerHTML = "&#x21BA; Reopen all";
   }
+  // Suggestions strip (v306) — grocery only, not while searching. Computed
+  // here so it also shows above the empty-list state (when it's most useful).
+  var suggHtml = (currentList === "grocery" && !_listSearchQuery) ? buildSuggestionsStrip() : "";
   if (!items.length) {
-    elListC.innerHTML = "<div class='empty'><div class='empty-ico'>"+lt.emptyIco+"</div><div class='empty-title'>"+lt.emptyTitle+"</div><div class='empty-sub'>"+lt.emptySub+"</div></div>";
+    elListC.innerHTML = suggHtml + "<div class='empty'><div class='empty-ico'>"+lt.emptyIco+"</div><div class='empty-title'>"+lt.emptyTitle+"</div><div class='empty-sub'>"+lt.emptySub+"</div></div>";
+    wireSuggestionChips();
     return;
   }
   var groups={};
@@ -3941,21 +3965,8 @@ function renderList() {
     for (var di=0;di<done.length;di++) html+=cardHTML(done[di],getCat(done[di].catId||"other"));
     html+="</div>";
   }
-  // Predictive suggestions strip (v306) — grocery only, not while searching
-  var suggHtml = (currentList === "grocery" && !_listSearchQuery) ? buildSuggestionsStrip() : "";
   elListC.innerHTML = suggHtml + html;
-  // Wire suggestion chips
-  elListC.querySelectorAll(".sugg-add").forEach(function(el){
-    el.addEventListener("click", function(){
-      var nm = el.dataset.name; if (!nm) return;
-      var res = addItemToCurrent(nm, el.dataset.cat || detectCat(nm), null, null);
-      saveCurrentList(); renderList(); switchTab("list");
-      toast(res === "exists" ? "Already in your list" : ("Added: " + nm));
-    });
-  });
-  elListC.querySelectorAll(".sugg-x").forEach(function(el){
-    el.addEventListener("click", function(){ if (el.dataset.name){ suggSnooze(el.dataset.name); renderList(); } });
-  });
+  wireSuggestionChips();
   // Wire done section toggle
   var doneToggleEl = elListC.querySelector("#doneToggle");
   if (doneToggleEl) {
