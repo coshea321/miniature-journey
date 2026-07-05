@@ -1,4 +1,4 @@
-# Hearth — Notes & State of Play (as of v308)
+# Hearth — Notes & State of Play (as of v308) 
 
 **This is the single source of truth for the Hearth project.** It combines: state-of-play (version log + what's pending), architecture & working notes, hard-won lessons, and the full `sw.js` source. There are no other Hearth context docs — if an older separate `HEARTH-architecture.md` or `HEARTH-state-of-play.md` is still in Project knowledge, delete it; this file supersedes both.
 
