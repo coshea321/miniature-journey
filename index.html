@@ -771,7 +771,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v310 · 05/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v311 · 06/07/2026</div>
 
   </div>
 </div>
@@ -6707,7 +6707,12 @@ function sportsSummarise(team, next, last){
   return out;
 }
 function fetchSportsForTeam(team, cb){
-  if (_sportsFetching[team.id]) { cb && cb(); return; }
+  // A fetch already in flight for this team will call cb (renderSports) itself
+  // when it resolves. Calling cb synchronously here too would let renderSports'
+  // own refreshSports(false) call straight back into this branch — since the
+  // cache still isn't populated yet — causing unbounded synchronous recursion
+  // and a "Maximum call stack size exceeded" crash. Just wait for the original.
+  if (_sportsFetching[team.id]) { return; }
   _sportsFetching[team.id] = true;
   var got = { next:null, last:null, n:0 };
   function step(){ if (++got.n >= 2){ _sportsFetching[team.id]=false;
