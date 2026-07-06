@@ -1,4 +1,4 @@
-# Hearth — Notes & State of Play (as of v312) 
+# Hearth — Notes & State of Play (as of v312)
 
 **This is the single source of truth for the Hearth project.** It combines: state-of-play (version log + what's pending), architecture & working notes, and hard-won lessons. The only other context doc is `HEARTH-archive.md` (detailed changelog entries older than the newest ~10 versions, split out 05/07/2026) — **read it only when an old version is referenced**, not at session start. If an older separate `HEARTH-architecture.md` or `HEARTH-state-of-play.md` is still in Project knowledge, delete it; this file supersedes both.
 
