@@ -11115,7 +11115,7 @@ var PAGE_VERSION = (function(){
   return el ? el.textContent.trim() : "";
 })();
 function _verNum(v) {
-  // "v312 · 06/07/2026" → 312 (0 when unparseable)
+  // "vNNN · DD/MM/YYYY" → NNN as a number (0 when unparseable)
   var m = /^v(\d+)/.exec(String(v || ""));
   return m ? parseInt(m[1], 10) : 0;
 }
