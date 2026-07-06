@@ -771,7 +771,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v308 · 03/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v309 · 05/07/2026</div>
 
   </div>
 </div>
@@ -10474,6 +10474,7 @@ function renderGrowth() {
     "</div>";
   }
   if (growth.length) {
+    html += growthChartsHtml(bd);
     html += "<div style='padding:0 12px'>";
     growth.forEach(function(e) {
       var band = growthBand(e, bd.babySex);
@@ -10607,6 +10608,68 @@ function growthTrendSummary() {
     text += ", " + dir + " over the last " + win.length + " readings";
   }
   return { text: text + ".", bg: band.bg, fg: band.fg };
+}
+
+// Renders one mini line-chart as an inline SVG. points/medianPoints are
+// ascending {t:ms, v:number}. medianPoints (optional) draws a dotted overlay
+// on the same time axis, used for the WHO weight-for-length reference.
+function growthChartSvg(points, medianPoints, color, unit) {
+  var W=300, H=112, padL=34, padR=10, padT=14, padB=20;
+  var plotW=W-padL-padR, plotH=H-padT-padB;
+  var minT=points[0].t, maxT=points[points.length-1].t;
+  var vals = points.map(function(p){ return p.v; });
+  if (medianPoints) vals = vals.concat(medianPoints.map(function(p){ return p.v; }));
+  var minV=Math.min.apply(null,vals), maxV=Math.max.apply(null,vals);
+  if (minV===maxV) { minV -= 1; maxV += 1; }
+  var pad = (maxV-minV)*0.15; minV -= pad; maxV += pad;
+  function xOf(t){ return minT===maxT ? padL+plotW/2 : padL+(t-minT)/(maxT-minT)*plotW; }
+  function yOf(v){ return padT+(1-(v-minV)/(maxV-minV))*plotH; }
+  var linePts = points.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.v).toFixed(1); }).join(" ");
+  var dots = points.map(function(p){ return "<circle cx='"+xOf(p.t).toFixed(1)+"' cy='"+yOf(p.v).toFixed(1)+"' r='3' fill='"+color+"'/>"; }).join("");
+  var medianLine = "";
+  if (medianPoints && medianPoints.length >= 2) {
+    var mLinePts = medianPoints.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.v).toFixed(1); }).join(" ");
+    medianLine = "<polyline points='"+mLinePts+"' fill='none' stroke='#B8A8B8' stroke-width='1.5' stroke-dasharray='4,3'/>";
+  }
+  var firstLabel = esc(new Date(minT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
+  var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
+  return "<svg viewBox='0 0 "+W+" "+H+"' width='100%' height='"+H+"' style='display:block'>" +
+    "<text x='"+padL+"' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(1)+unit+"</text>" +
+    "<text x='"+padL+"' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(1)+unit+"</text>" +
+    medianLine +
+    "<polyline points='"+linePts+"' fill='none' stroke='"+color+"' stroke-width='2'/>" +
+    dots +
+    "<text x='"+padL+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8'>"+firstLabel+"</text>" +
+    "<text x='"+(W-padR)+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8' text-anchor='end'>"+lastLabel+"</text>" +
+  "</svg>";
+}
+// Visual growth chart (v309) — two stacked mini SVG line-charts (weight,
+// height) over time. Weight chart overlays a dotted WHO weight-for-length
+// median line when a sex is set, echoing the v301 band-trend text visually.
+// A metric with fewer than 2 readings shows a placeholder instead of a chart.
+function growthChartsHtml(bd) {
+  var sex = bd.babySex;
+  var color = sex === "girl" ? "#C2649A" : sex === "boy" ? "#5A8AC2" : "#9333ea";
+  var asc = (bd.growth||[]).slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
+  function chartFor(field, unit, label) {
+    var pts = asc.filter(function(e){ return e[field]!=null; }).map(function(e){ return { t: new Date(e.date).getTime(), v: e[field] }; });
+    var body;
+    if (pts.length < 2) {
+      body = "<div style='padding:14px;text-align:center;color:#B8A8B8;font-size:12px'>Log a couple more "+label.toLowerCase()+" readings to see the trend line</div>";
+    } else {
+      var medianPts = null;
+      if (field === "weight" && sex) {
+        medianPts = asc.filter(function(e){ return e.weight!=null && e.height!=null && growthMedianForLength(e.height, sex)!=null; })
+          .map(function(e){ return { t: new Date(e.date).getTime(), v: growthMedianForLength(e.height, sex) }; });
+      }
+      body = growthChartSvg(pts, medianPts, color, unit);
+    }
+    return "<div style='margin:0 12px 10px;padding:8px 4px 4px;background:#fff;border-radius:10px;border:1px solid #F0EBF8'>" +
+      "<div style='font-size:11px;font-weight:700;color:#8A6A8A;text-transform:uppercase;letter-spacing:.4px;padding:0 8px 2px'>"+label+"</div>" +
+      body +
+    "</div>";
+  }
+  return chartFor("weight","kg","Weight") + chartFor("height","cm","Height");
 }
 
 function latestBabyWeightRec() {
