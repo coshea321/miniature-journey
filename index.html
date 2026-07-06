@@ -771,7 +771,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v309 · 05/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v310 · 05/07/2026</div>
 
   </div>
 </div>
@@ -10571,13 +10571,16 @@ function growthMedianForLength(h, sex) {
   var mLo = t[lo], mHi = t[hi];
   return (lo===hi) ? mLo : mLo + (mHi-mLo) * (h-lo)/5;
 }
+// Shared weight-for-length "Normal" band thresholds (percent of WHO median),
+// used by both growthBand()'s per-entry label and the v310 ratio chart's band.
+var GROWTH_BAND_LO = 90, GROWTH_BAND_HI = 110;
 function growthBand(rec, sex) {
   if (!sex || !rec.weight || !rec.height) return null;
   var median = growthMedianForLength(rec.height, sex);
   if (median == null) return null;
-  var ratio = rec.weight / median;
-  if (ratio < 0.90) return { label:"Below avg", bg:"#FDF0E0", fg:"#B07030" };
-  if (ratio > 1.10) return { label:"Above avg", bg:"#E8F0FD", fg:"#5070B0" };
+  var ratio = (rec.weight / median) * 100;
+  if (ratio < GROWTH_BAND_LO) return { label:"Below avg", bg:"#FDF0E0", fg:"#B07030" };
+  if (ratio > GROWTH_BAND_HI) return { label:"Above avg", bg:"#E8F0FD", fg:"#5070B0" };
   return { label:"Normal", bg:"#E8F5E0", fg:"#508040" };
 }
 // Growth-trend summary (v301) — HONEST band-trend, NOT a percentile.
@@ -10610,32 +10613,31 @@ function growthTrendSummary() {
   return { text: text + ".", bg: band.bg, fg: band.fg };
 }
 
-// Renders one mini line-chart as an inline SVG. points/medianPoints are
-// ascending {t:ms, v:number}. medianPoints (optional) draws a dotted overlay
-// on the same time axis, used for the WHO weight-for-length reference.
-function growthChartSvg(points, medianPoints, color, unit) {
-  var W=300, H=112, padL=34, padR=10, padT=14, padB=20;
+// Renders the weight/height-vs-WHO-median ratio as one mini SVG line-chart
+// (v310, replaces the v309 separate weight/height charts). points are
+// ascending {t:ms, v:ratio*100}. A shaded band (GROWTH_BAND_LO–GROWTH_BAND_HI)
+// marks the "Normal" range used elsewhere in the Growth view, with a dotted
+// 100% line for the WHO median itself.
+function growthRatioChartSvg(points, color) {
+  var W=300, H=126, padL=34, padR=10, padT=14, padB=20;
   var plotW=W-padL-padR, plotH=H-padT-padB;
   var minT=points[0].t, maxT=points[points.length-1].t;
-  var vals = points.map(function(p){ return p.v; });
-  if (medianPoints) vals = vals.concat(medianPoints.map(function(p){ return p.v; }));
+  var vals = points.map(function(p){ return p.v; }).concat([GROWTH_BAND_LO, GROWTH_BAND_HI]);
   var minV=Math.min.apply(null,vals), maxV=Math.max.apply(null,vals);
-  if (minV===maxV) { minV -= 1; maxV += 1; }
   var pad = (maxV-minV)*0.15; minV -= pad; maxV += pad;
   function xOf(t){ return minT===maxT ? padL+plotW/2 : padL+(t-minT)/(maxT-minT)*plotW; }
   function yOf(v){ return padT+(1-(v-minV)/(maxV-minV))*plotH; }
+  var bandTop = yOf(GROWTH_BAND_HI), bandBottom = yOf(GROWTH_BAND_LO);
+  var band = "<rect x='"+padL+"' y='"+bandTop.toFixed(1)+"' width='"+plotW+"' height='"+(bandBottom-bandTop).toFixed(1)+"' fill='#E8F5E0'/>";
+  var medianLine = "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(100).toFixed(1)+"' y2='"+yOf(100).toFixed(1)+"' stroke='#B8A8B8' stroke-width='1.5' stroke-dasharray='4,3'/>";
   var linePts = points.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.v).toFixed(1); }).join(" ");
   var dots = points.map(function(p){ return "<circle cx='"+xOf(p.t).toFixed(1)+"' cy='"+yOf(p.v).toFixed(1)+"' r='3' fill='"+color+"'/>"; }).join("");
-  var medianLine = "";
-  if (medianPoints && medianPoints.length >= 2) {
-    var mLinePts = medianPoints.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.v).toFixed(1); }).join(" ");
-    medianLine = "<polyline points='"+mLinePts+"' fill='none' stroke='#B8A8B8' stroke-width='1.5' stroke-dasharray='4,3'/>";
-  }
   var firstLabel = esc(new Date(minT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
   var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
   return "<svg viewBox='0 0 "+W+" "+H+"' width='100%' height='"+H+"' style='display:block'>" +
-    "<text x='"+padL+"' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(1)+unit+"</text>" +
-    "<text x='"+padL+"' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(1)+unit+"</text>" +
+    band +
+    "<text x='"+padL+"' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(0)+"%</text>" +
+    "<text x='"+padL+"' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(0)+"%</text>" +
     medianLine +
     "<polyline points='"+linePts+"' fill='none' stroke='"+color+"' stroke-width='2'/>" +
     dots +
@@ -10643,33 +10645,31 @@ function growthChartSvg(points, medianPoints, color, unit) {
     "<text x='"+(W-padR)+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8' text-anchor='end'>"+lastLabel+"</text>" +
   "</svg>";
 }
-// Visual growth chart (v309) — two stacked mini SVG line-charts (weight,
-// height) over time. Weight chart overlays a dotted WHO weight-for-length
-// median line when a sex is set, echoing the v301 band-trend text visually.
-// A metric with fewer than 2 readings shows a placeholder instead of a chart.
+// Visual growth chart (v309, redesigned v310) — one mini SVG line-chart of
+// the weight/height-vs-WHO-median ratio over time (same ratio growthBand()
+// already computes per entry), with a shaded Normal-range band. Needs
+// babySex set (the ratio needs a WHO median) and >=2 readings with both
+// weight+height in range; otherwise shows an explanatory placeholder.
 function growthChartsHtml(bd) {
   var sex = bd.babySex;
-  var color = sex === "girl" ? "#C2649A" : sex === "boy" ? "#5A8AC2" : "#9333ea";
-  var asc = (bd.growth||[]).slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
-  function chartFor(field, unit, label) {
-    var pts = asc.filter(function(e){ return e[field]!=null; }).map(function(e){ return { t: new Date(e.date).getTime(), v: e[field] }; });
-    var body;
-    if (pts.length < 2) {
-      body = "<div style='padding:14px;text-align:center;color:#B8A8B8;font-size:12px'>Log a couple more "+label.toLowerCase()+" readings to see the trend line</div>";
-    } else {
-      var medianPts = null;
-      if (field === "weight" && sex) {
-        medianPts = asc.filter(function(e){ return e.weight!=null && e.height!=null && growthMedianForLength(e.height, sex)!=null; })
-          .map(function(e){ return { t: new Date(e.date).getTime(), v: growthMedianForLength(e.height, sex) }; });
-      }
-      body = growthChartSvg(pts, medianPts, color, unit);
-    }
-    return "<div style='margin:0 12px 10px;padding:8px 4px 4px;background:#fff;border-radius:10px;border:1px solid #F0EBF8'>" +
-      "<div style='font-size:11px;font-weight:700;color:#8A6A8A;text-transform:uppercase;letter-spacing:.4px;padding:0 8px 2px'>"+label+"</div>" +
-      body +
-    "</div>";
+  if (!sex) {
+    return "<div style='margin:0 12px 10px;padding:14px;text-align:center;color:#B8A8B8;font-size:12px;background:#fff;border-radius:10px;border:1px solid #F0EBF8'>Set the baby's sex above to see the weight-for-length trend chart</div>";
   }
-  return chartFor("weight","kg","Weight") + chartFor("height","cm","Height");
+  var color = sex === "girl" ? "#C2649A" : "#5A8AC2";
+  var asc = (bd.growth||[]).slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
+  var pts = asc.filter(function(e){ return e.weight!=null && e.height!=null && growthMedianForLength(e.height, sex)!=null; })
+    .map(function(e){ return { t: new Date(e.date).getTime(), v: (e.weight / growthMedianForLength(e.height, sex)) * 100 }; });
+  var body;
+  if (pts.length < 2) {
+    body = "<div style='padding:14px;text-align:center;color:#B8A8B8;font-size:12px'>Log a couple more readings (with both weight and height) to see the trend line</div>";
+  } else {
+    body = growthRatioChartSvg(pts, color);
+  }
+  return "<div style='margin:0 12px 10px;padding:8px 4px 4px;background:#fff;border-radius:10px;border:1px solid #F0EBF8'>" +
+    "<div style='font-size:11px;font-weight:700;color:#8A6A8A;text-transform:uppercase;letter-spacing:.4px;padding:0 8px 2px'>Weight vs WHO median</div>" +
+    body +
+    "<div style='font-size:10px;color:#B8A8B8;padding:2px 8px 6px'>Shaded band = Normal range ("+GROWTH_BAND_LO+"&ndash;"+GROWTH_BAND_HI+"%) &middot; dotted line = 100% (WHO median)</div>" +
+  "</div>";
 }
 
 function latestBabyWeightRec() {
