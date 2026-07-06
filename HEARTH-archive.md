@@ -1,5 +1,5 @@
 # Hearth — Changelog archive (v230–v302)
-
+ 
 Detailed changelog entries older than the newest ~10 versions live here, moved out of `HEARTH-notes.md` on 05/07/2026 to keep the per-session read small. **Read this file only when a specific old version is referenced** — day-to-day sessions don't need it. A condensed one-line index of every version stays in `HEARTH-notes.md` ("Shipped" section).
 
 Maintenance: when a new version's detailed entry is added to `HEARTH-notes.md`, move the oldest detailed entry from there to the TOP of the list below, keeping this file newest-first.
