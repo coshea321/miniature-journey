@@ -667,6 +667,23 @@ body.train-mode #toast{background:#3A3328}
 </head>
 <body>
 
+<!-- Boot splash (v312): covers everything until the boot gate confirms the
+     newest app version is showing (or gives up). Inline styles so it paints
+     before any CSS/JS. Matches the Android launch screen (#1C0A04). -->
+<div id="bootSplash" style="position:fixed;inset:0;z-index:9998;background:#1C0A04;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .18s ease">
+  <img src="icon-192.png" width="96" height="96" style="border-radius:22px" alt="Hearth">
+  <div style="display:flex;gap:8px">
+    <span class="bs-dot" style="animation-delay:0s"></span>
+    <span class="bs-dot" style="animation-delay:.2s"></span>
+    <span class="bs-dot" style="animation-delay:.4s"></span>
+  </div>
+  <div id="bootSplashMsg" style="color:#C8BEA8;font-size:13px;font-weight:600;letter-spacing:.4px;min-height:16px"></div>
+</div>
+<style>
+.bs-dot{width:8px;height:8px;border-radius:50%;background:#C8BEA8;opacity:.25;animation:bsPulse 1.2s infinite ease-in-out}
+@keyframes bsPulse{0%,100%{opacity:.25}40%{opacity:.9}}
+</style>
+
 <header>
   <div class="app-title" id="appTitle">🔥 Hearth</div>
   <div class="hdr-badge" id="hdrBadge"></div>
@@ -771,7 +788,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v311 · 06/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v312 · 06/07/2026</div>
 
   </div>
 </div>
@@ -11084,14 +11101,103 @@ if (isLoggedIn()) {
 
 applySectionVisibility();
 
-// ── Service worker ─────────────────────────────────────────
+// ── Service worker + boot splash gate (v312) ───────────────
+// The #bootSplash overlay covers the app from first paint. It hides only
+// when we know the page on screen is the newest deployed version — or when
+// waiting stops being worth it: ~4s normally, ~8s while an update is
+// visibly installing, instantly when offline / unsupported / first visit /
+// preview. If a newer version lands while the splash is up, we reload once
+// (behind the splash, sessionStorage loop guard) so a cold start never
+// flashes a stale build. After the splash hides, the tap-to-refresh banner
+// remains the mid-session fallback.
+var PAGE_VERSION = (function(){
+  var el = document.getElementById("appVersionLabel");
+  return el ? el.textContent.trim() : "";
+})();
+function _verNum(v) {
+  // "v312 · 06/07/2026" → 312 (0 when unparseable)
+  var m = /^v(\d+)/.exec(String(v || ""));
+  return m ? parseInt(m[1], 10) : 0;
+}
+var _bootSplashGone = false;
+var _bootUpdateInstalling = false;   // a new SW is downloading/installing
+var _bootUpdateCheckDone = false;    // reg.update() has settled
+var _bootExtended = false;           // 4s→8s extension already used
+var _bootDeadline = null;
+
+function hideBootSplash() {
+  if (_bootSplashGone) return;
+  _bootSplashGone = true;
+  if (_bootDeadline) { clearTimeout(_bootDeadline); _bootDeadline = null; }
+  var s = document.getElementById("bootSplash");
+  if (!s) return;
+  s.style.opacity = "0";
+  setTimeout(function(){ s.style.display = "none"; }, 200);
+}
+
+function bootConfirmedCurrent() {
+  try { sessionStorage.removeItem("hearthBootReloaded"); } catch(err) {}
+  hideBootSplash();
+}
+
+function bootStaleReload() {
+  // A newer version is ready — reload once behind the splash to show it.
+  // Guarded so a mismatch can never reload-loop; second time falls back
+  // to hiding the splash (the banner covers it from there).
+  var already = false;
+  try { already = sessionStorage.getItem("hearthBootReloaded") === "1"; } catch(err) { already = true; }
+  if (already) { hideBootSplash(); return; }
+  try { sessionStorage.setItem("hearthBootReloaded", "1"); } catch(err) { hideBootSplash(); return; }
+  window.location.reload();
+}
+
+if (!("serviceWorker" in navigator) || _isPreview) {
+  hideBootSplash();
+} else if (!navigator.serviceWorker.controller) {
+  // First visit (or hard refresh): the page came straight from the network,
+  // so there is nothing stale to hide.
+  hideBootSplash();
+}
+
+if (!_bootSplashGone) {
+  _bootDeadline = setTimeout(function bootDeadlineHit() {
+    if (_bootSplashGone) return;
+    if (_bootUpdateInstalling && !_bootExtended) {
+      _bootExtended = true;
+      var m = document.getElementById("bootSplashMsg");
+      if (m) m.textContent = "Updating…";
+      _bootDeadline = setTimeout(bootDeadlineHit, 4000);
+      return;
+    }
+    hideBootSplash();
+  }, 4000);
+}
+
 if ("serviceWorker" in navigator && !_isPreview) {
   navigator.serviceWorker.register("./sw.js?v=121", { updateViaCache: "none" }).then(function(reg) {
-    reg.update();
+    reg.addEventListener("updatefound", function(){ _bootUpdateInstalling = true; });
+    if (reg.installing) _bootUpdateInstalling = true;
+    var upd = reg.update();
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: "GET_VERSION" });
     }
-  }).catch(function(err){ console.error("SW registration failed:", err); });
+    Promise.resolve(upd).then(function() {
+      _bootUpdateCheckDone = true;
+      // Update check finished with nothing new installing → ask the active
+      // SW its version; a matching SW_VERSION reply hides the splash.
+      if (!_bootSplashGone && !reg.installing && !reg.waiting) {
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: "GET_VERSION" });
+        } else {
+          hideBootSplash();
+        }
+      }
+    }, function() {
+      // Offline or the update check failed — show what we have.
+      _bootUpdateCheckDone = true;
+      hideBootSplash();
+    });
+  }).catch(function(err){ console.error("SW registration failed:", err); hideBootSplash(); });
 
   navigator.serviceWorker.addEventListener("controllerchange", function() {
     if (navigator.serviceWorker.controller) {
@@ -11101,13 +11207,37 @@ if ("serviceWorker" in navigator && !_isPreview) {
 
   navigator.serviceWorker.addEventListener("message", function(e) {
     if (e.data && e.data.type === "SW_UPDATED") {
-      // Don't force-reload — user may be mid-session. Show a tap-to-update banner.
-      var banner = document.getElementById("updateBanner");
-      if (banner) banner.style.display = "flex";
+      if (!_bootSplashGone) {
+        // Still behind the splash: the new SW just activated. If this page
+        // already IS that version (network-first served the fresh HTML),
+        // we're done; if the SW is newer, reload once to paint the new build.
+        if (_verNum(e.data.version) > _verNum(PAGE_VERSION)) bootStaleReload();
+        else bootConfirmedCurrent();
+      } else if (e.data.version !== PAGE_VERSION) {
+        // Mid-session update — don't force-reload. Show the banner.
+        // (Version check added in v312: no banner when this page already
+        // matches the freshly activated SW.)
+        var banner = document.getElementById("updateBanner");
+        if (banner) banner.style.display = "flex";
+      }
     }
     if (e.data && e.data.type === "SW_VERSION") {
       var el = document.getElementById("appVersionLabel");
       if (el) el.textContent = e.data.version;
+      if (!_bootSplashGone) {
+        var swN = _verNum(e.data.version), pgN = _verNum(PAGE_VERSION);
+        if (swN > pgN) {
+          // Active SW is already newer than this page (e.g. HTTP cache
+          // served a stale shell) — the fresh shell is in the SW cache.
+          bootStaleReload();
+        } else if (swN === pgN && _bootUpdateCheckDone && !_bootUpdateInstalling) {
+          // Versions match AND the update check found nothing new → this
+          // really is the newest deployed build.
+          bootConfirmedCurrent();
+        }
+        // swN < pgN: this page is fresher than the still-active old SW —
+        // its replacement is installing; SW_UPDATED will confirm shortly.
+      }
     }
   });
 }
