@@ -312,7 +312,6 @@ body.home-mode .bn-btn.home-active{color:#C2691A}
 .bn-btn.life-active{color:#2D6B35}
 .bn-btn.train-active{color:#3B6FE0}
 .bn-btn.baby-active{color:#c084fc}
-.bn-btn.notes-active{color:#A05A10}
 .bn-btn.trips-active{color:#0F8A8A}
 .bn-btn.sports-active{color:#2A7A3A}
 .notes-tab-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
@@ -788,7 +787,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v317 · 09/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v318 · 09/07/2026</div>
 
   </div>
 </div>
@@ -799,19 +798,10 @@ body.train-mode #toast{background:#3A3328}
   <button class="type-btn" data-lt="todo">&#x2705; General</button>
   <button class="type-btn" data-lt="personal">&#x1F464; Personal</button>
   <button class="type-btn" data-lt="travel">&#x2708;&#xFE0F; Travel</button>
+  <button class="type-btn" data-lt="notes">&#x1F4DD; Notes</button>
 </div>
 
 <div class="content">
-  <!-- NOTES FULL VIEW (shown when Notes selected as list type) -->
-  <div id="notesFullPanel" style="display:none">
-    <div style="display:flex;gap:9px;margin-bottom:12px">
-      <input id="noteInputFull" type="text" placeholder="&#x270E; Tap to write a note..." autocomplete="off" readonly
-        style="flex:1;border:2px solid #D8D0C0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:15px;color:#1C2018;background:#FDFAF3;outline:none">
-      <button id="addNoteFullBtn" style="width:44px;height:44px;flex-shrink:0;border:none;background:var(--accent);color:#fff;border-radius:9px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
-    </div>
-    <div id="notesFullContent"></div>
-  </div>
-
   <div id="mainContent">
   <div class="input-card">
     <div class="input-row">
@@ -1087,6 +1077,7 @@ body.train-mode #toast{background:#3A3328}
 <div id="tripsSection" style="display:none">
   <div style="display:flex;gap:4px;padding:8px 10px;background:#0F8A8A;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
     <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F9F3; Trips</span>
+    <button id="tripPackingBtn" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x2708;&#xFE0F; Packing</button>
     <button id="tripImportBtn" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F4E5;</button>
     <button id="tripNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New trip</button>
   </div>
@@ -1459,7 +1450,7 @@ body.train-mode #toast{background:#3A3328}
     <div id="customCatsList"></div>
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <div class="sync-section-title" style="margin-bottom:8px">Visible sections</div>
-    <div style="font-size:12px;color:#7A8772;margin-bottom:10px;line-height:1.5">Hide sections you don't use. Lists and Baby cannot be hidden.</div>
+    <div style="font-size:12px;color:#7A8772;margin-bottom:10px;line-height:1.5">Choose what shows on the bottom bar. Lists and Baby cannot be hidden. Train stays reachable from the Home Training strip either way.</div>
     <div id="sectionToggles">
       <div class="sync-toggle-row">
         <span class="sync-toggle-label">&#x1F3E0; Home dashboard</span>
@@ -1467,11 +1458,7 @@ body.train-mode #toast{background:#3A3328}
       </div>
       <div class="sync-toggle-row">
         <span class="sync-toggle-label">&#x1F4AA; Train</span>
-        <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="train" checked><span class="toggle-slider"></span></label>
-      </div>
-      <div class="sync-toggle-row">
-        <span class="sync-toggle-label">&#x1F4DD; Notes</span>
-        <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="notes" checked><span class="toggle-slider"></span></label>
+        <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="train"><span class="toggle-slider"></span></label>
       </div>
       <div class="sync-toggle-row">
         <span class="sync-toggle-label">&#x1F9F3; Trips</span>
@@ -1516,9 +1503,6 @@ body.train-mode #toast{background:#3A3328}
   </button>
   <button class="bn-btn" id="bnRecipes" aria-label="Recipes">
     <span class="bn-ico">&#x1F37D;</span>Recipes
-  </button>
-  <button class="bn-btn" id="bnNotes" aria-label="Notes">
-    <span class="bn-ico">&#x1F4DD;</span>Notes
   </button>
   <button class="bn-btn" id="bnBaby" aria-label="Baby">
     <span class="bn-ico">&#x1F476;</span>Baby
@@ -1975,10 +1959,13 @@ function applyListTheme() {
   for (var i = 0; i < btns.length; i++) {
     btns[i].classList.toggle("active", btns[i].dataset.lt === currentList);
   }
+  // Notes is a sub-tab of Lists (v318): it has no list machinery of its own,
+  // so swap in the full notes section (Personal/Work/Log/Food) instead of the
+  // list UI when it's selected.
   var isNotes = currentList === "notes";
-  document.getElementById("notesFullPanel").style.display = isNotes ? "block" : "none";
-  document.getElementById("mainContent").style.display    = isNotes ? "none"  : "block";
-  if (isNotes) renderNotesFull();
+  document.getElementById("notesSection").style.display = isNotes ? "block" : "none";
+  document.getElementById("mainContent").style.display  = isNotes ? "none"  : "block";
+  if (isNotes) { elHdrBadge.style.display = "none"; renderNotesSection(); }
 }
 document.getElementById("typeBar").addEventListener("click", function(e) {
   var btn = e.target.closest(".type-btn");
@@ -4158,6 +4145,9 @@ function wireSuggestionChips(){
 }
 
 function renderList() {
+  // Notes sub-tab (v318): no LIST_CONFIG entry, so the list renderer must not
+  // touch it — sync callbacks call renderList() regardless of the active tab.
+  if (currentList === "notes") return;
   var items = getItems();
   // Apply active search filter (fuzzy) — matches active and done items
   if (_listSearchQuery) {
@@ -5619,21 +5609,29 @@ function openSavedMealsManager() {
   overlay.addEventListener("click", function(e){ if(e.target===overlay){ document.body.removeChild(overlay); renderFoodView(); } });
 }
 
-var HIDEABLE_SECTIONS = ["home", "train", "notes", "trips", "sports"]; // lists and baby are always visible
+var HIDEABLE_SECTIONS = ["home", "train", "trips", "sports"]; // lists and baby are always visible; notes lives inside Lists (v318)
 
 var sectionVisible = (function() {
   var stored = storeGet("fl4_secVisible") || {};
-  // Default: all visible, EXCEPT Sports (v308) which is opt-in so it doesn't
-  // add an 8th nav icon for anyone who doesn't want it. A missing key means
-  // the user hasn't chosen, so sports→false, everything else→true.
-  HIDEABLE_SECTIONS.forEach(function(s) { if (stored[s] === undefined) stored[s] = (s !== "sports"); });
+  // Default: all visible, EXCEPT Sports (v308) and Train (v318) which are
+  // opt-in bar icons. Train stays fully usable either way — the Home Training
+  // strip is its entry point; the Settings toggle just pins it back on the bar.
+  HIDEABLE_SECTIONS.forEach(function(s) { if (stored[s] === undefined) stored[s] = (s !== "sports" && s !== "train"); });
   return stored;
 })();
 
 function saveSectionVisible() { storeSet("fl4_secVisible", sectionVisible); }
 
+// One-off migration (v318 nav consolidation): devices that stored train:true
+// before v318 also start with Train off the bar; re-pin it in Settings.
+if (!storeGet("fl4_trainNavMigrated")) {
+  sectionVisible.train = false;
+  saveSectionVisible();
+  storeSet("fl4_trainNavMigrated", true);
+}
+
 function applySectionVisibility() {
-  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", notes:"bnNotes", baby:"bnBaby", trips:"bnTrips", sports:"bnSports" };
+  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", baby:"bnBaby", trips:"bnTrips", sports:"bnSports" };
   HIDEABLE_SECTIONS.forEach(function(sec) {
     var btn = document.getElementById(navIds[sec]);
     if (btn) btn.style.display = sectionVisible[sec] ? "" : "none";
@@ -7128,6 +7126,8 @@ function openSportsManage(){
 }
 
 function switchSection(section) {
+  // Notes lives inside Lists since v318 — map legacy deep-links to the sub-tab.
+  if (section === "notes") { currentList = "notes"; section = "lists"; }
   currentSection = section;
   window.scrollTo(0, 0);
 
@@ -7135,7 +7135,7 @@ function switchSection(section) {
   document.getElementById("lifeSection").style.display  = section === "lists"  ? "block" : "none";
   document.getElementById("trainSection").style.display = section === "train"  ? "block" : "none";
   document.getElementById("recipesSection").style.display = section === "recipes" ? "block" : "none";
-  document.getElementById("notesSection").style.display = section === "notes"  ? "block" : "none";
+  document.getElementById("notesSection").style.display = (section === "lists" && currentList === "notes") ? "block" : "none";
   document.getElementById("babySection").style.display  = section === "baby"   ? "block" : "none";
   document.getElementById("tripsSection").style.display = section === "trips"  ? "block" : "none";
   document.getElementById("sportsSection").style.display = section === "sports" ? "block" : "none";
@@ -7144,7 +7144,6 @@ function switchSection(section) {
   document.getElementById("bnLife").className  = "bn-btn" + (section === "lists"  ? " life-active"  : "");
   document.getElementById("bnTrain").className = "bn-btn" + (section === "train"  ? " train-active" : "");
   document.getElementById("bnRecipes").className = "bn-btn" + (section === "recipes" ? " recipes-active" : "");
-  document.getElementById("bnNotes").className = "bn-btn" + (section === "notes"  ? " notes-active" : "");
   document.getElementById("bnBaby").className  = "bn-btn" + (section === "baby"   ? " baby-active"  : "");
   document.getElementById("bnTrips").className = "bn-btn" + (section === "trips"  ? " trips-active" : "");
   document.getElementById("bnSports").className = "bn-btn" + (section === "sports" ? " sports-active" : "");
@@ -7154,7 +7153,7 @@ function switchSection(section) {
   document.body.classList.toggle("train-mode", section === "train");
   document.body.classList.toggle("baby-mode",  section === "baby");
 
-  if (isHouseholdSet() && (section === "home" || section === "lists" || section === "baby" || section === "notes") && (Date.now() - lastPushTs > 15000)) {
+  if (isHouseholdSet() && (section === "home" || section === "lists" || section === "baby") && (Date.now() - lastPushTs > 15000)) {
     fetchHousehold();
   }
   if (isLoggedIn() && section === "train" && (Date.now() - lastPushTs > 15000)) {
@@ -7175,11 +7174,6 @@ function switchSection(section) {
     document.getElementById("appTitle").textContent  = "💪 Train";
     document.getElementById("hdrBadge").style.display = "none";
     renderTrainView();
-  } else if (section === "notes") {
-    document.getElementById("themeColor").setAttribute("content", "#7A3A05");
-    document.getElementById("appTitle").innerHTML = "&#x1F4DD; Notes";
-    document.getElementById("hdrBadge").style.display = "none";
-    renderNotesSection();
   } else if (section === "recipes") {
     document.getElementById("themeColor").setAttribute("content", "#B5651D");
     document.getElementById("appTitle").innerHTML = "&#x1F37D; Recipes";
@@ -8594,8 +8588,6 @@ function closeNoteEditor() {
 
 function renderNotes()     { renderNotesIn("notesContent",     currentList, renderNotes); }
 
-function renderNotesFull() { renderNotesIn("notesFullContent", "global",    renderNotesFull); }
-
 function renderNotesIn(elId, lt, renderFn) {
   var el = document.getElementById(elId);
   var notes = getNotes(lt);
@@ -8654,6 +8646,13 @@ document.getElementById("bnRecipes").addEventListener("click", function(){ switc
 document.getElementById("recipeNewBtn").addEventListener("click", function(){ _recipeView="detail"; openRecipeEditor(null); });
 document.getElementById("tripNewBtn").addEventListener("click", function(){ openTripEditor(null); });
 document.getElementById("tripImportBtn").addEventListener("click", function(){ _tripImporting = true; _tripView = "list"; renderTrips(); window.scrollTo(0,0); });
+// Trips → Travel packing list (v318, deferred v275 item). Clicking the
+// type-btn reuses the full typeBar switch handler (filter/search resets etc.).
+document.getElementById("tripPackingBtn").addEventListener("click", function(){
+  switchSection("lists");
+  var tb = document.querySelector('.type-btn[data-lt="travel"]');
+  if (tb) tb.click();
+});
 function closeRecipeImport(){
   var sh = document.getElementById("recipeImportSheet"), bd = document.getElementById("recipeImportBackdrop");
   if (sh) sh.style.display = "none";
@@ -8714,7 +8713,6 @@ function closeRecipeImport(){
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire);
   else wire();
 })();
-document.getElementById("bnNotes").addEventListener("click", function(){ switchSection("notes"); });
 document.getElementById("bnBaby").addEventListener("click",  function(){ switchSection("baby");  });
 document.getElementById("bnTrips").addEventListener("click", function(){ switchSection("trips"); });
 document.getElementById("bnSports").addEventListener("click", function(){ switchSection("sports"); });
