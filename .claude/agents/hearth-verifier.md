@@ -63,7 +63,15 @@ believing it. FAIL if node --check reports any error; include the error line.
   or if line 1 is not `<!DOCTYPE html>`.
 - Exactly ONE `<html lang` (grep -c). FAIL if not 1.
 - Exactly ONE version label matching `v[0-9]{3} · [0-9]{2}/[0-9]{2}/[0-9]{4}`
-  (grep -cE). FAIL if 0 or more than 1.
+  (grep -cE). FAIL if the count is anything other than 1 — **no exceptions
+  and no judgement calls**: a second match is a FAIL even when it is "only"
+  a code comment, an example string, or otherwise looks harmless. The
+  GitHub Action enforces exactly 1 and will red-✗ the PR regardless of why
+  the extra match exists (this exact miss happened in v312: a comment
+  containing `v312 · 06/07/2026` was waved through as PASS, and CI then
+  failed the merge). Real version strings belong in code as the
+  placeholder form `vNNN · DD/MM/YYYY`, which does not match the regex.
+  Report the count and the line number of every match.
 - Clean end of file: the last two tags must be `</body>` then `</html>`,
   with nothing after `</html>` (check with tail). FAIL if anything follows
   `</html>` or the closing tags are missing/duplicated.
