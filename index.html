@@ -788,7 +788,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v316 · 09/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v317 · 09/07/2026</div>
 
   </div>
 </div>
@@ -2280,6 +2280,59 @@ function saveRecipeBook(r) { storeSet("fl4_recipebook", r); if (typeof isHouseho
 })();
 
 // ============================================================
+// MEAL PLAN — household-shared week planner (v317). One entry per
+// calendar day ("YYYY-MM-DD"), dinner only. The day string itself is
+// the merge key: newest-wins by `updated` per day, so clearing a day
+// just writes recipeId:null with a fresh stamp — no tombstones needed.
+// Entries older than 14 days are pruned on save and on merge; the
+// cutoff is a deterministic date string, so every device drops the
+// same rows and the prune can't cause re-push flapping.
+// NOTE: distinct from fl4_saved_meals (the food/calorie log's saved
+// meals) — this store is recipe assignments for upcoming dinners.
+// ============================================================
+function getMealPlan() { return storeGet("fl4_mealplan") || []; }
+function mealPlanCutoffDay() {
+  var d = new Date(); d.setDate(d.getDate() - 14);
+  return d.getFullYear() + "-" + t2(d.getMonth()+1) + "-" + t2(d.getDate());
+}
+function pruneMealPlan(plan) {
+  var cut = mealPlanCutoffDay();
+  return (plan || []).filter(function(e){ return e && typeof e.day === "string" && e.day >= cut; });
+}
+function saveMealPlan(plan) {
+  storeSet("fl4_mealplan", pruneMealPlan(plan));
+  pushPersonal();
+  if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold();
+}
+// Assign (or clear, with recipeId null) the dinner for one day.
+function setMealPlanDay(day, recipeId, servings) {
+  var plan = getMealPlan();
+  var e = plan.find(function(x){ return x && x.day === day; });
+  if (e) { e.recipeId = recipeId; e.servings = servings; e.updated = Date.now(); e.addedBy = hearthUser; }
+  else plan.push({ day: day, recipeId: recipeId, servings: servings, updated: Date.now(), addedBy: hearthUser });
+  saveMealPlan(plan);
+}
+// Merge two meal plans: union of days, newest-wins by `updated` per day.
+// Returns {plan, push} — push=true when local holds anything the incoming
+// copy lacks or is older on, so the caller schedules a convergence
+// re-push (same contract as mergeTripsData / the recipebook merge).
+function mergeMealPlanData(local, incoming) {
+  var loc = pruneMealPlan(local), inc = pruneMealPlan(incoming);
+  var incByDay = {}; inc.forEach(function(e){ incByDay[e.day] = e; });
+  var seen = {}, push = false;
+  var merged = loc.map(function(e){
+    seen[e.day] = true;
+    var ie = incByDay[e.day];
+    if (!ie) { push = true; return e; }
+    if ((ie.updated||0) > (e.updated||0)) return ie;
+    if ((e.updated||0) > (ie.updated||0)) push = true;
+    return e;
+  });
+  var fresh = inc.filter(function(e){ return !seen[e.day]; });
+  return { plan: fresh.concat(merged), push: push };
+}
+
+// ============================================================
 // TRIPS — household-shared, like recipebook, but with a nested
 // per-booking merge: each booking has its own id/updated so two
 // devices can each add/edit a different booking in the same trip
@@ -3082,13 +3135,16 @@ function headerLabel(ing){
 // grocery CSV import. Also saves a reusable saved-recipe chip in fl4_recipes at
 // the recipe's BASE servings. Targets grocery directly (not currentList) so it
 // works no matter which section is open. Amount-carrying is a later phase.
-function addRecipeToGroceries(recipe, mult) {
-  if (!recipe) return;
+// quiet (v317, optional): suppress the toast and skip nothing else — the
+// week-planner batch caller shows one combined toast instead. Returns
+// {added, tagged} counts (null when there was nothing to add).
+function addRecipeToGroceries(recipe, mult, quiet) {
+  if (!recipe) return null;
   var m = (typeof mult === "number" && mult > 0) ? mult : 1;
   var tag = (recipe.name || "").trim();
   var ings = (recipe.ingredients || []).filter(function(ing){ return ing && ing.name && String(ing.name).trim() && !isHeaderIng(ing); });
   var names = ings.map(function(ing){ return String(ing.name).trim(); });
-  if (!tag || !names.length) { toast("No ingredients to add"); return; }
+  if (!tag || !names.length) { if (!quiet) toast("No ingredients to add"); return null; }
 
   var d = loadListData("grocery");
   var items = d.items;
@@ -3154,8 +3210,47 @@ function addRecipeToGroceries(recipe, mult) {
   storeSet("fl4_recipes", saved);
 
   if (currentList === "grocery") renderList();
-  var msg = "&#x1F6D2; Added " + added + " to Grocery";
-  if (tagged) msg += ", tagged " + tagged + " existing";
+  if (!quiet) {
+    var msg = "&#x1F6D2; Added " + added + " to Grocery";
+    if (tagged) msg += ", tagged " + tagged + " existing";
+    toast(msg);
+  }
+  return { added: added, tagged: tagged };
+}
+
+// Add every dinner planned in the next-7-day window to the grocery list.
+// Groups assignments by recipe and SUMS servings across days (spag bol on
+// Mon + Thu at 4 each → one addRecipeToGroceries call at 8 servings), then
+// reuses the existing per-recipe flow — no new grocery/merge logic here.
+// Known, deliberate limit: when two DIFFERENT recipes share an ingredient
+// already on the list, the existing merge re-tags it but never sums
+// amounts (that's the Phase 3 pack-quantities question, on hold).
+function addWeekToGroceries() {
+  var now = new Date();
+  var startDay = now.getFullYear() + "-" + t2(now.getMonth()+1) + "-" + t2(now.getDate());
+  var endD = new Date(now); endD.setDate(now.getDate() + 6);
+  var endDay = endD.getFullYear() + "-" + t2(endD.getMonth()+1) + "-" + t2(endD.getDate());
+  var rb = getRecipeBook();
+  var servingsByRecipe = {};
+  getMealPlan().forEach(function(e){
+    if (!e || e.recipeId == null || typeof e.day !== "string") return;
+    if (e.day < startDay || e.day > endDay) return;
+    var r = rb.find(function(x){ return x && x.id === e.recipeId; });
+    if (!r) return; // recipe deleted since it was planned — the planner row shows that state
+    servingsByRecipe[e.recipeId] = (servingsByRecipe[e.recipeId] || 0) + (e.servings || r.servings || 1);
+  });
+  var ids = Object.keys(servingsByRecipe);
+  if (!ids.length) { toast("No planned dinners to add"); return; }
+  var totAdded = 0, totTagged = 0, nRecipes = 0;
+  ids.forEach(function(k){
+    var rid = Number(k);
+    var r = rb.find(function(x){ return x && x.id === rid; });
+    if (!r) return; // guard: never index on a failed find
+    var res = addRecipeToGroceries(r, servingsByRecipe[k] / (r.servings || 1), true);
+    if (res) { totAdded += res.added; totTagged += res.tagged; nRecipes++; }
+  });
+  var msg = "&#x1F6D2; " + nRecipes + (nRecipes === 1 ? " recipe" : " recipes") + ": " + totAdded + " added";
+  if (totTagged) msg += ", " + totTagged + " already on the list";
   toast(msg);
 }
 
@@ -3276,7 +3371,7 @@ function scaleIngredient(ing, mult) {
   return { amount: fmtNumber(amt), unit: unit || "" };
 }
 
-var _recipeView = "list";   // "list" | "detail"
+var _recipeView = "list";   // "list" | "detail" | "plan"
 var _recipeEditing = false; // true while the recipe editor is open — suppresses sync re-renders that would discard unsaved input
 var _recipeOpenId = null;
 var _recipeServings = 1;
@@ -3290,6 +3385,7 @@ function renderRecipes() {
   _recipeEditing = false; // reaching the list/detail dispatcher means the editor isn't open
   seedRecipes();
   if (_recipeView === "detail" && _recipeOpenId != null) { renderRecipeDetail(); return; }
+  if (_recipeView === "plan") { renderMealPlanner(); return; }
   var el = document.getElementById("recipesContent");
   var rb = getRecipeBook();
   if (!rb.length) {
@@ -3332,7 +3428,8 @@ function renderRecipes() {
       "<button id='rcpSelCancel' style='padding:10px 14px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Cancel</button>" +
     "</div>";
   } else {
-    selectHdr = "<div style='display:flex;justify-content:flex-end;margin-bottom:10px'>" +
+    selectHdr = "<div style='display:flex;justify-content:space-between;margin-bottom:10px'>" +
+      "<button id='rcpPlanBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F4C5; Week plan</button>" +
       "<button id='rcpSelStart' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x2713; Select</button>" +
     "</div>";
   }
@@ -3389,6 +3486,12 @@ function renderRecipes() {
       window.scrollTo(0, 0);
     });
   });
+  var _rcpPlanBtn = document.getElementById("rcpPlanBtn");
+  if (_rcpPlanBtn) _rcpPlanBtn.addEventListener("click", function(){
+    _recipeScrollPos = window.scrollY || document.documentElement.scrollTop;
+    _recipeView = "plan";
+    renderRecipes();
+  });
   var _selStart = document.getElementById("rcpSelStart");
   if (_selStart) _selStart.addEventListener("click", function(){ _recipeSelectMode = true; _recipeSelected = {}; renderRecipes(); });
   var _selCancel = document.getElementById("rcpSelCancel");
@@ -3397,6 +3500,191 @@ function renderRecipes() {
   if (_setCat) _setCat.addEventListener("click", function(){
     var ids = Object.keys(_recipeSelected).filter(function(k){ return _recipeSelected[k]; }).map(Number);
     if (ids.length) openBulkCategoryPicker(ids);
+  });
+}
+
+// Human label for a "YYYY-MM-DD" day string: "Today" / "Tomorrow" / "Thu 11".
+function mealPlanDayLabel(dayStr) {
+  var dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var now = new Date();
+  var today = now.getFullYear() + "-" + t2(now.getMonth()+1) + "-" + t2(now.getDate());
+  var tmr = new Date(now); tmr.setDate(now.getDate() + 1);
+  var tomorrow = tmr.getFullYear() + "-" + t2(tmr.getMonth()+1) + "-" + t2(tmr.getDate());
+  if (dayStr === today) return "Today";
+  if (dayStr === tomorrow) return "Tomorrow";
+  var parts = dayStr.split("-");
+  var d = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+  return dayNames[d.getDay()] + " " + d.getDate();
+}
+
+// Week plan — 7 tappable day cards (today .. today+6) showing the assigned
+// dinner, if any. Tap an unassigned day to pick a recipe; tap an assigned
+// day to open the assignment sheet (change servings / swap / remove).
+function renderMealPlanner() {
+  var el = document.getElementById("recipesContent");
+  var savedPos = _recipeScrollPos;
+  var plan = getMealPlan();
+  var rb = getRecipeBook();
+  var days = [];
+  var anyGroceryable = false;
+  for (var i = 0; i < 7; i++) {
+    var d = new Date();
+    d.setDate(d.getDate() + i);
+    var dayStr = d.getFullYear() + "-" + t2(d.getMonth()+1) + "-" + t2(d.getDate());
+    var entry = plan.find(function(e){ return e && e.day === dayStr && e.recipeId != null; });
+    var recipe = entry ? rb.find(function(x){ return x && x.id === entry.recipeId; }) : null;
+    if (entry && recipe) anyGroceryable = true;
+    days.push({ dayStr: dayStr, entry: entry, recipe: recipe });
+  }
+
+  var cardsHtml = days.map(function(dinfo){
+    var body;
+    if (dinfo.entry && dinfo.recipe) {
+      var servings = dinfo.entry.servings || dinfo.recipe.servings || 1;
+      body = "<div style='font-size:16px;font-weight:700;color:#2A2010'>" + esc(dinfo.recipe.name) + "</div>" +
+             "<div style='font-size:12px;color:#9A8A6A'>serves " + servings + "</div>";
+    } else if (dinfo.entry && !dinfo.recipe) {
+      body = "<div style='font-size:14px;font-weight:700;color:#B03030'>Recipe deleted</div>";
+    } else {
+      body = "<div style='font-size:14px;font-weight:700;color:#B5651D'>+ Add dinner</div>";
+    }
+    return "<div class='mpDayCard' data-day='" + esc(dinfo.dayStr) + "' style='display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;min-height:40px;box-sizing:border-box'>" +
+      "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;min-width:64px'>" + esc(mealPlanDayLabel(dinfo.dayStr)) + "</div>" +
+      "<div style='flex:1;text-align:right;min-width:0'>" + body + "</div>" +
+    "</div>";
+  }).join("");
+
+  el.innerHTML =
+    "<button id='mpBackBtn' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; All recipes</button>" +
+    "<div style='font-family:Georgia,serif;font-size:24px;font-weight:600;color:#2A2010;margin-bottom:4px'>Week plan</div>" +
+    "<div style='font-size:13px;color:#8A7A5A;margin-bottom:16px'>Dinners for the next 7 days — tap a day</div>" +
+    cardsHtml +
+    (anyGroceryable ? "<button id='mpAddWeekBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#2D6B35;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F6D2; Add week to groceries</button>" : "");
+
+  document.getElementById("mpBackBtn").addEventListener("click", function(){
+    _recipeView = "list";
+    renderRecipes();
+    requestAnimationFrame(function(){ window.scrollTo(0, savedPos); });
+  });
+  el.querySelectorAll(".mpDayCard").forEach(function(card){
+    card.addEventListener("click", function(){
+      var day = card.dataset.day;
+      var e = getMealPlan().find(function(x){ return x && x.day === day && x.recipeId != null; });
+      if (e) openMealPlanDaySheet(day); else openMealPlanPicker(day);
+    });
+  });
+  var _mpAddWeek = document.getElementById("mpAddWeekBtn");
+  if (_mpAddWeek) _mpAddWeek.addEventListener("click", function(){ addWeekToGroceries(); });
+}
+
+// Bottom-sheet recipe picker for one meal-plan day. Favourited recipes first
+// (starred), then the rest, both groups alphabetical.
+function openMealPlanPicker(day) {
+  var label = mealPlanDayLabel(day);
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(40,30,16,.45);z-index:900;display:flex;align-items:flex-end;justify-content:center";
+  ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); ov.setAttribute("aria-label","Choose dinner for " + label);
+  function close(){ if (ov.parentNode) ov.parentNode.removeChild(ov); }
+  function draw(query){
+    var rb = getRecipeBook();
+    var shown = rb.filter(function(r){ return !query || fuzzyMatch(query, r.name); });
+    function byName(a,b){ return (a.name||"").toLowerCase().localeCompare((b.name||"").toLowerCase()); }
+    var favs = shown.filter(function(r){ return !!r.fav; }).sort(byName);
+    var rest = shown.filter(function(r){ return !r.fav; }).sort(byName);
+    var ordered = favs.concat(rest);
+    var rowsHtml = ordered.map(function(r){
+      return "<div class='mpPickRow' data-rid='" + r.id + "' style='display:flex;align-items:center;gap:8px;min-height:44px;padding:9px 4px;border-bottom:1px solid #EEE9E0;cursor:pointer'>" +
+        (r.fav ? "<span style='color:#E8A030;font-size:15px'>&#x2605;</span>" : "") +
+        "<div style='flex:1;min-width:0'>" +
+          "<div style='font-size:15px;font-weight:600;color:#2A2010'>" + esc(r.name) + "</div>" +
+          (r.category ? "<div style='font-size:12px;color:#9A8A6A'>" + esc(r.category) + "</div>" : "") +
+        "</div>" +
+      "</div>";
+    }).join("") || "<div style='text-align:center;color:#9A8A6A;padding:20px;font-size:13px'>No recipes match.</div>";
+    var listEl = ov.querySelector("#mpPickList");
+    if (!listEl) return;
+    listEl.innerHTML = rowsHtml;
+    listEl.querySelectorAll(".mpPickRow").forEach(function(row){
+      row.addEventListener("click", function(){
+        var id = +row.dataset.rid;
+        var r = getRecipeBook().find(function(x){ return x && x.id === id; });
+        if (!r) return;
+        setMealPlanDay(day, r.id, r.servings || 1);
+        close();
+        renderMealPlanner();
+        toast(esc(r.name) + " set for " + esc(label));
+      });
+    });
+  }
+  ov.innerHTML =
+    "<div style='background:#FFFDF7;width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:18px 18px 14px;box-sizing:border-box;max-height:70vh;display:flex;flex-direction:column'>" +
+      "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px'>" +
+        "<div style='font-size:16px;font-weight:800;color:#2A2010'>Dinner for " + esc(label) + "</div>" +
+        "<button id='mpPickClose' aria-label='Close' style='border:none;background:none;color:#8A7A5A;font-size:22px;cursor:pointer;padding:4px 8px;line-height:1'>&times;</button>" +
+      "</div>" +
+      "<input id='mpPickSearch' type='text' placeholder='Search recipes…' autocomplete='off' style='" + recipeInputCss() + "margin-bottom:10px;flex-shrink:0'>" +
+      "<div id='mpPickList' style='overflow-y:auto;flex:1'></div>" +
+    "</div>";
+  document.body.appendChild(ov);
+  draw("");
+  ov.querySelector("#mpPickClose").addEventListener("click", close);
+  ov.addEventListener("click", function(e){ if (e.target === ov) close(); });
+  ov.querySelector("#mpPickSearch").addEventListener("input", function(){ draw(this.value.trim()); });
+}
+
+// Assignment sheet for one already-planned meal-plan day: adjust servings,
+// open/swap the recipe, or remove the day's assignment.
+function openMealPlanDaySheet(day) {
+  var label = mealPlanDayLabel(day);
+  var entry = getMealPlan().find(function(e){ return e && e.day === day && e.recipeId != null; });
+  if (!entry) { openMealPlanPicker(day); return; }
+  var recipe = getRecipeBook().find(function(x){ return x && x.id === entry.recipeId; });
+  var count = entry.servings || (recipe && recipe.servings) || 1;
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(40,30,16,.45);z-index:900;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box";
+  ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); ov.setAttribute("aria-label","Dinner for " + label);
+  function close(){ if (ov.parentNode) ov.parentNode.removeChild(ov); }
+  function closeAndRefresh(){ close(); renderMealPlanner(); }
+  ov.innerHTML =
+    "<div style='background:#FFFDF7;border-radius:16px;padding:20px;width:100%;max-width:380px;max-height:82vh;overflow-y:auto;box-sizing:border-box'>" +
+      "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px'>" + esc(label) + "</div>" +
+      "<div style='font-size:18px;font-weight:700;color:" + (recipe?"#2A2010":"#B03030") + ";margin-bottom:14px'>" + (recipe?esc(recipe.name):"Recipe deleted") + "</div>" +
+      (recipe ?
+        "<div style='display:flex;align-items:center;gap:14px;background:#FBF5EC;border:1px solid #ECE0CC;border-radius:12px;padding:10px 14px;margin-bottom:16px'>" +
+          "<span style='font-size:13px;font-weight:700;color:#7A5A30;text-transform:uppercase;letter-spacing:.5px'>Serves</span>" +
+          "<button id='mpServMinus' style='width:34px;height:34px;border:1.5px solid #D8C8A8;background:#fff;border-radius:8px;font-size:20px;color:#7A5A30;cursor:pointer;line-height:1'>&minus;</button>" +
+          "<span id='mpServCount' style='font-size:20px;font-weight:700;color:#2A2010;min-width:24px;text-align:center'>" + count + "</span>" +
+          "<button id='mpServPlus' style='width:34px;height:34px;border:1.5px solid #D8C8A8;background:#fff;border-radius:8px;font-size:20px;color:#7A5A30;cursor:pointer;line-height:1'>+</button>" +
+        "</div>"
+      : "") +
+      (recipe ? "<button id='mpOpenRecipeBtn' style='width:100%;padding:11px;margin-bottom:8px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Open recipe</button>" : "") +
+      "<button id='mpSwapBtn' style='width:100%;padding:11px;margin-bottom:8px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Swap recipe</button>" +
+      "<button id='mpRemoveBtn' style='width:100%;padding:11px;margin-bottom:8px;border:1.5px solid #E0C0C0;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Remove</button>" +
+      "<button id='mpCancelBtn' style='width:100%;padding:11px;border:none;background:none;color:#8A7A5A;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Cancel</button>" +
+    "</div>";
+  document.body.appendChild(ov);
+  ov.addEventListener("click", function(e){ if (e.target === ov) closeAndRefresh(); });
+  document.getElementById("mpCancelBtn").addEventListener("click", closeAndRefresh);
+  if (recipe) {
+    document.getElementById("mpServMinus").addEventListener("click", function(){
+      if (count > 1) { count--; setMealPlanDay(day, entry.recipeId, count); document.getElementById("mpServCount").textContent = count; }
+    });
+    document.getElementById("mpServPlus").addEventListener("click", function(){
+      if (count < 50) { count++; setMealPlanDay(day, entry.recipeId, count); document.getElementById("mpServCount").textContent = count; }
+    });
+    document.getElementById("mpOpenRecipeBtn").addEventListener("click", function(){
+      close();
+      _recipeOpenId = recipe.id;
+      _recipeServings = entry.servings || recipe.servings || 1;
+      _recipeView = "detail";
+      renderRecipes();
+    });
+  }
+  document.getElementById("mpSwapBtn").addEventListener("click", function(){ close(); openMealPlanPicker(day); });
+  document.getElementById("mpRemoveBtn").addEventListener("click", function(){
+    setMealPlanDay(day, null, null);
+    close();
+    renderMealPlanner();
   });
 }
 
@@ -5491,7 +5779,8 @@ function buildExportPayload() {
   //  teeth, bags, babySex), action_log (incl. cardio), food_log, food_notes,
   //  saved_meals, cal_goal, secVisible, syncPrefs, recipes (list import recipes),
   //  travel_tags (Travel tag pool; per-item tags live on the items themselves),
-  //  recipebook (Recipes section), trips (Trips section, incl. nested bookings).
+  //  recipebook (Recipes section), trips (Trips section, incl. nested bookings),
+  //  mealplan (week dinner planner, v317).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*, fl4_last_backup, fl4_backup_snooze,
   //  fl4_last_cloudbackup, fl4_tomb_* (sync deletion tombstones).
@@ -5507,6 +5796,7 @@ function buildExportPayload() {
     recipes:storeGet("fl4_recipes")||[],
     travel_tags:storeGet("fl4_travel_tags")||[],
     recipebook:storeGet("fl4_recipebook")||[],
+    mealplan:storeGet("fl4_mealplan")||[],
     trips:storeGet("fl4_trips")||[],
     cal_goal:storeGet("fl4_cal_goal")||2000,
     secVisible:storeGet("fl4_secVisible")||{},
@@ -5691,6 +5981,11 @@ function importBackupData(data) {
       storeSet("fl4_recipebook", rb2.concat(newRb));
     }
     imported.recipes=newRb.length;
+  }
+  // Meal plan: same newest-wins-per-day merge as sync, so restoring an old
+  // backup can never clobber a newer week plan.
+  if(Array.isArray(data.mealplan)){
+    storeSet("fl4_mealplan", mergeMealPlanData(getMealPlan(), data.mealplan).plan);
   }
   // Trips + notes were exported but never imported before v288 — covered now.
   if(Array.isArray(data.trips)&&data.trips.length){
@@ -6410,6 +6705,7 @@ var d = {};
   d.baby = getBD();
   d.recipebook  = storeGet("fl4_recipebook") || [];
   d.rb_deleted  = purgeTombs(getTombs("recipes"));
+  d.mealplan    = storeGet("fl4_mealplan") || [];
   d.trips       = storeGet("fl4_trips") || [];
   d.trips_deleted    = purgeTombs(getTombs("trips"));
   d.bookings_deleted = purgeTombs(getTombs("bookings"));
@@ -6540,6 +6836,14 @@ function applyPersonal(d) {
     if (rbPush) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
   }
 
+  // ── Meal plan: newest-wins per day (mirrors the household channel) ───────
+  if (Array.isArray(d.mealplan)) {
+    var mpMergeP = mergeMealPlanData(getMealPlan(), d.mealplan);
+    storeSet("fl4_mealplan", mpMergeP.plan);
+    if (currentSection === "recipes" && !_recipeEditing) renderRecipes();
+    if (mpMergeP.push) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
+  }
+
   // ── Trips: merge by id, with a nested merge on each trip's bookings ──────
   if (Array.isArray(d.trips)) {
     var tpTombsP = mergeTombs(getTombs("trips"), (d.trips_deleted && typeof d.trips_deleted === "object") ? d.trips_deleted : {});
@@ -6640,6 +6944,8 @@ var data = {};
   // Recipe book is shared household-wide (merge-by-id on the receiving side).
   data["recipebook"] = storeGet("fl4_recipebook") || [];
   data["rb_deleted"] = purgeTombs(getTombs("recipes"));
+  // Meal plan is shared household-wide (newest-wins per day on the receiving side).
+  data["mealplan"] = storeGet("fl4_mealplan") || [];
   // Trips are shared household-wide too; merge-by-id on both trips and bookings.
   data["trips"] = storeGet("fl4_trips") || [];
   data["trips_deleted"]    = purgeTombs(getTombs("trips"));
@@ -10371,6 +10677,15 @@ function applyHousehold(data) {
     }
     if (currentSection === "recipes" && !_recipeEditing) renderRecipes();
     if (rbNeedPush) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
+  }
+  // Meal plan — shared household-wide; union of days, newest-wins by
+  // `updated` per day (see mergeMealPlanData). No tombstones: clearing a
+  // day is itself a newest-wins write (recipeId:null).
+  if (Array.isArray(data["mealplan"])) {
+    var mpMerge = mergeMealPlanData(getMealPlan(), data["mealplan"]);
+    storeSet("fl4_mealplan", mpMerge.plan);
+    if (currentSection === "recipes" && !_recipeEditing) renderRecipes();
+    if (mpMerge.push) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
   }
   // Trips — shared household-wide; nested merge on each trip's bookings so two
   // devices editing different bookings in the same trip don't clobber each other.
