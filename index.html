@@ -788,7 +788,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v312 · 06/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v313 · 09/07/2026</div>
 
   </div>
 </div>
@@ -8471,8 +8471,8 @@ function hwPaint(data, stale) {
   // days[0].pop for caches written before pop was stored there.
   var pop = (data.pop != null) ? data.pop : (data.days && data.days[0] ? data.days[0].pop : null);
   var popStr = (pop != null) ? "\u2614 Rain <b>" + pop + "%</b><br>" : "";
-  metaEl.innerHTML = feelsStr + popStr + "H:<b>" + data.high + "\u00B0</b> L:<b>" + data.low +
-    "\u00B0</b><br>Humidity <b>" + data.hum + "%</b>" +
+  metaEl.innerHTML = feelsStr + "H:<b>" + data.high + "\u00B0</b> L:<b>" + data.low +
+    "\u00B0</b><br>" + popStr + "Humidity <b>" + data.hum + "%</b>" +
     "<br>as of " + hh + ":" + mm;
   card.classList.toggle("hw-stale", !!stale);
   card.classList.add("hw-show");
