@@ -201,6 +201,8 @@ body.home-mode .bn-btn{color:#AAA090}
 .home-greeting{margin-bottom:16px}
 .home-greeting-line{font-size:13px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
 .home-date-big{font-family:Georgia,serif;font-size:26px;font-weight:600;color:#2A2010;line-height:1.1}
+.home-clock{font-size:15px;font-weight:600;color:#2A2010;margin-top:4px}
+.home-clock-ie{font-size:12px;font-weight:600;color:#8A7A5A;margin-top:2px}
 
 /* Weather card */
 .home-weather{display:none;align-items:center;gap:12px;background:linear-gradient(135deg,#EAF1FA 0%,#F2F6FC 100%);border:1px solid #3B6FE033;border-radius:14px;padding:11px 14px;margin-bottom:13px}
@@ -702,6 +704,8 @@ body.train-mode #toast{background:#3A3328}
     <div class="home-greeting">
       <div class="home-greeting-line" id="homeGreeting">Good morning</div>
       <div class="home-date-big" id="homeDateBig">Today</div>
+      <div class="home-clock" id="homeClock">--:--</div>
+      <div class="home-clock-ie" id="homeClockIE" style="display:none"></div>
     </div>
 
     <!-- Weather (Carrigaline, hardcoded coords; device-local, no sync) -->
@@ -787,7 +791,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v321 · 10/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v322 · 10/07/2026</div>
 
   </div>
 </div>
@@ -7129,6 +7133,19 @@ function switchSection(section) {
   // Notes lives inside Lists since v318 — map legacy deep-links to the sub-tab.
   if (section === "notes") { currentList = "notes"; section = "lists"; }
   currentSection = section;
+  stopHomeClock();
+
+  // Back-button support (v322): each top-level section is a history entry.
+  // Skip when we're here *because of* a popstate (back/forward) event, so
+  // we don't push a new entry on top of the one the user just navigated to.
+  if (!_navFromPopstate) {
+    if (!history.state) {
+      history.replaceState({ hearthSection: section }, "");
+    } else if (history.state.hearthSection !== section) {
+      history.pushState({ hearthSection: section }, "");
+    }
+  }
+
   window.scrollTo(0, 0);
 
   document.getElementById("homeSection").style.display  = section === "home"   ? "block" : "none";
@@ -7165,6 +7182,7 @@ function switchSection(section) {
     document.getElementById("appTitle").innerHTML = "&#x1F525; Hearth";
     document.getElementById("hdrBadge").style.display = "none";
     renderHomeScreen();
+    startHomeClock();
   } else if (section === "lists") {
     applyListTheme();
     renderList();
@@ -7191,6 +7209,21 @@ function switchSection(section) {
     renderTrips();
   }
 }
+
+// Back-button support (v322): phone/browser back moves between the
+// top-level sections above (Home/Lists/Train/Recipes/Baby/Trips/Sports).
+// Doesn't unwind sub-tabs (e.g. Lists' History/Notes tabs) or modals
+// (e.g. the Trip editor) — those are still closed with their own X/close
+// controls. Android's hardware back button triggers this automatically in
+// a PWA; iOS has no hardware back button so this only affects the browser
+// back gesture there.
+var _navFromPopstate = false;
+window.addEventListener("popstate", function(e) {
+  var sec = (e.state && e.state.hearthSection) || "home";
+  _navFromPopstate = true;
+  switchSection(sec);
+  _navFromPopstate = false;
+});
 
 function updateSyncStatus() {
   var btn = document.getElementById("syncBtn");
@@ -9093,6 +9126,36 @@ function renderTodayCard() {
       else if (act==="sports") { switchSection("sports"); }
     });
   });
+}
+
+// Live clock (v322): local device time always; Ireland (home) time only
+// shown when it differs from local — i.e. it appears automatically while
+// travelling and disappears once you're back on Irish time.
+var _homeClockTimer = null;
+function updateHomeClock() {
+  var elLocal = document.getElementById("homeClock");
+  var elIE = document.getElementById("homeClockIE");
+  if (!elLocal || !elIE) return;
+  var now = new Date();
+  var localStr = now.toLocaleTimeString("en-IE", { hour:"2-digit", minute:"2-digit" });
+  var ieStr = localStr;
+  try { ieStr = now.toLocaleTimeString("en-IE", { hour:"2-digit", minute:"2-digit", timeZone:"Europe/Dublin" }); } catch(e) {}
+  elLocal.textContent = localStr;
+  if (ieStr !== localStr) {
+    elIE.textContent = "Home (Ireland) " + ieStr;
+    elIE.style.display = "block";
+  } else {
+    elIE.style.display = "none";
+  }
+}
+function startHomeClock() {
+  updateHomeClock();
+  if (_homeClockTimer) clearInterval(_homeClockTimer);
+  _homeClockTimer = setInterval(updateHomeClock, 15000);
+}
+function stopHomeClock() {
+  if (_homeClockTimer) clearInterval(_homeClockTimer);
+  _homeClockTimer = null;
 }
 
 function renderHomeScreen() {
