@@ -787,7 +787,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v318 · 09/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v319 · 10/07/2026</div>
 
   </div>
 </div>
@@ -9052,6 +9052,19 @@ function renderTodayCard() {
     var tripText = lab==="Now" ? ("On your " + esc(t0.name||"trip")) : (esc(t0.name||"Trip") + " " + lab.toLowerCase());
     rows.push({ ico:"&#x2708;&#xFE0F;", text: tripText, act:"trips" });
   }
+  var sportCand = [];
+  (getSportsTeams()||[]).forEach(function(t){
+    var cached = sportsCache()[t.id], nx = cached && cached.next && cached.next[0];
+    if (!nx) return;
+    var ts = nx.strTimestamp ? new Date(/Z|[+-]\d\d:?\d\d$/.test(nx.strTimestamp) ? nx.strTimestamp : nx.strTimestamp + "Z")
+      : (nx.dateEvent ? new Date(nx.dateEvent + "T" + (nx.strTime||"00:00:00") + "Z") : null);
+    sportCand.push({ team:t, next:nx, ts: (ts && !isNaN(ts.getTime())) ? ts.getTime() : Infinity });
+  });
+  if (sportCand.length) {
+    sportCand.sort(function(a,b){ return a.ts - b.ts; });
+    var sc = sportCand[0], sSum = sportsSummarise(sc.team, [sc.next], null);
+    rows.push({ ico:"&#x26BD;", text: esc(sc.team.name) + " " + sSum.nextText, act:"sports" });
+  }
   if (!rows.length) {
     el.innerHTML = "<div style='background:#fff;border-radius:14px;padding:16px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(20,50,20,.07);text-align:center;font-size:14px;color:#8A8A6A;font-weight:600'>&#x2728; All caught up for today</div>";
     return;
@@ -9073,6 +9086,7 @@ function renderTodayCard() {
       else if (act==="train") { switchSection("train"); }
       else if (act==="baby")  { switchSection("baby"); }
       else if (act==="trips") { switchSection("trips"); if (typeof renderTrips==="function"){ _tripView="list"; _tripOpenId=null; renderTrips(); } }
+      else if (act==="sports") { switchSection("sports"); }
     });
   });
 }
