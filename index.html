@@ -89,6 +89,13 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 .hist-count{font-size:11px;color:#5A6455}
 .hist-add{width:32px;height:32px;flex-shrink:0;border:none;background:#D6EDDA;color:#1A3D1E;font-size:22px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
 .hist-add.in-list{background:#E8E8E8;color:#999;font-size:14px}
+.hist-del{width:32px;height:32px;flex-shrink:0;border:none;background:none;border:1.5px solid #FDDEDD;color:#C03030;font-size:14px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+.hist-check{width:26px;height:26px;flex-shrink:0;border-radius:50%;border:2px solid #B9CDBB;background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff}
+.hist-check.sel{background:#2D6B35;border-color:#2D6B35}
+.hist-bar{display:flex;align-items:center;gap:8px;margin:2px 0 8px}
+.hist-bar-count{flex:1;font-size:13px;color:#5A6455;font-weight:600}
+.hist-bar button{border:none;border-radius:8px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;background:#E8F0E8;color:#2D6B35}
+.hist-bar button.danger{background:none;border:1.5px solid #FDDEDD;color:#C03030}
 /* MODAL BASE */
 .overlay{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.45);z-index:400;align-items:flex-end}
 .overlay.open{display:flex}
@@ -791,7 +798,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v322 · 10/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v323 · 11/07/2026</div>
 
   </div>
 </div>
@@ -1869,6 +1876,27 @@ function getTombs(lt){ var t = storeGet("fl4_tomb_" + lt); return (t && typeof t
 function addTomb(lt, id){ if (id == null) return; var t = getTombs(lt); t[id] = Date.now(); storeSet("fl4_tomb_" + lt, t); }
 function purgeTombs(t){ var cut = Date.now() - 90*24*3600*1000, o = {}; Object.keys(t||{}).forEach(function(k){ if (t[k] > cut) o[k] = t[k]; }); return o; } // 90d (7d→30d in v289, →90d in v295): a device offline longer than the purge window can resurrect deleted items — 90d covers a drawer-bound tablet; tombstones are tiny, so the cost is nil
 function mergeTombs(a, b){ var o = {}; [a,b].forEach(function(t){ Object.keys(t||{}).forEach(function(k){ if (!(k in o) || t[k] > o[k]) o[k] = t[k]; }); }); return o; }
+
+// ── History-entry deletion tombstones (v323) — keyed by lowercase item name ──
+// Reuses the generic tomb helpers above under a "hist_<lt>" namespace (store
+// key fl4_tomb_hist_<lt>). Synced as `histDeleted` on both channels so a
+// deleted entry can't be resurrected by another device's copy; a hist entry is
+// dropped in mergeHist when its tombstone is at/after its lastUsed, so
+// re-adding the item (fresh lastUsed) survives. NOT exported, matching the
+// fl4_tomb_* policy — deliberately, a backup restore does NOT bring deleted
+// history entries back within the 90d tombstone window: deletions are cleanup
+// and should stick. Re-adding an item also clears its local tombstone.
+function histTombKey(lt){ return "hist_" + lt; }
+function clearHistTomb(lt, name) {
+  var t = getTombs(histTombKey(lt)), k = String(name).toLowerCase();
+  if (t[k] !== undefined) { delete t[k]; storeSet("fl4_tomb_" + histTombKey(lt), t); }
+}
+function deleteHistEntries(lt, names) { // names: array of lowercase names
+  var t = getTombs(histTombKey(lt)), now = Date.now();
+  names.forEach(function(n){ t[n] = now; });
+  storeSet("fl4_tomb_" + histTombKey(lt), t);
+  listData[lt].hist = (listData[lt].hist || []).filter(function(h){ return h && names.indexOf(h.name.toLowerCase()) === -1; });
+}
 // Union two item lists by id (preserve adds from both sides); newest-wins on
 // conflict by `updated` (tie → remote); then drop any id deleted at/after its
 // last update. Returned newest-first to match the unshift add order.
@@ -2013,7 +2041,7 @@ function switchTab(t) {
   document.getElementById("tabList").className    = "tab" + (t==="list"    ? " active" : "");
   document.getElementById("tabHistory").className = "tab" + (t==="history" ? " active" : "");
   document.getElementById("tabNotes").className   = "tab" + (t==="notes"   ? " active" : "");
-  if (t==="history") renderHistory();
+  if (t==="history") { _histSelectMode=false; _histSelected={}; renderHistory(); }
   if (t==="notes")   renderNotes();
 }
 
@@ -2221,6 +2249,7 @@ function histRecordDate(entry) {
   }
 }
 function addToHist(name, catId) {
+  clearHistTomb(currentList, name); // re-adding revives a deleted history entry (v323)
   var hist = getHist(), found = null;
   for (var i = 0; i < hist.length; i++) {
     if (hist[i].name.toLowerCase()===name.toLowerCase()) { found = hist[i]; break; }
@@ -4190,7 +4219,9 @@ function renderList() {
   if (currentSection === "lists" && active.length) { elHdrBadge.textContent=active.length+" item"+(active.length!==1?"s":""); elHdrBadge.style.display="block"; }
   else { elHdrBadge.style.display="none"; }
   elListBadge.textContent = active.length||"";
-  elClearBtn.style.display  = done.length ? "block" : "none";
+  // v323: grocery keeps its done list as a consistent record — no bulk clear
+  // there (per-item &#10005; delete still works); other lists unchanged.
+  elClearBtn.style.display  = (done.length && currentList !== "grocery") ? "block" : "none";
   elReopenBtn.style.display = done.length ? "block" : "none";
   if (currentList === "travel") {
     elClearBtn.innerHTML  = "&#x2715; Clear packed";
@@ -4545,32 +4576,73 @@ elReopenBtn.addEventListener("click", function(){
 // ============================================================
 // RENDER HISTORY
 // ============================================================
+var _histSelectMode = false, _histSelected = {}; // v323 multi-select delete; keys = lowercase names
 function renderHistory() {
   var q = (document.getElementById("histSearch").value||"").trim().toLowerCase();
   var hist = getHist();
   var filtered = hist.filter(function(h){ return !q||h.name.toLowerCase().indexOf(q)!==-1; }).slice(0,60);
   if (!filtered.length) {
+    _histSelectMode=false; _histSelected={};
     elHistoryC.innerHTML="<div class='empty'><div class='empty-ico'>&#x1F550;</div><div class='empty-title'>"+(q?"No matches":"No history yet")+"</div><div class='empty-sub'>"+(q?"Try a different search":"Items you add will appear here for quick re-adding")+"</div></div>";
     return;
   }
   var items=getItems(), html="";
+  var selCount = Object.keys(_histSelected).length;
+  if (_histSelectMode) {
+    html+="<div class='hist-bar'><span class='hist-bar-count'>"+selCount+" selected</span>" +
+      "<button id='histSelCancel'>Cancel</button>" +
+      "<button id='histSelDelete' class='danger'"+(selCount?"":" disabled style='opacity:.45'")+">&#x2715; Delete"+(selCount?" ("+selCount+")":"")+"</button></div>";
+  } else {
+    html+="<div class='hist-bar'><span class='hist-bar-count'></span><button id='histSelStart'>&#x2611; Select</button></div>";
+  }
   for (var i=0;i<filtered.length;i++) {
     var h=filtered[i], c=getCat(h.catId||"other");
     var inList=false;
     for (var j=0;j<items.length;j++) { if (!items[j].done&&items[j].name.toLowerCase()===h.name.toLowerCase()) { inList=true; break; } }
+    var sel = !!_histSelected[h.name.toLowerCase()];
     html+="<div class='hist-item' data-name='"+esc(h.name)+"' data-cat='"+c.id+"'>" +
       "<span class='hist-emoji'>"+c.emoji+"</span>" +
       "<div class='hist-body'><div class='hist-name'>"+esc(h.name)+"</div>" +
       "<div class='hist-meta'><span class='hist-cat' style='background:"+c.bg+";color:"+c.fg+"'>"+c.name+"</span>" +
       "<span class='hist-count'>Added "+(h.count||1)+"x</span></div></div>" +
-      "<button class='hist-add"+(inList?" in-list":"")+"'>"+(inList?"&#10003;":"+")+"</button></div>";
+      (_histSelectMode
+        ? "<span class='hist-check"+(sel?" sel":"")+"'>"+(sel?"&#10003;":"")+"</span>"
+        : "<button class='hist-add"+(inList?" in-list":"")+"'>"+(inList?"&#10003;":"+")+"</button>" +
+          "<button class='hist-del' title='Remove from history'>&#x2715;</button>") +
+      "</div>";
   }
   elHistoryC.innerHTML=html;
+  var bStart=document.getElementById("histSelStart"), bCancel=document.getElementById("histSelCancel"), bDel=document.getElementById("histSelDelete");
+  if (bStart)  bStart.addEventListener("click",  function(){ _histSelectMode=true;  _histSelected={}; renderHistory(); });
+  if (bCancel) bCancel.addEventListener("click", function(){ _histSelectMode=false; _histSelected={}; renderHistory(); });
+  if (bDel)    bDel.addEventListener("click",    function(){
+    var have={}; getHist().forEach(function(h){ if(h) have[h.name.toLowerCase()]=true; });
+    var names=Object.keys(_histSelected).filter(function(n){ return have[n]; });
+    if (!names.length) return;
+    deleteHistEntries(currentList, names);
+    _histSelectMode=false; _histSelected={};
+    saveCurrentList(); renderHistory();
+    toast("Removed "+names.length+" from history");
+  });
   elHistoryC.querySelectorAll(".hist-item").forEach(function(row) {
     var nm=row.dataset.name, cat=row.dataset.cat;
+    if (_histSelectMode) {
+      row.addEventListener("click", function(){
+        var k=nm.toLowerCase();
+        if (_histSelected[k]) delete _histSelected[k]; else _histSelected[k]=true;
+        renderHistory();
+      });
+      return;
+    }
     row.querySelector(".hist-add").addEventListener("click", function(e){ e.stopPropagation(); addFromHistory(nm,cat); });
+    row.querySelector(".hist-del").addEventListener("click", function(e){
+      e.stopPropagation();
+      deleteHistEntries(currentList, [nm.toLowerCase()]);
+      saveCurrentList(); renderHistory();
+      toast("Removed from history: "+nm);
+    });
     row.addEventListener("click", function(e){
-      if (e.target.closest(".hist-add")) return;
+      if (e.target.closest(".hist-add")||e.target.closest(".hist-del")) return;
       elInput.value=nm; manualCatId=cat; currentCatId=cat;
       showCatRow(cat,false); switchTab("list"); elInput.focus();
     });
@@ -5949,7 +6021,9 @@ function importBackupData(data) {
         newItems.forEach(function(x){ x.updated=Date.now(); if(tombs[x.id]!==undefined){ delete tombs[x.id]; tChanged=true; } });
         if(tChanged) storeSet("fl4_tomb_"+lt, tombs);
       }
-      listData[lt]={items:newItems.concat(ex.items),hist:mergeHist(ex.hist,d.hist||[])};
+      // v323: local hist tombstones apply on import too — restoring a backup
+      // does NOT resurrect deleted history entries (deliberate; items do resurrect, above).
+      listData[lt]={items:newItems.concat(ex.items),hist:mergeHist(ex.hist,d.hist||[],getTombs(histTombKey(lt)))};
       storeSet(LIST_CONFIG[lt].key,listData[lt]); imported.lists+=newItems.length;
     });
   }
@@ -6696,7 +6770,7 @@ var d = {};
   d.health = getWD();
   ["grocery","todo","travel","personal"].forEach(function(lt) {
     var ld = listData[lt], notes = storeGet("fl4_notes_" + lt) || [];
-    if (ld) d["list_" + lt] = { items:ld.items, hist:ld.hist, notes:notes, customCats:getCustomCats(lt), deleted:purgeTombs(getTombs(lt)) };
+    if (ld) d["list_" + lt] = { items:ld.items, hist:ld.hist, notes:notes, customCats:getCustomCats(lt), deleted:purgeTombs(getTombs(lt)), histDeleted:purgeTombs(getTombs(histTombKey(lt))) };
   });
   d.global_notes = storeGet("fl4_notes_global") || [];
   d.action_log   = getActionLog();
@@ -6755,11 +6829,13 @@ function applyPersonal(d) {
     // Union by id with newest-wins + deletion tombstones (same as household channel)
     var _tombs = mergeTombs(getTombs(lt), (ld.deleted && typeof ld.deleted === "object") ? ld.deleted : {});
     storeSet("fl4_tomb_" + lt, purgeTombs(_tombs));
+    var _htombs = mergeTombs(getTombs(histTombKey(lt)), (ld.histDeleted && typeof ld.histDeleted === "object") ? ld.histDeleted : {});
+    storeSet("fl4_tomb_" + histTombKey(lt), purgeTombs(_htombs));
     var _lm = mergeListItems(local.items, remote.items, _tombs);
     if (_lm.push) _pListRepush = true;
     listData[lt] = {
       items: _lm.items,
-      hist:  mergeHist(local.hist, remote.hist)
+      hist:  mergeHist(local.hist, remote.hist, _htombs)
     };
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
     if (Array.isArray(ld.notes)) storeSet("fl4_notes_" + lt, ld.notes.filter(Boolean));
@@ -6935,7 +7011,7 @@ var data = {};
     if (!isSynced(lt)) return;
     var d = listData[lt], notes = storeGet("fl4_notes_" + lt) || [];
     var cc = getCustomCats(lt);
-    if (d) data["list_" + lt] = { items:d.items, hist:d.hist, notes:notes, customCats:cc, deleted:purgeTombs(getTombs(lt)) };
+    if (d) data["list_" + lt] = { items:d.items, hist:d.hist, notes:notes, customCats:cc, deleted:purgeTombs(getTombs(lt)), histDeleted:purgeTombs(getTombs(histTombKey(lt))) };
   });
   if (isSynced("notes"))  data["global_notes"] = storeGet("fl4_notes_global") || [];
   if (isSynced("baby")) {
@@ -7923,12 +7999,17 @@ function doAddExercise(name) {
   }
 }
 
-function mergeHist(existing, incoming) {
-  var merged = existing.slice();
+function mergeHist(existing, incoming, histTombs) {
+  // v323: drop entries deleted at/after their last use (same rule as
+  // mergeListItems) — an entry re-added after deletion has a fresher lastUsed
+  // than the tombstone and survives.
+  var tombs = histTombs || {};
+  var live = function(h){ return h && !(tombs[String(h.name).toLowerCase()] >= (h.lastUsed || 0)); };
+  var merged = (existing || []).filter(live);
   var existingNames = {};
-  existing.forEach(function(h){ existingNames[h.name.toLowerCase()] = true; });
-  incoming.forEach(function(h){
-    if (h && !existingNames[h.name.toLowerCase()]) merged.push(h);
+  merged.forEach(function(h){ existingNames[h.name.toLowerCase()] = true; });
+  (incoming || []).forEach(function(h){
+    if (live(h) && !existingNames[h.name.toLowerCase()]) merged.push(h);
   });
   merged.sort(function(a,b){ return (b.count - a.count)||(b.lastUsed - a.lastUsed); });
   return merged.slice(0, 150);
@@ -9388,6 +9469,7 @@ function doHqpAdd() {
 }
 
 function addToHistFor(lt, name, catId) {
+  clearHistTomb(lt, name); // re-adding revives a deleted history entry (v323)
   var hist = loadListData(lt).hist, found = null;
   for (var i = 0; i < hist.length; i++) { if (hist[i].name.toLowerCase() === name.toLowerCase()) { found = hist[i]; break; } }
   if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); histRecordDate(found); }
@@ -10689,11 +10771,13 @@ function applyHousehold(data) {
     var _localHist  = (listData[lt] && listData[lt].hist)  || [];
     var _tombs = mergeTombs(getTombs(lt), (d.deleted && typeof d.deleted === "object") ? d.deleted : {});
     storeSet("fl4_tomb_" + lt, purgeTombs(_tombs));
+    var _htombs = mergeTombs(getTombs(histTombKey(lt)), (d.histDeleted && typeof d.histDeleted === "object") ? d.histDeleted : {});
+    storeSet("fl4_tomb_" + histTombKey(lt), purgeTombs(_htombs));
     var _lm = mergeListItems(_localItems, incoming, _tombs);
     if (_lm.push) _listRepush = true;
     listData[lt] = {
       items: _lm.items,
-      hist:  mergeHist(_localHist, Array.isArray(d.hist) ? d.hist.filter(Boolean) : [])
+      hist:  mergeHist(_localHist, Array.isArray(d.hist) ? d.hist.filter(Boolean) : [], _htombs)
     };
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
     if (Array.isArray(d.notes)) storeSet("fl4_notes_" + lt, d.notes.filter(Boolean));
