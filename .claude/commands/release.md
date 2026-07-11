@@ -29,6 +29,9 @@ continuing:
    retry up to 4 times with backoff (2s/4s/8s/16s). Never push to `main`.
 7. **Open the PR immediately** (GitHub MCP `create_pull_request`, base
    `main`) — never wait to be asked. Title `vNNN: <summary>`. Body:
+   - **👉 Try this version** — first line of the body, the test link for
+     this branch (v324 test mode: sync/login blocked, data sandboxed):
+     `https://raw.githack.com/coshea321/miniature-journey/<branch>/index.html`
    - **What changed** — plain-English bullets a non-coder can review.
    - **Why** — the request or bug that prompted it.
    - **Checks** — the verifier's summary block, pasted verbatim.

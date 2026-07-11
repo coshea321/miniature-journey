@@ -798,7 +798,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v323 · 11/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v324 · 11/07/2026</div>
 
   </div>
 </div>
@@ -1540,6 +1540,7 @@ body.train-mode #toast{background:#3A3328}
   <button id="backupNudgeNow" style="background:#7FB069;border:none;color:#11280F;border-radius:8px;padding:8px 12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation">Back up now</button>
   <button id="backupNudgeLater" aria-label="Dismiss" style="background:none;border:none;color:#9FB89F;font-size:18px;cursor:pointer;padding:0 2px;touch-action:manipulation">&#x2715;</button>
 </div>
+<div id="testBuildBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:1200;background:#B45309;color:#FFF7E6;text-align:center;font-size:12px;font-weight:700;letter-spacing:.3px;padding:5px 8px;pointer-events:none">&#x1F9EA; TEST BUILD &mdash; sync off &middot; nothing here can touch the real app</div>
 <div class="ver">v14</div>
 
 <script>
@@ -1554,6 +1555,21 @@ var _isPreview = (function() {
     href.indexOf("blob:") === 0 || href.indexOf("data:") === 0 ||
     window.self !== window.top; // inside any iframe
 })();
+
+// ============================================================
+// TEST BUILD — the app served from anywhere that isn't the real
+// GitHub Pages site (e.g. the raw.githack.com "try this version"
+// link on a PR). Firebase sync, login and the cloud backup are
+// hard-blocked and the service worker is skipped, so nothing done
+// in a test build can ever reach real data on the phones or in
+// Firebase. The browser keeps its localStorage per-site, so test
+// data lives (and stays) on the test address only.
+// ============================================================
+var _isTestBuild = !_isPreview && (window.location.hostname || "") !== "coshea321.github.io";
+if (_isTestBuild) {
+  var _tbBanner = document.getElementById("testBuildBanner");
+  if (_tbBanner) _tbBanner.style.display = "block";
+}
 
 // ============================================================
 // LIST TYPE CONFIG
@@ -5960,6 +5976,7 @@ function updateCloudBackupInfo(){
 }
 function maybeCloudBackup(){
   try {
+    if (_isTestBuild) return;
     if (!isLoggedIn() || navigator.onLine === false) return;
     var last = storeGet("fl4_last_cloudbackup") || 0;
     if (last && cloudBackupDateKey(last) === cloudBackupDateKey(Date.now())) return; // already done today
@@ -6403,6 +6420,7 @@ function houseUrl(path) { return hearthBase() + "/hearth/households/" + hearthHo
 
 // ── Firebase Auth REST API ────────────────────────────────
 function getAuthToken(cb) {
+  if (_isTestBuild) { cb(null); return; } // test builds never get a token, so Firebase denies every read/write
   // Return cached token if still valid (with 5-min buffer)
   if (hearthIdToken && Date.now() < hearthTokenExpiry - 300000) {
     cb(hearthIdToken); return;
@@ -6433,6 +6451,7 @@ function getAuthToken(cb) {
 }
 
 function firebaseSignIn(email, password, cb) {
+  if (_isTestBuild) { cb("Sync is disabled in test builds"); return; }
   fetch("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + hearthApiKey, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -6451,6 +6470,7 @@ function firebaseSignIn(email, password, cb) {
 }
 
 function firebaseSignUp(email, password, cb) {
+  if (_isTestBuild) { cb("Sync is disabled in test builds"); return; }
   fetch("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + hearthApiKey, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -6480,7 +6500,7 @@ function authUrl(url) {
 
 // ── Login overlay functions ───────────────────────────────
 function showLoginOverlay() {
-  if (_isPreview) return;
+  if (_isPreview || _isTestBuild) return;
   var ov = document.getElementById("loginOverlay");
   if (ov) ov.style.display = "flex";
   document.body.style.overflow = "hidden";
@@ -6761,6 +6781,7 @@ function logout(silent) {
 // Personal sync: always-on, syncs ALL data for same user on any device
 var _pushPersonalTimer = null;
 function pushPersonal() {
+  if (_isTestBuild) return;
   if (!isLoggedIn() || syncPaused) return;
   if (!_personalFetchOk) return; // never push until we've successfully pulled remote data
   lastPushTs = Date.now(); // set immediately so tab-switch guard works
@@ -7002,6 +7023,7 @@ function fetchPersonal(cb) {
 
 var _pushHouseholdTimer = null;
 function pushHousehold() {
+  if (_isTestBuild) return;
   if (!isHouseholdSet() || syncPaused) return;
   lastPushTs = Date.now();
   clearTimeout(_pushHouseholdTimer);
@@ -7338,6 +7360,7 @@ function startSSEFallback() {
 }
 
 function startPersonalListening() {
+  if (_isTestBuild) return;
   if (!isLoggedIn()) return;
   if (hearthHealthES) { hearthHealthES.close(); hearthHealthES = null; }
   getAuthToken(function(token) {
@@ -7369,6 +7392,7 @@ function handlePersonalEvent(e) {
 // ── SSE: household sync listener ──────────────────────────
 var hearthSyncES = null;
 function startListening() {
+  if (_isTestBuild) return;
   if (!isHouseholdSet()) return;
   if (hearthSyncES) { hearthSyncES.close(); hearthSyncES = null; }
   getAuthToken(function(token) {
@@ -11628,7 +11652,11 @@ if (hearthFbId && hearthFbId.indexOf(".") === -1) {
 
 var bootSection = "home";
 
-if (isLoggedIn()) {
+if (_isTestBuild) {
+  // Test builds never talk to Firebase — skip login/session entirely.
+  hideLoginOverlay();
+  switchSection(bootSection);
+} else if (isLoggedIn()) {
   verifySession();
 } else if (_isPreview) {
   hideLoginOverlay();
@@ -11689,7 +11717,7 @@ function bootStaleReload() {
   window.location.reload();
 }
 
-if (!("serviceWorker" in navigator) || _isPreview) {
+if (!("serviceWorker" in navigator) || _isPreview || _isTestBuild) {
   hideBootSplash();
 } else if (!navigator.serviceWorker.controller) {
   // First visit (or hard refresh): the page came straight from the network,
@@ -11711,7 +11739,7 @@ if (!_bootSplashGone) {
   }, 4000);
 }
 
-if ("serviceWorker" in navigator && !_isPreview) {
+if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
   navigator.serviceWorker.register("./sw.js?v=121", { updateViaCache: "none" }).then(function(reg) {
     reg.addEventListener("updatefound", function(){ _bootUpdateInstalling = true; });
     if (reg.installing) _bootUpdateInstalling = true;
