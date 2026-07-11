@@ -791,7 +791,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v322 · 10/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v323 · 11/07/2026</div>
 
   </div>
 </div>
@@ -2207,26 +2207,13 @@ function showVoiceReview(transcript, items){
     toast(added ? ("Added " + added + " item" + (added!==1?"s":"") + (existed?" (" + existed + " already there)":"")) : "Those are already in your list");
   });
 }
-// v303 (predictive-replenishment foundation): record today's add-date on a
-// history entry as a rolling series, so a future feature can learn how often
-// an item is needed. Deduped per day, capped at 8 dates (→ up to 7 intervals).
-// Backward-compatible: absent on pre-v303 entries until their next add. Purely
-// additive data — no UI yet; rides through export/import/sync inside `hist`.
-function histRecordDate(entry) {
-  var todayS = todayStr();
-  if (!Array.isArray(entry.dates)) entry.dates = [];
-  if (entry.dates[entry.dates.length-1] !== todayS) {
-    entry.dates.push(todayS);
-    if (entry.dates.length > 8) entry.dates = entry.dates.slice(-8);
-  }
-}
 function addToHist(name, catId) {
   var hist = getHist(), found = null;
   for (var i = 0; i < hist.length; i++) {
     if (hist[i].name.toLowerCase()===name.toLowerCase()) { found = hist[i]; break; }
   }
-  if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); histRecordDate(found); }
-  else { var e = { name:name, catId:catId, count:1, lastUsed:Date.now() }; histRecordDate(e); hist.unshift(e); }
+  if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); }
+  else { var e = { name:name, catId:catId, count:1, lastUsed:Date.now() }; hist.unshift(e); }
   if (hist.length > 150) listData[currentList].hist = hist.slice(0,150);
   listData[currentList].hist.sort(function(a,b){ return (b.count-a.count)||(b.lastUsed-a.lastUsed); });
 }
@@ -4069,85 +4056,6 @@ function renderItemSheetTags() {
   });
 }
 
-// ── Predictive replenishment suggestions (v306) — grocery only ─────────────
-// Reads the v303 add-date history. Two tiers: interval-based when an item has
-// ≥3 recorded add-dates (median gap → due when overdue-ish), else a frequency
-// fallback (bought ≥3 times, not added in 10+ days) so there's value before
-// the date series fills in. NEVER auto-adds — tap to add, × to snooze 14 days.
-// Snooze map is device-local + transient (NOT exported/synced).
-var SUGG_SNOOZE_KEY = "fl4_sugg_snooze";
-function suggSnoozeMap(){ var m = storeGet(SUGG_SNOOZE_KEY); return (m && typeof m==="object") ? m : {}; }
-function suggSnooze(name){ var m = suggSnoozeMap(); m[String(name).toLowerCase()] = Date.now() + 14*24*3600*1000; storeSet(SUGG_SNOOZE_KEY, m); }
-function medianGapDays(dates){
-  if (!Array.isArray(dates) || dates.length < 2) return null;
-  var gaps = [];
-  for (var i=1;i<dates.length;i++){
-    var a = new Date(dates[i-1]).getTime(), b = new Date(dates[i]).getTime();
-    if (!isNaN(a) && !isNaN(b) && b>a) gaps.push((b-a)/86400000);
-  }
-  if (!gaps.length) return null;
-  gaps.sort(function(x,y){ return x-y; });
-  var mid = Math.floor(gaps.length/2);
-  return gaps.length%2 ? gaps[mid] : (gaps[mid-1]+gaps[mid])/2;
-}
-function buildGrocerySuggestions(max){
-  loadListData("grocery");
-  var d = listData.grocery || {items:[],hist:[]};
-  var onList = {};
-  (d.items||[]).forEach(function(it){ if (it && !it.done) onList[it.name.toLowerCase()] = true; });
-  var snooze = suggSnoozeMap(), now = Date.now(), out = [];
-  (d.hist||[]).forEach(function(h){
-    if (!h || !h.name) return;
-    var key = h.name.toLowerCase();
-    if (onList[key]) return;                       // already on the list
-    if (snooze[key] && snooze[key] > now) return;  // snoozed
-    var lastAdd = h.lastUsed || (h.dates && h.dates.length ? new Date(h.dates[h.dates.length-1]).getTime() : 0);
-    var daysSince = lastAdd ? (now - lastAdd)/86400000 : 999;
-    var gap = medianGapDays(h.dates);
-    if (gap != null && (h.dates||[]).length >= 3) {
-      if (daysSince >= gap*0.9) out.push({ name:h.name, catId:h.catId, reason:"usually ~"+Math.round(gap)+"d", score: 100 + daysSince/gap });
-    } else if ((h.count||0) >= 3 && daysSince >= 10) {
-      out.push({ name:h.name, catId:h.catId, reason:"often bought", score: (h.count||0)/10 + daysSince/100 });
-    }
-  });
-  out.sort(function(a,b){ return b.score - a.score; });
-  return out.slice(0, max||4);
-}
-function buildSuggestionsStrip(){
-  var sugg = buildGrocerySuggestions(4);
-  if (!sugg.length) return "";
-  var chips = sugg.map(function(s){
-    var cat = esc(s.catId||"other"), nm = esc(s.name);
-    // Two large, clearly-separated tap targets (v307): the whole left block
-    // adds; the divider-split × on the right dismisses. Each ~40px so they
-    // can't be mis-tapped for each other.
-    return "<span class='sugg-chip' style='display:inline-flex;align-items:stretch;background:#F3EFE6;border:1px solid #E4DCC8;border-radius:16px;margin:0 8px 8px 0;font-size:13px;overflow:hidden'>" +
-      "<span class='sugg-add' data-name='"+nm+"' data-cat='"+cat+"' aria-label='Add "+nm+"' style='display:inline-flex;align-items:center;gap:7px;padding:13px 12px 13px 14px;cursor:pointer;touch-action:manipulation'>" +
-        "<span style='color:#2D6B35;font-weight:800;font-size:17px;line-height:1'>+</span>" +
-        "<span style='font-weight:600;color:#4A3A20'>"+nm+"</span>" +
-        "<span style='font-size:10px;color:#9A8A6A'>"+esc(s.reason)+"</span>" +
-      "</span>" +
-      "<span class='sugg-x' data-name='"+nm+"' aria-label='Dismiss "+nm+"' style='display:inline-flex;align-items:center;padding:13px 14px;border-left:1px solid #E4DCC8;color:#B0705E;font-weight:700;font-size:16px;line-height:1;cursor:pointer;touch-action:manipulation'>&times;</span>" +
-    "</span>";
-  }).join("");
-  return "<div style='padding:2px 2px 4px'><div style='font-size:11px;font-weight:700;color:#9A8A6A;text-transform:uppercase;letter-spacing:.5px;margin:2px 2px 7px'>&#x1F52E; Suggested</div>" + chips + "</div>";
-}
-// Wire the suggestion chips after renderList sets innerHTML (called from both
-// the empty-list and populated paths, so suggestions work on an empty list too).
-function wireSuggestionChips(){
-  elListC.querySelectorAll(".sugg-add").forEach(function(el){
-    el.addEventListener("click", function(){
-      var nm = el.dataset.name; if (!nm) return;
-      var res = addItemToCurrent(nm, el.dataset.cat || detectCat(nm), null, null);
-      saveCurrentList(); renderList(); switchTab("list");
-      toast(res === "exists" ? "Already in your list" : ("Added: " + nm));
-    });
-  });
-  elListC.querySelectorAll(".sugg-x").forEach(function(el){
-    el.addEventListener("click", function(){ if (el.dataset.name){ suggSnooze(el.dataset.name); renderList(); } });
-  });
-}
-
 function renderList() {
   // Notes sub-tab (v318): no LIST_CONFIG entry, so the list renderer must not
   // touch it — sync callbacks call renderList() regardless of the active tab.
@@ -4199,12 +4107,8 @@ function renderList() {
     elClearBtn.innerHTML  = "&#x2715; Clear completed";
     elReopenBtn.innerHTML = "&#x21BA; Reopen all";
   }
-  // Suggestions strip (v306) — grocery only, not while searching. Computed
-  // here so it also shows above the empty-list state (when it's most useful).
-  var suggHtml = (currentList === "grocery" && !_listSearchQuery) ? buildSuggestionsStrip() : "";
   if (!items.length) {
-    elListC.innerHTML = suggHtml + "<div class='empty'><div class='empty-ico'>"+lt.emptyIco+"</div><div class='empty-title'>"+lt.emptyTitle+"</div><div class='empty-sub'>"+lt.emptySub+"</div></div>";
-    wireSuggestionChips();
+    elListC.innerHTML = "<div class='empty'><div class='empty-ico'>"+lt.emptyIco+"</div><div class='empty-title'>"+lt.emptyTitle+"</div><div class='empty-sub'>"+lt.emptySub+"</div></div>";
     return;
   }
   var groups={};
@@ -4278,8 +4182,7 @@ function renderList() {
     for (var di=0;di<done.length;di++) html+=cardHTML(done[di],getCat(done[di].catId||"other"));
     html+="</div>";
   }
-  elListC.innerHTML = suggHtml + html;
-  wireSuggestionChips();
+  elListC.innerHTML = html;
   // Wire done section toggle
   var doneToggleEl = elListC.querySelector("#doneToggle");
   if (doneToggleEl) {
@@ -9390,8 +9293,8 @@ function doHqpAdd() {
 function addToHistFor(lt, name, catId) {
   var hist = loadListData(lt).hist, found = null;
   for (var i = 0; i < hist.length; i++) { if (hist[i].name.toLowerCase() === name.toLowerCase()) { found = hist[i]; break; } }
-  if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); histRecordDate(found); }
-  else { var e = { name:name, catId:catId, count:1, lastUsed:Date.now() }; histRecordDate(e); hist.unshift(e); }
+  if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); }
+  else { var e = { name:name, catId:catId, count:1, lastUsed:Date.now() }; hist.unshift(e); }
   if (hist.length > 150) listData[lt].hist = hist.slice(0,150);
 }
 
