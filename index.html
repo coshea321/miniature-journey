@@ -67,6 +67,11 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
    near-miss checks off instead of doing nothing (the v257 escalation). */
 .chk::before{content:"";position:absolute;top:-9px;right:-9px;bottom:-9px;left:-9px;border-radius:50%}
 .item-card.done .chk{background:var(--accent);border-color:var(--accent);color:#fff}
+/* v326: per-person packing checks (travel, opt-in per item) — three circles replace the single checkbox */
+.ppc-wrap{display:flex;gap:6px;align-items:center;flex-shrink:0}
+.ppc{width:24px;height:24px;flex-shrink:0;border:2px solid #D8D0C0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#8A7A5A;transition:all .18s;position:relative;cursor:pointer;box-sizing:border-box}
+.ppc::before{content:"";position:absolute;top:-8px;bottom:-8px;left:-3px;right:-3px}
+.ppc.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .item-name{flex:1;font-size:15px;font-weight:500}
 .item-card.done .item-name{text-decoration:line-through;color:#5A6455}
 .item-pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;white-space:nowrap;flex-shrink:0;cursor:pointer;border:1.5px solid transparent;transition:border-color .15s}
@@ -798,7 +803,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v325 · 11/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v326 · 12/07/2026</div>
 
   </div>
 </div>
@@ -2139,6 +2144,7 @@ function addItemToCurrent(name, catId, dueD, restoreCat) {
       if (!items[i].done) return "exists";
       // Matching item is in the Done/Packed section — uncheck it instead of duplicating
       items[i].done = false;
+      clearPersonChecks(items[i]);
       if (restoreCat) items[i].catId = restoreCat;
       items[i].added = Date.now();   // a revived item counts as recently added (v325)
       items[i].updated = Date.now(); // and the revival must win the newest-wins merge
@@ -4464,6 +4470,9 @@ function renderList() {
       if (e.target.closest(".item-pill")) return;
       // Zone 3: circle/chk → toggle done
       if (e.target.closest(".chk")) { toggleItem(id); return; }
+      // Zone 3a: per-person check circle (travel opt-in, v326)
+      var _ppc = e.target.closest(".ppc");
+      if (_ppc) { togglePersonCheck(id, _ppc.dataset.pp); return; }
       // Zone 3b: star → toggle "today" pick (General list only)
       if (e.target.closest(".star-btn")) { toggleToday(id); return; }
       // Zone 4: due chip, cal link, or item link → let them navigate naturally
@@ -4571,8 +4580,19 @@ function cardHTML(item, c) {
   var starBtn = (currentList === "todo")
     ? "<button class='star-btn' title='Pick for today' style='width:34px;height:40px;flex-shrink:0;border:none;background:none;font-size:18px;line-height:1;cursor:pointer;padding:0;color:" + (item.today?"#E8A030":"#D0C8B8") + "'>" + (item.today?"&#x2605;":"&#x2606;") + "</button>"
     : "";
+  // v326: travel items opted into per-person checks show three circles (C / P / baby) instead of the single checkbox
+  var isPP = currentList === "travel" && item.checks && typeof item.checks === "object";
+  var checkHTML;
+  if (isPP) {
+    checkHTML = "<div class='ppc-wrap'>" +
+      [["c","C"],["p","P"],["b","&#x1F476;"]].map(function(pp){
+        return "<div class='ppc" + (item.checks[pp[0]]?" on":"") + "' data-pp='" + pp[0] + "'>" + pp[1] + "</div>";
+      }).join("") + "</div>";
+  } else {
+    checkHTML = "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>";
+  }
   return "<div class='item-card" + (item.done?" done":"") + (isDup?" is-dup":"") + "' data-id='" + item.id + "' style='border-left-color:" + leftColor + (isDup?";background:#FFF8EC":"") + "'>" +
-    "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>" +
+    checkHTML +
     "<div class='item-body' style='flex:1;min-width:0;margin-left:5px;" + (isDetail?"cursor:pointer":"") + "'>" +
       "<span class='item-name'>" + esc(item.name) + "</span>" + amtChip + newBadge + dupBadge + recipeChip + tagChips +
       (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + (calBtn ? "&nbsp;" + calBtn : "") + "</div>" : "") +
@@ -4594,6 +4614,27 @@ function toggleToday(id) {
   for (var i=0;i<items.length;i++) { if (items[i].id===id) { items[i].today=!items[i].today; items[i].updated=Date.now(); break; } }
   saveCurrentList(); renderList();
 }
+// v326: flip one person's packing check; item auto-packs when all three are ticked
+// (and comes back when any is unticked). p = "c" | "p" | "b".
+function togglePersonCheck(id, p) {
+  if (p !== "c" && p !== "p" && p !== "b") return;
+  var items = getItems();
+  for (var i=0;i<items.length;i++) {
+    if (items[i].id === id) {
+      var it = items[i];
+      if (!it.checks || typeof it.checks !== "object") it.checks = {};
+      it.checks[p] = !it.checks[p];
+      it.done = !!(it.checks.c && it.checks.p && it.checks.b);
+      if (it.done) it.today = false;
+      it.updated = Date.now();
+      break;
+    }
+  }
+  saveCurrentList(); renderList();
+}
+// v326: when something other than the circles forces an item back to not-done
+// (revive on re-add, reopen-all, quick-pick), stale ticks must clear with it.
+function clearPersonChecks(it) { if (it && it.checks) it.checks = {}; }
 function updateCollapseAllLabel() {
   var link = document.getElementById("collapseAllLink");
   if (!link) return;
@@ -4617,7 +4658,7 @@ elClearBtn.addEventListener("click", function(){
 });
 
 elReopenBtn.addEventListener("click", function(){
-  listData[currentList].items = getItems().map(function(x){ return x.done ? Object.assign({}, x, {done:false}) : x; });
+  listData[currentList].items = getItems().map(function(x){ return x.done ? Object.assign({}, x, {done:false}, (x.checks ? {checks:{}} : null)) : x; });
   saveCurrentList(); renderList(); toast("&#x21BA; All items reopened");
 });
 
@@ -7604,6 +7645,13 @@ function openItemSheet(itemId) {
       _sheetTags = [];
     }
   }
+  // Per-person checks opt-in (Travel list only, v326)
+  var ppWrap = document.getElementById("itemSheetPPWrap");
+  if (ppWrap) {
+    ppWrap.style.display = currentList === "travel" ? "block" : "none";
+    var ppTog = document.getElementById("itemSheetPPToggle");
+    if (ppTog) ppTog.checked = !!(item.checks && typeof item.checks === "object");
+  }
   // Amount only relevant for Grocery
   var amtRow = document.getElementById("itemSheetAmountRow");
   if (amtRow) {
@@ -7890,6 +7938,16 @@ window.addEventListener("DOMContentLoaded", function() {
     item.link = linkVal || null;
     if (currentList === "travel") {
       item.tags = (_sheetTags && _sheetTags.length) ? _sheetTags.slice() : null;
+      // Per-person checks opt-in (v326). Turning it on for an already-packed item
+      // pre-ticks all three so the states stay consistent; turning it off keeps done as-is.
+      var _ppTog = document.getElementById("itemSheetPPToggle");
+      if (_ppTog) {
+        if (_ppTog.checked) {
+          if (!item.checks || typeof item.checks !== "object") item.checks = item.done ? {c:true,p:true,b:true} : {};
+        } else if (item.checks) {
+          delete item.checks;
+        }
+      }
     }
     var isTask = currentList === "todo" || currentList === "personal";
     if (isTask) {
@@ -7900,6 +7958,7 @@ window.addEventListener("DOMContentLoaded", function() {
       var amtVal = document.getElementById("itemSheetAmountInput").value.trim();
       item.amount = amtVal || null;
     }
+    item.updated = Date.now(); // v326: sheet edits must win the newest-wins merge (was unstamped)
     listData[currentList].items = items; saveCurrentList(); renderList(); closeItemSheet(); toast("Saved");
   });
 });
@@ -9499,7 +9558,7 @@ function doHqpAdd() {
     for (var di = 0; di < items.length; di++) {
       if (items[di] && items[di].name.toLowerCase() === name.toLowerCase()) {
         if (!items[di].done) { toast("Already in your list!"); closeHqp(); return; }
-        items[di].done = false; items[di].updated = Date.now(); items[di].added = Date.now(); // revived = recently added (v325)
+        items[di].done = false; clearPersonChecks(items[di]); items[di].updated = Date.now(); items[di].added = Date.now(); // revived = recently added (v325)
         storeSet(LIST_CONFIG[lt].key, listData[lt]);
         pushPersonal(); if (isHouseholdSet() && isSynced(lt)) pushHousehold();
         toast("Moved back to list: " + name); closeHqp(); renderHomeScreen(); return;
@@ -11956,6 +12015,13 @@ if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
       <input id="itemSheetNewTag" type="text" placeholder="Add a tag (e.g. abroad)" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#3A3328;font-family:inherit;font-size:14px;outline:none">
       <button id="itemSheetAddTag" style="border:none;background:#5A7BC0;color:#fff;border-radius:9px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Add</button>
     </div>
+  </div>
+  <div id="itemSheetPPWrap" style="display:none;margin-bottom:12px">
+    <div style="font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Per-person checks</div>
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;cursor:pointer">
+      <input id="itemSheetPPToggle" type="checkbox" style="width:20px;height:20px;flex-shrink:0;accent-color:#3B6FE0;cursor:pointer">
+      <span style="font-size:14px;color:#3A3328">Tick off C / P / &#x1F476; separately for this item</span>
+    </label>
   </div>
 
   <button id="itemSheetSave" style="width:100%;padding:13px;border:none;background:#3B6FE0;color:#fff;border-radius:11px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation">Save</button>
