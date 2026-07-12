@@ -798,7 +798,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v324 · 11/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v325 · 11/07/2026</div>
 
   </div>
 </div>
@@ -2026,6 +2026,7 @@ document.getElementById("typeBar").addEventListener("click", function(e) {
   _listSearchQuery = "";
   _travelFilter = [];
   _todayFilter = false;
+  _recentFilter = false;
   var _sr0 = document.getElementById("searchRow");
   if (_sr0) _sr0.style.display = "none";
   var _si0 = document.getElementById("listSearchInput");
@@ -2139,11 +2140,13 @@ function addItemToCurrent(name, catId, dueD, restoreCat) {
       // Matching item is in the Done/Packed section — uncheck it instead of duplicating
       items[i].done = false;
       if (restoreCat) items[i].catId = restoreCat;
+      items[i].added = Date.now();   // a revived item counts as recently added (v325)
+      items[i].updated = Date.now(); // and the revival must win the newest-wins merge
       return "restored";
     }
   }
   // +random so several items added in the same millisecond (voice) get unique ids
-  listData[currentList].items.unshift({ id:Date.now()+Math.floor(Math.random()*1000), name:name, catId:catId, done:false, dueDate:dueD||null, addedBy:hearthUser, updated:Date.now() });
+  listData[currentList].items.unshift({ id:Date.now()+Math.floor(Math.random()*1000), name:name, catId:catId, done:false, dueDate:dueD||null, addedBy:hearthUser, updated:Date.now(), added:Date.now() });
   addToHist(name, catId);
   return "added";
 }
@@ -2282,6 +2285,19 @@ function addToHist(name, catId) {
 var _listSearchQuery = "";
 var _travelFilter = [];
 var _todayFilter = false;
+var _recentFilter = false;
+// "Recently added" (v325): an item counts as recent for 48h after it goes on
+// the list. `added` is stamped at every creation/restore site from v325 on;
+// items from before v325 fall back to their id, which has always been a
+// Date.now() value (up to 1s of jitter — irrelevant at a 2-day window).
+var RECENT_MS = 48 * 60 * 60 * 1000;
+function itemAddedTs(it) {
+  if (!it) return 0;
+  if (it.added) return it.added;
+  if (typeof it.id === "number" && it.id > 1000000000000) return it.id;
+  return it.updated || 0;
+}
+function isRecentItem(it) { return Date.now() - itemAddedTs(it) < RECENT_MS; }
 // Fuzzy match: true if all query chars appear in order in the text (subsequence),
 // or the query is a direct substring. Case-insensitive, spaces ignored in query.
 function fuzzyMatch(query, text) {
@@ -3218,12 +3234,12 @@ function addRecipeToGroceries(recipe, mult, quiet) {
       }
       existing.recipe = tag;
       existing._recipeAdded = false;        // pre-existed: restore on clear, don't delete
-      if (existing.done) existing.done = false;
+      if (existing.done) { existing.done = false; existing.added = Date.now(); existing.updated = Date.now(); } // revived = recently added (v325)
       existing.catId = gcat(clean);
       tagged++;
     } else {
       var catId = gcat(clean);
-      var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser, recipe: tag, _recipeAdded: true, updated: Date.now() };
+      var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser, recipe: tag, _recipeAdded: true, updated: Date.now(), added: Date.now() };
       var amt = amtLabel(ing);
       if (amt) rec.amount = amt;            // new items carry the scaled amount
       items.unshift(rec);
@@ -4220,6 +4236,10 @@ function renderList() {
     if (_todayFilter && !getItems().some(function(it){ return it && it.today; })) _todayFilter = false;
     if (_todayFilter) items = items.filter(function(it){ return it && it.today; });
   }
+  // "Recent" filter (v325, all lists): show only items added in the last 48h.
+  // Auto-disengage if nothing qualifies (same safety net as the Today filter).
+  if (_recentFilter && !getItems().some(isRecentItem)) _recentFilter = false;
+  if (_recentFilter) items = items.filter(isRecentItem);
   var lt = LIST_TYPES[currentList];
   var active=[], done=[];
   for (var i=0;i<items.length;i++){ (items[i].done?done:active).push(items[i]); }
@@ -4285,6 +4305,16 @@ function renderList() {
       html += "<button id='todayFilterChip' style='border:1.5px solid " + (_tOn?"#C2691A":"#D8D0C0") + ";background:" + (_tOn?"#C2691A":"#fff") + ";color:" + (_tOn?"#fff":"#5A6455") + ";border-radius:13px;padding:4px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>&#x2605; Today (" + _todayCount + ")</button>";
       html += "</div>";
     }
+  }
+  // "Recent" filter chip (v325, all lists) — self-suppressing: only shown when
+  // something was added in the last 48h. Count includes done items (an item
+  // added yesterday and already ticked is still "recently added").
+  var _recentCount = getItems().filter(function(it){ return it && isRecentItem(it); }).length;
+  if (_recentCount) {
+    var _rOn = _recentFilter;
+    html += "<div style='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px'>";
+    html += "<button id='recentFilterChip' style='border:1.5px solid " + (_rOn?"#2D6B8A":"#D8D0C0") + ";background:" + (_rOn?"#2D6B8A":"#fff") + ";color:" + (_rOn?"#fff":"#5A6455") + ";border-radius:13px;padding:4px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>&#x1F552; Recent (" + _recentCount + ")</button>";
+    html += "</div>";
   }
   // Recipe-tag banner: if any active items carry a recipe tag, offer one-tap clear
   var _recipeTags = {};
@@ -4369,6 +4399,8 @@ function renderList() {
   if (_tfClear) _tfClear.addEventListener("click", function(){ _travelFilter = []; renderList(); });
   var _todayChip = document.getElementById("todayFilterChip");
   if (_todayChip) _todayChip.addEventListener("click", function(){ _todayFilter = !_todayFilter; renderList(); });
+  var _recentChip = document.getElementById("recentFilterChip");
+  if (_recentChip) _recentChip.addEventListener("click", function(){ _recentFilter = !_recentFilter; renderList(); });
   elListC.querySelectorAll(".recipe-clear-btn").forEach(function(btn){
     btn.addEventListener("click", function(e){
       e.stopPropagation();
@@ -4670,7 +4702,7 @@ function addFromHistory(name, catId) {
   for (var i=0;i<items.length;i++) {
     if (!items[i].done&&items[i].name.toLowerCase()===name.toLowerCase()) { toast("Already in your list!"); return; }
   }
-  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false, addedBy:hearthUser, updated:Date.now() });
+  listData[currentList].items.unshift({ id:Date.now(), name:name, catId:catId, done:false, addedBy:hearthUser, updated:Date.now(), added:Date.now() });
   addToHist(name,catId); saveCurrentList(); renderList(); renderHistory(); toast("Added: "+name);
 }
 
@@ -7807,12 +7839,12 @@ window.addEventListener("DOMContentLoaded", function() {
         }
         existing.recipe = tag || existing.recipe; // new tag replaces old
         existing._recipeAdded = false;            // pre-existed: restore, don't delete
-        if (existing.done) existing.done = false; // un-check from Done/Packed
+        if (existing.done) { existing.done = false; existing.added = Date.now(); existing.updated = Date.now(); } // revived = recently added (v325)
         if (tag) existing.catId = detectCat(clean); // recipe's category wins
         tagged++;
       } else {
         var catId = detectCat(clean);
-        var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser, updated: Date.now() };
+        var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser, updated: Date.now(), added: Date.now() };
         if (tag) { rec.recipe = tag; rec._recipeAdded = true; }
         items.unshift(rec);
         byName[key] = rec;
@@ -9467,13 +9499,13 @@ function doHqpAdd() {
     for (var di = 0; di < items.length; di++) {
       if (items[di] && items[di].name.toLowerCase() === name.toLowerCase()) {
         if (!items[di].done) { toast("Already in your list!"); closeHqp(); return; }
-        items[di].done = false; items[di].updated = Date.now();
+        items[di].done = false; items[di].updated = Date.now(); items[di].added = Date.now(); // revived = recently added (v325)
         storeSet(LIST_CONFIG[lt].key, listData[lt]);
         pushPersonal(); if (isHouseholdSet() && isSynced(lt)) pushHousehold();
         toast("Moved back to list: " + name); closeHqp(); renderHomeScreen(); return;
       }
     }
-    listData[lt].items.unshift({ id: Date.now(), name: name, catId: catId, done: false, addedBy:hearthUser, updated:Date.now() });
+    listData[lt].items.unshift({ id: Date.now(), name: name, catId: catId, done: false, addedBy:hearthUser, updated:Date.now(), added:Date.now() });
     addToHistFor(lt, name, catId);
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
     pushPersonal(); if (isHouseholdSet() && isSynced(lt)) pushHousehold();
