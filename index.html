@@ -223,6 +223,7 @@ body.home-mode .bn-btn{color:#AAA090}
 .hw-main{flex:1;min-width:0}
 .hw-temp{font-family:Georgia,serif;font-size:24px;font-weight:600;color:#2A5AB0;line-height:1}
 .hw-cond{font-size:12px;font-weight:600;color:#5A7AB8;margin-top:2px}
+.hw-stamp{font-size:10px;font-weight:600;color:#8AA0C8;margin-top:3px}
 .hw-meta{text-align:right;flex-shrink:0;font-size:11px;font-weight:600;color:#7A98C8;line-height:1.55}
 .hw-meta b{color:#2A5AB0;font-weight:700}
 .hw-stale{opacity:.6}
@@ -720,6 +721,7 @@ body.train-mode #toast{background:#3A3328}
       <div class="hw-main">
         <div class="hw-temp" id="hwTemp">—</div>
         <div class="hw-cond" id="hwCond">Carrigaline</div>
+        <div class="hw-stamp" id="hwStamp"></div>
       </div>
       <div class="hw-meta" id="hwMeta"></div>
     </div>
@@ -9051,19 +9053,25 @@ function hwPaint(data, stale) {
   iconEl.innerHTML = hwCodeToIcon(data.code);
   tempEl.textContent = Math.round(data.temp) + "\u00B0";
   condEl.textContent = hwCodeToText(data.code) + " \u00B7 " + (data.loc || "Carrigaline");
+  // "as of" timestamp lives under the temperature since v327 (was the last
+  // meta line) \u2014 one line shorter on the right, so the card stays compact.
   var t = new Date(data.at);
   var hh = ("0" + t.getHours()).slice(-2), mm = ("0" + t.getMinutes()).slice(-2);
+  var stampEl = document.getElementById("hwStamp");
+  if (stampEl) stampEl.textContent = "as of " + hh + ":" + mm;
   var feelsStr = (data.feels != null) ? "Feels <b>" + data.feels + "\u00B0</b><br>" : "";
   // Today's chance of rain (v305). Prefer the top-level pop; fall back to
   // days[0].pop for caches written before pop was stored there.
   var pop = (data.pop != null) ? data.pop : (data.days && data.days[0] ? data.days[0].pop : null);
-  var popStr = (pop != null) ? "\u2614 Rain <b>" + pop + "%</b><br>" : "";
-  // Today's average wind (v327). No fallback for pre-v327 caches \u2014 days[0].wind
-  // is the daily MAX and would mislabel; the line just hides until a fresh fetch.
-  var windStr = (data.wind != null) ? "\uD83D\uDCA8 Avg wind <b>" + data.wind + "</b> km/h<br>" : "";
+  // Rain and current wind share one meta line (v327). No wind fallback for
+  // pre-v327 caches \u2014 days[0].wind is the daily MAX, not current; the wind
+  // part just hides until a fresh fetch.
+  var bits = [];
+  if (pop != null) bits.push("\u2614 <b>" + pop + "%</b>");
+  if (data.wind != null) bits.push("\uD83D\uDCA8 <b>" + data.wind + "</b> km/h");
+  var rainWindStr = bits.length ? bits.join(" \u00B7 ") + "<br>" : "";
   metaEl.innerHTML = feelsStr + "H:<b>" + data.high + "\u00B0</b> L:<b>" + data.low +
-    "\u00B0</b><br>" + popStr + windStr + "Humidity <b>" + data.hum + "%</b>" +
-    "<br>as of " + hh + ":" + mm;
+    "\u00B0</b><br>" + rainWindStr + "Humidity <b>" + data.hum + "%</b>";
   card.classList.toggle("hw-stale", !!stale);
   card.classList.add("hw-show");
 }
@@ -9099,7 +9107,7 @@ function fetchWeather(force) {
   hwGetCoords(function(lat, lon, isDevice) {
   var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat +
     "&longitude=" + lon +
-    "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code" +
+    "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
     "&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m" +
     "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max" +
     "&timezone=auto&forecast_days=4";
@@ -9134,16 +9142,6 @@ function fetchWeather(force) {
         if (hours.length >= 24) break;
       }
     }
-    // Today's average wind (v327): mean of the calendar day's hourly values —
-    // Open-Meteo's daily aggregate only offers the max, not the mean
-    var wSum = 0, wCnt = 0;
-    if (hl && hl.time && hl.wind_speed_10m) {
-      for (var w = 0; w < hl.time.length; w++) {
-        if (hl.time[w].slice(0, 10) === dl.time[0] && hl.wind_speed_10m[w] != null) {
-          wSum += hl.wind_speed_10m[w]; wCnt++;
-        }
-      }
-    }
     var rec = {
       temp:  j.current.temperature_2m,
       hum:   j.current.relative_humidity_2m,
@@ -9152,7 +9150,7 @@ function fetchWeather(force) {
       high:  Math.round(dl.temperature_2m_max[0]),
       low:   Math.round(dl.temperature_2m_min[0]),
       pop:   (days[0] ? days[0].pop : null), // today's max chance of rain (v305)
-      wind:  (wCnt ? Math.round(wSum / wCnt) : null), // today's average wind km/h (v327)
+      wind:  (j.current.wind_speed_10m != null ? Math.round(j.current.wind_speed_10m) : null), // current wind km/h (v327)
       days:  days,
       hours: hours,
       loc:   isDevice ? (hwNearestTown(lat, lon) || "Current location") : "Carrigaline",
