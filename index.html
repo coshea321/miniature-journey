@@ -223,6 +223,7 @@ body.home-mode .bn-btn{color:#AAA090}
 .hw-main{flex:1;min-width:0}
 .hw-temp{font-family:Georgia,serif;font-size:24px;font-weight:600;color:#2A5AB0;line-height:1}
 .hw-cond{font-size:12px;font-weight:600;color:#5A7AB8;margin-top:2px}
+.hw-stamp{font-size:10px;font-weight:600;color:#8AA0C8;margin-top:3px}
 .hw-meta{text-align:right;flex-shrink:0;font-size:11px;font-weight:600;color:#7A98C8;line-height:1.55}
 .hw-meta b{color:#2A5AB0;font-weight:700}
 .hw-stale{opacity:.6}
@@ -230,13 +231,6 @@ body.home-mode .bn-btn{color:#AAA090}
 .home-weather:active{opacity:.85}
 
 /* Weather detail sheet */
-.hw-sheet-now{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#EAF1FA 0%,#F2F6FC 100%);border:1px solid #3B6FE033;border-radius:14px;padding:14px 16px;margin-bottom:14px}
-.hw-sheet-now-icon{font-size:40px;line-height:1}
-.hw-sheet-now-main{flex:1}
-.hw-sheet-now-temp{font-family:Georgia,serif;font-size:32px;font-weight:600;color:#2A5AB0;line-height:1}
-.hw-sheet-now-cond{font-size:13px;font-weight:600;color:#5A7AB8;margin-top:3px}
-.hw-sheet-now-meta{text-align:right;font-size:12px;font-weight:600;color:#7A98C8;line-height:1.6}
-.hw-sheet-now-meta b{color:#2A5AB0;font-weight:700}
 .hw-hourly-label{font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
 .hw-hourly{display:flex;overflow-x:auto;gap:14px;padding:2px 2px 14px;margin-bottom:6px;-webkit-overflow-scrolling:touch;border-bottom:1px solid #EEEAE2}
 .hw-hour{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:38px}
@@ -244,6 +238,7 @@ body.home-mode .bn-btn{color:#AAA090}
 .hw-hour-icon{font-size:18px}
 .hw-hour-temp{font-size:13px;font-weight:700;color:#2A5AB0}
 .hw-hour-pop{font-size:10px;font-weight:600;color:#3B6FE0;min-height:12px}
+.hw-hour-wind{font-size:10px;font-weight:600;color:#7A8A6A;min-height:12px;white-space:nowrap}
 .hw-sheet-days{display:flex;flex-direction:column;gap:2px}
 .hw-day-row{display:grid;grid-template-columns:1.3fr .6fr 1.1fr .9fr .8fr;align-items:center;gap:6px;padding:11px 6px;border-bottom:1px solid #EEEAE2;font-size:13px;color:#2A2010}
 .hw-day-row:last-child{border-bottom:none}
@@ -726,6 +721,7 @@ body.train-mode #toast{background:#3A3328}
       <div class="hw-main">
         <div class="hw-temp" id="hwTemp">—</div>
         <div class="hw-cond" id="hwCond">Carrigaline</div>
+        <div class="hw-stamp" id="hwStamp"></div>
       </div>
       <div class="hw-meta" id="hwMeta"></div>
     </div>
@@ -803,7 +799,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v326 · 12/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v327 · 15/07/2026</div>
 
   </div>
 </div>
@@ -1282,7 +1278,7 @@ body.train-mode #toast{background:#3A3328}
 </div>
 
 <!-- CATEGORY PICKER MODAL -->
-<!-- Weather detail sheet (3-day) -->
+<!-- Weather detail sheet (hourly + next 3 days) -->
 <div class="overlay" id="weatherOverlay">
   <div class="modal-box" style="position:relative">
     <button class="modal-close" id="weatherClose" aria-label="Close">&#x2715;</button>
@@ -9057,16 +9053,25 @@ function hwPaint(data, stale) {
   iconEl.innerHTML = hwCodeToIcon(data.code);
   tempEl.textContent = Math.round(data.temp) + "\u00B0";
   condEl.textContent = hwCodeToText(data.code) + " \u00B7 " + (data.loc || "Carrigaline");
+  // "as of" timestamp lives under the temperature since v327 (was the last
+  // meta line) \u2014 one line shorter on the right, so the card stays compact.
   var t = new Date(data.at);
   var hh = ("0" + t.getHours()).slice(-2), mm = ("0" + t.getMinutes()).slice(-2);
+  var stampEl = document.getElementById("hwStamp");
+  if (stampEl) stampEl.textContent = "as of " + hh + ":" + mm;
   var feelsStr = (data.feels != null) ? "Feels <b>" + data.feels + "\u00B0</b><br>" : "";
   // Today's chance of rain (v305). Prefer the top-level pop; fall back to
   // days[0].pop for caches written before pop was stored there.
   var pop = (data.pop != null) ? data.pop : (data.days && data.days[0] ? data.days[0].pop : null);
-  var popStr = (pop != null) ? "\u2614 Rain <b>" + pop + "%</b><br>" : "";
+  // Rain and current wind share one meta line (v327). No wind fallback for
+  // pre-v327 caches \u2014 days[0].wind is the daily MAX, not current; the wind
+  // part just hides until a fresh fetch.
+  var bits = [];
+  if (pop != null) bits.push("\u2614 <b>" + pop + "%</b>");
+  if (data.wind != null) bits.push("\uD83D\uDCA8 <b>" + data.wind + "</b> km/h");
+  var rainWindStr = bits.length ? bits.join(" \u00B7 ") + "<br>" : "";
   metaEl.innerHTML = feelsStr + "H:<b>" + data.high + "\u00B0</b> L:<b>" + data.low +
-    "\u00B0</b><br>" + popStr + "Humidity <b>" + data.hum + "%</b>" +
-    "<br>as of " + hh + ":" + mm;
+    "\u00B0</b><br>" + rainWindStr + "Humidity <b>" + data.hum + "%</b>";
   card.classList.toggle("hw-stale", !!stale);
   card.classList.add("hw-show");
 }
@@ -9102,16 +9107,16 @@ function fetchWeather(force) {
   hwGetCoords(function(lat, lon, isDevice) {
   var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat +
     "&longitude=" + lon +
-    "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code" +
-    "&hourly=temperature_2m,weather_code,precipitation_probability" +
+    "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
+    "&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m" +
     "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max" +
-    "&timezone=auto&forecast_days=3";
+    "&timezone=auto&forecast_days=4";
 
   fetch(url).then(function(r){ return r.json(); }).then(function(j){
     _hwFetching = false;
     if (!j || !j.current || !j.daily) return;
     var dl = j.daily, days = [];
-    for (var i = 0; i < (dl.time ? dl.time.length : 0) && i < 3; i++) {
+    for (var i = 0; i < (dl.time ? dl.time.length : 0) && i < 4; i++) {
       days.push({
         date: dl.time[i],
         code: dl.weather_code[i],
@@ -9131,7 +9136,8 @@ function fetchWeather(force) {
           time: hl.time[h],
           temp: Math.round(hl.temperature_2m[h]),
           code: hl.weather_code[h],
-          pop:  (hl.precipitation_probability ? hl.precipitation_probability[h] : null)
+          pop:  (hl.precipitation_probability ? hl.precipitation_probability[h] : null),
+          wind: (hl.wind_speed_10m && hl.wind_speed_10m[h] != null ? Math.round(hl.wind_speed_10m[h]) : null)
         });
         if (hours.length >= 24) break;
       }
@@ -9144,6 +9150,7 @@ function fetchWeather(force) {
       high:  Math.round(dl.temperature_2m_max[0]),
       low:   Math.round(dl.temperature_2m_min[0]),
       pop:   (days[0] ? days[0].pop : null), // today's max chance of rain (v305)
+      wind:  (j.current.wind_speed_10m != null ? Math.round(j.current.wind_speed_10m) : null), // current wind km/h (v327)
       days:  days,
       hours: hours,
       loc:   isDevice ? (hwNearestTown(lat, lon) || "Current location") : "Carrigaline",
@@ -9161,7 +9168,7 @@ function fetchWeather(force) {
   });
 }
 
-// ── Weather detail sheet (3-day) ─────────────────────────────
+// ── Weather detail sheet (hourly + next 3 days) ──────────────
 function hwDayName(dateStr, idx) {
   if (idx === 0) return "Today";
   if (idx === 1) return "Tomorrow";
@@ -9186,6 +9193,7 @@ function renderHourlyRow(hours) {
       "<span class='hw-hour-icon'>" + hwCodeToIcon(hr.code) + "</span>" +
       "<span class='hw-hour-temp'>" + hr.temp + "°</span>" +
       "<span class='hw-hour-pop'>" + (hr.pop != null && hr.pop >= 20 ? hr.pop + "%" : "") + "</span>" +
+      "<span class='hw-hour-wind'>" + (hr.wind != null ? "💨" + hr.wind : "") + "</span>" +
     "</div>";
   }
   html += "</div>";
@@ -9196,25 +9204,16 @@ function renderWeatherSheet(data) {
   if (!body) return;
   if (!data) { body.innerHTML = "<div class='hw-sheet-empty'>No weather data yet.</div>"; return; }
   var html = "";
-  // Today detail header
-  html += "<div class='hw-sheet-now'>" +
-    "<div class='hw-sheet-now-icon'>" + hwCodeToIcon(data.code) + "</div>" +
-    "<div class='hw-sheet-now-main'>" +
-      "<div class='hw-sheet-now-temp'>" + Math.round(data.temp) + "\u00B0</div>" +
-      "<div class='hw-sheet-now-cond'>" + hwCodeToText(data.code) + "</div>" +
-    "</div>" +
-    "<div class='hw-sheet-now-meta'>" +
-      (data.feels != null ? "Feels <b>" + data.feels + "\u00B0</b><br>" : "") +
-      "Humidity <b>" + data.hum + "%</b>" +
-    "</div>" +
-  "</div>";
-  // Hourly strip (next 24h, scrolls horizontally)
+  // Hourly strip (next 24h, scrolls horizontally). The current-conditions
+  // header was removed in v327 \u2014 the front card and the strip's "Now" slot
+  // already cover it.
   html += renderHourlyRow(data.hours);
-  // 3-day rows
+  // Upcoming day rows — today's own row removed in v327 (the front card and
+  // the hourly strip above already cover today)
   var days = data.days || [];
-  if (days.length) {
+  if (days.length > 1) {
     html += "<div class='hw-sheet-days'>";
-    for (var i = 0; i < days.length; i++) {
+    for (var i = 1; i < days.length; i++) {
       var dy = days[i];
       html += "<div class='hw-day-row'>" +
         "<span class='hw-day-name'>" + hwDayName(dy.date, i) + "</span>" +
@@ -9227,7 +9226,7 @@ function renderWeatherSheet(data) {
     html += "</div>";
     html += "<div class='hw-sheet-units'>Wind in km/h \u00B7 \uD83D\uDCA7 chance of rain</div>";
   } else {
-    html += "<div class='hw-sheet-empty'>Loading 3-day forecast\u2026</div>";
+    html += "<div class='hw-sheet-empty'>Loading forecast\u2026</div>";
   }
   // Timestamp
   var t = new Date(data.at);
