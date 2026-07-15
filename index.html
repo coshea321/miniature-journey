@@ -803,7 +803,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v326 · 12/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v327 · 15/07/2026</div>
 
   </div>
 </div>
@@ -9064,8 +9064,12 @@ function hwPaint(data, stale) {
   // days[0].pop for caches written before pop was stored there.
   var pop = (data.pop != null) ? data.pop : (data.days && data.days[0] ? data.days[0].pop : null);
   var popStr = (pop != null) ? "\u2614 Rain <b>" + pop + "%</b><br>" : "";
+  // Wind (v327). Prefer the current wind speed; fall back to days[0].wind
+  // (today's max) for caches written before wind was stored at the top level.
+  var wind = (data.wind != null) ? data.wind : (data.days && data.days[0] ? data.days[0].wind : null);
+  var windStr = (wind != null) ? "\uD83D\uDCA8 Wind <b>" + wind + "</b> km/h<br>" : "";
   metaEl.innerHTML = feelsStr + "H:<b>" + data.high + "\u00B0</b> L:<b>" + data.low +
-    "\u00B0</b><br>" + popStr + "Humidity <b>" + data.hum + "%</b>" +
+    "\u00B0</b><br>" + popStr + windStr + "Humidity <b>" + data.hum + "%</b>" +
     "<br>as of " + hh + ":" + mm;
   card.classList.toggle("hw-stale", !!stale);
   card.classList.add("hw-show");
@@ -9102,7 +9106,7 @@ function fetchWeather(force) {
   hwGetCoords(function(lat, lon, isDevice) {
   var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat +
     "&longitude=" + lon +
-    "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code" +
+    "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m" +
     "&hourly=temperature_2m,weather_code,precipitation_probability" +
     "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max" +
     "&timezone=auto&forecast_days=3";
@@ -9144,6 +9148,7 @@ function fetchWeather(force) {
       high:  Math.round(dl.temperature_2m_max[0]),
       low:   Math.round(dl.temperature_2m_min[0]),
       pop:   (days[0] ? days[0].pop : null), // today's max chance of rain (v305)
+      wind:  (j.current.wind_speed_10m != null ? Math.round(j.current.wind_speed_10m) : null), // current wind km/h (v327)
       days:  days,
       hours: hours,
       loc:   isDevice ? (hwNearestTown(lat, lon) || "Current location") : "Carrigaline",
@@ -9210,11 +9215,12 @@ function renderWeatherSheet(data) {
   "</div>";
   // Hourly strip (next 24h, scrolls horizontally)
   html += renderHourlyRow(data.hours);
-  // 3-day rows
+  // Upcoming day rows — today's own row removed in v327 (the header and
+  // hourly strip above already cover today)
   var days = data.days || [];
-  if (days.length) {
+  if (days.length > 1) {
     html += "<div class='hw-sheet-days'>";
-    for (var i = 0; i < days.length; i++) {
+    for (var i = 1; i < days.length; i++) {
       var dy = days[i];
       html += "<div class='hw-day-row'>" +
         "<span class='hw-day-name'>" + hwDayName(dy.date, i) + "</span>" +
