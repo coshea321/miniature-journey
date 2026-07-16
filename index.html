@@ -799,7 +799,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v328 · 16/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v329 · 16/07/2026</div>
 
   </div>
 </div>
@@ -1914,6 +1914,59 @@ function deleteHistEntries(lt, names) { // names: array of lowercase names
   storeSet("fl4_tomb_" + histTombKey(lt), t);
   listData[lt].hist = (listData[lt].hist || []).filter(function(h){ return h && names.indexOf(h.name.toLowerCase()) === -1; });
 }
+// ── Baby sync merge (v329) — ONE shared merge for BOTH sync channels ────────
+// Replaces the household channel's top-level Object.assign (which wholesale-
+// replaced the medicine/growth/milestones/teeth collections with the last-
+// pushing device's copy, silently dropping e.g. a dose the sender hadn't
+// received yet) and the personal channel's inline mergeByKey. growth/
+// milestones/teeth keep "remote wins on same key" (no per-entry stamps there);
+// MEDICINE is newest-wins by per-entry `updated` — fallback to `id`, which is
+// Date.now() at creation, so pre-v329 entries merge correctly with no
+// migration — and respects deletion tombstones (fl4_tomb_med, keyed by entry
+// id) so deleting a mis-logged dose sticks across devices. A new dose is
+// always a new id, so tombstones can never block fresh logging.
+function medUpdatedTs(m){ return (m && (m.updated || m.id)) || 0; }
+function mergeBabyData(local, remote, medTombs) {
+  function mergeByKey(a, b, key) {
+    var idx = {};
+    (a||[]).forEach(function(x){ if(x) idx[x[key]]=x; });
+    (b||[]).forEach(function(x){ if(x) idx[x[key]]=x; }); // remote wins on same key
+    return Object.values(idx);
+  }
+  function mergeMedicine(a, b) {
+    var idx = {};
+    [a, b].forEach(function(arr){                          // local first, remote second → remote wins ties
+      (arr||[]).forEach(function(m){
+        if (!m || m.id == null) return;
+        var ex = idx[m.id];
+        if (!ex || medUpdatedTs(m) >= medUpdatedTs(ex)) idx[m.id] = m;
+      });
+    });
+    var out = Object.values(idx).filter(function(m){
+      var ts = medTombs ? medTombs[m.id] : null;
+      return !(ts != null && ts >= medUpdatedTs(m));       // deleted at/after last edit → drop
+    });
+    out.sort(function(x,y){ return y.id - x.id; });        // newest-first, matches the unshift add order
+    return out;
+  }
+  var merged = {
+    growth:     mergeByKey(local.growth,      remote.growth,     "date"),
+    medicine:   mergeMedicine(local.medicine, remote.medicine),
+    milestones: mergeByKey(local.milestones,  remote.milestones, "id"),
+    teeth:      Object.assign({}, local.teeth||{}, remote.teeth||{}),
+    bags:       remote.bags || local.bags
+  };
+  // v296: carry EVERY other key through generically (local wins when set,
+  // remote fills gaps) — the babySex bug as a class. New Baby fields survive
+  // sync without anyone having to remember to add them here.
+  Object.keys(local).concat(Object.keys(remote)).forEach(function(k){
+    if (k in merged) return;
+    var lv = local[k], rv = remote[k];
+    merged[k] = (lv === undefined || lv === null || lv === "") ? (rv !== undefined ? rv : lv) : lv;
+  });
+  return merged;
+}
+
 // Union two item lists by id (preserve adds from both sides); newest-wins on
 // conflict by `updated` (tie → remote); then drop any id deleted at/after its
 // last update. Returned newest-first to match the unshift add order.
@@ -6123,7 +6176,13 @@ function importBackupData(data) {
   if(data.baby&&typeof data.baby==="object"){
     var bd=getBD(),bd2=data.baby;
     var mArr=function(a,b,key){var s={};a.forEach(function(x){if(x)s[x[key]]=true;});return a.concat((b||[]).filter(function(x){return x&&!s[x[key]];}));};
-    bd.growth=mArr(bd.growth||[],bd2.growth,"date"); bd.medicine=mArr(bd.medicine||[],bd2.medicine,"id");
+    // v329: local medicine tombstones apply on import too — restoring a backup
+    // does NOT resurrect a deleted dose within the 90d window (deliberate,
+    // matches the v323 history rule: a dose delete is a correction of safety
+    // data and must stick; list items still resurrect per v288).
+    var medT=getTombs("med");
+    bd.growth=mArr(bd.growth||[],bd2.growth,"date");
+    bd.medicine=mArr(bd.medicine||[],(bd2.medicine||[]).filter(function(m){return m&&!(medT[m.id]!=null&&medT[m.id]>=medUpdatedTs(m));}),"id");
     bd.milestones=mArr(bd.milestones||[],bd2.milestones,"id"); bd.teeth=Object.assign({},bd2.teeth||{},bd.teeth||{});
     if(bd2.babySex && !bd.babySex) bd.babySex=bd2.babySex;
     if(Array.isArray(bd2.bags) && (!Array.isArray(bd.bags)||!bd.bags.length)) bd.bags=bd2.bags;
@@ -6871,6 +6930,7 @@ var d = {};
   d.saved_meals  = storeGet("fl4_saved_meals") || [];
   d.cal_goal     = storeGet("fl4_cal_goal") || 2000;
   d.baby = getBD();
+  d.med_deleted = purgeTombs(getTombs("med"));
   d.recipebook  = storeGet("fl4_recipebook") || [];
   d.rb_deleted  = purgeTombs(getTombs("recipes"));
   d.mealplan    = storeGet("fl4_mealplan") || [];
@@ -7026,32 +7086,12 @@ function applyPersonal(d) {
     if (tpMergeP.push) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
   }
 
-  // ── Baby: merge arrays by date/id, merge teeth object ────────────────────
+  // ── Baby: shared per-entry merge, v329 (see mergeBabyData) ───────────────
+  if (d.med_deleted && typeof d.med_deleted === "object") {
+    storeSet("fl4_tomb_med", purgeTombs(mergeTombs(getTombs("med"), d.med_deleted)));
+  }
   if (d.baby && typeof d.baby === "object") {
-    var local = getBD(), rb = d.baby;
-    function mergeByKey(a, b, key) {
-      var idx = {};
-      (a||[]).forEach(function(x){ if(x) idx[x[key]]=x; });
-      (b||[]).forEach(function(x){ if(x) idx[x[key]]=x; }); // remote wins on same key
-      return Object.values(idx);
-    }
-    var mergedBaby = {
-      growth:     mergeByKey(local.growth,     rb.growth,     "date"),
-      medicine:   mergeByKey(local.medicine,   rb.medicine,   "id"),
-      milestones: mergeByKey(local.milestones, rb.milestones, "id"),
-      teeth:      Object.assign({}, local.teeth||{}, rb.teeth||{}),
-      bags:       rb.bags || local.bags
-    };
-    // v296: carry EVERY other key through generically (local wins when set,
-    // remote fills gaps). The old hand-typed field list silently wiped any
-    // field it didn't name — the babySex bug as a class. New Baby fields now
-    // survive sync without anyone having to remember to add them here.
-    Object.keys(local).concat(Object.keys(rb)).forEach(function(k){
-      if (k in mergedBaby) return;
-      var lv = local[k], rv = rb[k];
-      mergedBaby[k] = (lv === undefined || lv === null || lv === "") ? (rv !== undefined ? rv : lv) : lv;
-    });
-    storeSet("fl4_baby", mergedBaby);
+    storeSet("fl4_baby", mergeBabyData(getBD(), d.baby, getTombs("med")));
     if (currentSection === "baby") renderBabyView();
   }
 
@@ -7111,6 +7151,7 @@ var data = {};
     var bd = getBD();
     if ((bd.growth||[]).length || (bd.medicine||[]).length || (bd.milestones||[]).length || Object.keys(bd.teeth||{}).length)
       data["baby"] = bd;
+    data["med_deleted"] = purgeTombs(getTombs("med")); // outside the non-empty guard: a delete of the LAST dose must still propagate
   }
   // Recipe book is shared household-wide (merge-by-id on the receiving side).
   data["recipebook"] = storeGet("fl4_recipebook") || [];
@@ -10906,12 +10947,16 @@ function applyHousehold(data) {
   });
   if (_listRepush) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0); // converge /shared to the union
   if (isSynced("notes") && Array.isArray(data["global_notes"])) storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
+  if (isSynced("baby") && data["med_deleted"] && typeof data["med_deleted"] === "object") {
+    storeSet("fl4_tomb_med", purgeTombs(mergeTombs(getTombs("med"), data["med_deleted"])));
+  }
   if (isSynced("baby") && data["baby"] && typeof data["baby"] === "object") {
-    // v296: was a wholesale replace — any local-only field (or a field from a
-    // newer app version the sender doesn't have) was silently wiped. Remote
-    // still wins for every key it carries (household semantics unchanged),
-    // but local keys the remote copy doesn't know about now survive.
-    storeSet("fl4_baby", Object.assign({}, getBD(), data["baby"]));
+    // v329: was a top-level Object.assign (v296) — remote's medicine/growth/
+    // milestones/teeth WHOLESALE-replaced the local collections, so a dose
+    // logged here but not yet received by the last-pushing device was
+    // silently dropped. Now the same per-entry merge the personal channel
+    // runs (mergeBabyData), incl. medicine tombstones.
+    storeSet("fl4_baby", mergeBabyData(getBD(), data["baby"], getTombs("med")));
     if (currentSection === "baby") renderBabyView();
   }
   // Recipe book — merge by id with NEWEST-WINS (by `updated` timestamp), so a
@@ -11460,7 +11505,7 @@ function renderMedicine() {
     if (isNaN(ts)) ts=Date.now();
     function doLog(){
       var bd2=getBD(); bd2.medicine=bd2.medicine||[];
-      bd2.medicine.unshift({id:Date.now(),name:name,dose:document.getElementById("medDose").value.trim(),notes:document.getElementById("medNotes").value.trim(),ts:ts});
+      bd2.medicine.unshift({id:Date.now(),name:name,dose:document.getElementById("medDose").value.trim(),notes:document.getElementById("medNotes").value.trim(),ts:ts,updated:Date.now()});
       saveBD(bd2);
       document.getElementById("medName").value="";document.getElementById("medDose").value="";document.getElementById("medNotes").value="";
       renderMedicine(); toast("&#x1F48A; Logged");
@@ -11520,7 +11565,7 @@ function renderMedicine() {
     });
   });
   el.querySelectorAll(".med-del-btn").forEach(function(btn){
-    btn.addEventListener("click",function(){ confirmDialog("Delete this medicine entry?", function(){ var bd2=getBD(); bd2.medicine=bd2.medicine.filter(function(m){return m.id!==+btn.dataset.medid;}); saveBD(bd2); renderMedicine(); }); });
+    btn.addEventListener("click",function(){ confirmDialog("Delete this medicine entry?", function(){ var mid=+btn.dataset.medid; addTomb("med", mid); var bd2=getBD(); bd2.medicine=bd2.medicine.filter(function(m){return m.id!==mid;}); saveBD(bd2); renderMedicine(); }); });
   });
   el.querySelectorAll(".med-dt-edit-trigger").forEach(function(span){
     span.addEventListener("click", function(){
@@ -11540,7 +11585,7 @@ function renderMedicine() {
       picker.querySelector("._mSave").addEventListener("click", function(){
         var val = picker.querySelector("input").value;
         var newTs = val ? new Date(val).getTime() : m.ts;
-        if (!isNaN(newTs)) { m.ts = newTs; bd2.medicine.sort(function(a,b){ return b.id-a.id; }); saveBD(bd2); }
+        if (!isNaN(newTs)) { m.ts = newTs; m.updated = Date.now(); bd2.medicine.sort(function(a,b){ return b.id-a.id; }); saveBD(bd2); }
         renderMedicine();
       });
       picker.querySelector("._mCancel").addEventListener("click", function(){ picker.remove(); });
