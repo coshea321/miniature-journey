@@ -799,7 +799,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v327 · 15/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v328 · 16/07/2026</div>
 
   </div>
 </div>
@@ -5107,8 +5107,10 @@ function openNoteEditor(title, body, onSave, onDelete) {
   var bodyEl  = document.getElementById("neBody");
 
   titleEl.value = currentTitle;
-  // Set HTML content safely
-  bodyEl.innerHTML = (typeof DOMPurify !== "undefined") ? DOMPurify.sanitize(currentBody || "") : (currentBody || "");
+  // Set HTML content safely. The fallback must NEVER assign raw HTML: if the
+  // vendored DOMPurify somehow failed to load, show the note escaped as plain
+  // text (ugly but safe) rather than injecting unsanitised markup (v328).
+  bodyEl.innerHTML = (typeof DOMPurify !== "undefined") ? DOMPurify.sanitize(currentBody || "") : esc(currentBody || "");
 
   titleEl.addEventListener("input", function(){ currentTitle = titleEl.value; });
   titleEl.addEventListener("blur",  function(){ currentTitle = titleEl.value; });
