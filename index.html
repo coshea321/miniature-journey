@@ -799,7 +799,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v332 · 17/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v333 · 17/07/2026</div>
 
   </div>
 </div>
@@ -4671,7 +4671,7 @@ function togglePersonCheck(id, p) {
   for (var i=0;i<items.length;i++) {
     if (items[i].id === id) {
       var it = items[i];
-      if (!it.checks || typeof it.checks !== "object") it.checks = {};
+      if (!it.checks || typeof it.checks !== "object") it.checks = emptyPersonChecks();
       it.checks[p] = !it.checks[p];
       it.done = !!(it.checks.c && it.checks.p && it.checks.b);
       if (it.done) it.today = false;
@@ -4681,9 +4681,14 @@ function togglePersonCheck(id, p) {
   }
   saveCurrentList(); renderList();
 }
+// v333: "opted in, nothing ticked" must be {c:false,p:false,b:false}, never {} —
+// Firebase strips empty objects, so a pushed `checks:{}` comes back off the SSE
+// echo as a missing field with the SAME `updated` stamp, wins the merge tie, and
+// reverts the item to a single checkbox (~1s after toggling per-person checks on).
+function emptyPersonChecks() { return {c:false, p:false, b:false}; }
 // v326: when something other than the circles forces an item back to not-done
 // (revive on re-add, reopen-all, quick-pick), stale ticks must clear with it.
-function clearPersonChecks(it) { if (it && it.checks) it.checks = {}; }
+function clearPersonChecks(it) { if (it && it.checks) it.checks = emptyPersonChecks(); }
 function updateCollapseAllLabel() {
   var link = document.getElementById("collapseAllLink");
   if (!link) return;
@@ -4716,7 +4721,7 @@ elReopenBtn.addEventListener("click", function(){
   var n = getItems().filter(function(x){ return x && x.done; }).length;
   var verb = currentList === "travel" ? "Unpack" : "Reopen";
   confirmDialog(verb + " all " + n + " item" + (n!==1?"s":"") + "?", function(){
-    listData[currentList].items = getItems().map(function(x){ return x.done ? Object.assign({}, x, {done:false}, (x.checks ? {checks:{}} : null)) : x; });
+    listData[currentList].items = getItems().map(function(x){ return x.done ? Object.assign({}, x, {done:false}, (x.checks ? {checks:emptyPersonChecks()} : null)) : x; });
     saveCurrentList(); renderList(); toast("&#x21BA; All items reopened");
   });
 });
@@ -8042,7 +8047,7 @@ window.addEventListener("DOMContentLoaded", function() {
       var _ppTog = document.getElementById("itemSheetPPToggle");
       if (_ppTog) {
         if (_ppTog.checked) {
-          if (!item.checks || typeof item.checks !== "object") item.checks = item.done ? {c:true,p:true,b:true} : {};
+          if (!item.checks || typeof item.checks !== "object" || !Object.keys(item.checks).length) item.checks = item.done ? {c:true,p:true,b:true} : emptyPersonChecks();
         } else if (item.checks) {
           delete item.checks;
         }
