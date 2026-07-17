@@ -799,7 +799,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v333 · 17/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v334 · 17/07/2026</div>
 
   </div>
 </div>
@@ -813,7 +813,7 @@ body.train-mode #toast{background:#3A3328}
   <button class="type-btn" data-lt="notes">&#x1F4DD; Notes</button>
 </div>
 
-<div class="content">
+<div class="content" id="listContentWrap">
   <div id="mainContent">
   <div class="input-card">
     <div class="input-row">
@@ -2066,6 +2066,7 @@ function applyListTheme() {
   // list UI when it's selected.
   var isNotes = currentList === "notes";
   document.getElementById("notesSection").style.display = isNotes ? "block" : "none";
+  document.getElementById("listContentWrap").style.display = isNotes ? "none" : "block";
   document.getElementById("mainContent").style.display  = isNotes ? "none"  : "block";
   if (isNotes) { elHdrBadge.style.display = "none"; renderNotesSection(); }
 }
