@@ -799,7 +799,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v329 · 16/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v330 · 17/07/2026</div>
 
   </div>
 </div>
@@ -5074,6 +5074,11 @@ function deleteNoteById(id) {
   });
 }
 
+// Exposed so the back-button handler (closeTopOverlay, ~line 7430) can trigger
+// the SAME non-destructive close as the editor's own "<" control — set when
+// the editor opens, cleared on every close path below.
+var _neCloseFn = null;
+
 function openNoteEditor(title, body, onSave, onDelete) {
   var currentTitle = title || "";
   var currentBody  = body  || ""; // stored as HTML
@@ -5276,14 +5281,18 @@ function openNoteEditor(title, body, onSave, onDelete) {
     var b = bodyEl.innerHTML || currentBody;
     if (b.replace(/<[^>]*>/g,"").trim() === "") b = "";
     document.body.removeChild(overlay);
+    _neCloseFn = null;
     if (t || b) onSave(t || "Untitled", b);
     else renderNotesSection();
   }
 
   function doDiscard() {
     document.body.removeChild(overlay);
+    _neCloseFn = null;
     renderNotesSection();
   }
+
+  _neCloseFn = doDiscard;
 
   document.getElementById("neSave").addEventListener("click", doSave);
   document.getElementById("neBack").addEventListener("click", doDiscard);
@@ -5291,6 +5300,7 @@ function openNoteEditor(title, body, onSave, onDelete) {
   if (onDelete) {
     document.getElementById("neDel").addEventListener("click", function() {
       document.body.removeChild(overlay);
+      _neCloseFn = null;
       onDelete();
     });
   }
@@ -7428,7 +7438,46 @@ function switchSection(section) {
 // a PWA; iOS has no hardware back button so this only affects the browser
 // back gesture there.
 var _navFromPopstate = false;
+
+// Back-button-closes-popup (v330): before switching sections on a back-press,
+// try to close whatever's on top instead. v1 priority order below; deliberately
+// excludes #loginOverlay, the trip editor (_tripEditing), and one-off dynamic
+// role="dialog" sheets not listed here — see HEARTH-notes.md for the full spec.
+function closeTopOverlay() {
+  var cfNo = document.getElementById("_cfNo");
+  if (cfNo) { cfNo.click(); return true; } // confirmDialog: always Cancel, never OK
+
+  if (document.getElementById("neBody") && _neCloseFn) { _neCloseFn(); return true; }
+
+  var itemSheet = document.getElementById("itemSheet");
+  if (itemSheet && itemSheet.style.display === "block") { closeItemSheet(); return true; }
+  var importSheet = document.getElementById("importSheet");
+  if (importSheet && importSheet.style.display === "block") { closeImport(); return true; }
+  var recipeImportSheet = document.getElementById("recipeImportSheet");
+  if (recipeImportSheet && recipeImportSheet.style.display === "block") { closeRecipeImport(); return true; }
+  var setSheet = document.getElementById("setSheet");
+  if (setSheet && setSheet.style.display === "block") { closeSetSheet(); return true; }
+
+  var openOverlay = document.querySelector(".overlay.open");
+  if (openOverlay) {
+    if (openOverlay.id === "pickerOverlay") closePicker();
+    else openOverlay.classList.remove("open");
+    return true;
+  }
+
+  var toothModal = document.getElementById("toothModal");
+  if (toothModal && toothModal.classList.contains("open")) { toothModal.classList.remove("open"); return true; }
+
+  return false;
+}
+
 window.addEventListener("popstate", function(e) {
+  if (closeTopOverlay()) {
+    // Swallow the back-press: restore the history entry the pop consumed
+    // instead of switching sections underneath the (now-closed) popup.
+    history.pushState({ hearthSection: currentSection || "home" }, "");
+    return;
+  }
   var sec = (e.state && e.state.hearthSection) || "home";
   _navFromPopstate = true;
   switchSection(sec);
@@ -7716,6 +7765,12 @@ function closeItemSheet() {
   _sheetItemId = null;
 }
 
+function closeImport() {
+  document.getElementById("importSheet").style.display    = "none";
+  document.getElementById("importBackdrop").style.display = "none";
+  document.body.style.overflow = "";
+}
+
 window.addEventListener("DOMContentLoaded", function() {
   document.getElementById("itemSheetClose").addEventListener("click", closeItemSheet);
   document.getElementById("itemSheetBackdrop").addEventListener("click", closeItemSheet);
@@ -7780,11 +7835,6 @@ window.addEventListener("DOMContentLoaded", function() {
     document.getElementById("importBackdrop").style.display = "block";
     document.body.style.overflow = "hidden";
     setTimeout(function(){ document.getElementById("importText").focus(); }, 150);
-  }
-  function closeImport() {
-    document.getElementById("importSheet").style.display    = "none";
-    document.getElementById("importBackdrop").style.display = "none";
-    document.body.style.overflow = "";
   }
   var importLink = document.getElementById("importLink");
   if (importLink) importLink.addEventListener("click", openImport);
