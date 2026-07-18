@@ -773,7 +773,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v335 · 18/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v336 · 18/07/2026</div>
 
   </div>
 </div>
@@ -853,14 +853,14 @@ body.train-mode #toast{background:#3A3328}
 
   <!-- Sub-navigation -->
   <div class="train-subnav">
-    <button class="tsn-btn active" data-view="programs">&#x1F3CB; Programs</button>
+    <button class="tsn-btn active" data-view="body">&#x2696;&#xFE0F; Body</button>
+    <button class="tsn-btn" data-view="programs">&#x1F3CB; Programs</button>
     <button class="tsn-btn" data-view="log">&#x1F4CB; Log</button>
     <button class="tsn-btn" data-view="history">&#x1F4C5; History</button>
-    <button class="tsn-btn" data-view="body">&#x2696;&#xFE0F; Body</button>
   </div>
 
   <!-- PROGRAMS VIEW -->
-  <div id="trainProgramsView" class="train-content">
+  <div id="trainProgramsView" class="train-content" style="display:none">
     <div style="background:#FBF6EC;border:1px solid #E5D9C0;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#7A6A4A;line-height:1.5">
       &#x2139;&#xFE0F; <strong style="color:#1A7A3A">Physio-approved</strong> programmes were prescribed for your diagnosis. <strong style="color:#9A7A10">General fitness</strong> programmes predate it — check with your physio before doing these, especially during a flare-up.
     </div>
@@ -921,7 +921,7 @@ body.train-mode #toast{background:#3A3328}
   </div>
 
   <!-- BODY VIEW -->
-  <div id="trainBodyView" class="train-content" style="display:none">
+  <div id="trainBodyView" class="train-content">
     <div class="bw-card">
       <div class="bw-card-title">&#x2696;&#xFE0F; Log Bodyweight</div>
       <div class="bw-input-row">
@@ -932,6 +932,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="bw-card">
       <div class="bw-card-title">&#x1F4C8; Weight History</div>
+      <div id="bwChart"></div>
       <div id="bwHistory"></div>
     </div>
 
@@ -955,6 +956,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="bw-card">
       <div class="bw-card-title">&#x1F4C8; BP History</div>
+      <div id="bpChart"></div>
       <div id="bpHistory"></div>
     </div>
   </div>
@@ -9744,7 +9746,7 @@ var QUICK_EXERCISES = [
 ];
 
 // ── Free-form log state ───────────────────────────────────
-var currentTrainView = "programs";
+var currentTrainView = "body";
 var workoutDate      = trainTodayStr();
 
 function trainTodayStr() {
@@ -10714,6 +10716,8 @@ document.getElementById("bpLogBtn").addEventListener("click", function() {
 
 function renderBodyView() {
   var data=getWD(), bw=(data.bodyweight||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  var bwChartEl=document.getElementById("bwChart");
+  if (bwChartEl) bwChartEl.innerHTML = bwChartHtml(bw.slice().reverse());
   var el=document.getElementById("bwHistory");
   if (!bw.length) {
     el.innerHTML="<p style='text-align:center;color:#A89A80;padding:20px;font-size:14px'>No entries yet.</p>";
@@ -10741,6 +10745,8 @@ function renderBodyView() {
   var bpEl = document.getElementById("bpHistory");
   if (bpEl) {
     var bp = (data.bp||[]).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    var bpChartEl=document.getElementById("bpChart");
+    if (bpChartEl) bpChartEl.innerHTML = bpChartHtml(bp.slice().reverse());
     if (!bp.length) {
       bpEl.innerHTML="<p style='text-align:center;color:#A89A80;padding:20px;font-size:14px'>No readings yet.</p>";
     } else {
@@ -11273,6 +11279,90 @@ function growthRatioChartSvg(points, color) {
     "<text x='"+(W-padR)+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8' text-anchor='end'>"+lastLabel+"</text>" +
   "</svg>";
 }
+
+// Bodyweight trend mini SVG line-chart (v336). points are ascending
+// {t:ms, v:kg} — same hand-built-SVG pattern as growthRatioChartSvg, no
+// band/median since there's no "normal range" for bodyweight.
+function bodyweightChartSvg(points, color) {
+  var W=300, H=126, padL=34, padR=10, padT=14, padB=20;
+  var plotW=W-padL-padR, plotH=H-padT-padB;
+  var minT=points[0].t, maxT=points[points.length-1].t;
+  var vals = points.map(function(p){ return p.v; });
+  var minV=Math.min.apply(null,vals), maxV=Math.max.apply(null,vals);
+  var pad = (maxV-minV)*0.15; if (!pad) pad = 1; minV -= pad; maxV += pad;
+  function xOf(t){ return minT===maxT ? padL+plotW/2 : padL+(t-minT)/(maxT-minT)*plotW; }
+  function yOf(v){ return padT+(1-(v-minV)/(maxV-minV))*plotH; }
+  var linePts = points.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.v).toFixed(1); }).join(" ");
+  var dots = points.map(function(p){ return "<circle cx='"+xOf(p.t).toFixed(1)+"' cy='"+yOf(p.v).toFixed(1)+"' r='3' fill='"+color+"'/>"; }).join("");
+  var firstLabel = esc(new Date(minT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
+  var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
+  return "<svg viewBox='0 0 "+W+" "+H+"' width='100%' height='"+H+"' style='display:block'>" +
+    "<text x='"+padL+"' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(1)+"</text>" +
+    "<text x='"+padL+"' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(1)+"</text>" +
+    "<polyline points='"+linePts+"' fill='none' stroke='"+color+"' stroke-width='2'/>" +
+    dots +
+    "<text x='"+padL+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8'>"+firstLabel+"</text>" +
+    "<text x='"+(W-padR)+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8' text-anchor='end'>"+lastLabel+"</text>" +
+  "</svg>";
+}
+function bwChartHtml(bwAsc) {
+  if (bwAsc.length < 2) {
+    return "<div style='padding:14px;text-align:center;color:#B8A8B8;font-size:12px'>Log a couple more weigh-ins to see the trend line</div>";
+  }
+  var pts = bwAsc.map(function(e){ return { t: new Date(e.date+"T12:00:00").getTime(), v: e.weight }; });
+  return "<div style='padding:8px 4px 4px'>" + bodyweightChartSvg(pts, "#3B6FE0") + "</div>";
+}
+
+// Blood-pressure trend mini SVG line-chart (v336): systolic + diastolic as
+// two lines sharing one mmHg y-axis. Background bands reuse the same
+// traffic-light systolic thresholds as the BP history list (red >=140,
+// amber 130-139, else green); dashed reference lines mark the diastolic
+// thresholds (90/80) since one y-axis can't band both readings at once.
+function bpChartSvg(points, sysColor, diaColor) {
+  var W=300, H=126, padL=34, padR=10, padT=14, padB=20;
+  var plotW=W-padL-padR, plotH=H-padT-padB;
+  var minT=points[0].t, maxT=points[points.length-1].t;
+  var vals = [];
+  points.forEach(function(p){ vals.push(p.sys, p.dia); });
+  vals.push(80, 90, 130, 140);
+  var minV=Math.min.apply(null,vals), maxV=Math.max.apply(null,vals);
+  var pad = (maxV-minV)*0.15; if (!pad) pad = 5; minV -= pad; maxV += pad;
+  function xOf(t){ return minT===maxT ? padL+plotW/2 : padL+(t-minT)/(maxT-minT)*plotW; }
+  function yOf(v){ return padT+(1-(v-minV)/(maxV-minV))*plotH; }
+  var yTop=padT, yBottom=padT+plotH;
+  function clampY(y){ return Math.max(yTop, Math.min(yBottom, y)); }
+  var y140=clampY(yOf(140)), y130=clampY(yOf(130));
+  var bands = "<rect x='"+padL+"' y='"+yTop+"' width='"+plotW+"' height='"+(y140-yTop).toFixed(1)+"' fill='#FBEAE5'/>" +
+    "<rect x='"+padL+"' y='"+y140.toFixed(1)+"' width='"+plotW+"' height='"+(y130-y140).toFixed(1)+"' fill='#FCF3DE'/>" +
+    "<rect x='"+padL+"' y='"+y130.toFixed(1)+"' width='"+plotW+"' height='"+(yBottom-y130).toFixed(1)+"' fill='#E8F5E0'/>";
+  var diaLines = "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(90).toFixed(1)+"' y2='"+yOf(90).toFixed(1)+"' stroke='#B8A8B8' stroke-width='1' stroke-dasharray='3,3'/>" +
+    "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(80).toFixed(1)+"' y2='"+yOf(80).toFixed(1)+"' stroke='#B8A8B8' stroke-width='1' stroke-dasharray='3,3'/>";
+  var sysPts = points.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.sys).toFixed(1); }).join(" ");
+  var diaPts = points.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.dia).toFixed(1); }).join(" ");
+  var sysDots = points.map(function(p){ return "<circle cx='"+xOf(p.t).toFixed(1)+"' cy='"+yOf(p.sys).toFixed(1)+"' r='2.5' fill='"+sysColor+"'/>"; }).join("");
+  var diaDots = points.map(function(p){ return "<circle cx='"+xOf(p.t).toFixed(1)+"' cy='"+yOf(p.dia).toFixed(1)+"' r='2.5' fill='"+diaColor+"'/>"; }).join("");
+  var firstLabel = esc(new Date(minT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
+  var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
+  return "<svg viewBox='0 0 "+W+" "+H+"' width='100%' height='"+H+"' style='display:block'>" +
+    bands + diaLines +
+    "<text x='"+padL+"' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(0)+"</text>" +
+    "<text x='"+padL+"' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(0)+"</text>" +
+    "<polyline points='"+sysPts+"' fill='none' stroke='"+sysColor+"' stroke-width='2'/>" +
+    "<polyline points='"+diaPts+"' fill='none' stroke='"+diaColor+"' stroke-width='2' stroke-dasharray='5,3'/>" +
+    sysDots + diaDots +
+    "<text x='"+padL+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8'>"+firstLabel+"</text>" +
+    "<text x='"+(W-padR)+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8' text-anchor='end'>"+lastLabel+"</text>" +
+  "</svg>";
+}
+function bpChartHtml(bpAsc) {
+  if (bpAsc.length < 2) {
+    return "<div style='padding:14px;text-align:center;color:#B8A8B8;font-size:12px'>Log a couple more readings to see the trend chart</div>";
+  }
+  var pts = bpAsc.map(function(e){ return { t: e.ts, sys: e.sys, dia: e.dia }; });
+  return "<div style='padding:8px 4px 4px'>" + bpChartSvg(pts, "#C05A3A", "#5A8AC2") + "</div>" +
+    "<div style='font-size:10px;color:#B8A8B8;padding:2px 8px 6px'>Solid = systolic &middot; dashed = diastolic &middot; bands = green &lt;130 / amber 130&ndash;139 / red &ge;140 systolic; dotted lines = diastolic 80/90 thresholds</div>";
+}
+
 // Visual growth chart (v309, redesigned v310) — one mini SVG line-chart of
 // the weight/height-vs-WHO-median ratio over time (same ratio growthBand()
 // already computes per entry), with a shaded Normal-range band. Needs
