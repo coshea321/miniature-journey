@@ -773,7 +773,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v336 · 18/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v337 · 18/07/2026</div>
 
   </div>
 </div>
@@ -5034,7 +5034,7 @@ function openNoteEditor(title, body, onSave, onDelete) {
   overlay.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:#FDFAF3;z-index:500;overflow:hidden";
 
   var inner = document.createElement("div");
-  inner.style.cssText = "display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto;background:#FDFAF3";
+  inner.style.cssText = "display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto;background:#FDFAF3;position:relative";
 
   var delBtn = onDelete
     ? "<button id='neDel' style='border:none;background:none;color:#C06060;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:8px 12px;white-space:nowrap'>Delete</button>"
@@ -5090,6 +5090,7 @@ function openNoteEditor(title, body, onSave, onDelete) {
       "<button class='fmt-btn ne-fmt' data-fmt='hr' title='Divider'>&#x2015;</button>" +
       "<button class='fmt-btn ne-fmt' data-fmt='code' title='Code'>{ }</button>" +
       "<button class='fmt-btn ne-fmt' data-fmt='clear' title='Clear formatting' style='color:#C06060'>&#x2A2F;</button>" +
+      "<button id='neHelpBtn' class='fmt-btn' title='Toolbar legend' style='margin-left:auto;font-weight:700;color:#8A7A5C'>?</button>" +
     "</div>";
 
   inner.innerHTML =
@@ -5103,6 +5104,13 @@ function openNoteEditor(title, body, onSave, onDelete) {
       delBtn +
     "</div>" +
     "<div id='neBody' contenteditable='true' spellcheck='true' style='flex:1;padding:16px;font-size:16px;line-height:1.7;color:#1C2018;outline:none;overflow-y:auto;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",system-ui,sans-serif;-webkit-overflow-scrolling:touch'></div>" +
+    "<div id='neHelpPanel' role='dialog' aria-label='Toolbar guide' style='display:none;position:absolute;inset:0;background:#FDFAF3;z-index:20;overflow-y:auto;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom))'>" +
+      "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px'>" +
+        "<div style='font-family:Georgia,serif;font-size:16px;font-weight:700;color:#2A2010'>Toolbar guide</div>" +
+        "<button id='neHelpClose' style='min-width:36px;height:36px;border:none;background:#F0EDE8;border-radius:8px;font-size:16px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent' title='Close'>&#x2715;</button>" +
+      "</div>" +
+      "<div id='neHelpList'></div>" +
+    "</div>" +
     TOOLBAR_HTML;
 
   overlay.appendChild(inner);
@@ -5203,6 +5211,31 @@ function openNoteEditor(title, body, onSave, onDelete) {
       currentBody = bodyEl.innerHTML;
     });
   });
+
+  // Toolbar legend: lists each ne-fmt button's own title attribute, so the
+  // legend can never drift out of sync with the toolbar it describes.
+  var helpBtn   = document.getElementById("neHelpBtn");
+  var helpPanel = document.getElementById("neHelpPanel");
+  var helpList  = document.getElementById("neHelpList");
+  function renderHelpList() {
+    var rows = "";
+    overlay.querySelectorAll(".ne-fmt").forEach(function(btn) {
+      var label = btn.getAttribute("title");
+      if (!label) return;
+      rows += "<div style='display:flex;align-items:center;gap:12px;padding:7px 2px;border-bottom:1px solid #F0EDE8'>" +
+        "<div style='min-width:32px;text-align:center;font-size:15px'>" + btn.innerHTML + "</div>" +
+        "<div style='font-size:14px;color:#2A2010'>" + esc(label) + "</div>" +
+      "</div>";
+    });
+    helpList.innerHTML = rows;
+  }
+  function openHelpPanel()  { renderHelpList(); helpPanel.style.display = "block"; }
+  function closeHelpPanel() { helpPanel.style.display = "none"; }
+  helpBtn.addEventListener("mousedown", function(e){ e.preventDefault(); });
+  helpBtn.addEventListener("click", function() {
+    if (helpPanel.style.display === "block") closeHelpPanel(); else openHelpPanel();
+  });
+  document.getElementById("neHelpClose").addEventListener("click", closeHelpPanel);
 
   // Keep toolbar above Android keyboard using visualViewport API
   var toolbar = overlay.querySelector("#neFmt");
@@ -7393,6 +7426,9 @@ var _navFromPopstate = false;
 function closeTopOverlay() {
   var cfNo = document.getElementById("_cfNo");
   if (cfNo) { cfNo.click(); return true; } // confirmDialog: always Cancel, never OK
+
+  var neHelp = document.getElementById("neHelpPanel");
+  if (neHelp && neHelp.style.display === "block") { neHelp.style.display = "none"; return true; }
 
   if (document.getElementById("neBody") && _neCloseFn) { _neCloseFn(); return true; }
 
