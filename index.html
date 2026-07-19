@@ -777,7 +777,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v342 · 19/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v343 · 19/07/2026</div>
 
   </div>
 </div>
@@ -2527,6 +2527,44 @@ function mergeTripsData(localTrips, incomingTrips, tripTombs, bookingTombs) {
     return !(t && tripTombs[t.id] && tripTombs[t.id] > (t.updated||0));
   });
   return { trips: full, push: push };
+}
+
+// ── Notes sync merge (v343) — id-keyed union + newest-wins + tombstones ────
+// Replaces the household channel's wholesale-replace of fl4_notes_global(_work)
+// and the personal channel's remote-wins-per-id union — both let an older
+// backend copy overwrite a newer unpushed edit, the notes-loss class the
+// v329 medicine fix already closed for baby data. Keyed by updatedAt||id
+// (mirrors medUpdatedTs) so pre-migration notes merge correctly with no
+// data migration. Tombstone-filtered so deletions actually propagate instead
+// of only "propagating" via the old wholesale-replace. Returns {notes, push}
+// — push=true means our merge is fuller/newer than what we received, so the
+// caller should re-push to converge.
+function notesTs(n){ return (n && (n.updatedAt || n.id)) || 0; }
+function mergeNotes(local, incoming, tombs) {
+  var push = false;
+  var incById = {};
+  (incoming||[]).forEach(function(n){ if (n && n.id != null) incById[n.id] = n; });
+  var localIds = {};
+  var merged = (local||[]).map(function(n){
+    if (!n || n.id == null) return n;
+    localIds[n.id] = true;
+    var inc = incById[n.id];
+    if (!inc) { push = true; return n; }
+    var winner, loser;
+    if (notesTs(inc) > notesTs(n)) { winner = inc; loser = n; }
+    else {
+      if (notesTs(n) > notesTs(inc)) push = true;
+      winner = n; loser = inc;
+    }
+    Object.keys(loser).forEach(function(k){ if (winner[k] === undefined) winner[k] = loser[k]; });
+    return winner;
+  });
+  var fresh = (incoming||[]).filter(function(n){ return n && n.id != null && !localIds[n.id]; });
+  var full = fresh.concat(merged);
+  var out = full.filter(function(n){
+    return !(n && tombs && tombs[n.id] != null && tombs[n.id] >= notesTs(n));
+  });
+  return { notes: out, push: push };
 }
 
 // ── Trips UI ─────────────────────────────────────────────────
@@ -4900,8 +4938,8 @@ document.getElementById("saveCatBtn").addEventListener("click", function() {
 var currentNotesView = "personal";
 
 var NOTES_CONTEXTS = {
-  personal: { key:"fl4_notes_global",      label:"Personal notes",  icon:"&#x1F464;" },
-  work:     { key:"fl4_notes_global_work", label:"Work notes",      icon:"&#x1F4BC;" }
+  personal: { key:"fl4_notes_global",      label:"Personal notes",  icon:"&#x1F464;", tomb:"notes_p", pfield:"global_notes",      dfield:"notes_deleted" },
+  work:     { key:"fl4_notes_global_work", label:"Work notes",      icon:"&#x1F4BC;", tomb:"notes_w", pfield:"global_notes_work", dfield:"worknotes_deleted" }
 };
 
 function normaliseNotes(notes) {
@@ -5060,6 +5098,7 @@ function deleteNoteById(id) {
   confirmDialog("Delete this note?", function() {
     var notes = (storeGet(getCurrentNotesKey()) || []).filter(function(n){ return n.id !== id; });
     storeSet(getCurrentNotesKey(), notes);
+    addTomb(NOTES_CONTEXTS[currentNotesView].tomb, id);
     pushPersonal(); if (isHouseholdSet() && isSynced("notes")) pushHousehold();
     renderNotesSection();
   });
@@ -6987,7 +7026,11 @@ var d = {};
     var ld = listData[lt], notes = storeGet("fl4_notes_" + lt) || [];
     if (ld) d["list_" + lt] = { items:ld.items, hist:ld.hist, notes:notes, customCats:getCustomCats(lt), deleted:purgeTombs(getTombs(lt)), histDeleted:purgeTombs(getTombs(histTombKey(lt))) };
   });
-  d.global_notes = storeGet("fl4_notes_global") || [];
+  Object.keys(NOTES_CONTEXTS).forEach(function(nc) {
+    var c = NOTES_CONTEXTS[nc];
+    d[c.pfield] = storeGet(c.key) || [];
+    d[c.dfield] = purgeTombs(getTombs(c.tomb));
+  });
   d.action_log   = getActionLog();
   d.food_log     = getFoodLog();
   d.food_notes   = storeGet("fl4_food_notes")  || {};
@@ -7064,14 +7107,19 @@ function applyPersonal(d) {
   });
   if (_pListRepush) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0); // converge backup to the union
 
-  // ── Notes: merge by note ID ───────────────────────────────────────────────
-  if (Array.isArray(d.global_notes)) {
-    var localNotes = storeGet("fl4_notes_global") || [];
-    var noteIndex  = {};
-    localNotes.forEach(function(n){ if(n) noteIndex[n.id] = n; });
-    d.global_notes.filter(Boolean).forEach(function(n){ noteIndex[n.id] = n; }); // remote wins on conflict
-    storeSet("fl4_notes_global", Object.values(noteIndex));
-  }
+  // ── Notes: id-keyed union + newest-wins + tombstones (v343, both contexts) ─
+  var _notesRepush = false;
+  Object.keys(NOTES_CONTEXTS).forEach(function(nc) {
+    var c = NOTES_CONTEXTS[nc];
+    if (d[c.dfield] && typeof d[c.dfield] === "object") {
+      storeSet("fl4_tomb_" + c.tomb, purgeTombs(mergeTombs(getTombs(c.tomb), d[c.dfield])));
+    }
+    if (!Array.isArray(d[c.pfield])) return;
+    var nm = mergeNotes(storeGet(c.key) || [], d[c.pfield].filter(Boolean), getTombs(c.tomb));
+    storeSet(c.key, nm.notes);
+    if (nm.push) _notesRepush = true;
+  });
+  if (_notesRepush) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
 
   // ── Action log: merge by entry ID ────────────────────────────────────────
   if (Array.isArray(d.action_log)) {
@@ -7210,7 +7258,13 @@ var data = {};
     var cc = getCustomCats(lt);
     if (d) data["list_" + lt] = { items:d.items, hist:d.hist, notes:notes, customCats:cc, deleted:purgeTombs(getTombs(lt)), histDeleted:purgeTombs(getTombs(histTombKey(lt))) };
   });
-  if (isSynced("notes"))  data["global_notes"] = storeGet("fl4_notes_global") || [];
+  if (isSynced("notes")) {
+    Object.keys(NOTES_CONTEXTS).forEach(function(nc) {
+      var c = NOTES_CONTEXTS[nc];
+      data[c.pfield] = storeGet(c.key) || [];
+      data[c.dfield] = purgeTombs(getTombs(c.tomb)); // outside any non-empty guard: deleting the LAST note must still propagate (mirrors med_deleted)
+    });
+  }
   if (isSynced("baby")) {
     var bd = getBD();
     if ((bd.growth||[]).length || (bd.medicine||[]).length || (bd.milestones||[]).length || Object.keys(bd.teeth||{}).length)
@@ -10862,7 +10916,20 @@ function applyHousehold(data) {
     }
   });
   if (_listRepush) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0); // converge /shared to the union
-  if (isSynced("notes") && Array.isArray(data["global_notes"])) storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
+  if (isSynced("notes")) {
+    var _hNotesRepush = false;
+    Object.keys(NOTES_CONTEXTS).forEach(function(nc) {
+      var c = NOTES_CONTEXTS[nc];
+      if (data[c.dfield] && typeof data[c.dfield] === "object") {
+        storeSet("fl4_tomb_" + c.tomb, purgeTombs(mergeTombs(getTombs(c.tomb), data[c.dfield])));
+      }
+      if (!Array.isArray(data[c.pfield])) return;
+      var nm = mergeNotes(storeGet(c.key) || [], data[c.pfield].filter(Boolean), getTombs(c.tomb));
+      storeSet(c.key, nm.notes);
+      if (nm.push) _hNotesRepush = true;
+    });
+    if (_hNotesRepush) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
+  }
   if (isSynced("baby") && data["med_deleted"] && typeof data["med_deleted"] === "object") {
     storeSet("fl4_tomb_med", purgeTombs(mergeTombs(getTombs("med"), data["med_deleted"])));
   }
