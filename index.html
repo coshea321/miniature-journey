@@ -775,7 +775,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v339 · 19/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v340 · 19/07/2026</div>
 
   </div>
 </div>
@@ -11228,8 +11228,8 @@ function growthRatioChartSvg(points, color) {
   var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
   return "<svg viewBox='0 0 "+W+" "+H+"' width='100%' height='"+H+"' style='display:block'>" +
     band +
-    "<text x='"+padL+"' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(0)+"%</text>" +
-    "<text x='"+padL+"' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(0)+"%</text>" +
+    "<text x='2' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(0)+"%</text>" +
+    "<text x='2' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(0)+"%</text>" +
     medianLine +
     "<polyline points='"+linePts+"' fill='none' stroke='"+color+"' stroke-width='2'/>" +
     dots +
@@ -11255,8 +11255,8 @@ function bodyweightChartSvg(points, color) {
   var firstLabel = esc(new Date(minT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
   var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
   return "<svg viewBox='0 0 "+W+" "+H+"' width='100%' height='"+H+"' style='display:block'>" +
-    "<text x='"+padL+"' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(1)+"</text>" +
-    "<text x='"+padL+"' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(1)+"</text>" +
+    "<text x='2' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(1)+"</text>" +
+    "<text x='2' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(1)+"</text>" +
     "<polyline points='"+linePts+"' fill='none' stroke='"+color+"' stroke-width='2'/>" +
     dots +
     "<text x='"+padL+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8'>"+firstLabel+"</text>" +
@@ -11303,8 +11303,8 @@ function bpChartSvg(points, sysColor, diaColor) {
   var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
   return "<svg viewBox='0 0 "+W+" "+H+"' width='100%' height='"+H+"' style='display:block'>" +
     bands + diaLines +
-    "<text x='"+padL+"' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(0)+"</text>" +
-    "<text x='"+padL+"' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(0)+"</text>" +
+    "<text x='2' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(0)+"</text>" +
+    "<text x='2' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(0)+"</text>" +
     "<polyline points='"+sysPts+"' fill='none' stroke='"+sysColor+"' stroke-width='2'/>" +
     "<polyline points='"+diaPts+"' fill='none' stroke='"+diaColor+"' stroke-width='2' stroke-dasharray='5,3'/>" +
     sysDots + diaDots +
