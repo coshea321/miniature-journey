@@ -298,6 +298,7 @@ body.home-mode .bn-btn.home-active{color:#C2691A}
 .bn-btn.trips-active{color:#0F8A8A}
 .bn-btn.sports-active{color:#2A7A3A}
 .bn-btn.famlog-active{color:#8A5A9A}
+.bn-btn.track-active{color:#A05A10}
 .notes-tab-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .notes-tab-btn.active{color:#fff;background:rgba(255,255,255,.2)}
 
@@ -774,7 +775,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v338 · 18/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v339 · 19/07/2026</div>
 
   </div>
 </div>
@@ -854,14 +855,13 @@ body.train-mode #toast{background:#3A3328}
 
   <!-- Sub-navigation -->
   <div class="train-subnav">
-    <button class="tsn-btn active" data-view="body">&#x2696;&#xFE0F; Body</button>
-    <button class="tsn-btn" data-view="programs">&#x1F3CB; Programs</button>
+    <button class="tsn-btn active" data-view="programs">&#x1F3CB; Programs</button>
     <button class="tsn-btn" data-view="log">&#x1F4CB; Log</button>
     <button class="tsn-btn" data-view="history">&#x1F4C5; History</button>
   </div>
 
   <!-- PROGRAMS VIEW -->
-  <div id="trainProgramsView" class="train-content" style="display:none">
+  <div id="trainProgramsView" class="train-content">
     <div style="background:#FBF6EC;border:1px solid #E5D9C0;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#7A6A4A;line-height:1.5">
       &#x2139;&#xFE0F; <strong style="color:#1A7A3A">Physio-approved</strong> programmes were prescribed for your diagnosis. <strong style="color:#9A7A10">General fitness</strong> programmes predate it — check with your physio before doing these, especially during a flare-up.
     </div>
@@ -921,46 +921,6 @@ body.train-mode #toast{background:#3A3328}
     <div id="trainHistoryContent"></div>
   </div>
 
-  <!-- BODY VIEW -->
-  <div id="trainBodyView" class="train-content">
-    <div class="bw-card">
-      <div class="bw-card-title">&#x2696;&#xFE0F; Log Bodyweight</div>
-      <div class="bw-input-row">
-        <input id="bwInput" type="number" min="30" max="300" step="0.1" class="bw-input" placeholder="e.g. 80.5">
-        <span class="bw-unit">kg</span>
-        <button class="bw-log-btn" id="bwLogBtn">Log</button>
-      </div>
-    </div>
-    <div class="bw-card">
-      <div class="bw-card-title">&#x1F4C8; Weight History</div>
-      <div id="bwChart"></div>
-      <div id="bwHistory"></div>
-    </div>
-
-    <div class="bw-card">
-      <div class="bw-card-title">&#x2764;&#xFE0F; Log Blood Pressure</div>
-      <div class="bp-input-grid">
-        <div class="bp-field">
-          <span class="bp-field-label">Systolic</span>
-          <input id="bpSys" type="number" min="60" max="250" class="bw-input" placeholder="120" inputmode="numeric">
-        </div>
-        <div class="bp-field">
-          <span class="bp-field-label">Diastolic</span>
-          <input id="bpDia" type="number" min="40" max="150" class="bw-input" placeholder="80" inputmode="numeric">
-        </div>
-        <div class="bp-field">
-          <span class="bp-field-label">Pulse</span>
-          <input id="bpPulse" type="number" min="30" max="220" class="bw-input" placeholder="70" inputmode="numeric">
-        </div>
-      </div>
-      <button class="bw-log-btn" id="bpLogBtn">Log reading</button>
-    </div>
-    <div class="bw-card">
-      <div class="bw-card-title">&#x1F4C8; BP History</div>
-      <div id="bpChart"></div>
-      <div id="bpHistory"></div>
-    </div>
-  </div>
 
 </div><!-- end trainSection -->
 
@@ -971,12 +931,23 @@ body.train-mode #toast{background:#3A3328}
   <div style="display:flex;gap:4px;padding:5px 5px 4px;background:#A05A10;box-shadow:0 2px 10px rgba(0,0,0,.15)" id="notesSubNav">
     <button class="notes-tab-btn active" data-nview="personal">&#x1F464; Personal</button>
     <button class="notes-tab-btn" data-nview="work">&#x1F4BC; Work</button>
-    <button class="notes-tab-btn" data-nview="log">&#x1F4CB; Log</button>
-    <button class="notes-tab-btn" data-nview="food">&#x1F35C; Food</button>
   </div>
   <div id="notesPersonalView" class="content" style="padding-top:8px"></div>
   <div id="notesWorkView" class="content" style="padding-top:8px;display:none"></div>
-  <div id="notesLogView" class="content" style="padding-top:12px;display:none;padding-bottom:90px">
+</div>
+
+<!-- ============================================================
+     TRACK SECTION (v339) -- General log + Food journal + Body
+     Sub-views re-hosted from Lists/Notes (Log, Food) and Train (Body);
+     container ids keep their pre-v339 names -- renderers target them by id.
+     ============================================================ -->
+<div id="trackSection" style="display:none">
+  <div class="train-subnav" id="trackSubNav" style="background:#A05A10">
+    <button class="tsn-btn active" data-tview="log">&#x1F4CB; Log</button>
+    <button class="tsn-btn" data-tview="food">&#x1F35C; Food</button>
+    <button class="tsn-btn" data-tview="body">&#x2696;&#xFE0F; Body</button>
+  </div>
+  <div id="notesLogView" class="content" style="padding-top:12px;padding-bottom:90px">
     <!-- Quick log input -->
     <div style="padding:0 12px;margin-bottom:12px">
       <div style="display:flex;gap:8px;margin-bottom:6px">
@@ -1026,6 +997,45 @@ body.train-mode #toast{background:#3A3328}
         <div id="foodCalEst" style="flex:1;font-size:11px;color:#A05A10;font-weight:600;min-height:16px"></div>
         <button id="saveMealBtn" style="padding:5px 10px;background:none;border:1.5px solid #C4A07A;border-radius:7px;color:#A05A10;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation;white-space:nowrap">&#x1F4BE; Save as meal</button>
       </div>
+    </div>
+  </div>
+  <div id="trainBodyView" class="train-content" style="display:none">
+    <div class="bw-card">
+      <div class="bw-card-title">&#x2696;&#xFE0F; Log Bodyweight</div>
+      <div class="bw-input-row">
+        <input id="bwInput" type="number" min="30" max="300" step="0.1" class="bw-input" placeholder="e.g. 80.5">
+        <span class="bw-unit">kg</span>
+        <button class="bw-log-btn" id="bwLogBtn">Log</button>
+      </div>
+    </div>
+    <div class="bw-card">
+      <div class="bw-card-title">&#x1F4C8; Weight History</div>
+      <div id="bwChart"></div>
+      <div id="bwHistory"></div>
+    </div>
+
+    <div class="bw-card">
+      <div class="bw-card-title">&#x2764;&#xFE0F; Log Blood Pressure</div>
+      <div class="bp-input-grid">
+        <div class="bp-field">
+          <span class="bp-field-label">Systolic</span>
+          <input id="bpSys" type="number" min="60" max="250" class="bw-input" placeholder="120" inputmode="numeric">
+        </div>
+        <div class="bp-field">
+          <span class="bp-field-label">Diastolic</span>
+          <input id="bpDia" type="number" min="40" max="150" class="bw-input" placeholder="80" inputmode="numeric">
+        </div>
+        <div class="bp-field">
+          <span class="bp-field-label">Pulse</span>
+          <input id="bpPulse" type="number" min="30" max="220" class="bw-input" placeholder="70" inputmode="numeric">
+        </div>
+      </div>
+      <button class="bw-log-btn" id="bpLogBtn">Log reading</button>
+    </div>
+    <div class="bw-card">
+      <div class="bw-card-title">&#x1F4C8; BP History</div>
+      <div id="bpChart"></div>
+      <div id="bpHistory"></div>
     </div>
   </div>
 </div>
@@ -1414,6 +1424,10 @@ body.train-mode #toast{background:#3A3328}
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="trips" checked><span class="toggle-slider"></span></label>
       </div>
       <div class="sync-toggle-row">
+        <span class="sync-toggle-label">&#x1F4C8; Track</span>
+        <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="track" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="sync-toggle-row">
         <span class="sync-toggle-label">&#x26BD; Sports</span>
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="sports"><span class="toggle-slider"></span></label>
       </div>
@@ -1468,6 +1482,9 @@ body.train-mode #toast{background:#3A3328}
   </button>
   <button class="bn-btn" id="bnTrips" aria-label="Trips">
     <span class="bn-ico">&#x1F9F3;</span>Trips
+  </button>
+  <button class="bn-btn" id="bnTrack" aria-label="Track">
+    <span class="bn-ico">&#x1F4C8;</span>Track
   </button>
   <button class="bn-btn" id="bnSports" aria-label="Sports" style="display:none">
     <span class="bn-ico">&#x26BD;</span>Sports
@@ -4887,6 +4904,8 @@ function normaliseNotes(notes) {
 }
 
 function renderNotesSection() {
+  // Log and Food moved to the Track section in v339 — guard stale values.
+  if (currentNotesView === "log" || currentNotesView === "food") currentNotesView = "personal";
   // Scroll to top — notes live in the page flow so scroll window
   window.scrollTo(0, 0);
   document.documentElement.scrollTop = 0;
@@ -4897,11 +4916,6 @@ function renderNotesSection() {
   });
   document.getElementById("notesPersonalView").style.display = currentNotesView === "personal" ? "" : "none";
   document.getElementById("notesWorkView").style.display     = currentNotesView === "work"     ? "" : "none";
-  document.getElementById("notesLogView").style.display      = currentNotesView === "log"      ? "" : "none";
-  document.getElementById("notesFoodView").style.display     = currentNotesView === "food"     ? "" : "none";
-
-  if (currentNotesView === "log")  { renderLogView();  return; }
-  if (currentNotesView === "food") { renderFoodView(); return; }
 
   // One-time migration: import notes from old list-based notes (fl4_notes_notes) into personal notes
   if (!storeGet("hearth_notes_migrated")) {
@@ -5829,7 +5843,36 @@ function openSavedMealsManager() {
   overlay.addEventListener("click", function(e){ if(e.target===overlay){ document.body.removeChild(overlay); renderFoodView(); } });
 }
 
-var HIDEABLE_SECTIONS = ["home", "train", "trips", "sports", "famlog"]; // lists and baby are always visible; notes lives inside Lists (v318)
+// ============================================================
+// TRACK SECTION (v339) — config-driven sub-tab hosting.
+// One table maps each sub-view to its container div + renderer; the
+// divs keep their pre-v339 ids (see the trackSection markup comment).
+// ============================================================
+var currentTrackView = "log";
+var TRACK_VIEWS = {
+  log:  { div: "notesLogView",  render: function(){ renderLogView();  } },
+  food: { div: "notesFoodView", render: function(){ renderFoodView(); } },
+  body: { div: "trainBodyView", render: function(){ renderBodyView(); } }
+};
+
+function renderTrackView() {
+  document.querySelectorAll("#trackSubNav .tsn-btn").forEach(function(b) {
+    b.classList.toggle("active", b.dataset.tview === currentTrackView);
+  });
+  Object.keys(TRACK_VIEWS).forEach(function(v) {
+    document.getElementById(TRACK_VIEWS[v].div).style.display = v === currentTrackView ? "" : "none";
+  });
+  TRACK_VIEWS[currentTrackView].render();
+}
+
+document.getElementById("trackSubNav").addEventListener("click", function(e) {
+  var btn = e.target.closest(".tsn-btn");
+  if (!btn) return;
+  currentTrackView = btn.dataset.tview;
+  renderTrackView();
+});
+
+var HIDEABLE_SECTIONS = ["home", "train", "trips", "track", "sports", "famlog"]; // lists and baby are always visible; notes lives inside Lists (v318); Track hosts Log/Food/Body (v339)
 
 var sectionVisible = (function() {
   var stored = storeGet("fl4_secVisible") || {};
@@ -5852,7 +5895,7 @@ if (!storeGet("fl4_trainNavMigrated")) {
 }
 
 function applySectionVisibility() {
-  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", baby:"bnBaby", trips:"bnTrips", sports:"bnSports", famlog:"bnFamlog" };
+  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", baby:"bnBaby", trips:"bnTrips", track:"bnTrack", sports:"bnSports", famlog:"bnFamlog" };
   HIDEABLE_SECTIONS.forEach(function(sec) {
     var btn = document.getElementById(navIds[sec]);
     if (btn) btn.style.display = sectionVisible[sec] ? "" : "none";
@@ -7518,6 +7561,7 @@ function switchSection(section) {
   document.getElementById("notesSection").style.display = (section === "lists" && currentList === "notes") ? "block" : "none";
   document.getElementById("babySection").style.display  = section === "baby"   ? "block" : "none";
   document.getElementById("tripsSection").style.display = section === "trips"  ? "block" : "none";
+  document.getElementById("trackSection").style.display = section === "track"  ? "block" : "none";
   document.getElementById("sportsSection").style.display = section === "sports" ? "block" : "none";
   document.getElementById("famlogSection").style.display = section === "famlog" ? "block" : "none";
 
@@ -7527,6 +7571,7 @@ function switchSection(section) {
   document.getElementById("bnRecipes").className = "bn-btn" + (section === "recipes" ? " recipes-active" : "");
   document.getElementById("bnBaby").className  = "bn-btn" + (section === "baby"   ? " baby-active"  : "");
   document.getElementById("bnTrips").className = "bn-btn" + (section === "trips"  ? " trips-active" : "");
+  document.getElementById("bnTrack").className = "bn-btn" + (section === "track"  ? " track-active" : "");
   document.getElementById("bnSports").className = "bn-btn" + (section === "sports" ? " sports-active" : "");
   document.getElementById("bnFamlog").className = "bn-btn" + (section === "famlog" ? " famlog-active" : "");
   if (section === "sports" && typeof renderSports === "function") renderSports();
@@ -7538,7 +7583,7 @@ function switchSection(section) {
   if (isHouseholdSet() && (section === "home" || section === "lists" || section === "baby") && (Date.now() - lastPushTs > 15000)) {
     fetchHousehold();
   }
-  if (isLoggedIn() && section === "train" && (Date.now() - lastPushTs > 15000)) {
+  if (isLoggedIn() && (section === "train" || section === "track") && (Date.now() - lastPushTs > 15000)) {
     fetchPersonal();
   }
 
@@ -7572,6 +7617,11 @@ function switchSection(section) {
     document.getElementById("appTitle").innerHTML = "&#x1F9F3; Trips";
     document.getElementById("hdrBadge").style.display = "none";
     renderTrips();
+  } else if (section === "track") {
+    document.getElementById("themeColor").setAttribute("content", "#A05A10");
+    document.getElementById("appTitle").innerHTML = "&#x1F4C8; Track";
+    document.getElementById("hdrBadge").style.display = "none";
+    renderTrackView();
   } else if (section === "famlog") {
     document.getElementById("themeColor").setAttribute("content", "#8A5A9A");
     document.getElementById("appTitle").innerHTML = "&#x1F4D6; Family Log";
@@ -8676,305 +8726,6 @@ function finishWorkoutSession(withCond) {
   toast("&#x1F4AA; "+wk.name+" saved!");
 }
 
-function renderWorkoutLog() {
-  document.getElementById("workoutDateLabel").textContent = trainFmtDate(workoutDate);
-  document.getElementById("nextDayBtn").disabled = workoutDate >= trainTodayStr();
-  var workout = getWorkoutForDate(workoutDate);
-  var el = document.getElementById("workoutExercises");
-  if (!workout || !workout.exercises.length) {
-    el.innerHTML = "<div class='train-empty'><div class='train-empty-ico'>&#x1F3CB;</div>" +
-      "<div class='train-empty-title'>No exercises yet</div>" +
-      "<div class='train-empty-sub'>Type a name above or tap a quick-add chip.</div></div>";
-    return;
-  }
-  var html = "";
-  for (var ei=0;ei<workout.exercises.length;ei++) {
-    var ex=workout.exercises[ei], vol=0;
-    for (var si2=0;si2<ex.sets.length;si2++) vol+=(ex.sets[si2].weight||0)*(ex.sets[si2].reps||0);
-    var totalSets = ex.sets.length;
-    var volStr = vol>0 ? vol.toLocaleString()+" kg vol" : "";
-    // Sets summary pills
-    var pillsHtml = "";
-    for (var si=0;si<ex.sets.length;si++) {
-      var s=ex.sets[si];
-      var logged = s.reps > 0;
-      pillsHtml += "<div class='set-pill"+(logged?" set-pill-done":"")+"' data-ei='"+ei+"' data-si='"+si+"'>" +
-        "<div class='set-pill-num'>"+(si+1)+"</div>" +
-        (logged
-          ? "<div class='set-pill-val'>"+(s.weight>0?s.weight+"kg":""+(s.reps)+" reps")+"</div><div class='set-pill-reps'>"+(s.weight>0?s.reps+" reps":"")+"</div>"
-          : "<div class='set-pill-val' style='color:#B8AE9C'>—</div>") +
-        "</div>";
-    }
-    html += "<div class='exercise-card'>" +
-      "<div class='ex-header'><div class='ex-num'>"+(ei+1)+"</div><span class='ex-name-txt'>"+esc(ex.name)+"</span>" +
-      (volStr?"<span class='ex-vol'>"+volStr+"</span>":"") +
-      "<button class='ex-del' data-ei='"+ei+"' style='margin-left:auto'>&#x2715;</button></div>" +
-      "<div class='set-pills-row'>"+pillsHtml+"</div>" +
-      "<button class='add-set-btn' data-ei='"+ei+"'>+ Add set</button></div>";
-  }
-  el.innerHTML = html;
-  wireWorkoutLog();
-}
-
-// ── Set sheet state ───────────────────────────────────────
-var _ssEi = 0, _ssSi = 0;
-
-function openSetSheet(ei, si) {
-  var workout = getWorkoutForDate(workoutDate);
-  if (!workout) return;
-  var ex = workout.exercises[ei];
-  var set = ex.sets[si] || { weight: 0, reps: 0 };
-  _ssEi = ei; _ssSi = si;
-  document.getElementById("setSheetExName").textContent = ex.name;
-  document.getElementById("setSheetSetLabel").textContent = "Set " + (si+1) + " of " + ex.sets.length;
-  document.getElementById("setSheetWeight").value = set.weight || 0;
-  document.getElementById("setSheetReps").value   = set.reps   || 0;
-  document.getElementById("setSheet").style.display = "block";
-  document.getElementById("setSheetBackdrop").style.display = "block";
-  document.body.style.overflow = "hidden";
-  setTimeout(function(){ document.getElementById("setSheetWeight").focus(); }, 100);
-}
-
-function closeSetSheet() {
-  document.getElementById("setSheet").style.display = "none";
-  document.getElementById("setSheetBackdrop").style.display = "none";
-  document.body.style.overflow = "";
-}
-
-// Wire sheet buttons once — runs after DOM is ready
-window.addEventListener("DOMContentLoaded", function() {
-  function adj(id, delta) {
-    var inp = document.getElementById(id);
-    var step = id === "setSheetWeight" ? 0.5 : 1;
-    var val = (parseFloat(inp.value) || 0) + delta * step;
-    inp.value = Math.max(0, val);
-  }
-  document.getElementById("setSheetWtMinus").addEventListener("click", function(){ adj("setSheetWeight", -1); });
-  document.getElementById("setSheetWtPlus").addEventListener("click",  function(){ adj("setSheetWeight",  1); });
-  document.getElementById("setSheetRepMinus").addEventListener("click", function(){ adj("setSheetReps", -1); });
-  document.getElementById("setSheetRepPlus").addEventListener("click",  function(){ adj("setSheetReps",  1); });
-  document.getElementById("setSheetCancel").addEventListener("click", closeSetSheet);
-  document.getElementById("setSheetBackdrop").addEventListener("click", closeSetSheet);
-  document.getElementById("setSheetLogBtn").addEventListener("click", function() {
-    var wt  = parseFloat(document.getElementById("setSheetWeight").value) || 0;
-    var rep = parseInt(document.getElementById("setSheetReps").value)     || 0;
-    var data = getWD();
-    for (var i=0;i<data.workouts.length;i++) {
-      if (data.workouts[i].date===workoutDate) {
-        data.workouts[i].exercises[_ssEi].sets[_ssSi] = { weight: wt, reps: rep };
-        break;
-      }
-    }
-    saveWD(data);
-    closeSetSheet();
-    renderWorkoutLog();
-    var ex = getWorkoutForDate(workoutDate).exercises[_ssEi];
-    toast("&#x2713; " + ex.name + " — set "+(_ssSi+1)+": "+(wt>0?wt+"kg × ":"")+rep+" reps");
-  });
-});
-
-function renderWorkoutHistory() {
-  var data = getWD(), el = document.getElementById("trainHistoryContent");
-  var sessions = (data.workouts||[]).slice();
-  // Include cardio entries logged in the action log
-  (getActionLog()||[]).forEach(function(e){
-    if (e && e.type === "cardio") {
-      sessions.push({ id:e.id, date:e.date || (e.ts ? localDatetimeValue(e.ts).slice(0,10) : ""), type:"cardio",
-        sessionName:(e.activity||"Cardio"), duration:e.duration, calories:e.calories, _cardio:true });
-    }
-  });
-  sessions.sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); });
-  if (!sessions.length) {
-    el.innerHTML="<div class='train-empty'><div class='train-empty-ico'>&#x1F4C5;</div><div class='train-empty-title'>No sessions yet</div><div class='train-empty-sub'>Complete a program or free-form log to see history.</div></div>";
-    return;
-  }
-  var html="";
-  sessions.forEach(function(w) {
-    var icon = w.type==="yoga"?"&#x1F9D8;":w.type==="physio"?"&#x1FAB4;":w.type==="cardio"?"&#x1F3C3;":"&#x1F4AA;";
-    var name = (w.sessionName || (w.exercises&&w.exercises.length ? w.exercises[0].name+"..." : "Session")).replace(/&amp;/g,"&");
-    var sub  = w.type==="yoga" ? (w.poses||"?")+" poses" :
-               w.type==="physio" ? "Physio" :
-               w.type==="cardio" ? ((w.duration?w.duration+" min":"")+(w.duration&&w.calories?" · ":"")+(w.calories?w.calories+" kcal":"")) :
-               (w.exercises&&w.exercises.length ? w.exercises.length+" exercise"+(w.exercises.length!==1?"s":"") : "");
-    if (w.kcal && w.type!=="cardio") sub += (sub?" · ":"") + "~" + w.kcal + " kcal";
-    html+="<div class='workout-hist-item' data-wid='"+w.id+"'>"+
-      "<div class='whi-row' style='align-items:center'>"+
-        "<div class='whi-date wh-date-edit' data-wid='"+w.id+"' style='cursor:pointer;text-decoration:underline dotted;flex:1'>"+trainFmtDateLong(w.date)+"</div>"+
-        "<button class='wh-del-btn' data-wid='"+w.id+"' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;opacity:.5;padding:0 4px'>&#x2715;</button>"+
-      "</div>"+
-      "<div class='whi-row'><span>"+icon+" "+esc(name)+"</span><span class='whi-sets'>"+sub+"</span></div>"+
-    "</div>";
-  });
-  el.innerHTML = html;
-
-  // Delete with confirmation
-  el.querySelectorAll(".wh-del-btn").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      confirmDialog("Delete this session?", function() {
-        var wid = btn.dataset.wid;
-        var data = getWD();
-        data.workouts = (data.workouts||[]).filter(function(x){ return String(x.id) !== wid; });
-        saveWD(data);
-        // Also remove from action log if it's a cardio entry
-        var al = getActionLog().filter(function(e){ return String(e.id) !== wid; });
-        storeSet("fl4_action_log", al);
-        pushPersonal(); renderWorkoutHistory();
-      });
-    });
-  });
-
-  // Editable date
-  el.querySelectorAll(".wh-date-edit").forEach(function(span) {
-    span.addEventListener("click", function() {
-      var wid = span.dataset.wid;
-      var data = getWD();
-      var w = (data.workouts||[]).find(function(x){ return String(x.id) === wid; });
-      var isCardio = false;
-      if (!w) {
-        // Might be a cardio entry in the action log
-        w = getActionLog().find(function(x){ return String(x.id) === wid; });
-        isCardio = true;
-      }
-      if (!w) return;
-      var existing = span.closest(".workout-hist-item").querySelector(".wh-dt-edit");
-      if (existing) { existing.remove(); return; }
-      var picker = document.createElement("div");
-      picker.className = "wh-dt-edit";
-      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
-      picker.innerHTML = "<input type='date' value='"+w.date+"' style='flex:1;border:1.5px solid #D8D0C0;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#FDFAF3;color:#2A2010;outline:none'>" +
-        "<button class='_whSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
-        "<button class='_whCancel' style='padding:8px 10px;background:#F0EBE0;border:none;border-radius:7px;color:#8A7A5A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
-      span.closest(".workout-hist-item").appendChild(picker);
-      picker.querySelector("._whSave").addEventListener("click", function() {
-        var nd = picker.querySelector("input").value;
-        if (nd) {
-          w.date = nd;
-          if (isCardio) {
-            var al = getActionLog();
-            var ce = al.find(function(x){ return String(x.id) === wid; });
-            if (ce) { ce.date = nd; if (ce.ts) ce.ts = new Date(nd+"T12:00:00").getTime(); }
-            storeSet("fl4_action_log", al); pushPersonal();
-          } else {
-            data.workouts.sort(function(a,b){ return b.date.localeCompare(a.date); }); saveWD(data); pushPersonal();
-          }
-        }
-        renderWorkoutHistory();
-      });
-      picker.querySelector("._whCancel").addEventListener("click", function(){ picker.remove(); });
-    });
-  });
-}
-
-function renderBodyView() {
-  var data=getWD(), bw=(data.bodyweight||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
-  var el=document.getElementById("bwHistory");
-  if (!bw.length) {
-    el.innerHTML="<p style='text-align:center;color:#A89A80;padding:20px;font-size:14px'>No entries yet.</p>";
-  } else {
-    var html="";
-    for (var i=0;i<bw.length;i++) {
-      var entry=bw[i], d=new Date(entry.date+"T12:00:00");
-      var label=d.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
-      var diffHtml="";
-      if (i<bw.length-1) {
-        var diff=entry.weight-bw[i+1].weight;
-        if (diff!==0) { var cls=diff>0?"pos":"neg"; diffHtml="<span class='bw-entry-diff "+cls+"'>"+(diff>0?"+":"")+diff.toFixed(1)+"</span>"; }
-      }
-      html+="<div class='bw-entry'><span class='bw-entry-date bw-date-edit' data-date='"+entry.date+"' style='cursor:pointer;text-decoration:underline dotted'>"+label+"</span>"+diffHtml+"<span class='bw-entry-val'>"+entry.weight+" kg</span><button class='bw-entry-del' data-date='"+entry.date+"'>&#x2715;</button></div>";
-    }
-    el.innerHTML=html;
-    el.querySelectorAll(".bw-entry-del").forEach(function(btn) {
-      btn.addEventListener("click",function(){
-        confirmDialog("Delete this weight entry?", function(){
-          var data=getWD(); data.bodyweight=(data.bodyweight||[]).filter(function(e){return e.date!==btn.dataset.date;}); saveWD(data); pushPersonal(); renderBodyView();
-        });
-      });
-    });
-  }
-  var bpEl = document.getElementById("bpHistory");
-  if (bpEl) {
-    var bp = (data.bp||[]).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
-    if (!bp.length) {
-      bpEl.innerHTML="<p style='text-align:center;color:#A89A80;padding:20px;font-size:14px'>No readings yet.</p>";
-    } else {
-      var bpHtml="";
-      for (var j=0;j<bp.length;j++) {
-        var r=bp[j], rd=new Date(r.date+"T12:00:00");
-        var rlabel=rd.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
-        var cat = r.sys>=140||r.dia>=90 ? "#C05A3A" : (r.sys>=130||r.dia>=80 ? "#B08A20" : "#2F8A50");
-        bpHtml+="<div class='bw-entry'><span class='bw-entry-date bp-date-edit' data-bpts='"+r.ts+"' style='cursor:pointer;text-decoration:underline dotted'>"+rlabel+"</span>" +
-          "<span class='bw-entry-val' style='color:"+cat+"'>"+r.sys+"/"+r.dia+(r.pulse?" <span style='color:#8A7A5A;font-size:12px'>&middot; "+r.pulse+" bpm</span>":"")+"</span>" +
-          "<button class='bw-entry-del' data-bpts='"+r.ts+"'>&#x2715;</button></div>";
-      }
-      bpEl.innerHTML=bpHtml;
-      bpEl.querySelectorAll(".bw-entry-del").forEach(function(btn) {
-        btn.addEventListener("click",function(){
-          confirmDialog("Delete this blood pressure reading?", function(){
-            var data=getWD(); data.bp=(data.bp||[]).filter(function(e){return String(e.ts)!==btn.dataset.bpts;}); saveWD(data); pushPersonal(); renderBodyView();
-          });
-        });
-      });
-    }
-  }
-  // ── Editable weight dates ──
-  document.querySelectorAll(".bw-date-edit").forEach(function(span) {
-    span.addEventListener("click", function() {
-      var oldDate = span.dataset.date;
-      var existing = span.parentElement.parentElement.querySelector(".bw-dt-edit");
-      if (existing) { existing.remove(); return; }
-      var picker = document.createElement("div");
-      picker.className = "bw-dt-edit";
-      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
-      picker.innerHTML = "<input type='date' value='"+oldDate+"' style='flex:1;border:1.5px solid #D8D0C0;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#FDFAF3;color:#2A2010;outline:none'>" +
-        "<button class='_bwSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
-        "<button class='_bwCancel' style='padding:8px 10px;background:#F0EBE0;border:none;border-radius:7px;color:#8A7A5A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
-      span.parentElement.after(picker);
-      picker.querySelector("._bwSave").addEventListener("click", function() {
-        var newDate = picker.querySelector("input").value;
-        if (!newDate) return;
-        var data = getWD();
-        var e = (data.bodyweight||[]).find(function(x){ return x.date === oldDate; });
-        if (e) { e.date = newDate; data.bodyweight.sort(function(a,b){ return b.date.localeCompare(a.date); }); saveWD(data); pushPersonal(); }
-        renderBodyView();
-      });
-      picker.querySelector("._bwCancel").addEventListener("click", function(){ picker.remove(); });
-    });
-  });
-  // ── Editable BP date/time ──
-  document.querySelectorAll(".bp-date-edit").forEach(function(span) {
-    span.addEventListener("click", function() {
-      var ts = +span.dataset.bpts;
-      var existing = span.parentElement.parentElement.querySelector(".bp-dt-edit");
-      if (existing) { existing.remove(); return; }
-      var picker = document.createElement("div");
-      picker.className = "bp-dt-edit";
-      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:8px 0;width:100%;box-sizing:border-box";
-      picker.innerHTML = "<input type='datetime-local' value='"+localDatetimeValue(ts)+"' style='flex:1;border:1.5px solid #D8D0C0;border-radius:7px;padding:8px;font-family:inherit;font-size:13px;background:#FDFAF3;color:#2A2010;outline:none'>" +
-        "<button class='_bpSave' style='padding:8px 12px;background:#3B6FE0;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Save</button>" +
-        "<button class='_bpCancel' style='padding:8px 10px;background:#F0EBE0;border:none;border-radius:7px;color:#8A7A5A;font-family:inherit;font-size:13px;cursor:pointer'>&#x2715;</button>";
-      span.parentElement.after(picker);
-      picker.querySelector("._bpSave").addEventListener("click", function() {
-        var val = picker.querySelector("input").value;
-        var newTs = val ? new Date(val).getTime() : ts;
-        if (!isNaN(newTs)) {
-          var data = getWD();
-          var e = (data.bp||[]).find(function(x){ return x.ts === ts; });
-          if (e) { e.ts = newTs; e.date = localDatetimeValue(newTs).slice(0,10); data.bp.sort(function(a,b){ return (b.ts||0)-(a.ts||0); }); saveWD(data); pushPersonal(); }
-        }
-        renderBodyView();
-      });
-      picker.querySelector("._bpCancel").addEventListener("click", function(){ picker.remove(); });
-    });
-  });
-}
-
-function renderTrainView() {
-  if (currentTrainView==="programs") renderTrainPrograms();
-  if (currentTrainView==="log")      renderWorkoutLog();
-  if (currentTrainView==="history")  renderWorkoutHistory();
-  if (currentTrainView==="body")     renderBodyView();
-}
-
 function t2(n) { return n < 10 ? "0"+n : ""+n; }
 
 function getPosePhoto(name) {
@@ -9127,6 +8878,7 @@ function closeRecipeImport(){
 })();
 document.getElementById("bnBaby").addEventListener("click",  function(){ switchSection("baby");  });
 document.getElementById("bnTrips").addEventListener("click", function(){ switchSection("trips"); });
+document.getElementById("bnTrack").addEventListener("click", function(){ switchSection("track"); });
 document.getElementById("bnSports").addEventListener("click", function(){ switchSection("sports"); });
 document.getElementById("bnFamlog").addEventListener("click", function(){ switchSection("famlog"); });
 
@@ -9953,7 +9705,7 @@ var QUICK_EXERCISES = [
 ];
 
 // ── Free-form log state ───────────────────────────────────
-var currentTrainView = "body";
+var currentTrainView = "programs"; // Body moved to the Track section in v339
 var workoutDate      = trainTodayStr();
 
 function trainTodayStr() {
@@ -9997,11 +9749,10 @@ document.getElementById("trainSection").addEventListener("click", function(e) {
   var btn = e.target.closest(".tsn-btn");
   if (!btn) return;
   currentTrainView = btn.dataset.view;
-  document.querySelectorAll(".tsn-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.view===currentTrainView); });
+  document.querySelectorAll("#trainSection .tsn-btn").forEach(function(b){ b.classList.toggle("active", b.dataset.view===currentTrainView); });
   document.getElementById("trainProgramsView").style.display = currentTrainView==="programs" ? "" : "none";
   document.getElementById("trainLogView").style.display      = currentTrainView==="log"      ? "" : "none";
   document.getElementById("trainHistoryView").style.display  = currentTrainView==="history"  ? "" : "none";
-  document.getElementById("trainBodyView").style.display     = currentTrainView==="body"     ? "" : "none";
   renderTrainView();
 });
 
@@ -10049,10 +9800,10 @@ function doAddExercise(name) {
 })();
 
 function renderTrainView() {
+  if (currentTrainView==="body")     currentTrainView = "programs"; // Body lives in Track since v339
   if (currentTrainView==="programs") renderTrainPrograms();
   if (currentTrainView==="log")      renderWorkoutLog();
   if (currentTrainView==="history")  renderWorkoutHistory();
-  if (currentTrainView==="body")     renderBodyView();
 }
 
 // ── Programs grid ─────────────────────────────────────────
