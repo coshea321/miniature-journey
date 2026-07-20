@@ -11602,9 +11602,8 @@ function bottleRowHtml(key, name, bd) {
     "</div>"+
     "<div style='font-size:12px;color:#8A6A8A;margin-bottom:8px'>Opened "+fmtBottleDate(b.openedTs)+" &middot; use within "+(b.useWithinDays||0)+" days (your reminder &#8212; check the leaflet) &middot; discard after "+fmtBottleDate(fr.discardTs)+"</div>"+
     "<div class='bottle-controls' style='display:flex;flex-wrap:wrap;gap:6px'>"+
-      "<button type='button' class='bottle-opened-today' data-key='"+esc(key)+"' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer'>Opened today</button>"+
+      "<button type='button' class='bottle-new' data-key='"+esc(key)+"' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer'>New bottle</button>"+
       "<button type='button' class='bottle-edit-trigger' data-key='"+esc(key)+"' style='border:1.5px solid #E0DCD4;background:#F6F2FA;color:#7A5A7A;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer'>Edit</button>"+
-      "<button type='button' class='bottle-new' data-key='"+esc(key)+"' style='border:1.5px solid #E0DCD4;background:#F6F2FA;color:#7A5A7A;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer'>New bottle</button>"+
       "<button type='button' class='bottle-remove' data-key='"+esc(key)+"' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;padding:7px 6px;opacity:.6'>&#x2715; remove</button>"+
     "</div></div>";
 }
@@ -11809,14 +11808,6 @@ function renderMedicine() {
       var key = btn.dataset.key, name = btn.dataset.name;
       var bd2 = getBD();
       bd2.bottles[key] = { key:key, name:name, openedTs:Date.now(), useWithinDays:90, updated:Date.now() };
-      saveBD(bd2); renderMedicine();
-    });
-  });
-  el.querySelectorAll(".bottle-opened-today").forEach(function(btn){
-    btn.addEventListener("click", function(){
-      var key = btn.dataset.key, bd2 = getBD(), b = bd2.bottles[key];
-      if (!b) return;
-      b.openedTs = Date.now(); b.updated = Date.now();
       saveBD(bd2); renderMedicine();
     });
   });
