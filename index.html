@@ -777,7 +777,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v344 · 20/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v345 · 20/07/2026</div>
 
   </div>
 </div>
@@ -2252,7 +2252,7 @@ function showVoiceReview(transcript, items){
       "<div id='vcChips'>" + chips + "</div>" +
       "<div style='display:flex;gap:8px;margin-top:14px'>" +
         "<button id='vcAdd' style='flex:1;padding:11px;border:none;background:var(--accent,#2D6B35);color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Add to " + esc(listName) + "</button>" +
-        "<button id='vcCancel' style='padding:11px 14px;border:none;background:#F0EBE2;color:#7A6A4A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Cancel</button>" +
+        "<button id='vcCancel' data-bbclose style='padding:11px 14px;border:none;background:#F0EBE2;color:#7A6A4A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Cancel</button>" +
       "</div>" +
     "</div>";
   document.body.appendChild(ov);
@@ -2579,6 +2579,7 @@ var TRIP_MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oc
 var _tripView = "list"; // "list" | "detail"
 var _tripOpenId = null;
 var _tripEditing = false;
+var _tripCancelFn = null; // v345: back-button-v2 discard closure, set by openTripEditor/openBookingEditor, nulled on every exit path
 var _tripExpanded = {};
 var _tripDetailView = "compact"; // "compact" | "timeline"
 var _tripImporting = false;
@@ -2610,6 +2611,7 @@ function bookingDateTimeLabel(iso) {
 
 function renderTrips() {
   _tripEditing = false;
+  _tripCancelFn = null;
   if (_tripView === "detail" && _tripOpenId != null) { renderTripDetail(); return; }
   var el = document.getElementById("tripsContent");
 
@@ -2981,10 +2983,13 @@ function openTripEditor(id) {
     (t ? "<button id='tpDelete' style='width:100%;padding:13px;border:1.5px solid #C03030;background:#fff;color:#C03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px'>Delete trip</button>" : "") +
     (t ? "<button id='tpExport' style='width:100%;padding:13px;border:1.5px solid #D8D0C0;background:#fff;color:#6A8A8A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-top:10px'>&#x1F4E4; Export trip (JSON)</button>" : "");
 
-  document.getElementById("tripCancelEdit").addEventListener("click", function(){
+  var tpCancel = function(){
     _tripEditing = false;
+    _tripCancelFn = null;
     if (isNew) { _tripView = "list"; renderTrips(); } else { _tripView = "detail"; renderTripDetail(); }
-  });
+  };
+  _tripCancelFn = tpCancel;
+  document.getElementById("tripCancelEdit").addEventListener("click", tpCancel);
   document.getElementById("tpSave").addEventListener("click", function(){
     var name = document.getElementById("tpName").value.trim();
     if (!name) { toast("Trip name can't be empty"); return; }
@@ -3003,6 +3008,7 @@ function openTripEditor(id) {
     }
     saveTripsStore(trips);
     _tripEditing = false;
+    _tripCancelFn = null;
     _tripView = "detail";
     renderTripDetail();
     toast("Trip saved");
@@ -3014,6 +3020,7 @@ function openTripEditor(id) {
     addTomb("trips", id);
     saveTripsStore(trips);
     _tripEditing = false;
+    _tripCancelFn = null;
     _tripView = "list";
     _tripOpenId = null;
     renderTrips();
@@ -3139,15 +3146,17 @@ function openBookingEditor(tripId, bookingId) {
     var ab = document.getElementById("bkAddLeg");
     if (ab) ab.style.display = "";
   });
-  document.getElementById("bkCancelEdit").addEventListener("click", function(){
-    _tripEditing = false; _tripView = "detail"; renderTripDetail();
+  var bkCancel = function(){
+    _tripEditing = false; _tripCancelFn = null; _tripView = "detail"; renderTripDetail();
     if (bookingId != null) {
       requestAnimationFrame(function(){
         var bc = document.querySelector(".booking-card[data-bid='" + bookingId + "']");
         if (bc) { var hdr = document.querySelector("header"); var off = hdr ? hdr.offsetHeight + 8 : 80; window.scrollTo({ top: bc.getBoundingClientRect().top + window.pageYOffset - off, behavior: "smooth" }); }
       });
     }
-  });
+  };
+  _tripCancelFn = bkCancel;
+  document.getElementById("bkCancelEdit").addEventListener("click", bkCancel);
   document.getElementById("bkSave").addEventListener("click", function(){
     var title = document.getElementById("bkTitle").value.trim();
     var start = document.getElementById("bkStart").value;
@@ -3201,6 +3210,7 @@ function openBookingEditor(tripId, bookingId) {
     trip2.updated = Date.now();
     saveTripsStore(trips2);
     _tripEditing = false;
+    _tripCancelFn = null;
     _tripView = "detail";
     renderTripDetail();
     toast(leg2 ? "Both legs saved" : "Booking saved");
@@ -3221,6 +3231,7 @@ function openBookingEditor(tripId, bookingId) {
     addTomb("bookings", bookingId);
     saveTripsStore(trips3);
     _tripEditing = false;
+    _tripCancelFn = null;
     _tripView = "detail";
     renderTripDetail();
     toast("Booking deleted");
@@ -3734,7 +3745,7 @@ function openMealPlanPicker(day) {
     "<div style='background:#FFFDF7;width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:18px 18px 14px;box-sizing:border-box;max-height:70vh;display:flex;flex-direction:column'>" +
       "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px'>" +
         "<div style='font-size:16px;font-weight:800;color:#2A2010'>Dinner for " + esc(label) + "</div>" +
-        "<button id='mpPickClose' aria-label='Close' style='border:none;background:none;color:#8A7A5A;font-size:22px;cursor:pointer;padding:4px 8px;line-height:1'>&times;</button>" +
+        "<button id='mpPickClose' data-bbclose aria-label='Close' style='border:none;background:none;color:#8A7A5A;font-size:22px;cursor:pointer;padding:4px 8px;line-height:1'>&times;</button>" +
       "</div>" +
       "<input id='mpPickSearch' type='text' placeholder='Search recipes…' autocomplete='off' style='" + recipeInputCss() + "margin-bottom:10px;flex-shrink:0'>" +
       "<div id='mpPickList' style='overflow-y:auto;flex:1'></div>" +
@@ -3774,7 +3785,7 @@ function openMealPlanDaySheet(day) {
       (recipe ? "<button id='mpOpenRecipeBtn' style='width:100%;padding:11px;margin-bottom:8px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Open recipe</button>" : "") +
       "<button id='mpSwapBtn' style='width:100%;padding:11px;margin-bottom:8px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Swap recipe</button>" +
       "<button id='mpRemoveBtn' style='width:100%;padding:11px;margin-bottom:8px;border:1.5px solid #E0C0C0;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Remove</button>" +
-      "<button id='mpCancelBtn' style='width:100%;padding:11px;border:none;background:none;color:#8A7A5A;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Cancel</button>" +
+      "<button id='mpCancelBtn' data-bbclose style='width:100%;padding:11px;border:none;background:none;color:#8A7A5A;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Cancel</button>" +
     "</div>";
   document.body.appendChild(ov);
   ov.addEventListener("click", function(e){ if (e.target === ov) closeAndRefresh(); });
@@ -4516,7 +4527,7 @@ function renderList() {
           (addedCount ? "<button id='_rcDel' style='padding:11px;border:none;background:#C03030;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Delete added items</button>" +
                         "<button id='_rcKeep' style='padding:11px;border:1.5px solid #2D6B35;background:#fff;color:#2D6B35;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Keep added items</button>"
                       : "<button id='_rcDel' style='padding:11px;border:none;background:#2D6B35;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Clear recipe</button>") +
-          "<button id='_rcCancel' style='padding:11px;border:1.5px solid #E0D0B0;background:none;border-radius:9px;font-family:inherit;font-size:14px;cursor:pointer'>Cancel</button>" +
+          "<button id='_rcCancel' data-bbclose style='padding:11px;border:1.5px solid #E0D0B0;background:none;border-radius:9px;font-family:inherit;font-size:14px;cursor:pointer'>Cancel</button>" +
         "</div>";
       ov.appendChild(box); document.body.appendChild(ov);
       var close = function(){ document.body.removeChild(ov); };
@@ -6403,7 +6414,7 @@ function openCloudBackupsSheet() {
       "<div style='font-size:16px;font-weight:800;color:#4A3A20;margin-bottom:4px'>&#x2601;&#xFE0F; Cloud backups</div>" +
       "<div style='font-size:12px;color:#8A7A5A;line-height:1.45;margin-bottom:12px'>Restoring adds anything missing back into your data &#8212; nothing is deleted, and the change syncs to both of you.</div>" +
       "<div id='cbList' style='font-size:13px;color:#8A7A5A'>Loading&#8230;</div>" +
-      "<button id='cbClose' style='width:100%;margin-top:12px;padding:11px;border:none;background:none;color:#7A8772;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Close</button>" +
+      "<button id='cbClose' data-bbclose style='width:100%;margin-top:12px;padding:11px;border:none;background:none;color:#7A8772;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Close</button>" +
     "</div>";
   document.body.appendChild(ov);
   function closeOv(){ if (ov.parentNode) ov.parentNode.removeChild(ov); }
@@ -6502,7 +6513,7 @@ function openSyncHealthSheet(){
       "<div style='font-size:14px'>" + body + "</div>" +
       "<div style='display:flex;gap:8px;margin-top:14px'>" +
         "<button id='shRefresh' style='flex:1;padding:11px;border:1.5px solid #C4833A;background:none;color:#C4833A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Sync now</button>" +
-        "<button id='shClose' style='flex:1;padding:11px;border:none;background:#F0EBE2;color:#7A6A4A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Close</button>" +
+        "<button id='shClose' data-bbclose style='flex:1;padding:11px;border:none;background:#F0EBE2;color:#7A6A4A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Close</button>" +
       "</div>" +
     "</div>";
   document.body.appendChild(ov);
@@ -6535,7 +6546,7 @@ document.getElementById("clearAllBtn").addEventListener("click", function() {
       "<div style='font-size:12px;font-weight:700;color:#5A5A4A;margin-bottom:6px'>Type DELETE to confirm:</div>" +
       "<input id='_delConfirmInput' type='text' autocomplete='off' autocapitalize='characters' placeholder='DELETE' style='width:100%;box-sizing:border-box;padding:11px 13px;border:1.5px solid #D0C8B8;border-radius:9px;font-family:inherit;font-size:15px;letter-spacing:2px;text-align:center;text-transform:uppercase;outline:none;margin-bottom:14px'>" +
       "<button id='_delConfirmBtn' disabled style='width:100%;padding:13px;border:none;background:#D0A0A0;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:not-allowed;margin-bottom:8px'>Delete everything</button>" +
-      "<button id='_delCancelBtn' style='width:100%;padding:11px;border:none;background:none;color:#7A8772;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer'>Cancel</button>" +
+      "<button id='_delCancelBtn' data-bbclose style='width:100%;padding:11px;border:none;background:none;color:#7A8772;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer'>Cancel</button>" +
     "</div>";
   document.body.appendChild(ov);
 
@@ -7445,7 +7456,7 @@ function openSportsManage(){
       "<div style='margin-top:14px;font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.4px'>Add a team</div>" +
       "<div style='display:flex;gap:8px;margin-top:6px'><input id='sptSearch' type='text' placeholder='Team or country name…' autocomplete='off' autocorrect='off' style='flex:1;padding:9px 11px;border:1.5px solid #D8D0C0;border-radius:9px;font-family:inherit;font-size:14px;outline:none'><button id='sptSearchBtn' style='padding:9px 13px;border:none;background:#C4833A;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Search</button></div>" +
       "<div id='sptResults' style='margin-top:8px'></div>" +
-      "<button id='sptClose' style='width:100%;margin-top:16px;padding:11px;border:none;background:#F0EBE2;color:#7A6A4A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Done</button>" +
+      "<button id='sptClose' data-bbclose style='width:100%;margin-top:16px;padding:11px;border:none;background:#F0EBE2;color:#7A6A4A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Done</button>" +
     "</div>";
     ov.querySelectorAll(".sptRm").forEach(function(bt){ bt.addEventListener("click", function(){ var t=getSportsTeams(); t.splice(+bt.dataset.idx,1); saveSportsTeams(t); draw(); }); });
     ov.querySelector("#sptClose").addEventListener("click", close);
@@ -7717,6 +7728,19 @@ function closeTopOverlay() {
   var cfNo = document.getElementById("_cfNo");
   if (cfNo) { cfNo.click(); return true; } // confirmDialog: always Cancel, never OK
 
+  // v345: generic close for the one-off dynamic role="dialog" sheets (cloud
+  // backups, sync health, meal-plan picker/day sheet, sports manage, voice
+  // review, delete-all confirm, recipe-clear 3-way) — each tags its own safe
+  // dismiss button with data-bbclose at creation time; back-press runs that
+  // button's own click handler rather than reimplementing the close. Take the
+  // LAST matching dialog in document order (later-appended = on top). An
+  // untagged dialog falls through without closing anything.
+  var dynDialogs = document.querySelectorAll('body > div[role="dialog"], body > div[role="alertdialog"]');
+  if (dynDialogs.length) {
+    var bbBtn = dynDialogs[dynDialogs.length - 1].querySelector("[data-bbclose]");
+    if (bbBtn) { bbBtn.click(); return true; }
+  }
+
   var neHelp = document.getElementById("neHelpPanel");
   if (neHelp && neHelp.style.display === "block") { neHelp.style.display = "none"; return true; }
 
@@ -7740,6 +7764,17 @@ function closeTopOverlay() {
 
   var toothModal = document.getElementById("toothModal");
   if (toothModal && toothModal.classList.contains("open")) { toothModal.classList.remove("open"); return true; }
+
+  // v345: trip editor / booking editor are innerHTML swaps of #tripsContent,
+  // not overlays, so they need their own check — LAST, since a confirmDialog
+  // can still be sitting above the editor (step 1 catches that first). Ask
+  // before discarding; a second back-press while the confirm is up hits step
+  // 1 and cancels the confirm instead.
+  if (_tripEditing && _tripCancelFn) {
+    var tcf = _tripCancelFn;
+    confirmDialog("Discard changes?", function(){ tcf(); }, function(){});
+    return true;
+  }
 
   return false;
 }
