@@ -778,7 +778,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v346 · 20/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v347 · 21/07/2026</div>
 
   </div>
 </div>
@@ -11214,7 +11214,7 @@ function renderGrowth() {
   if (trend) {
     html += "<div style='margin:0 12px 10px;padding:10px 13px;border-radius:10px;background:" + trend.bg + ";color:" + trend.fg + ";font-size:13px;line-height:1.4;font-weight:600'>" +
       "&#x1F4C8; " + trend.text +
-      "<div style='font-size:11px;font-weight:400;opacity:.8;margin-top:2px'>weight-for-length vs WHO median &middot; not medical advice</div>" +
+      "<div style='font-size:11px;font-weight:400;opacity:.8;margin-top:2px'>weight-for-length vs WHO centile &middot; not medical advice</div>" +
     "</div>";
   }
   if (growth.length) {
@@ -11237,7 +11237,7 @@ function renderGrowth() {
   } else {
     html += "<div style='text-align:center;padding:32px;color:#8A6A8A;font-size:14px'>No measurements yet</div>";
   }
-  html += "<div style='padding:8px 16px 14px;font-size:10px;color:#B8A8B8'>Average bands are approximate, based on WHO weight-for-length medians. Not medical advice &mdash; discuss growth with your PHN or GP.</div>";
+  html += "<div style='padding:8px 16px 14px;font-size:10px;color:#B8A8B8'>Centiles are approximate, based on WHO weight-for-length reference tables. Not medical advice &mdash; discuss growth with your PHN or GP.</div>";
   el.innerHTML = html;
   var now2 = new Date(), p2 = function(x){ return x<10?"0"+x:""+x; };
   var d2 = document.getElementById("growthDate"); if(d2) d2.value = now2.getFullYear()+"-"+p2(now2.getMonth()+1)+"-"+p2(now2.getDate());
@@ -11300,88 +11300,137 @@ function renderGrowth() {
   });
 }
 
-// ── WHO weight-for-length comparison (approximate medians, 45–110 cm) ──
-var WHO_WFL = {
-  girl: {45:2.46,50:3.36,55:4.48,60:5.90,65:7.25,70:8.47,75:9.58,80:10.62,85:11.74,90:12.93,95:14.23,100:15.69,105:17.40,110:19.43},
-  boy:  {45:2.44,50:3.37,55:4.53,60:6.04,65:7.43,70:8.69,75:9.84,80:10.86,85:11.93,90:13.05,95:14.31,100:15.71,105:17.37,110:19.33}
+// ── WHO weight-for-length centiles (LMS parameters, 45–110 cm, v347) ──────
+// L/M/S at 5cm steps, transcribed from the official WHO Child Growth
+// Standards weight-for-length tables (birth–2 years) — same source CDC
+// redistributes verbatim as "WHO-Boys/Girls-Weight-for-length-Percentiles"
+// (columns Length,L,M,S,percentiles). Cited in full in the v347 PR body.
+// L is genuinely constant per sex across the whole range in the source data
+// (WHO's own Box-Cox power for this indicator, not a transcription error —
+// verified against all 131 half-cm rows of the source table, not just these
+// 14 five-cm points). M values replace the old "approximate" WHO_WFL medians
+// (up to ~3.5% higher at longer lengths) — the previous table was a rough
+// approximation; this one is transcribed, per Cathal's go-ahead 21/07/2026.
+// Linearly interpolating L/M/S between 5cm steps (small accuracy loss vs
+// WHO's 0.5cm tables, accepted for a trend view — same tradeoff the old
+// medians-only table already made).
+var WHO_WFL_LMS = {
+  girl: {
+    45:{L:-0.3833,M:2.4607,S:0.09029}, 50:{L:-0.3833,M:3.3518,S:0.09068},
+    55:{L:-0.3833,M:4.5498,S:0.09110}, 60:{L:-0.3833,M:5.8742,S:0.09136},
+    65:{L:-0.3833,M:7.0812,S:0.09119}, 70:{L:-0.3833,M:8.1630,S:0.09068},
+    75:{L:-0.3833,M:9.1490,S:0.09005}, 80:{L:-0.3833,M:10.0891,S:0.08940},
+    85:{L:-0.3833,M:11.2198,S:0.08898}, 90:{L:-0.3833,M:12.4723,S:0.08906},
+    95:{L:-0.3833,M:13.7146,S:0.08963}, 100:{L:-0.3833,M:15.0267,S:0.09069},
+    105:{L:-0.3833,M:16.5470,S:0.09219}, 110:{L:-0.3833,M:18.3324,S:0.09401}
+  },
+  boy: {
+    45:{L:-0.3521,M:2.4410,S:0.09182}, 50:{L:-0.3521,M:3.3278,S:0.08890},
+    55:{L:-0.3521,M:4.5467,S:0.08592}, 60:{L:-0.3521,M:5.9907,S:0.08342},
+    65:{L:-0.3521,M:7.2666,S:0.08223}, 70:{L:-0.3521,M:8.4227,S:0.08229},
+    75:{L:-0.3521,M:9.5032,S:0.08295}, 80:{L:-0.3521,M:10.4475,S:0.08308},
+    85:{L:-0.3521,M:11.5007,S:0.08181}, 90:{L:-0.3521,M:12.7209,S:0.08041},
+    95:{L:-0.3521,M:13.8928,S:0.08047}, 100:{L:-0.3521,M:15.1637,S:0.08198},
+    105:{L:-0.3521,M:16.6268,S:0.08453}, 110:{L:-0.3521,M:18.2689,S:0.08755}
+  }
 };
-// WHO weight-for-length median (kg) for a given length (cm), linearly
-// interpolated between the 5 cm table points. Null outside 45–110 cm or
-// with no sex set. Shared by growthBand and the growth-trend summary (v301).
-function growthMedianForLength(h, sex) {
-  var t = WHO_WFL[sex]; if (!t || !h || h < 45 || h > 110) return null;
+// Interpolates L, M, S linearly between the 5cm table points for a given
+// length (cm). Null outside 45–110 cm or with no sex set.
+function whoWflLMS(h, sex) {
+  var t = WHO_WFL_LMS[sex]; if (!t || !h || h < 45 || h > 110) return null;
   var lo = Math.floor(h/5)*5, hi = lo+5;
   if (hi > 110) hi = 110;
-  var mLo = t[lo], mHi = t[hi];
-  return (lo===hi) ? mLo : mLo + (mHi-mLo) * (h-lo)/5;
+  var pLo = t[lo], pHi = t[hi];
+  if (lo===hi) return pLo;
+  var f = (h-lo)/5;
+  return { L: pLo.L+(pHi.L-pLo.L)*f, M: pLo.M+(pHi.M-pLo.M)*f, S: pLo.S+(pHi.S-pLo.S)*f };
 }
-// Shared weight-for-length "Normal" band thresholds (percent of WHO median),
-// used by both growthBand()'s per-entry label and the v310 ratio chart's band.
-var GROWTH_BAND_LO = 90, GROWTH_BAND_HI = 110;
-function growthBand(rec, sex) {
+// Standard-normal CDF, Abramowitz–Stegun 7.1.26 approximation (max error ~1.5e-7).
+function normalCdf(z) {
+  var sign = z < 0 ? -1 : 1; z = Math.abs(z) / Math.sqrt(2);
+  var t = 1/(1+0.3275911*z);
+  var y = 1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-z*z);
+  return 0.5*(1+sign*y);
+}
+// Weight-for-length centile (0–100) for a growth entry, via the LMS method:
+// z = ((weight/M)^L − 1) / (L·S), centile = Φ(z). Null if sex unset, height
+// out of range, or weight/height missing.
+function growthCentile(rec, sex) {
   if (!sex || !rec.weight || !rec.height) return null;
-  var median = growthMedianForLength(rec.height, sex);
-  if (median == null) return null;
-  var ratio = (rec.weight / median) * 100;
-  if (ratio < GROWTH_BAND_LO) return { label:"Below avg", bg:"#FDF0E0", fg:"#B07030" };
-  if (ratio > GROWTH_BAND_HI) return { label:"Above avg", bg:"#E8F0FD", fg:"#5070B0" };
-  return { label:"Normal", bg:"#E8F5E0", fg:"#508040" };
+  var lms = whoWflLMS(rec.height, sex);
+  if (!lms) return null;
+  var z = (Math.pow(rec.weight/lms.M, lms.L) - 1) / (lms.L*lms.S);
+  return normalCdf(z) * 100;
 }
-// Growth-trend summary (v301) — HONEST band-trend, NOT a percentile.
-// The app only has WHO median values (no percentile spread), so it never
-// claims a percentile number. It reports the current weight-for-length band
-// and whether the child is holding steady / drifting up / drifting down
-// relative to the median over the last few readings. Advisory only; the
-// "not medical advice" disclaimer already sits under the Growth list.
+function ordinal(n) {
+  var s = ["th","st","nd","rd"], v = n % 100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+// Per-entry band: exact centile (calm, descriptive — never advice/alarm
+// language), coloured by which of the five WHO-standard tiers it falls in
+// (<3rd / 3rd–15th / 15th–85th / 85th–97th / >97th).
+function growthBand(rec, sex) {
+  var c = growthCentile(rec, sex);
+  if (c == null) return null;
+  var tier = c < 3 ? 0 : c < 15 ? 1 : c <= 85 ? 2 : c < 97 ? 3 : 4;
+  var colors = [
+    {bg:"#FBE4DC",fg:"#C0603A"}, {bg:"#FDF0E0",fg:"#B07030"},
+    {bg:"#E8F5E0",fg:"#508040"}, {bg:"#E8F0FD",fg:"#5070B0"}, {bg:"#E3EAFC",fg:"#3A5AA0"}
+  ][tier];
+  var label = c < 1 ? "<1st centile" : c > 99 ? ">99th centile" : "≈ " + ordinal(Math.round(c)) + " centile";
+  return { label: label, bg: colors.bg, fg: colors.fg };
+}
+// Growth-trend summary (v301, converted to true centiles v347) reports the
+// current weight-for-length centile band and whether the child is holding
+// steady / drifting up / drifting down over the last few readings. Advisory
+// only; the "not medical advice" disclaimer already sits under the Growth list.
 function growthTrendSummary() {
   var bd = getBD(), sex = bd.babySex;
   if (!sex) return null;
   var recs = (bd.growth||[]).filter(function(r){
-    return r && r.weight && r.height && growthMedianForLength(r.height, sex) != null;
+    return r && r.weight && r.height && growthCentile(r, sex) != null;
   }).sort(function(a,b){ return (a.date||"").localeCompare(b.date||""); });
   if (!recs.length) return null;
   var latest = recs[recs.length-1];
   var band = growthBand(latest, sex);
   if (!band) return null;
-  var pos = band.label === "Normal" ? "around average" : band.label === "Below avg" ? "a little below average" : "a little above average";
   var pron = sex === "girl" ? "her" : "his";
-  var text = "Tracking " + pos + " for " + pron + " length";
+  var text = "Tracking " + band.label + " for " + pron + " length";
   if (recs.length >= 2) {
     var win = recs.slice(Math.max(0, recs.length - 3));
-    var firstRatio = win[0].weight / growthMedianForLength(win[0].height, sex);
-    var lastRatio  = latest.weight / growthMedianForLength(latest.height, sex);
-    var delta = lastRatio - firstRatio;
-    var dir = Math.abs(delta) < 0.03 ? "holding steady" : (delta > 0 ? "drifting up" : "drifting down");
+    var firstC = growthCentile(win[0], sex);
+    var lastC  = growthCentile(latest, sex);
+    var delta = lastC - firstC;
+    var dir = Math.abs(delta) < 5 ? "holding steady" : (delta > 0 ? "drifting up" : "drifting down");
     text += ", " + dir + " over the last " + win.length + " readings";
   }
   return { text: text + ".", bg: band.bg, fg: band.fg };
 }
 
-// Renders the weight/height-vs-WHO-median ratio as one mini SVG line-chart
-// (v310, replaces the v309 separate weight/height charts). points are
-// ascending {t:ms, v:ratio*100}. A shaded band (GROWTH_BAND_LO–GROWTH_BAND_HI)
-// marks the "Normal" range used elsewhere in the Growth view, with a dotted
-// 100% line for the WHO median itself.
-function growthRatioChartSvg(points, color) {
+// Renders the WHO weight-for-length centile as one mini SVG line-chart
+// (v310 ratio chart replaced with true centiles, v347). points are ascending
+// {t:ms, v:centile 0-100}. A shaded band (15th–85th) marks the typical range,
+// with a dotted 50th-centile (median) reference line.
+function growthCentileChartSvg(points, color) {
   var W=300, H=126, padL=34, padR=10, padT=14, padB=20;
   var plotW=W-padL-padR, plotH=H-padT-padB;
   var minT=points[0].t, maxT=points[points.length-1].t;
-  var vals = points.map(function(p){ return p.v; }).concat([GROWTH_BAND_LO, GROWTH_BAND_HI]);
+  var vals = points.map(function(p){ return p.v; }).concat([15, 85]);
   var minV=Math.min.apply(null,vals), maxV=Math.max.apply(null,vals);
   var pad = (maxV-minV)*0.15; minV -= pad; maxV += pad;
+  minV = Math.max(0, minV); maxV = Math.min(100, maxV);
   function xOf(t){ return minT===maxT ? padL+plotW/2 : padL+(t-minT)/(maxT-minT)*plotW; }
   function yOf(v){ return padT+(1-(v-minV)/(maxV-minV))*plotH; }
-  var bandTop = yOf(GROWTH_BAND_HI), bandBottom = yOf(GROWTH_BAND_LO);
-  var band = "<rect x='"+padL+"' y='"+bandTop.toFixed(1)+"' width='"+plotW+"' height='"+(bandBottom-bandTop).toFixed(1)+"' fill='#E8F5E0'/>";
-  var medianLine = "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(100).toFixed(1)+"' y2='"+yOf(100).toFixed(1)+"' stroke='#B8A8B8' stroke-width='1.5' stroke-dasharray='4,3'/>";
+  var band = "<rect x='"+padL+"' y='"+yOf(85).toFixed(1)+"' width='"+plotW+"' height='"+(yOf(15)-yOf(85)).toFixed(1)+"' fill='#E8F5E0'/>";
+  var medianLine = "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(50).toFixed(1)+"' y2='"+yOf(50).toFixed(1)+"' stroke='#B8A8B8' stroke-width='1.5' stroke-dasharray='4,3'/>";
   var linePts = points.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.v).toFixed(1); }).join(" ");
   var dots = points.map(function(p){ return "<circle cx='"+xOf(p.t).toFixed(1)+"' cy='"+yOf(p.v).toFixed(1)+"' r='3' fill='"+color+"'/>"; }).join("");
   var firstLabel = esc(new Date(minT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
   var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
   return "<svg viewBox='0 0 "+W+" "+H+"' width='100%' height='"+H+"' style='display:block'>" +
     band +
-    "<text x='2' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(0)+"%</text>" +
-    "<text x='2' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(0)+"%</text>" +
+    "<text x='2' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(0)+"</text>" +
+    "<text x='2' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(0)+"</text>" +
     medianLine +
     "<polyline points='"+linePts+"' fill='none' stroke='"+color+"' stroke-width='2'/>" +
     dots +
@@ -11391,7 +11440,7 @@ function growthRatioChartSvg(points, color) {
 }
 
 // Bodyweight trend mini SVG line-chart (v336). points are ascending
-// {t:ms, v:kg} — same hand-built-SVG pattern as growthRatioChartSvg, no
+// {t:ms, v:kg} — same hand-built-SVG pattern as growthCentileChartSvg, no
 // band/median since there's no "normal range" for bodyweight.
 function bodyweightChartSvg(points, color) {
   var W=300, H=126, padL=34, padR=10, padT=14, padB=20;
@@ -11473,30 +11522,30 @@ function bpChartHtml(bpAsc) {
     "<div style='font-size:10px;color:#B8A8B8;padding:2px 8px 6px'>Solid = systolic &middot; dashed = diastolic &middot; bands = green &lt;130 / amber 130&ndash;139 / red &ge;140 systolic; dotted lines = diastolic 80/90 thresholds</div>";
 }
 
-// Visual growth chart (v309, redesigned v310) — one mini SVG line-chart of
-// the weight/height-vs-WHO-median ratio over time (same ratio growthBand()
-// already computes per entry), with a shaded Normal-range band. Needs
-// babySex set (the ratio needs a WHO median) and >=2 readings with both
+// Visual growth chart (v309, redesigned v310, true WHO centiles v347) — one
+// mini SVG line-chart of the weight-for-length centile over time (same
+// centile growthBand() already computes per entry), with a shaded
+// 15th–85th-centile band. Needs babySex set and >=2 readings with both
 // weight+height in range; otherwise shows an explanatory placeholder.
 function growthChartsHtml(bd) {
   var sex = bd.babySex;
   if (!sex) {
-    return "<div style='margin:0 12px 10px;padding:14px;text-align:center;color:#B8A8B8;font-size:12px;background:#fff;border-radius:10px;border:1px solid #F0EBF8'>Set the baby's sex above to see the weight-for-length trend chart</div>";
+    return "<div style='margin:0 12px 10px;padding:14px;text-align:center;color:#B8A8B8;font-size:12px;background:#fff;border-radius:10px;border:1px solid #F0EBF8'>Set the baby's sex above to see the weight-for-length centile chart</div>";
   }
   var color = sex === "girl" ? "#C2649A" : "#5A8AC2";
   var asc = (bd.growth||[]).slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
-  var pts = asc.filter(function(e){ return e.weight!=null && e.height!=null && growthMedianForLength(e.height, sex)!=null; })
-    .map(function(e){ return { t: new Date(e.date).getTime(), v: (e.weight / growthMedianForLength(e.height, sex)) * 100 }; });
+  var pts = asc.filter(function(e){ return e.weight!=null && e.height!=null && growthCentile(e, sex)!=null; })
+    .map(function(e){ return { t: new Date(e.date).getTime(), v: growthCentile(e, sex) }; });
   var body;
   if (pts.length < 2) {
     body = "<div style='padding:14px;text-align:center;color:#B8A8B8;font-size:12px'>Log a couple more readings (with both weight and height) to see the trend line</div>";
   } else {
-    body = growthRatioChartSvg(pts, color);
+    body = growthCentileChartSvg(pts, color);
   }
   return "<div style='margin:0 12px 10px;padding:8px 4px 4px;background:#fff;border-radius:10px;border:1px solid #F0EBF8'>" +
-    "<div style='font-size:11px;font-weight:700;color:#8A6A8A;text-transform:uppercase;letter-spacing:.4px;padding:0 8px 2px'>Weight vs WHO median</div>" +
+    "<div style='font-size:11px;font-weight:700;color:#8A6A8A;text-transform:uppercase;letter-spacing:.4px;padding:0 8px 2px'>Weight-for-length centile</div>" +
     body +
-    "<div style='font-size:10px;color:#B8A8B8;padding:2px 8px 6px'>Shaded band = Normal range ("+GROWTH_BAND_LO+"&ndash;"+GROWTH_BAND_HI+"%) &middot; dotted line = 100% (WHO median)</div>" +
+    "<div style='font-size:10px;color:#B8A8B8;padding:2px 8px 6px'>Shaded band = 15th&ndash;85th centile &middot; dotted line = 50th centile (WHO median)</div>" +
   "</div>";
 }
 
