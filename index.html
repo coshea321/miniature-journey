@@ -779,7 +779,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v348 · 21/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v349 · 22/07/2026</div>
 
   </div>
 </div>
@@ -11449,12 +11449,64 @@ function growthTrendSummary() {
   return { text: text + ".", bg: band.bg, fg: band.fg };
 }
 
+// ── Mini-chart shared helpers (v349 chart redesign) ───────────────────────
+// All three trend charts share one visual language: 2px rounded lines,
+// white-ringed dots (readable over bands/other lines), an emphasized latest
+// point with a bold end-of-line value label, hairline gridlines at
+// meaningful values, and warm-gray axis text. Helpers are top-level on
+// purpose (renderer-called helpers must never be locally scoped).
+function chartDots(points, xOf, yOf, color) {
+  var out = "";
+  for (var i = 0; i < points.length; i++) {
+    var last = i === points.length - 1;
+    out += "<circle cx='" + xOf(points[i].t).toFixed(1) + "' cy='" + yOf(points[i].v).toFixed(1) +
+      "' r='" + (last ? 4.5 : 3) + "' fill='" + color + "' stroke='#fff' stroke-width='1.5'/>";
+  }
+  return out;
+}
+// Bold value label just right of the last point, baseline clamped inside the plot.
+function chartEndLabel(x, y, yTop, yBottom, text) {
+  var ly = Math.max(yTop + 8, Math.min(yBottom - 3, y + 3.5));
+  return "<text x='" + (x + 7).toFixed(1) + "' y='" + ly.toFixed(1) +
+    "' font-size='10' font-weight='700' fill='#3D4035'>" + text + "</text>";
+}
+function chartDateLabels(W, H, padL, padR, minT, maxT) {
+  var firstLabel = esc(new Date(minT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
+  var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
+  return "<text x='" + padL + "' y='" + (H-4) + "' font-size='9' fill='#8A8578'>" + firstLabel + "</text>" +
+    "<text x='" + (W-padR) + "' y='" + (H-4) + "' font-size='9' fill='#8A8578' text-anchor='end'>" + lastLabel + "</text>";
+}
+// 2–4 "nice" round tick values strictly inside [minV, maxV].
+function chartTicks(minV, maxV) {
+  var span = maxV - minV;
+  if (!(span > 0)) return [];
+  var rawStep = span / 3;
+  var mag = Math.pow(10, Math.floor(Math.log(rawStep) / Math.LN10));
+  var mults = [1, 2, 2.5, 5, 10], step = mag * 10;
+  for (var i = 0; i < mults.length; i++) {
+    if (mults[i] * mag >= rawStep) { step = mults[i] * mag; break; }
+  }
+  var ticks = [];
+  for (var v = Math.ceil(minV / step) * step; v <= maxV + step * 0.001; v += step) {
+    var r = Math.round(v * 100) / 100;
+    if (r >= minV && r <= maxV) ticks.push(r);
+  }
+  return ticks;
+}
+function centileOrdinal(n) {
+  var v = n % 100;
+  if (v >= 11 && v <= 13) return n + "th";
+  var d = n % 10;
+  return n + (d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : "th");
+}
+
 // Renders the WHO weight-for-length centile as one mini SVG line-chart
-// (v310 ratio chart replaced with true centiles, v347). points are ascending
-// {t:ms, v:centile 0-100}. A shaded band (15th–85th) marks the typical range,
-// with a dotted 50th-centile (median) reference line.
+// (v310 ratio chart replaced with true centiles, v347; redesigned v349).
+// points are ascending {t:ms, v:centile 0-100}. A shaded band (15th–85th)
+// marks the typical range, with a dashed 50th-centile (median) reference
+// line; the 15/50/85 values double as the y-axis labels.
 function growthCentileChartSvg(points, color) {
-  var W=300, H=126, padL=34, padR=10, padT=14, padB=20;
+  var W=300, H=140, padL=30, padR=36, padT=12, padB=20;
   var plotW=W-padL-padR, plotH=H-padT-padB;
   var minT=points[0].t, maxT=points[points.length-1].t;
   var vals = points.map(function(p){ return p.v; }).concat([15, 85]);
@@ -11463,29 +11515,28 @@ function growthCentileChartSvg(points, color) {
   minV = Math.max(0, minV); maxV = Math.min(100, maxV);
   function xOf(t){ return minT===maxT ? padL+plotW/2 : padL+(t-minT)/(maxT-minT)*plotW; }
   function yOf(v){ return padT+(1-(v-minV)/(maxV-minV))*plotH; }
-  var band = "<rect x='"+padL+"' y='"+yOf(85).toFixed(1)+"' width='"+plotW+"' height='"+(yOf(15)-yOf(85)).toFixed(1)+"' fill='#E8F5E0'/>";
-  var medianLine = "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(50).toFixed(1)+"' y2='"+yOf(50).toFixed(1)+"' stroke='#B8A8B8' stroke-width='1.5' stroke-dasharray='4,3'/>";
+  var band = "<rect x='"+padL+"' y='"+yOf(85).toFixed(1)+"' width='"+plotW+"' height='"+(yOf(15)-yOf(85)).toFixed(1)+"' fill='#EBF5E4'/>";
+  var medianLine = "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(50).toFixed(1)+"' y2='"+yOf(50).toFixed(1)+"' stroke='#C4BCAE' stroke-width='1' stroke-dasharray='4,3'/>";
+  var refLabels = [15, 50, 85].map(function(v){
+    return "<text x='"+(padL-5)+"' y='"+(yOf(v)+3).toFixed(1)+"' font-size='9' fill='#8A8578' text-anchor='end'>"+v+"</text>";
+  }).join("");
   var linePts = points.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.v).toFixed(1); }).join(" ");
-  var dots = points.map(function(p){ return "<circle cx='"+xOf(p.t).toFixed(1)+"' cy='"+yOf(p.v).toFixed(1)+"' r='3' fill='"+color+"'/>"; }).join("");
-  var firstLabel = esc(new Date(minT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
-  var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
+  var lastP = points[points.length-1];
   return "<svg viewBox='0 0 "+W+" "+H+"' width='100%' height='"+H+"' style='display:block'>" +
-    band +
-    "<text x='2' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(0)+"</text>" +
-    "<text x='2' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(0)+"</text>" +
-    medianLine +
-    "<polyline points='"+linePts+"' fill='none' stroke='"+color+"' stroke-width='2'/>" +
-    dots +
-    "<text x='"+padL+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8'>"+firstLabel+"</text>" +
-    "<text x='"+(W-padR)+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8' text-anchor='end'>"+lastLabel+"</text>" +
+    band + medianLine + refLabels +
+    "<polyline points='"+linePts+"' fill='none' stroke='"+color+"' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/>" +
+    chartDots(points, xOf, yOf, color) +
+    chartEndLabel(xOf(lastP.t), yOf(lastP.v), padT, padT+plotH, centileOrdinal(Math.round(lastP.v))) +
+    chartDateLabels(W, H, padL, padR, minT, maxT) +
   "</svg>";
 }
 
-// Bodyweight trend mini SVG line-chart (v336). points are ascending
-// {t:ms, v:kg} — same hand-built-SVG pattern as growthCentileChartSvg, no
-// band/median since there's no "normal range" for bodyweight.
+// Bodyweight trend mini SVG line-chart (v336, redesigned v349). points are
+// ascending {t:ms, v:kg} — same hand-built-SVG pattern as
+// growthCentileChartSvg; no band/median since there's no "normal range" for
+// bodyweight, so it gets round-number gridlines and a soft area wash instead.
 function bodyweightChartSvg(points, color) {
-  var W=300, H=126, padL=34, padR=10, padT=14, padB=20;
+  var W=300, H=140, padL=34, padR=46, padT=12, padB=20;
   var plotW=W-padL-padR, plotH=H-padT-padB;
   var minT=points[0].t, maxT=points[points.length-1].t;
   var vals = points.map(function(p){ return p.v; });
@@ -11493,17 +11544,22 @@ function bodyweightChartSvg(points, color) {
   var pad = (maxV-minV)*0.15; if (!pad) pad = 1; minV -= pad; maxV += pad;
   function xOf(t){ return minT===maxT ? padL+plotW/2 : padL+(t-minT)/(maxT-minT)*plotW; }
   function yOf(v){ return padT+(1-(v-minV)/(maxV-minV))*plotH; }
+  var grid = chartTicks(minV, maxV).map(function(v){
+    var y = yOf(v).toFixed(1);
+    var lbl = (v % 1 === 0) ? String(v) : v.toFixed(1);
+    return "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+y+"' y2='"+y+"' stroke='#EFE9DC' stroke-width='1'/>" +
+      "<text x='"+(padL-5)+"' y='"+(yOf(v)+3).toFixed(1)+"' font-size='9' fill='#8A8578' text-anchor='end'>"+lbl+"</text>";
+  }).join("");
   var linePts = points.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.v).toFixed(1); }).join(" ");
-  var dots = points.map(function(p){ return "<circle cx='"+xOf(p.t).toFixed(1)+"' cy='"+yOf(p.v).toFixed(1)+"' r='3' fill='"+color+"'/>"; }).join("");
-  var firstLabel = esc(new Date(minT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
-  var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
+  var yBottom = (padT+plotH).toFixed(1);
+  var area = "<polygon points='"+linePts+" "+xOf(maxT).toFixed(1)+","+yBottom+" "+xOf(minT).toFixed(1)+","+yBottom+"' fill='"+color+"' fill-opacity='0.08'/>";
+  var lastP = points[points.length-1];
   return "<svg viewBox='0 0 "+W+" "+H+"' width='100%' height='"+H+"' style='display:block'>" +
-    "<text x='2' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(1)+"</text>" +
-    "<text x='2' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(1)+"</text>" +
-    "<polyline points='"+linePts+"' fill='none' stroke='"+color+"' stroke-width='2'/>" +
-    dots +
-    "<text x='"+padL+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8'>"+firstLabel+"</text>" +
-    "<text x='"+(W-padR)+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8' text-anchor='end'>"+lastLabel+"</text>" +
+    grid + area +
+    "<polyline points='"+linePts+"' fill='none' stroke='"+color+"' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/>" +
+    chartDots(points, xOf, yOf, color) +
+    chartEndLabel(xOf(lastP.t), yOf(lastP.v), padT, padT+plotH, lastP.v.toFixed(1)+" kg") +
+    chartDateLabels(W, H, padL, padR, minT, maxT) +
   "</svg>";
 }
 function bwChartHtml(bwAsc) {
@@ -11520,7 +11576,7 @@ function bwChartHtml(bwAsc) {
 // amber 130-139, else green); dashed reference lines mark the diastolic
 // thresholds (90/80) since one y-axis can't band both readings at once.
 function bpChartSvg(points, sysColor, diaColor) {
-  var W=300, H=126, padL=34, padR=10, padT=14, padB=20;
+  var W=300, H=140, padL=30, padR=30, padT=12, padB=20;
   var plotW=W-padL-padR, plotH=H-padT-padB;
   var minT=points[0].t, maxT=points[points.length-1].t;
   var vals = [];
@@ -11533,26 +11589,28 @@ function bpChartSvg(points, sysColor, diaColor) {
   var yTop=padT, yBottom=padT+plotH;
   function clampY(y){ return Math.max(yTop, Math.min(yBottom, y)); }
   var y140=clampY(yOf(140)), y130=clampY(yOf(130));
-  var bands = "<rect x='"+padL+"' y='"+yTop+"' width='"+plotW+"' height='"+(y140-yTop).toFixed(1)+"' fill='#FBEAE5'/>" +
-    "<rect x='"+padL+"' y='"+y140.toFixed(1)+"' width='"+plotW+"' height='"+(y130-y140).toFixed(1)+"' fill='#FCF3DE'/>" +
-    "<rect x='"+padL+"' y='"+y130.toFixed(1)+"' width='"+plotW+"' height='"+(yBottom-y130).toFixed(1)+"' fill='#E8F5E0'/>";
-  var diaLines = "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(90).toFixed(1)+"' y2='"+yOf(90).toFixed(1)+"' stroke='#B8A8B8' stroke-width='1' stroke-dasharray='3,3'/>" +
-    "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(80).toFixed(1)+"' y2='"+yOf(80).toFixed(1)+"' stroke='#B8A8B8' stroke-width='1' stroke-dasharray='3,3'/>";
-  var sysPts = points.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.sys).toFixed(1); }).join(" ");
-  var diaPts = points.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.dia).toFixed(1); }).join(" ");
-  var sysDots = points.map(function(p){ return "<circle cx='"+xOf(p.t).toFixed(1)+"' cy='"+yOf(p.sys).toFixed(1)+"' r='2.5' fill='"+sysColor+"'/>"; }).join("");
-  var diaDots = points.map(function(p){ return "<circle cx='"+xOf(p.t).toFixed(1)+"' cy='"+yOf(p.dia).toFixed(1)+"' r='2.5' fill='"+diaColor+"'/>"; }).join("");
-  var firstLabel = esc(new Date(minT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
-  var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
+  var bands = "<rect x='"+padL+"' y='"+yTop+"' width='"+plotW+"' height='"+(y140-yTop).toFixed(1)+"' fill='#FCF0EC'/>" +
+    "<rect x='"+padL+"' y='"+y140.toFixed(1)+"' width='"+plotW+"' height='"+(y130-y140).toFixed(1)+"' fill='#FDF6E6'/>" +
+    "<rect x='"+padL+"' y='"+y130.toFixed(1)+"' width='"+plotW+"' height='"+(yBottom-y130).toFixed(1)+"' fill='#EDF6E7'/>";
+  var diaLines = "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(90).toFixed(1)+"' y2='"+yOf(90).toFixed(1)+"' stroke='#C4BCAE' stroke-width='1' stroke-dasharray='3,3'/>" +
+    "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(80).toFixed(1)+"' y2='"+yOf(80).toFixed(1)+"' stroke='#C4BCAE' stroke-width='1' stroke-dasharray='3,3'/>";
+  var refLabels = [80, 90, 130, 140].map(function(v){
+    return "<text x='"+(padL-5)+"' y='"+(yOf(v)+3).toFixed(1)+"' font-size='9' fill='#8A8578' text-anchor='end'>"+v+"</text>";
+  }).join("");
+  var sysSeries = points.map(function(p){ return { t: p.t, v: p.sys }; });
+  var diaSeries = points.map(function(p){ return { t: p.t, v: p.dia }; });
+  var sysPts = sysSeries.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.v).toFixed(1); }).join(" ");
+  var diaPts = diaSeries.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.v).toFixed(1); }).join(" ");
+  var lastSys = sysSeries[sysSeries.length-1], lastDia = diaSeries[diaSeries.length-1];
   return "<svg viewBox='0 0 "+W+" "+H+"' width='100%' height='"+H+"' style='display:block'>" +
-    bands + diaLines +
-    "<text x='2' y='"+(padT-4)+"' font-size='9' fill='#B8A8B8'>"+maxV.toFixed(0)+"</text>" +
-    "<text x='2' y='"+(H-padB+12)+"' font-size='9' fill='#B8A8B8'>"+minV.toFixed(0)+"</text>" +
-    "<polyline points='"+sysPts+"' fill='none' stroke='"+sysColor+"' stroke-width='2'/>" +
-    "<polyline points='"+diaPts+"' fill='none' stroke='"+diaColor+"' stroke-width='2' stroke-dasharray='5,3'/>" +
-    sysDots + diaDots +
-    "<text x='"+padL+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8'>"+firstLabel+"</text>" +
-    "<text x='"+(W-padR)+"' y='"+(H-4)+"' font-size='9' fill='#B8A8B8' text-anchor='end'>"+lastLabel+"</text>" +
+    bands + diaLines + refLabels +
+    "<polyline points='"+sysPts+"' fill='none' stroke='"+sysColor+"' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/>" +
+    "<polyline points='"+diaPts+"' fill='none' stroke='"+diaColor+"' stroke-width='2' stroke-dasharray='5,3' stroke-linecap='round'/>" +
+    chartDots(sysSeries, xOf, yOf, sysColor) +
+    chartDots(diaSeries, xOf, yOf, diaColor) +
+    chartEndLabel(xOf(lastSys.t), yOf(lastSys.v), yTop, yBottom, String(Math.round(lastSys.v))) +
+    chartEndLabel(xOf(lastDia.t), yOf(lastDia.v), yTop, yBottom, String(Math.round(lastDia.v))) +
+    chartDateLabels(W, H, padL, padR, minT, maxT) +
   "</svg>";
 }
 function bpChartHtml(bpAsc) {
@@ -11560,8 +11618,12 @@ function bpChartHtml(bpAsc) {
     return "<div style='padding:14px;text-align:center;color:#B8A8B8;font-size:12px'>Log a couple more readings to see the trend chart</div>";
   }
   var pts = bpAsc.map(function(e){ return { t: e.ts, sys: e.sys, dia: e.dia }; });
-  return "<div style='padding:8px 4px 4px'>" + bpChartSvg(pts, "#C05A3A", "#5A8AC2") + "</div>" +
-    "<div style='font-size:10px;color:#B8A8B8;padding:2px 8px 6px'>Solid = systolic &middot; dashed = diastolic &middot; bands = green &lt;130 / amber 130&ndash;139 / red &ge;140 systolic; dotted lines = diastolic 80/90 thresholds</div>";
+  var legend = "<div style='display:flex;gap:16px;align-items:center;font-size:11px;color:#5A5548;padding:4px 10px 0'>" +
+    "<span style='display:inline-flex;align-items:center;gap:5px'><svg width='20' height='6' style='display:block'><line x1='0' y1='3' x2='20' y2='3' stroke='#C05A3A' stroke-width='2'/></svg>Systolic</span>" +
+    "<span style='display:inline-flex;align-items:center;gap:5px'><svg width='20' height='6' style='display:block'><line x1='0' y1='3' x2='20' y2='3' stroke='#5A8AC2' stroke-width='2' stroke-dasharray='5,3'/></svg>Diastolic</span>" +
+  "</div>";
+  return "<div style='padding:8px 4px 0'>" + bpChartSvg(pts, "#C05A3A", "#5A8AC2") + "</div>" + legend +
+    "<div style='font-size:10px;color:#8A8578;padding:3px 10px 8px'>Bands: green &lt;130 &middot; amber 130&ndash;139 &middot; red &ge;140 (systolic) &middot; dotted lines = diastolic 80/90 thresholds</div>";
 }
 
 // Visual growth chart (v309, redesigned v310, true WHO centiles v347) — one
@@ -11587,7 +11649,7 @@ function growthChartsHtml(bd) {
   return "<div style='margin:0 12px 10px;padding:8px 4px 4px;background:#fff;border-radius:10px;border:1px solid #F0EBF8'>" +
     "<div style='font-size:11px;font-weight:700;color:#8A6A8A;text-transform:uppercase;letter-spacing:.4px;padding:0 8px 2px'>Weight-for-length centile</div>" +
     body +
-    "<div style='font-size:10px;color:#B8A8B8;padding:2px 8px 6px'>Shaded band = 15th&ndash;85th centile &middot; dotted line = 50th centile (WHO median)</div>" +
+    "<div style='font-size:10px;color:#8A8578;padding:3px 10px 6px'>Shaded band = typical range (15th&ndash;85th centile) &middot; dashed line = WHO median</div>" +
   "</div>";
 }
 
