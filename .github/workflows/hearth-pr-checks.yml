@@ -77,4 +77,37 @@ jobs:
             fi
           fi
 
+          # 5. Dosing literal pins — "never silently change strengths or
+          #    formulas" (CLAUDE.md), made mechanical. Any PR touching these
+          #    goes red until the greps are deliberately updated.
+          [ "$(grep -c "data-mgkg='15' data-mg5='120'" index.html)" = "1" ] \
+            || err "Calpol dosing constants changed unexpectedly (data-mgkg='15' data-mg5='120')"
+          [ "$(grep -c "data-mgkg='10' data-mg5='100'" index.html)" = "1" ] \
+            || err "Nurofen dosing constants changed unexpectedly (data-mgkg='10' data-mg5='100')"
+          [ "$(grep -c "data-floor='5'" index.html)" = "1" ] \
+            || err "Nurofen under-5kg floor constant changed unexpectedly (data-floor='5')"
+          [ "$(grep -cF 'Math.floor((w*mgkg*5/mg5)*4)/4' index.html)" = "1" ] \
+            || err "dose formula string changed unexpectedly"
+          [ "$(grep -c 'check the leaflet' index.html)" -ge "4" ] \
+            || err "'check the leaflet' safety wording count dropped below 4"
+
+          # 6. Duplicate top-level function names: a hoisting-shadowed
+          #    duplicate is a silent no-op no test can see, a grep can. A
+          #    known pre-existing duplicate region (whole workout-session
+          #    feature, tracked as a HEARTH-notes.md backlog item as of v350)
+          #    is allowlisted; any NEW duplicate fails the build.
+          ALLOWLISTED_DUPES="beginWorkout btnBusy clearST closeSessionOverlay completeCondRound completeWktRound doAddExercise finishWorkoutSession getOrMakeWorkout getPosePhoto getWD getWorkoutForDate inputsHtml openSessionOverlay openWorkoutSession playChime renderWorkoutSession saveSession saveWD skipWorkoutRest startConditioning startWorkoutRest startYogaTimer t2"
+          DUPES=$(grep -oE '^function [A-Za-z0-9_]+' index.html | awk '{print $2}' | sort | uniq -d)
+          NEW_DUPES=""
+          for d in $DUPES; do
+            case " $ALLOWLISTED_DUPES " in
+              *" $d "*) ;;
+              *) NEW_DUPES="$NEW_DUPES $d" ;;
+            esac
+          done
+          [ -z "$NEW_DUPES" ] || err "new duplicate function name(s) found (hoisting risk):$NEW_DUPES"
+
           exit $fail
+
+      - name: Behaviour tests
+        run: CHROME_BIN="$(command -v google-chrome || command -v chromium-browser)" node tests/run.js
