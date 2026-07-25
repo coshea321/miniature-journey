@@ -92,6 +92,12 @@ These are WARN not FAIL, since context matters:
   DOMPurify tag's and the main block's) — a literal `</script>` inside a JS
   string breaks the HTML parser and blank-pages the app.
 
+### 6. Behaviour tests (since v350)
+Run `node tests/run.js` and report its exit code. FAIL if non-zero — include
+the `::error::` lines from its output verbatim so the main session can see
+what broke without re-running it. If `tests/` doesn't exist yet (pre-v350
+checkout), SKIP this check rather than failing.
+
 ## Output format
 
 End with exactly this summary block:
@@ -103,7 +109,8 @@ HEARTH VERIFY — <version found in sw.js>
 3. File integrity ........ PASS/FAIL  (length: NNN,NNN bytes)
 4. Version bump .......... PASS/FAIL/SKIPPED
 5. Quirk spot checks ..... OK/WARN
+6. Behaviour tests ....... PASS/FAIL/SKIPPED
 VERDICT: SAFE TO COMMIT / DO NOT COMMIT
 ```
 
-VERDICT is DO NOT COMMIT if any of checks 1–4 FAIL.
+VERDICT is DO NOT COMMIT if any of checks 1–4 or 6 FAIL.
