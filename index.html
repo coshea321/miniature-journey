@@ -779,7 +779,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v351 · 25/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v352 · 25/07/2026</div>
 
   </div>
 </div>
@@ -6314,7 +6314,17 @@ function importBackupData(data) {
   if(data.workouts&&typeof data.workouts==="object"){
     var wd=getWD(); var wIds={}; wd.workouts.forEach(function(w){wIds[w.id]=true;});
     var newW=(data.workouts.workouts||[]).filter(function(w){return w&&!wIds[w.id];});
-    wd.workouts=newW.concat(wd.workouts); saveWD(wd);
+    wd.workouts=newW.concat(wd.workouts);
+    // v352: bodyweight/bp were dropped on restore (fix-queue batch A, finding 1).
+    // Additive union, keep-local on a same-date/same-ts collision (Cathal's call,
+    // consistent with the rest of this function being additive-only).
+    var bwIdx={}; (data.workouts.bodyweight||[]).forEach(function(e){if(e&&e.date)bwIdx[e.date]=e;});
+    (wd.bodyweight||[]).forEach(function(e){if(e&&e.date)bwIdx[e.date]=e;});
+    wd.bodyweight=Object.values(bwIdx).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
+    var bpIdx={}; (data.workouts.bp||[]).forEach(function(e){if(e&&e.ts)bpIdx[e.ts]=e;});
+    (wd.bp||[]).forEach(function(e){if(e&&e.ts)bpIdx[e.ts]=e;});
+    wd.bp=Object.values(bpIdx).sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+    saveWD(wd);
   }
   if(data.baby&&typeof data.baby==="object"){
     var bd=getBD(),bd2=data.baby;
@@ -7110,7 +7120,12 @@ function applyPersonal(d) {
     var bpIdx = {};
     (Array.isArray(remoteWD.bp) ? remoteWD.bp : []).forEach(function(e){ if(e && e.ts) bpIdx[e.ts] = e; });
     (Array.isArray(localWD.bp)  ? localWD.bp  : []).forEach(function(e){ if(e && e.ts) bpIdx[e.ts] = e; });
-    storeSet("fl4_workouts", Object.assign({}, remoteWD, {
+    // v352: base was remoteWD alone, so a local-only key the remote copy
+    // didn't have yet was wiped (fix-queue batch A, finding 12). Base on
+    // remoteWD+localWD (remote first, local overwrites — same precedence as
+    // the workouts/bodyweight/bp merges above) so unknown keys carry through
+    // from whichever side has them.
+    storeSet("fl4_workouts", Object.assign({}, remoteWD, localWD, {
       workouts: Object.values(wIdx).sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); }),
       bodyweight: Object.values(bwIdx).sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); }),
       bp: Object.values(bpIdx).sort(function(a,b){ return (b.ts||0)-(a.ts||0); })

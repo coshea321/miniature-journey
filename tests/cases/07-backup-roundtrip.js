@@ -28,6 +28,11 @@ module.exports = {
       bd.medicine.push({id:999002, name:'BackupTestMed', dose:'5ml', ts:Date.now(), updated:Date.now()});
       saveBD(bd);
 
+      var wd = getWD();
+      wd.bodyweight.push({date:'2026-01-01', weight:70});
+      wd.bp = (wd.bp||[]).concat([{ts:1735689600000, sys:120, dia:80}]);
+      saveWD(wd);
+
       var notes = getNotes('grocery');
       notes.unshift({id:999003, text:'BackupTestNote', updatedAt:Date.now()});
       saveNotes(notes, 'grocery');
@@ -57,6 +62,12 @@ module.exports = {
       tombs['backuptestapples'] = Date.now();
       storeSet('fl4_tomb_' + tombKey, tombs);
 
+      // Pre-existing local entry colliding with the backup on the same date —
+      // batch A (finding 1) says restore is keep-local-on-collision.
+      var wd = getWD();
+      wd.bodyweight.push({date:'2026-01-01', weight:999});
+      saveWD(wd);
+
       importBackupData(payload);
 
       loadListData('grocery');
@@ -66,6 +77,7 @@ module.exports = {
       var trips = getTrips();
       var bd = getBD();
       var notes = getNotes('grocery');
+      var wd2 = getWD();
 
       return {
         histHasApples: hist.some(function(h){ return h.name === 'BackupTestApples'; }),
@@ -74,7 +86,9 @@ module.exports = {
         hasTrip: trips.some(function(t){ return t.id === 999001; }),
         hasGrowth: (bd.growth||[]).some(function(g){ return g.date === '2026-01-01' && g.weight === 9; }),
         hasMedicine: (bd.medicine||[]).some(function(m){ return m.id === 999002; }),
-        hasNote: notes.some(function(n){ return n.id === 999003; })
+        hasNote: notes.some(function(n){ return n.id === 999003; }),
+        bodyweightKeptLocalOnCollision: (wd2.bodyweight||[]).some(function(e){ return e.date === '2026-01-01' && e.weight === 999; }),
+        hasBp: (wd2.bp||[]).some(function(e){ return e.ts === 1735689600000 && e.sys === 120; })
       };
     })()`);
 
@@ -85,6 +99,28 @@ module.exports = {
     ok('baby growth imported', importResult.hasGrowth, JSON.stringify(importResult));
     ok('baby medicine imported', importResult.hasMedicine, JSON.stringify(importResult));
     ok('note imported', importResult.hasNote, JSON.stringify(importResult));
+    ok('bodyweight restore keeps local value on same-date collision (finding 1)', importResult.bodyweightKeptLocalOnCollision, JSON.stringify(importResult));
+    ok('bp restored from backup (finding 1)', importResult.hasBp, JSON.stringify(importResult));
+
+    // Step 4: applyPersonal (the personal-sync apply path, finding 12) must
+    // carry through a local-only top-level getWD() key that the "remote"
+    // payload doesn't have yet, not just workouts/bodyweight/bp.
+    const syncResult = await page.evaluate(`(function(){
+      var wd = getWD();
+      wd.futureField = 'shouldSurvive';
+      saveWD(wd);
+
+      applyPersonal({ health: { workouts:[], bodyweight:[{date:'2026-02-01', weight:71}], bp:[] } });
+
+      var wd3 = getWD();
+      return {
+        futureFieldSurvived: wd3.futureField === 'shouldSurvive',
+        remoteBodyweightMerged: (wd3.bodyweight||[]).some(function(e){ return e.date === '2026-02-01' && e.weight === 71; })
+      };
+    })()`);
+
+    ok('applyPersonal carries through an unknown local-only getWD() key (finding 12)', syncResult.futureFieldSurvived, JSON.stringify(syncResult));
+    ok('applyPersonal still merges remote bodyweight in', syncResult.remoteBodyweightMerged, JSON.stringify(syncResult));
 
     return { pass, fail };
   },
