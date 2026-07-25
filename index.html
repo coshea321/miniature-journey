@@ -9732,6 +9732,10 @@ document.getElementById("sesBackBtn").addEventListener("click", function(){
     confirmDialog("Exit yoga session?", closeSessionOverlay);
     return;
   }
+  if (SS.type === "physio" && SS.pPhase === "running") {
+    confirmDialog("Exit?", closeSessionOverlay);
+    return;
+  }
   closeSessionOverlay();
 });
 
