@@ -779,7 +779,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v350 · 25/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v351 · 25/07/2026</div>
 
   </div>
 </div>
@@ -2008,13 +2008,6 @@ var manualCatId = null;
 var currentCatId = null;
 var editItemId = null;   // item whose category we're editing (null = adding new)
 var listData = { grocery:null, todo:null, travel:null, personal:null };
-
-// Sync state
-var fbUrl = ""; var syncRoom = "";
-var syncPaused = false;
-var lastPushTs = 0;       // timestamp of our last push to Firebase
-// Per-section sync prefs: default grocery/todo/travel ON, notes OFF
-var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, personal:false, notes:false, baby:false };
 
 // ============================================================
 // DOM REFS
@@ -7349,22 +7342,6 @@ function toast(msg) {
   toastTimer=setTimeout(function(){ elToast.classList.remove("show"); }, 2200);
 }
 
-function clearST() { if (ST) { clearInterval(ST); ST = null; } }
-
-function playChime(){
-  try{
-    var ctx=new(window.AudioContext||window.webkitAudioContext)();
-    [523.25,659.25,783.99].forEach(function(f,i){
-      var o=ctx.createOscillator(),g=ctx.createGain();
-      o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=f;
-      var t=ctx.currentTime+i*0.12;
-      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.25,t+0.04);
-      g.gain.exponentialRampToValueAtTime(0.001,t+1.1);
-      o.start(t);o.stop(t+1.1);
-    });
-  }catch(e){}
-}
-
 // ══════════════════════════════════════════════════════════
 // SPORTS (v308) — hideable pull-on-open scoreboard. Data from TheSportsDB
 // free key "3" (public sports data only; nothing personal is ever sent).
@@ -8529,25 +8506,6 @@ function renderSyncModal() {
   });
 }
 
-function doAddExercise(name) {
-  if (!name) return;
-  getOrMakeWorkout(workoutDate);
-  var data = getWD();
-  for (var i=0;i<data.workouts.length;i++) {
-    if (data.workouts[i].date===workoutDate) {
-      for (var j=0;j<data.workouts[i].exercises.length;j++) {
-        if (data.workouts[i].exercises[j].name.toLowerCase()===name.toLowerCase()) { toast("Already added!"); return; }
-      }
-      data.workouts[i].exercises.push({ name:name, sets:[{weight:0,reps:0}] });
-      saveWD(data);
-      document.getElementById("exerciseInput").value = "";
-      renderWorkoutLog();
-      openSetSheet(data.workouts[i].exercises.length-1, 0);
-      return;
-    }
-  }
-}
-
 // v348: cap a SORTED (count-desc, lastUsed-desc) hist array to 150 entries,
 // exempting any entry whose name matches a current list item (active or Done)
 // — stops the 150-cap from pruning history for things still visibly on the
@@ -8595,15 +8553,6 @@ function getNotes(lt) {
   return Array.isArray(v) ? v : [];
 }
 
-function saveSession(entry) {
-  var data = getWD();
-  data.workouts.unshift(entry);
-  data.workouts.sort(function(a,b){ return b.date.localeCompare(a.date); });
-  saveWD(data);
-}
-
-function saveWD(data) { storeSet("fl4_workouts", data); }
-
 // ── Calorie estimate for training sessions ────────────────
 function latestBodyweightKg() {
   var bw = (getWD().bodyweight||[]);
@@ -8614,308 +8563,11 @@ function estimateSessionKcal(met, minutes) {
   return Math.round(met * latestBodyweightKg() * minutes / 60);
 }
 
-function getWD()      { return storeGet("fl4_workouts") || { workouts:[], bodyweight:[] }; }
-
-function getWorkoutForDate(date) {
-  var data = getWD();
-  for (var i=0;i<data.workouts.length;i++) if (data.workouts[i].date===date) return data.workouts[i];
-  return null;
-}
-
-function getOrMakeWorkout(date) {
-  var data = getWD();
-  for (var i=0;i<data.workouts.length;i++) if (data.workouts[i].date===date) return;
-  data.workouts.unshift({ id:Date.now(), date:date, exercises:[] });
-  data.workouts.sort(function(a,b){ return b.date.localeCompare(a.date); });
-  saveWD(data);
-}
-
-function openSessionOverlay(title) {
-  clearST();
-  document.getElementById("sesTitle").textContent = title;
-  document.getElementById("sesCount").textContent = "";
-  document.getElementById("sesProgFill").style.width = "0%";
-  document.getElementById("sesProgFill").style.background = "#3B6FE0";
-  document.getElementById("sessionOverlay").style.display = "block";
-  document.body.style.overflow = "hidden";
-}
-
-function closeSessionOverlay() {
-  clearST();
-  document.getElementById("sessionOverlay").style.display = "none";
-  document.body.style.overflow = "";
-  // Refresh home dashboard if visible
-  if (currentSection === "home") renderHomeScreen();
-}
-
-function startYogaTimer() {
-  clearST();
-  if (SS.yPaused) return;
-  ST = setInterval(function(){
-    SS.yTime--;
-    var flow = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
-    var pose = flow[SS.yPoseIdx];
-    // Update timer in place without full re-render
-    var svg = document.querySelector("#sesBody svg");
-    if (svg) {
-      var txt = svg.querySelector("text"); if (txt) txt.textContent = SS.yTime;
-      var R=54, circ=2*Math.PI*R, pct=SS.yTime/pose.dur;
-      var circle = svg.querySelectorAll("circle")[1]; if (circle) circle.setAttribute("stroke-dashoffset", circ*(1-pct));
-    }
-    // Update progress bar
-    var elapsed = flow.slice(0,SS.yPoseIdx).reduce(function(a,p){return a+p.dur;},0)+(pose.dur-SS.yTime);
-    document.getElementById("sesProgFill").style.width = Math.min(elapsed/YOGA_TRAIN_TOTALS[SS.yFlowIdx]*100,100)+"%";
-
-    if (SS.yTime <= 0) {
-      clearST();
-      playChime();
-      var flow2 = YOGA_FLOWS_TRAIN[SS.yFlowIdx];
-      var next  = SS.yPoseIdx + 1;
-      if (next >= flow2.length) {
-        SS.yPhase = "done";
-        renderYogaSession();
-      } else {
-        SS.yPoseIdx = next;
-        SS.yTime    = flow2[next].dur;
-        renderYogaSession();
-        startYogaTimer();
-      }
-    }
-  }, 1000);
-}
-
 function openPhysioSession(progIdx) {
   SS = { type:"physio", pProgIdx:progIdx, pExIdx:0, pSetNum:1, pTime:0, pRunning:false, pPhase:"intro" };
   openSessionOverlay(PROGRAMMES_TRAIN[progIdx].name.replace(/&amp;/g,"&"));
   document.getElementById("sesProgFill").style.background = "#14b8a6";
   renderPhysioSession();
-}
-
-function openWorkoutSession(wType) {
-  SS = { type:"workout", wType:wType, wSsIdx:0, wRound:1, wPhase:"intro", wRestTime:0, wRestDur:0, wCondRound:1, wEntries:{} };
-  var wk = WK_TRAIN[wType];
-  openSessionOverlay(wk.name);
-  document.getElementById("sesProgFill").style.background = wk.color;
-  renderWorkoutSession();
-}
-
-function beginWorkout() {
-  SS.wPhase = "log";
-  renderWorkoutSession();
-}
-
-function renderWorkoutSession() {
-  var wk   = WK_TRAIN[SS.wType];
-  var body = document.getElementById("sesBody");
-
-  if (SS.wPhase === "intro") {
-    var allExs = [];
-    wk.supersets.forEach(function(ss2){ ss2.exercises.forEach(function(ex){ allExs.push(ex); }); });
-    allExs = allExs.concat(COND_TRAIN.exercises);
-    var exList = allExs.map(function(ex,i){
-      return "<div class='ses-intro-ex'>" +
-        "<div class='ses-intro-ex-num' style='background:"+wk.color+"30;color:"+wk.color+"'>"+(i+1)+"</div>" +
-        "<span class='ses-intro-ex-name'>"+esc(ex.name)+"</span>" +
-        "<span class='ses-intro-ex-note'>"+esc(ex.type==="weighted"?"weighted":ex.type==="duration"?"hold":"reps")+"</span>" +
-      "</div>";
-    }).join("");
-    body.innerHTML = "<div class='ses-intro'>" +
-      "<div class='ses-intro-ico'>"+(SS.wType==="pull"?"&#x1F4AA;":"&#x1F525;")+"</div>" +
-      "<div class='ses-intro-name'>"+wk.name+"</div>" +
-      "<div class='ses-intro-sub'>"+wk.supersets.length+" supersets &middot; 3 rounds each &middot; 50s rest</div>" +
-      "<div class='ses-intro-list'>"+exList+"</div>" +
-      "<button class='ses-begin-btn' style='background:"+wk.color+"' onclick='beginWorkout()'>Start workout</button>" +
-      "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
-    "</div>";
-    return;
-  }
-
-  if (SS.wPhase === "rest") {
-    var R=54,circ=2*Math.PI*R,pct=SS.wRestTime/SS.wRestDur;
-    var so=circ*(1-pct);
-    body.innerHTML = "<div style='text-align:center;padding-top:30px'>" +
-      "<div class='ses-rest-label'>Rest</div>" +
-      "<div class='ses-rest-next' id='restNextLbl'></div>" +
-      "<div class='ses-timer-wrap'>" +
-      "<svg width='130' height='130' style='display:block;margin:0 auto' id='restSvg'>" +
-        "<circle cx='65' cy='65' r='"+R+"' fill='none' stroke='#E5DFD3' stroke-width='8'/>" +
-        "<circle cx='65' cy='65' r='"+R+"' fill='none' stroke='"+WK_TRAIN[SS.wType].color+"' stroke-width='8'" +
-        " stroke-dasharray='"+circ+"' stroke-dashoffset='"+so+"'" +
-        " stroke-linecap='round' transform='rotate(-90 65 65)' id='restArc'/>" +
-        "<text x='65' y='72' text-anchor='middle' fill='#2A2010' font-size='34' font-weight='bold' id='restNum'>"+SS.wRestTime+"</text>" +
-      "</svg></div>" +
-      "<button class='ses-skip-btn' onclick='skipWorkoutRest()'>Skip rest</button>" +
-    "</div>";
-    return;
-  }
-
-  if (SS.wPhase === "condOption") {
-    body.innerHTML = "<div style='padding:28px 0 16px;text-align:center'>" +
-      "<div style='font-size:36px;margin-bottom:10px'>&#x1F3C3;</div>" +
-      "<div style='font-family:Georgia,serif;font-size:20px;font-weight:600;color:#2A2010;margin-bottom:6px'>Main work done!</div>" +
-      "<div style='font-size:14px;color:#8A7A5A;margin-bottom:22px'>Add conditioning?</div>" +
-      "<div class='cond-opt' onclick='startConditioning()'>" +
-        "<div class='cond-opt-title'>Yes, add conditioning</div>" +
-        "<div class='cond-opt-sub'>"+COND_TRAIN.exercises[0].name+" + "+COND_TRAIN.exercises[1].name+" &middot; "+COND_TRAIN.rounds+" rounds</div>" +
-      "</div>" +
-      "<div class='cond-opt' onclick='finishWorkoutSession(false)'>" +
-        "<div class='cond-opt-title'>No thanks, I\'m done</div>" +
-        "<div class='cond-opt-sub'>Save and finish</div>" +
-      "</div>" +
-    "</div>";
-    return;
-  }
-
-  if (SS.wPhase === "cond") {
-    var exHtml = COND_TRAIN.exercises.map(function(ex,i){
-      var key = "cond_"+SS.wCondRound+"_"+ex.id;
-      var val = SS.wEntries[key] || {};
-      return "<div class='ss-ex'>" +
-        "<div class='ss-ex-name'>"+esc(ex.name)+"</div>" +
-        "<div class='ss-inputs'>" + inputsHtml(ex, key, val) + "</div>" +
-      "</div>";
-    }).join("");
-    body.innerHTML = "<div class='ss-card'>" +
-      "<div class='ss-card-hdr'><span class='ss-card-label'>Conditioning</span><span class='ss-card-round'>Round "+SS.wCondRound+" of "+COND_TRAIN.rounds+"</span></div>" +
-      exHtml + "</div>" +
-      "<button class='ss-done-btn' onclick='completeCondRound()'>Done</button>";
-    wireInputs();
-    return;
-  }
-
-  if (SS.wPhase === "complete") {
-    body.innerHTML = "<div class='ses-done-wrap'>" +
-      "<div class='ses-done-ico'>&#x1F4AA;</div>" +
-      "<div class='ses-done-title'>"+WK_TRAIN[SS.wType].name+" done!</div>" +
-      "<div class='ses-done-sub'>Great work. Saved to your log.</div>" +
-      "<button class='ses-done-btn' onclick='closeSessionOverlay()'>Finish</button>" +
-    "</div>";
-    return;
-  }
-
-  // Log phase: show current superset
-  var ss2 = wk.supersets[SS.wSsIdx];
-  var total = wk.supersets.reduce(function(t,s){ return t+s.rounds; }, 0);
-  var done  = wk.supersets.slice(0,SS.wSsIdx).reduce(function(t,s){ return t+s.rounds; },0) + (SS.wRound-1);
-  document.getElementById("sesProgFill").style.width = (done/total*100)+"%";
-
-  var exHtml2 = ss2.exercises.map(function(ex){
-    var key = ss2.id+"_"+SS.wRound+"_"+ex.id;
-    var val = SS.wEntries[key] || {};
-    return "<div class='ss-ex'>" +
-      "<div class='ss-ex-name'>"+esc(ex.name)+"</div>" +
-      "<div class='ss-inputs'>" + inputsHtml(ex, key, val) + "</div>" +
-    "</div>";
-  }).join("");
-
-  body.innerHTML = "<div class='ss-card'>" +
-    "<div class='ss-card-hdr'>" +
-      "<span class='ss-card-label'>Superset "+ss2.id+"</span>" +
-      "<span class='ss-card-round'>Round "+SS.wRound+" of "+ss2.rounds+"</span>" +
-    "</div>" +
-    exHtml2 + "</div>" +
-    "<button class='ss-done-btn' onclick='completeWktRound()'>Done with round</button>";
-  wireInputs();
-}
-
-function completeWktRound() {
-  var wk = WK_TRAIN[SS.wType], ss2 = wk.supersets[SS.wSsIdx];
-  if (SS.wRound < ss2.rounds) {
-    startWorkoutRest(ss2.restSec, function(){ SS.wRound++; renderWorkoutSession(); });
-  } else if (SS.wSsIdx < wk.supersets.length-1) {
-    startWorkoutRest(ss2.restSec, function(){ SS.wSsIdx++; SS.wRound=1; renderWorkoutSession(); });
-  } else {
-    SS.wPhase = "condOption";
-    renderWorkoutSession();
-  }
-}
-
-function startWorkoutRest(dur, onDone) {
-  SS.wPhase   = "rest";
-  SS.wRestDur = dur;
-  SS.wRestTime = dur;
-  SS._onRestDone = onDone;
-  renderWorkoutSession();
-  clearST();
-  ST = setInterval(function(){
-    SS.wRestTime--;
-    var numEl = document.getElementById("restNum");
-    var arcEl = document.getElementById("restArc");
-    if (numEl) numEl.textContent = SS.wRestTime;
-    if (arcEl) {
-      var R=54,circ=2*Math.PI*R,pct=SS.wRestTime/SS.wRestDur;
-      arcEl.setAttribute("stroke-dashoffset", circ*(1-pct));
-    }
-    if (SS.wRestTime<=0) {
-      clearST(); playChime();
-      SS.wPhase="log";
-      if (SS._onRestDone) { SS._onRestDone(); SS._onRestDone=null; }
-    }
-  },1000);
-}
-
-function skipWorkoutRest() {
-  clearST();
-  SS.wPhase = "log";
-  if (SS._onRestDone) { SS._onRestDone(); SS._onRestDone=null; }
-}
-
-function startConditioning() { SS.wPhase="cond"; SS.wCondRound=1; renderWorkoutSession(); }
-
-function completeCondRound() {
-  if (SS.wCondRound < COND_TRAIN.rounds) { SS.wCondRound++; renderWorkoutSession(); }
-  else { finishWorkoutSession(true); }
-}
-
-function finishWorkoutSession(withCond) {
-  var wk = WK_TRAIN[SS.wType];
-  var exercises = [];
-  wk.supersets.forEach(function(ss2){
-    ss2.exercises.forEach(function(ex){
-      var sets = [];
-      for (var r=1;r<=ss2.rounds;r++) {
-        var v = SS.wEntries[ss2.id+"_"+r+"_"+ex.id]||{};
-        sets.push({ reps:+v.reps||0, weight:+v.weight||0, duration:+v.duration||0 });
-      }
-      exercises.push({ name:ex.name, sets:sets });
-    });
-  });
-  var _wSets = exercises.reduce(function(s,ex){ return s + (ex.sets?ex.sets.length:0); }, 0);
-  saveSession({ id:Date.now(), date:trainTodayStr(), type:'workout', sessionName:wk.name,
-    kcal:estimateSessionKcal(4.0, _wSets * 1.5), exercises:exercises });
-  SS.wPhase = "complete";
-  renderWorkoutSession();
-  toast("&#x1F4AA; "+wk.name+" saved!");
-}
-
-function t2(n) { return n < 10 ? "0"+n : ""+n; }
-
-function getPosePhoto(name) {
-  var n = name.toLowerCase();
-  if (n.includes('seated forward fold variation')) return POSE_PHOTOS_TRAIN.seated_fwd_var;
-  if (n.includes('boat prep')||n.includes('core stability')) return POSE_PHOTOS_TRAIN.boat_prep;
-  if (n.includes('seated spinal twist')) return POSE_PHOTOS_TRAIN.seated_twist;
-  if (n.includes('head-to-knee')||n.includes('janu')) return POSE_PHOTOS_TRAIN.head_to_knee;
-  if (n.includes('bound angle')||n.includes('diamond')) return POSE_PHOTOS_TRAIN.bound_angle;
-  if (n.includes('swimming')) return POSE_PHOTOS_TRAIN.swimming;
-  if (n.includes('paschimottanasana')||(n.includes('seated forward fold')&&!n.includes('variation'))) return POSE_PHOTOS_TRAIN.paschimottanasana;
-  if (n.includes('froggy')) return POSE_PHOTOS_TRAIN.froggy;
-  if (n.includes('yogi squat')) return POSE_PHOTOS_TRAIN.yogi_squat;
-  if (n.includes('standing forward')) return POSE_PHOTOS_TRAIN.standing_fold;
-  if (n.includes('knees to chest')) return POSE_PHOTOS_TRAIN.knees_chest;
-  if (n.includes('eagle legs')) return POSE_PHOTOS_TRAIN.eagle_twist;
-  if (n.includes('happy baby')) return POSE_PHOTOS_TRAIN.happy_baby;
-  if (n.includes('windshield')) return POSE_PHOTOS_TRAIN.windshield;
-  return null;
-}
-
-function inputsHtml(ex, key, val) {
-  if (ex.type === "weighted") return "" +
-    "<div class='ss-field'><div class='ss-field-label'>Reps</div><input class='ss-input' type='number' inputmode='numeric' placeholder='--' value='"+(val.reps||"")+"' data-key='"+key+"' data-field='reps'></div>" +
-    "<div class='ss-field'><div class='ss-field-label'>kg</div><input class='ss-input' type='number' inputmode='decimal' placeholder='--' value='"+(val.weight||"")+"' data-key='"+key+"' data-field='weight'></div>";
-  if (ex.type === "duration") return "" +
-    "<div class='ss-field'><div class='ss-field-label'>Seconds</div><input class='ss-input' type='number' inputmode='numeric' placeholder='--' value='"+(val.duration||"")+"' data-key='"+key+"' data-field='duration'></div>";
-  return "<div class='ss-field'><div class='ss-field-label'>Reps</div><input class='ss-input' type='number' inputmode='numeric' placeholder='--' value='"+(val.reps||"")+"' data-key='"+key+"' data-field='reps'></div>";
 }
 
 function insertBlock(tag) {
@@ -8955,13 +8607,6 @@ function fmtDate(ts) {
   var d = new Date(ts);
   var p = function(x){ return x < 10 ? "0"+x : x; };
   return d.getDate()+"/"+p(d.getMonth()+1)+"/"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes());
-}
-
-function btnBusy(el) {
-  if (el._busy) return true;
-  el._busy = true;
-  setTimeout(function(){ el._busy = false; }, 800);
-  return false;
 }
 
 document.getElementById("bnHome").addEventListener("click",  function(){ switchSection("home");  });

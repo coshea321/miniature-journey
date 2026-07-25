@@ -92,11 +92,11 @@ jobs:
             || err "'check the leaflet' safety wording count dropped below 4"
 
           # 6. Duplicate top-level function names: a hoisting-shadowed
-          #    duplicate is a silent no-op no test can see, a grep can. A
-          #    known pre-existing duplicate region (whole workout-session
-          #    feature, tracked as a HEARTH-notes.md backlog item as of v350)
-          #    is allowlisted; any NEW duplicate fails the build.
-          ALLOWLISTED_DUPES="beginWorkout btnBusy clearST closeSessionOverlay completeCondRound completeWktRound doAddExercise finishWorkoutSession getOrMakeWorkout getPosePhoto getWD getWorkoutForDate inputsHtml openSessionOverlay openWorkoutSession playChime renderWorkoutSession saveSession saveWD skipWorkoutRest startConditioning startWorkoutRest startYogaTimer t2"
+          #    duplicate is a silent no-op no test can see, a grep can.
+          #    The pre-existing workout-session duplicate region was removed
+          #    in v351 (all 24 pairs verified byte-identical before deletion),
+          #    so the allowlist is empty — ANY duplicate fails the build.
+          ALLOWLISTED_DUPES=""
           DUPES=$(grep -oE '^function [A-Za-z0-9_]+' index.html | awk '{print $2}' | sort | uniq -d)
           NEW_DUPES=""
           for d in $DUPES; do
