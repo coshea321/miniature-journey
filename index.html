@@ -670,6 +670,56 @@ body.train-mode #toast{background:#3A3328}
 .bs-dot{width:8px;height:8px;border-radius:50%;background:#C8BEA8;opacity:.25;animation:bsPulse 1.2s infinite ease-in-out}
 @keyframes bsPulse{0%,100%{opacity:.25}40%{opacity:.9}}
 </style>
+<script>
+// ── Boot splash failsafe (v356) ────────────────────────────────────────
+// Every path that hides #bootSplash — including the gate's own 4s/8s
+// deadline timer — lives at the BOTTOM of the one giant inline script.
+// So anything that stops that script from reaching the bottom (an uncaught
+// throw ~12,000 lines up, a reload navigation that never commits) left the
+// splash covering the app forever: the reported "stuck on the loading
+// screen until I close and reopen it".
+// This block runs at parse time, before that script exists, so nothing in
+// it can disable this ceiling. Worst case the app is revealed at 12s.
+(function(){
+  var HARD_MS = 12000;   // > the gate's own 8s worst case, so it never pre-empts a real update
+  var ERR_MS  = 1500;    // boot threw before the gate armed — reveal quickly
+
+  window.__hearthSplashGone = false;
+
+  window.__hearthSplashHide = function() {
+    if (window.__hearthSplashGone) return;
+    window.__hearthSplashGone = true;
+    if (window.__hearthSplashTimer) { clearTimeout(window.__hearthSplashTimer); window.__hearthSplashTimer = null; }
+    var s = document.getElementById("bootSplash");
+    if (s) {
+      s.style.opacity = "0";
+      setTimeout(function(){ s.style.display = "none"; }, 200);
+    }
+    // Keep the main gate's own flag in sync so it can't reload behind a
+    // splash that is already gone (hook is defined once the gate parses).
+    if (typeof window.__hearthSplashGoneHook === "function") {
+      try { window.__hearthSplashGoneHook(); } catch (e) {}
+    }
+  };
+
+  window.__hearthSplashTimer = setTimeout(window.__hearthSplashHide, HARD_MS);
+
+  // Restored from the back-forward cache: no script re-runs, so the gate
+  // never gets another chance to hide a splash left up by the last visit.
+  window.addEventListener("pageshow", function(e){
+    if (e.persisted) window.__hearthSplashHide();
+  });
+
+  // An uncaught error before the gate armed means the deadline timer will
+  // never exist — don't make the user wait out the full ceiling for it.
+  window.addEventListener("error", function(){
+    if (window.__hearthBootGateArmed) return;
+    setTimeout(function(){
+      if (!window.__hearthBootGateArmed) window.__hearthSplashHide();
+    }, ERR_MS);
+  });
+})();
+</script>
 
 <header>
   <div class="app-title" id="appTitle">🔥 Hearth</div>
@@ -779,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v355 · 25/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v356 · 25/07/2026</div>
 
   </div>
 </div>
@@ -11901,20 +11951,28 @@ if (hearthFbId && hearthFbId.indexOf(".") === -1) {
 
 var bootSection = "home";
 
-if (_isTestBuild) {
-  // Test builds never talk to Firebase — skip login/session entirely.
-  hideLoginOverlay();
-  switchSection(bootSection);
-} else if (isLoggedIn()) {
-  verifySession();
-} else if (_isPreview) {
-  hideLoginOverlay();
-  switchSection(bootSection);
-} else {
-  showLoginOverlay();
+// Wrapped in v356: a throw anywhere in here used to abort the rest of the
+// script, so the boot gate below never ran and its splash-hiding deadline
+// was never armed — the app sat behind the splash forever. Boot failing is
+// still a bug, but it must never take the whole screen down with it.
+try {
+  if (_isTestBuild) {
+    // Test builds never talk to Firebase — skip login/session entirely.
+    hideLoginOverlay();
+    switchSection(bootSection);
+  } else if (isLoggedIn()) {
+    verifySession();
+  } else if (_isPreview) {
+    hideLoginOverlay();
+    switchSection(bootSection);
+  } else {
+    showLoginOverlay();
+  }
+} catch (bootErr) {
+  console.error("Boot init failed:", bootErr);
 }
 
-applySectionVisibility();
+try { applySectionVisibility(); } catch (visErr) { console.error("applySectionVisibility failed:", visErr); }
 
 // ── Service worker + boot splash gate (v312) ───────────────
 // The #bootSplash overlay covers the app from first paint. It hides only
@@ -11934,7 +11992,10 @@ function _verNum(v) {
   var m = /^v(\d+)/.exec(String(v || ""));
   return m ? parseInt(m[1], 10) : 0;
 }
-var _bootSplashGone = false;
+// Seeded from the failsafe: if its ceiling already fired (this script took
+// >12s to reach here), the splash is gone and the gate must not act as if
+// it were still up.
+var _bootSplashGone = !!window.__hearthSplashGone;
 var _bootUpdateInstalling = false;   // a new SW is downloading/installing
 var _bootUpdateCheckDone = false;    // reg.update() has settled
 var _bootExtended = false;           // 4s→8s extension already used
@@ -11944,11 +12005,19 @@ function hideBootSplash() {
   if (_bootSplashGone) return;
   _bootSplashGone = true;
   if (_bootDeadline) { clearTimeout(_bootDeadline); _bootDeadline = null; }
+  if (window.__hearthSplashHide) { window.__hearthSplashHide(); return; }
   var s = document.getElementById("bootSplash");
   if (!s) return;
   s.style.opacity = "0";
   setTimeout(function(){ s.style.display = "none"; }, 200);
 }
+
+// Called by the failsafe when IT hides the splash, so the gate's own state
+// matches what is on screen (v356).
+window.__hearthSplashGoneHook = function() {
+  _bootSplashGone = true;
+  if (_bootDeadline) { clearTimeout(_bootDeadline); _bootDeadline = null; }
+};
 
 function bootConfirmedCurrent() {
   try { sessionStorage.removeItem("hearthBootReloaded"); } catch(err) {}
@@ -11973,6 +12042,10 @@ if (!("serviceWorker" in navigator) || _isPreview || _isTestBuild) {
   // so there is nothing stale to hide.
   hideBootSplash();
 }
+
+// Tells the failsafe the real deadline timer now exists, so a later error
+// no longer means "nothing will ever hide the splash" (v356).
+window.__hearthBootGateArmed = true;
 
 if (!_bootSplashGone) {
   _bootDeadline = setTimeout(function bootDeadlineHit() {
