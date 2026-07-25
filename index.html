@@ -779,7 +779,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v353 · 25/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v354 · 25/07/2026</div>
 
   </div>
 </div>
@@ -7797,6 +7797,19 @@ function closeTopOverlay() {
   var toothModal = document.getElementById("toothModal");
   if (toothModal && toothModal.classList.contains("open")) { toothModal.classList.remove("open"); return true; }
 
+  // v354: Train/yoga session overlay toggles style.display directly (no .overlay
+  // class, no role="dialog"), so no earlier branch ever catches it — back-press
+  // used to fall through to switchSection() while the timer kept running
+  // underneath. Click the EXISTING sesBackBtn so its own exit-confirm guard still
+  // applies (never reimplement the close, same principle as the data-bbclose
+  // step above); the confirmDialog it raises is itself caught by step 1 on a
+  // second back-press (bug review finding 5, 25/07/2026).
+  var sessionOverlay = document.getElementById("sessionOverlay");
+  if (sessionOverlay && sessionOverlay.style.display === "block") {
+    document.getElementById("sesBackBtn").click();
+    return true;
+  }
+
   // v345: trip editor / booking editor are innerHTML swaps of #tripsContent,
   // not overlays, so they need their own check — LAST, since a confirmDialog
   // can still be sitting above the editor (step 1 catches that first). Ask
@@ -9712,10 +9725,12 @@ function closeSessionOverlay() {
 
 document.getElementById("sesBackBtn").addEventListener("click", function(){
   if (SS.type === "workout" && SS.wPhase !== "complete") {
-    if (!confirm("Exit workout? Progress will be lost.")) return;
+    confirmDialog("Exit workout? Progress will be lost.", closeSessionOverlay);
+    return;
   }
   if (SS.type === "yoga" && SS.yStarted && SS.yPhase === "running") {
-    if (!confirm("Exit yoga session?")) return;
+    confirmDialog("Exit yoga session?", closeSessionOverlay);
+    return;
   }
   closeSessionOverlay();
 });
