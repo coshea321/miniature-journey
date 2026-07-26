@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v359 · 26/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v360 · 26/07/2026</div>
 
   </div>
 </div>
@@ -2509,9 +2509,9 @@ function importTripFromJSON(raw) {
   if (!obj.name || typeof obj.name !== "string") return { error: "Missing trip name." };
   var now = Date.now();
   var newId = now + Math.floor(Math.random()*100000);
-  var bookings = Array.isArray(obj.bookings) ? obj.bookings.map(function(b){
+  var bookings = Array.isArray(obj.bookings) ? obj.bookings.map(function(b, i){
     return {
-      id: now + Math.floor(Math.random()*100000),
+      id: now + i*1000 + Math.floor(Math.random()*1000),
       type: b.type || "other",
       title: b.title || "",
       start: b.start || "",
@@ -2538,8 +2538,8 @@ function mergeBookingsIntoTrip(tripId, bookingObjs) {
   var trip = trips.find(function(t){ return t.id === tripId; });
   if (!trip) return { error: "Trip not found." };
   var now = Date.now();
-  var newBookings = (bookingObjs||[]).map(function(b){
-    return { id: now + Math.floor(Math.random()*100000), type:b.type||"other", title:b.title||"", start:b.start||"", end:b.end||null, location:b.location||"", ref:b.ref||"", notes:b.notes||"", connectsFrom:!!b.connectsFrom, boarding:b.boarding||"", gate:b.gate||"", seats:b.seats||"", updated:now };
+  var newBookings = (bookingObjs||[]).map(function(b, i){
+    return { id: now + i*1000 + Math.floor(Math.random()*1000), type:b.type||"other", title:b.title||"", start:b.start||"", end:b.end||null, location:b.location||"", ref:b.ref||"", notes:b.notes||"", connectsFrom:!!b.connectsFrom, boarding:b.boarding||"", gate:b.gate||"", seats:b.seats||"", updated:now };
   });
   trip.bookings = (trip.bookings||[]).concat(newBookings);
   trip.updated = now;
@@ -2579,7 +2579,7 @@ function mergeTripsData(localTrips, incomingTrips, tripTombs, bookingTombs) {
     var fresh = (incB || []).filter(function(b){ return b && b.id != null && !localIds[b.id]; });
     var full = fresh.concat(merged);
     return full.filter(function(b){
-      return !(b && bookingTombs[b.id] && bookingTombs[b.id] > (b.updated||0));
+      return !(b && bookingTombs[b.id] && bookingTombs[b.id] >= (b.updated||0));
     });
   }
   var incById = {};
@@ -2604,7 +2604,7 @@ function mergeTripsData(localTrips, incomingTrips, tripTombs, bookingTombs) {
   var fresh = (incomingTrips || []).filter(function(t){ return t && t.id != null && !localIds[t.id]; });
   var full = fresh.concat(merged);
   full = full.filter(function(t){
-    return !(t && tripTombs[t.id] && tripTombs[t.id] > (t.updated||0));
+    return !(t && tripTombs[t.id] && tripTombs[t.id] >= (t.updated||0));
   });
   return { trips: full, push: push };
 }
@@ -5444,6 +5444,7 @@ function openNoteEditor(title, body, onSave, onDelete) {
   function doSave() {
     var t = (titleEl.value || currentTitle).trim();
     var b = bodyEl.innerHTML || currentBody;
+    if (typeof DOMPurify !== "undefined") b = DOMPurify.sanitize(b);
     if (b.replace(/<[^>]*>/g,"").trim() === "") b = "";
     document.body.removeChild(overlay);
     _neCloseFn = null;
@@ -7667,7 +7668,9 @@ function renderFamlog() {
   });
   html += "</div>";
 
-  if (!shown.length) {
+  if (!shown.length && hasMore) {
+    html += "<div style='text-align:center;color:#8A7A8A;padding:30px 16px'><div style='font-size:40px'>&#x1F4D6;</div><div style='font-size:15px;font-weight:600;margin:8px 0 4px'>Nothing in the last "+_famlogDays+" days</div><div style='font-size:13px'>Load earlier shows older events.</div></div>";
+  } else if (!shown.length) {
     html += "<div style='text-align:center;color:#8A7A8A;padding:30px 16px'><div style='font-size:40px'>&#x1F4D6;</div><div style='font-size:15px;font-weight:600;margin:8px 0 4px'>Nothing here yet</div><div style='font-size:13px'>Events from Baby, Train, Trips and Notes will appear as they're logged"+(_famlogFilter!=="all"?" &mdash; try the All filter":"")+".</div></div>";
   } else {
     var lastDate = null;
@@ -8443,6 +8446,7 @@ window.addEventListener("DOMContentLoaded", function() {
     var linkVal = document.getElementById("itemSheetLink").value.trim();
     // Add https:// if a bare domain/path was pasted without a scheme
     if (linkVal && !/^https?:\/\//i.test(linkVal) && !/^[a-z]+:/i.test(linkVal)) linkVal = "https://" + linkVal;
+    if (linkVal && !/^(https?|mailto|tel):/i.test(linkVal)) { toast("Link must be a http(s), mailto or tel address"); return; }
     item.link = linkVal || null;
     if (currentList === "travel") {
       item.tags = (_sheetTags && _sheetTags.length) ? _sheetTags.slice() : null;
@@ -10770,9 +10774,9 @@ function applyHousehold(data) {
     storeSet(LIST_CONFIG[lt].key, listData[lt]);
     if (Array.isArray(d.notes)) storeSet("fl4_notes_" + lt, d.notes.filter(Boolean));
     if (Array.isArray(d.customCats) && d.customCats.length) {
-      var existing = getCustomCats(lt), existingIds = {};
-      existing.forEach(function(c){ existingIds[c.id]=true; });
-      var newCats = d.customCats.filter(function(c){ return c && !existingIds[c.id]; });
+      var existing = getCustomCats(lt), existingCatIds = {};
+      existing.forEach(function(c){ existingCatIds[c.id]=true; });
+      var newCats = d.customCats.filter(function(c){ return c && !existingCatIds[c.id]; });
       if (newCats.length) saveCustomCats(lt, existing.concat(newCats));
     }
   });
@@ -10829,7 +10833,7 @@ function applyHousehold(data) {
       var rTombs = mergeTombs(getTombs("recipes"), data["rb_deleted"]);
       storeSet("fl4_tomb_recipes", rTombs);
       var rbPre = rbFull.length;
-      rbFull = rbFull.filter(function(m){ return !(m && rTombs[m.id] && rTombs[m.id] > (m.updated||0)); });
+      rbFull = rbFull.filter(function(m){ return !(m && rTombs[m.id] && rTombs[m.id] >= (m.updated||0)); });
       if (rbFull.length < rbPre) rbNeedPush = true;
     }
     storeSet("fl4_recipebook", rbFull);
@@ -11480,10 +11484,12 @@ function medAgoStr(ms){
 // tombstones in v1 (see HEARTH-notes) — "New bottle" reset is the common
 // op, not delete, so a resurrect-from-stale-copy risk is accepted.
 function bottleFreshness(b) {
-  var discardTs = (b.openedTs||0) + (b.useWithinDays||0)*86400000;
+  var windowMs = (b.useWithinDays||0)*86400000;
+  var discardTs = (b.openedTs||0) + windowMs;
+  var dueLeadMs = Math.min(14*24*3600*1000, windowMs*0.25);
   var now = Date.now(), status;
   if (now >= discardTs) status = "past";
-  else if (now >= discardTs - 14*24*3600*1000) status = "due";
+  else if (now >= discardTs - dueLeadMs) status = "due";
   else status = "fresh";
   return { discardTs: discardTs, status: status };
 }
@@ -12087,7 +12093,7 @@ if (!_bootSplashGone) {
 }
 
 if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
-  navigator.serviceWorker.register("./sw.js?v=121", { updateViaCache: "none" }).then(function(reg) {
+  navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).then(function(reg) {
     reg.addEventListener("updatefound", function(){ _bootUpdateInstalling = true; });
     if (reg.installing) _bootUpdateInstalling = true;
     var upd = reg.update();
