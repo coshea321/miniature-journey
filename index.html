@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v358 · 26/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v359 · 26/07/2026</div>
 
   </div>
 </div>
@@ -1933,7 +1933,7 @@ function deleteHistEntries(lt, names) { // names: array of lowercase names
   var t = getTombs(histTombKey(lt)), now = Date.now();
   names.forEach(function(n){ t[n] = now; });
   storeSet("fl4_tomb_" + histTombKey(lt), t);
-  listData[lt].hist = (listData[lt].hist || []).filter(function(h){ return h && names.indexOf(h.name.toLowerCase()) === -1; });
+  listData[lt].hist = (listData[lt].hist || []).filter(function(h){ return h && h.name && names.indexOf(h.name.toLowerCase()) === -1; });
 }
 // ── Baby sync merge (v329) — ONE shared merge for BOTH sync channels ────────
 // Replaces the household channel's top-level Object.assign (which wholesale-
@@ -2173,6 +2173,7 @@ function showAC(query) {
   var matches = [];
   var matchedNames = {};
   for (var i = 0; i < hist.length && matches.length < 7; i++) {
+    if (!hist[i] || !hist[i].name) continue;
     var hn = hist[i].name.toLowerCase();
     if (hn.indexOf(q) !== -1 && hn !== q) { matches.push(hist[i]); matchedNames[hn] = true; }
   }
@@ -2373,6 +2374,7 @@ function addToHist(name, catId) {
   clearHistTomb(currentList, name); // re-adding revives a deleted history entry (v323)
   var hist = getHist(), found = null;
   for (var i = 0; i < hist.length; i++) {
+    if (!hist[i] || !hist[i].name) continue;
     if (hist[i].name.toLowerCase()===name.toLowerCase()) { found = hist[i]; break; }
   }
   if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); histRecordDate(found); }
@@ -4849,7 +4851,7 @@ var _histSelectMode = false, _histSelected = {}; // v323 multi-select delete; ke
 function renderHistory() {
   var q = (document.getElementById("histSearch").value||"").trim().toLowerCase();
   var hist = getHist();
-  var filtered = hist.filter(function(h){ return !q||h.name.toLowerCase().indexOf(q)!==-1; }).slice(0,60);
+  var filtered = hist.filter(function(h){ return h && h.name && (!q||h.name.toLowerCase().indexOf(q)!==-1); }).slice(0,60);
   if (!filtered.length) {
     _histSelectMode=false; _histSelected={};
     elHistoryC.innerHTML="<div class='empty'><div class='empty-ico'>&#x1F550;</div><div class='empty-title'>"+(q?"No matches":"No history yet")+"</div><div class='empty-sub'>"+(q?"Try a different search":"Items you add will appear here for quick re-adding")+"</div></div>";
@@ -9446,7 +9448,7 @@ function doHqpAdd() {
 function addToHistFor(lt, name, catId) {
   clearHistTomb(lt, name); // re-adding revives a deleted history entry (v323)
   var hist = loadListData(lt).hist, found = null;
-  for (var i = 0; i < hist.length; i++) { if (hist[i].name.toLowerCase() === name.toLowerCase()) { found = hist[i]; break; } }
+  for (var i = 0; i < hist.length; i++) { if (!hist[i] || !hist[i].name) continue; if (hist[i].name.toLowerCase() === name.toLowerCase()) { found = hist[i]; break; } }
   if (found) { found.count=(found.count||1)+1; found.catId=catId; found.lastUsed=Date.now(); histRecordDate(found); }
   else { var e = { name:name, catId:catId, count:1, lastUsed:Date.now() }; histRecordDate(e); hist.unshift(e); }
   hist.sort(function(a,b){ return (b.count-a.count)||(b.lastUsed-a.lastUsed); });
