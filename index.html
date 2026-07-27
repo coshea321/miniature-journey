@@ -4769,19 +4769,22 @@ function cardHTML(item, c) {
 
 // v361: recurring tasks. Valid repeat values for General/Personal items and their row-chip labels.
 var REPEAT_OPTS = { daily:"Daily", weekly:"Weekly", biweekly:"Every 2 wks", monthly:"Monthly" };
-// Next due date strictly after `today` (both "YYYY-MM-DD"), schedule-anchored: steps from the
-// existing due date by the interval until the result is in the future, so a weekly Monday task
-// ticked on Wednesday is still due next Monday, and a long-ignored task needs ONE tick, not one
-// per missed period. No due date → anchors from today. Pure string-in/string-out (UTC internally,
-// no local-midnight/DST maths); monthly clamps to month end from the base's own day (31st → 28 Feb)
-// without permanently losing the anchor day. Returns null for an unknown repeat value.
+// Next due date strictly after BOTH `today` and the current due date (all "YYYY-MM-DD"),
+// schedule-anchored: steps from the existing due date by the interval, so an overdue weekly
+// Monday task ticked on Wednesday is due next Monday and a long-ignored task needs ONE tick,
+// not one per missed period — while ticking EARLY (due date still in the future) rolls to the
+// occurrence after it, never returning the unchanged date (that no-op was the pre-merge PR #126
+// bug Cathal caught). No due date → anchors from today (UI now requires one, this is a fallback).
+// Pure string-in/string-out (UTC internally, no local-midnight/DST maths); monthly clamps to
+// month end from the base's own day (31st → 28 Feb) without permanently losing the anchor day.
+// Returns null for an unknown repeat value.
 function nextRepeatDue(repeat, fromDate, today) {
   if (!REPEAT_OPTS[repeat] || !/^\d{4}-\d{2}-\d{2}$/.test(today || "")) return null;
   var base = /^\d{4}-\d{2}-\d{2}$/.test(fromDate || "") ? fromDate : today;
   var p = base.split("-"), by = +p[0], bm = +p[1], bd = +p[2];
   var pad = function(x){ return x < 10 ? "0"+x : ""+x; };
   var next = base, k = 0;
-  while (next <= today && k < 5000) { // ISO strings compare chronologically; guard caps a ~13y-overdue daily task
+  do { // do-while: always at least one step past the base date. ISO strings compare chronologically; guard caps a ~13y-overdue daily task
     k++;
     if (repeat === "monthly") {
       var mo = bm - 1 + k, y = by + Math.floor(mo / 12); mo = mo % 12;
@@ -4792,7 +4795,7 @@ function nextRepeatDue(repeat, fromDate, today) {
       var d = new Date(Date.UTC(by, bm - 1, bd + days * k));
       next = d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate());
     }
-  }
+  } while (next <= today && k < 5000);
   return next;
 }
 function toggleItem(id) {
@@ -8217,6 +8220,7 @@ function openItemSheet(itemId) {
   if (repeatRow) repeatRow.style.display = isTask ? "block" : "none";
   var repeatSel = document.getElementById("itemSheetRepeatSelect");
   if (repeatSel) repeatSel.value = (item.repeat && REPEAT_OPTS[item.repeat]) ? item.repeat : "";
+  updateRepeatSelState();
   // Track auto-logging opt-in (General/Personal only)
   var trackLogWrap = document.getElementById("itemSheetTrackLogWrap");
   if (trackLogWrap) trackLogWrap.style.display = isTask ? "block" : "none";
@@ -8236,6 +8240,17 @@ function closeItemSheet() {
   _sheetItemId = null;
 }
 
+// v361: repeating needs a due date to anchor to — the picker stays disabled (and resets to
+// "Doesn't repeat") until one is set. Top-level: called from openItemSheet + the due-input listeners.
+function updateRepeatSelState() {
+  var sel = document.getElementById("itemSheetRepeatSelect");
+  if (!sel) return;
+  var due = document.getElementById("itemSheetDueInput").value;
+  sel.disabled = !due;
+  sel.style.opacity = due ? "1" : ".5";
+  if (!due) sel.value = "";
+}
+
 function closeImport() {
   document.getElementById("importSheet").style.display    = "none";
   document.getElementById("importBackdrop").style.display = "none";
@@ -8247,7 +8262,11 @@ window.addEventListener("DOMContentLoaded", function() {
   document.getElementById("itemSheetBackdrop").addEventListener("click", closeItemSheet);
   document.getElementById("itemSheetDueClear").addEventListener("click", function() {
     document.getElementById("itemSheetDueInput").value = "";
+    updateRepeatSelState();
   });
+  // v361: repeat picker enables/disables live as the due date is set/cleared
+  document.getElementById("itemSheetDueInput").addEventListener("input",  updateRepeatSelState);
+  document.getElementById("itemSheetDueInput").addEventListener("change", updateRepeatSelState);
 
   // ── List import ──────────────────────────────────────────
   // ── Saved recipes (Grocery only) ─────────────────────────
@@ -8515,9 +8534,10 @@ window.addEventListener("DOMContentLoaded", function() {
     if (isTask) {
       var dueVal = document.getElementById("itemSheetDueInput").value;
       item.dueDate = dueVal || null;
-      // v361: repeat setting — whitelist against REPEAT_OPTS so a tampered <select> can't store junk
+      // v361: repeat setting — needs a due date to anchor to, and whitelisted against
+      // REPEAT_OPTS so a tampered <select> can't store junk
       var _repSel = document.getElementById("itemSheetRepeatSelect");
-      item.repeat = (_repSel && REPEAT_OPTS[_repSel.value]) ? _repSel.value : null;
+      item.repeat = (dueVal && _repSel && REPEAT_OPTS[_repSel.value]) ? _repSel.value : null;
       var _tlTog = document.getElementById("itemSheetTrackLogToggle");
       item.trackLog = (_tlTog && _tlTog.checked) ? true : null;
     }
@@ -12324,7 +12344,7 @@ if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
       <option value="biweekly">Every 2 weeks</option>
       <option value="monthly">Monthly</option>
     </select>
-    <div style="font-size:11px;color:#A0906A;margin-top:5px">Ticking it done reschedules it to the next due date instead of finishing it.</div>
+    <div style="font-size:11px;color:#A0906A;margin-top:5px">Needs a due date. Ticking it done reschedules it to the next due date instead of finishing it.</div>
   </div>
   <div style="margin-bottom:12px;display:none" id="itemSheetTrackLogWrap">
     <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;cursor:pointer">

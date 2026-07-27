@@ -1,14 +1,18 @@
 'use strict';
 
-// v361 recurring tasks. Pins two things:
+// v361 recurring tasks. Pins three things:
 //   1. nextRepeatDue() — the pure schedule-anchored date maths (fixed dates, fully
 //      deterministic): strictly-future result, single tick skips all missed periods,
+//      ticking EARLY (due date still in the future) always rolls to the NEXT occurrence
+//      rather than returning the date unchanged (the pre-merge PR #126 no-op bug),
 //      monthly clamps to month end WITHOUT permanently losing the anchor day,
 //      no-due-date fallback anchors from today, junk repeat values return null.
 //   2. toggleItem() on a repeating item — reschedules in place (same id, done back to
 //      false, due date advanced, `updated` stamped), clears the ★ today flag, still
 //      fires the v357 Track auto-log, survives a stale-partner merge, and leaves
 //      non-repeating items' tick behaviour untouched.
+//   3. updateRepeatSelState() — the repeat picker is disabled and reset while the due
+//      date input is empty, enabled once a date is set.
 // toggleItem uses the real todayStr(), so part 2 asserts against nextRepeatDue()
 // computed in-page with the same inputs rather than against hardcoded dates.
 
@@ -50,6 +54,12 @@ module.exports = {
       ok('1j: malformed today returns null',
         nextRepeatDue('weekly', '2026-07-20', 'not-a-date') === null,
         'got: ' + nextRepeatDue('weekly', '2026-07-20', 'not-a-date'));
+      ok('1k: EARLY tick (due still in the future) rolls to the occurrence AFTER it, never a no-op',
+        nextRepeatDue('weekly', '2026-07-27', '2026-07-22') === '2026-08-03',
+        'got: ' + nextRepeatDue('weekly', '2026-07-27', '2026-07-22'));
+      ok('1l: early tick, monthly',
+        nextRepeatDue('monthly', '2026-08-15', '2026-07-22') === '2026-09-15',
+        'got: ' + nextRepeatDue('monthly', '2026-08-15', '2026-07-22'));
 
       // ── 2: toggleItem reschedules a repeating task in place ──────────────
       currentList = 'todo';
@@ -78,6 +88,18 @@ module.exports = {
       var oneOff = listData.todo.items.find(function(i){ return i.id === 2; });
       ok('2e: non-repeating item still just completes', oneOff && oneOff.done === true, 'got: ' + JSON.stringify(oneOff));
 
+      // 2f: ticking a repeating item whose due date is ALREADY in the future advances a full
+      // period past it (the "only goes to the next date" bug: two quick ticks must give two
+      // different future dates, not the same one twice).
+      var fut1 = nextRepeatDue('weekly', todayStr(), todayStr());
+      listData.todo.items.push({id:5, name:'Future-due', catId:'home', done:false, today:false, repeat:'weekly', dueDate:fut1, trackLog:null, updated:100});
+      renderList();
+      toggleItem(5);
+      var futItem = listData.todo.items.find(function(i){ return i.id === 5; });
+      ok('2f: early tick advances past the future due date',
+        futItem && futItem.done === false && futItem.dueDate === nextRepeatDue('weekly', fut1, todayStr()) && futItem.dueDate > fut1,
+        'due was ' + fut1 + ', got: ' + JSON.stringify(futItem));
+
       // ── 3: repeat + trackLog — the tick logs to Track, then reschedules ──
       listData.todo = { items: [
         {id:3, name:'Water plants', catId:'home', done:false, today:false, repeat:'daily', dueDate:null, trackLog:true, updated:100}
@@ -93,6 +115,17 @@ module.exports = {
       ok('3b: item rescheduled, not done, due strictly after today',
         wp && wp.done === false && wp.dueDate === nextRepeatDue('daily', null, todayStr()),
         'got: ' + JSON.stringify(wp));
+
+      // ── 4: repeat picker gated on the due date being set ─────────────────
+      var dueEl = document.getElementById('itemSheetDueInput');
+      var selEl = document.getElementById('itemSheetRepeatSelect');
+      dueEl.value = ''; selEl.value = 'weekly';
+      updateRepeatSelState();
+      ok('4a: no due date -> picker disabled and reset to no-repeat',
+        selEl.disabled === true && selEl.value === '', 'disabled=' + selEl.disabled + ' value=' + selEl.value);
+      dueEl.value = '2026-08-03';
+      updateRepeatSelState();
+      ok('4b: due date set -> picker enabled', selEl.disabled === false, 'disabled=' + selEl.disabled);
 
       return {pass:pass, fail:fail};
     })()`);
