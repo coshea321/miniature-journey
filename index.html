@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v361 · 27/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v362 · 27/07/2026</div>
 
   </div>
 </div>
@@ -1561,6 +1561,11 @@ body.train-mode #toast{background:#3A3328}
   </div>
   <button id="backupNudgeNow" style="background:#7FB069;border:none;color:#11280F;border-radius:8px;padding:8px 12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation">Back up now</button>
   <button id="backupNudgeLater" aria-label="Dismiss" style="background:none;border:none;color:#9FB89F;font-size:18px;cursor:pointer;padding:0 2px;touch-action:manipulation">&#x2715;</button>
+</div>
+<div id="mealPlanBanner" style="display:none;position:fixed;bottom:70px;left:12px;right:12px;max-width:456px;margin:0 auto;z-index:785;background:#5A3AA0;border:1px solid #7A5AC0;border-radius:12px;padding:12px 16px;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.35)">
+  <div style="flex:1;min-width:0;font-weight:700;font-size:13px;color:#F0EAFA">&#x1F4C5; New week — plan dinners?</div>
+  <button id="mealPlanBannerGo" style="background:#8A6AD0;border:none;color:#fff;border-radius:8px;padding:8px 12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation">Plan it</button>
+  <button id="mealPlanBannerLater" aria-label="Dismiss" style="background:none;border:none;color:#C0AAE0;font-size:18px;cursor:pointer;padding:0 2px;touch-action:manipulation">&#x2715;</button>
 </div>
 <div id="testBuildBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:1200;background:#B45309;color:#FFF7E6;text-align:center;font-size:12px;font-weight:700;letter-spacing:.3px;padding:5px 8px;pointer-events:none">&#x1F9EA; TEST BUILD &mdash; sync off &middot; nothing here can touch the real app</div>
 <div class="ver">v14</div>
@@ -2486,6 +2491,70 @@ function mergeMealPlanData(local, incoming) {
   });
   var fresh = inc.filter(function(e){ return !seen[e.day]; });
   return { plan: fresh.concat(merged), push: push };
+}
+
+// The rolling 7-day window (today..+6) as plain "YYYY-MM-DD" day strings —
+// shared by renderMealPlanner, the Fill algorithm, and addWeekToGroceries.
+function mealPlanWindowDayStrs() {
+  var out = [];
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(); d.setDate(d.getDate() + i);
+    out.push(d.getFullYear() + "-" + t2(d.getMonth()+1) + "-" + t2(d.getDate()));
+  }
+  return out;
+}
+
+// Rotation Fill — pure function, no storage/global-state side effects (so it's
+// easy to test and to preview). Pool = inRotation recipes sorted by
+// lastCooked ascending (never-cooked/lastCooked:0 first; ties broken by id
+// for a deterministic order). Fills only EMPTY days in the window, skipping
+// a recipe already assigned elsewhere in the SAME window so one fill run
+// never repeats a dinner. Returns fewer entries than empty days when the
+// rotation pool is smaller — a partial fill, never a wraparound repeat.
+function mealPlanFillWindow(rb, plan, dayStrs) {
+  var pool = (rb || []).filter(function(r){ return r && r.inRotation; }).slice().sort(function(a,b){
+    var la = a.lastCooked || 0, lb = b.lastCooked || 0;
+    if (la !== lb) return la - lb;
+    return a.id - b.id;
+  });
+  var assignedIds = {};
+  (plan || []).forEach(function(e){
+    if (e && e.recipeId != null && dayStrs.indexOf(e.day) !== -1) assignedIds[e.recipeId] = true;
+  });
+  var emptyDays = dayStrs.filter(function(d){
+    return !(plan || []).some(function(e){ return e && e.day === d && e.recipeId != null; });
+  });
+  var entries = [], pi = 0;
+  emptyDays.forEach(function(day){
+    while (pi < pool.length && assignedIds[pool[pi].id]) pi++;
+    if (pi >= pool.length) return;
+    var r = pool[pi];
+    assignedIds[r.id] = true;
+    entries.push({ day: day, recipeId: r.id, servings: r.servings || 1, updated: Date.now(), addedBy: hearthUser });
+    pi++;
+  });
+  return { entries: entries, filledCount: entries.length, emptyCount: emptyDays.length };
+}
+
+// Wrapper: runs Fill against the live store and saves the result. Only ever
+// called from a user tap (the roll-over banner, or the planner's manual
+// "Fill empty days" button) — deliberately no auto-fill anywhere, per the
+// 27/07/2026 design call (two devices independently auto-filling before
+// syncing could land the same dinner on two days).
+function runMealPlanFill() {
+  var rb = getRecipeBook();
+  if (!rb.some(function(r){ return r && r.inRotation; })) {
+    toast("No recipes marked “In rotation” yet — set some from Recipes first");
+    return { entries: [], filledCount: 0, emptyCount: 0 };
+  }
+  var plan = getMealPlan();
+  var result = mealPlanFillWindow(rb, plan, mealPlanWindowDayStrs());
+  if (result.filledCount) saveMealPlan(plan.concat(result.entries));
+  if (!result.emptyCount) toast("Week's already fully planned");
+  else if (result.filledCount === result.emptyCount) toast("&#x1F37D; Filled " + result.filledCount + " day" + (result.filledCount!==1?"s":""));
+  else if (result.filledCount) toast("&#x1F37D; Filled " + result.filledCount + " of " + result.emptyCount + " empty days — not enough recipes in rotation for the rest");
+  else toast("No recipes in rotation to fill with");
+  return result;
 }
 
 // ============================================================
@@ -3629,8 +3698,9 @@ function renderRecipes() {
   var _selCount = Object.keys(_recipeSelected).filter(function(k){ return _recipeSelected[k]; }).length;
   var selectHdr;
   if (_recipeSelectMode) {
-    selectHdr = "<div style='display:flex;align-items:center;gap:8px;margin-bottom:12px'>" +
-      "<button id='rcpSetCat'" + (_selCount?"":" disabled") + " style='flex:1;padding:10px;border:none;border-radius:10px;background:" + (_selCount?"#B5651D":"#D8CEBC") + ";color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:" + (_selCount?"pointer":"default") + "'>Set category (" + _selCount + ")</button>" +
+    selectHdr = "<div style='display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px'>" +
+      "<button id='rcpSetCat'" + (_selCount?"":" disabled") + " style='flex:1;min-width:110px;padding:10px;border:none;border-radius:10px;background:" + (_selCount?"#B5651D":"#D8CEBC") + ";color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:" + (_selCount?"pointer":"default") + "'>Set category (" + _selCount + ")</button>" +
+      "<button id='rcpSetRot'" + (_selCount?"":" disabled") + " style='flex:1;min-width:110px;padding:10px;border:none;border-radius:10px;background:" + (_selCount?"#2D6B35":"#D8CEBC") + ";color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:" + (_selCount?"pointer":"default") + "'>&#x1F501; In rotation (" + _selCount + ")</button>" +
       "<button id='rcpSelCancel' style='padding:10px 14px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Cancel</button>" +
     "</div>";
   } else {
@@ -3707,6 +3777,11 @@ function renderRecipes() {
     var ids = Object.keys(_recipeSelected).filter(function(k){ return _recipeSelected[k]; }).map(Number);
     if (ids.length) openBulkCategoryPicker(ids);
   });
+  var _setRot = document.getElementById("rcpSetRot");
+  if (_setRot) _setRot.addEventListener("click", function(){
+    var ids = Object.keys(_recipeSelected).filter(function(k){ return _recipeSelected[k]; }).map(Number);
+    if (ids.length) applyBulkInRotation(ids);
+  });
 }
 
 // Human label for a "YYYY-MM-DD" day string: "Today" / "Tomorrow" / "Thu 11".
@@ -3764,6 +3839,7 @@ function renderMealPlanner() {
     "<button id='mpBackBtn' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; All recipes</button>" +
     "<div style='font-family:Georgia,serif;font-size:24px;font-weight:600;color:#2A2010;margin-bottom:4px'>Week plan</div>" +
     "<div style='font-size:13px;color:#8A7A5A;margin-bottom:16px'>Dinners for the next 7 days — tap a day</div>" +
+    "<button id='mpFillBtn' style='width:100%;box-sizing:border-box;padding:11px;margin-bottom:10px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>&#x1F501; Fill empty days</button>" +
     cardsHtml +
     (anyGroceryable ? "<button id='mpAddWeekBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#2D6B35;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F6D2; Add week to groceries</button>" : "");
 
@@ -3781,6 +3857,8 @@ function renderMealPlanner() {
   });
   var _mpAddWeek = document.getElementById("mpAddWeekBtn");
   if (_mpAddWeek) _mpAddWeek.addEventListener("click", function(){ addWeekToGroceries(); });
+  var _mpFill = document.getElementById("mpFillBtn");
+  if (_mpFill) _mpFill.addEventListener("click", function(){ runMealPlanFill(); renderMealPlanner(); });
 }
 
 // Bottom-sheet recipe picker for one meal-plan day. Favourited recipes first
@@ -3863,6 +3941,7 @@ function openMealPlanDaySheet(day) {
           "<button id='mpServPlus' style='width:34px;height:34px;border:1.5px solid #D8C8A8;background:#fff;border-radius:8px;font-size:20px;color:#7A5A30;cursor:pointer;line-height:1'>+</button>" +
         "</div>"
       : "") +
+      (recipe ? "<button id='mpCookedBtn' style='width:100%;padding:11px;margin-bottom:8px;border:1.5px solid #2D6B35;background:#fff;color:#2D6B35;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>&#x2713; Mark cooked</button>" : "") +
       (recipe ? "<button id='mpOpenRecipeBtn' style='width:100%;padding:11px;margin-bottom:8px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Open recipe</button>" : "") +
       "<button id='mpSwapBtn' style='width:100%;padding:11px;margin-bottom:8px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Swap recipe</button>" +
       "<button id='mpRemoveBtn' style='width:100%;padding:11px;margin-bottom:8px;border:1.5px solid #E0C0C0;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Remove</button>" +
@@ -3885,6 +3964,13 @@ function openMealPlanDaySheet(day) {
       _recipeView = "detail";
       renderRecipes();
     });
+    document.getElementById("mpCookedBtn").addEventListener("click", function(){
+      var rb2 = getRecipeBook();
+      var rr = rb2.find(function(x){ return x && x.id === recipe.id; });
+      if (rr) { rr.lastCooked = Date.now(); rr.updated = Date.now(); saveRecipeBook(rb2); }
+      toast("&#x2713; Marked cooked — moves to the back of the rotation queue");
+      closeAndRefresh();
+    });
   }
   document.getElementById("mpSwapBtn").addEventListener("click", function(){ close(); openMealPlanPicker(day); });
   document.getElementById("mpRemoveBtn").addEventListener("click", function(){
@@ -3902,12 +3988,24 @@ function recipeCardHTML(r, selectMode, selected) {
     check +
     "<div style='flex:1;min-width:0'>" +
       "<div style='font-size:16px;font-weight:700;color:#2A2010;margin-bottom:3px'>" + esc(r.name) + "</div>" +
-      "<div style='font-size:12px;color:#9A8A6A'>" + ingCount + " ingredient" + (ingCount!==1?"s":"") + " &middot; serves " + (r.servings||1) + (r.category?" &middot; " + esc(r.category):"") + "</div>" +
+      "<div style='font-size:12px;color:#9A8A6A'>" + ingCount + " ingredient" + (ingCount!==1?"s":"") + " &middot; serves " + (r.servings||1) + (r.category?" &middot; " + esc(r.category):"") + (r.inRotation?" &middot; &#x1F501; in rotation":"") + "</div>" +
     "</div>" +
     fav +
   "</div>";
 }
 
+// Bulk-add selected recipes to the rotation pool (never bulk-removes — taking
+// a recipe out of rotation is a deliberate single-recipe edit, done from its
+// own editor checkbox).
+function applyBulkInRotation(ids){
+  var rb = getRecipeBook(), set = {}, n = 0;
+  (ids||[]).forEach(function(id){ set[id] = true; });
+  rb.forEach(function(r){ if (r && set[r.id] && !r.inRotation) { r.inRotation = true; r.updated = Date.now(); n++; } });
+  saveRecipeBook(rb);
+  _recipeSelectMode = false; _recipeSelected = {};
+  renderRecipes();
+  toast(n + " recipe" + (n!==1?"s":"") + " &#x1F501; added to rotation");
+}
 function applyBulkCategory(ids, category){
   var rb = getRecipeBook(), set = {}, n = 0;
   (ids||[]).forEach(function(id){ set[id] = true; });
@@ -4047,6 +4145,7 @@ function openRecipeEditor(id) {
     "<input id='reCategory' type='text' value='" + (r&&r.category?esc(r.category).replace(/'/g,"&#39;"):"") + "' placeholder='e.g. Breakfast, Dinner, Dessert' list='reCatList' style='" + recipeInputCss() + "margin-bottom:12px'>" +
     "<datalist id='reCatList'>" + recipeCategoryOptions() + "</datalist>" +
     recipeCategoryChips() +
+    "<label style='display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:14px;color:#2A2010;cursor:pointer'><input id='reInRotation' type='checkbox'" + (r&&r.inRotation?" checked":"") + " style='width:18px;height:18px'> &#x1F501; In rotation (eligible for the weekly auto-fill)</label>" +
     fieldLabel("Ingredients (one per line: amount unit name)") +
     "<textarea id='reIng' rows='7' placeholder='2 tsp instant coffee&#10;150 ml milk&#10;~8 cube ice cubes' style='" + recipeInputCss() + "margin-bottom:12px;resize:vertical;line-height:1.6'>" + (ingText?esc(ingText):"") + "</textarea>" +
     fieldLabel("Method") +
@@ -4090,14 +4189,15 @@ function openRecipeEditor(id) {
     var ingredients = parseIngredients(document.getElementById("reIng").value);
     var method = document.getElementById("reMethod").value.trim();
     var notes  = document.getElementById("reNotes").value.trim();
+    var inRotation = document.getElementById("reInRotation").checked;
     var rb = getRecipeBook();
     if (isNew) {
       var nid = Date.now() + Math.floor(Math.random()*100000);
-      rb.unshift({ id:nid, name:name, servings:servings, category:category, ingredients:ingredients, method:method, notes:notes, fav:false, updated:Date.now(), addedBy:hearthUser });
+      rb.unshift({ id:nid, name:name, servings:servings, category:category, ingredients:ingredients, method:method, notes:notes, fav:false, inRotation:inRotation, updated:Date.now(), addedBy:hearthUser });
       _recipeOpenId = nid;
     } else {
       var ex = rb.find(function(x){ return x.id === id; });
-      if (ex) { ex.name=name; ex.servings=servings; ex.category=category; ex.ingredients=ingredients; ex.method=method; ex.notes=notes; ex.updated=Date.now(); }
+      if (ex) { ex.name=name; ex.servings=servings; ex.category=category; ex.ingredients=ingredients; ex.method=method; ex.notes=notes; ex.inRotation=inRotation; ex.updated=Date.now(); }
     }
     saveRecipeBook(rb);
     _recipeEditing = false;
@@ -6251,7 +6351,8 @@ function buildExportPayload() {
   //  mealplan (week dinner planner, v317).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*, fl4_last_backup, fl4_backup_snooze,
-  //  fl4_last_cloudbackup, fl4_tomb_* (sync deletion tombstones).
+  //  fl4_last_cloudbackup, fl4_tomb_* (sync deletion tombstones),
+  //  fl4_mealplan_prompted (device-local weekly roll-over banner marker, v362).
   //  Used by BOTH the manual file export and the daily cloud backup — one
   //  payload definition, so coverage can never drift between the two.
   var exportData = {
@@ -6336,6 +6437,42 @@ function maybeShowBackupNudge(){
   updateLastBackupInfo();
   if (typeof updateCloudBackupInfo === "function") updateCloudBackupInfo();
 })();
+// ── Meal-plan weekly roll-over prompt (v362) ───────────────
+// fl4_mealplan_prompted is transient device-local UI state (NOT exported):
+// the Monday-anchored day-string of the week the banner was last shown or
+// dismissed, so it fires (or stays quiet) at most once per week per device.
+// Deliberately PROMPT-FIRST, never auto-fills — see the 27/07/2026 design
+// call: two devices opening independently before syncing must never
+// silently auto-fill and land the same dinner on two days.
+function mealPlanCurrentWeekKey(d) {
+  d = d || new Date();
+  var day = d.getDay(); // 0=Sun..6=Sat
+  var diff = day === 0 ? -6 : 1 - day; // offset back to Monday
+  var mon = new Date(d); mon.setDate(d.getDate() + diff);
+  return mon.getFullYear() + "-" + t2(mon.getMonth()+1) + "-" + t2(mon.getDate());
+}
+function dismissMealPlanBanner(){ var b=document.getElementById("mealPlanBanner"); if(b) b.style.display="none"; }
+function markMealPlanPrompted(){ storeSet("fl4_mealplan_prompted", mealPlanCurrentWeekKey()); }
+function maybeShowMealPlanBanner(){
+  try {
+    var wk = mealPlanCurrentWeekKey();
+    if ((storeGet("fl4_mealplan_prompted") || "") === wk) return; // already prompted/acted this week
+    var b = document.getElementById("mealPlanBanner"); if (b) b.style.display = "flex";
+  } catch(e){}
+}
+(function(){
+  var go = document.getElementById("mealPlanBannerGo");
+  if (go) go.addEventListener("click", function(){
+    markMealPlanPrompted();
+    dismissMealPlanBanner();
+    var result = runMealPlanFill();
+    if (result && result.filledCount) {
+      confirmDialog("Add this week's planned dinners to your grocery list?", function(){ addWeekToGroceries(); });
+    }
+  });
+  var later = document.getElementById("mealPlanBannerLater");
+  if (later) later.addEventListener("click", function(){ markMealPlanPrompted(); dismissMealPlanBanner(); });
+})();
 // ── Daily cloud backup (v287) ──────────────────────────────
 // Once a day (per device), quietly PUT the full export payload to the user's
 // own Firebase area: /hearth/users/<user>/backups/<YYYY-MM-DD>. Date-keyed, so
@@ -6390,6 +6527,7 @@ document.addEventListener("visibilitychange", function(){
   if (document.hidden) { _bgHiddenAt = Date.now(); return; }
   if (Date.now() - _bgHiddenAt > 30*1000 && isLoggedIn() && typeof maybeShowBackupNudge === "function") maybeShowBackupNudge();
   if (Date.now() - _bgHiddenAt > 30*1000 && isLoggedIn() && typeof maybeCloudBackup === "function") maybeCloudBackup();
+  if (Date.now() - _bgHiddenAt > 30*1000 && isLoggedIn() && typeof maybeShowMealPlanBanner === "function") maybeShowMealPlanBanner();
 });
 
 // ── Import ────────────────────────────────────────────────
@@ -7115,6 +7253,7 @@ function onLoginSuccess() {
 
   setTimeout(function(){ if (isLoggedIn() && typeof maybeShowBackupNudge === "function") maybeShowBackupNudge(); }, 1800);
   setTimeout(function(){ if (typeof maybeCloudBackup === "function") maybeCloudBackup(); }, 8000);
+  setTimeout(function(){ if (isLoggedIn() && typeof maybeShowMealPlanBanner === "function") maybeShowMealPlanBanner(); }, 2200);
 
   // Stale-data banner: tapping it triggers re-login
   var sb2 = document.getElementById("staleDataBanner");
