@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v360 · 26/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v361 · 27/07/2026</div>
 
   </div>
 </div>
@@ -4722,6 +4722,10 @@ function cardHTML(item, c) {
   var tagChips = (Array.isArray(item.tags) && item.tags.length)
     ? item.tags.map(function(t){ return "<span style='display:inline-block;font-size:10px;font-weight:700;background:#DCE6F8;color:#2B4E9B;padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle'>&#x1F3F7; " + esc(t) + "</span>"; }).join("")
     : "";
+  // v361: repeating tasks show a small badge so they read differently from one-offs at a glance
+  var repChip = (isTask && item.repeat && REPEAT_OPTS[item.repeat])
+    ? "<span style='display:inline-block;font-size:10px;font-weight:700;background:#DDEFE4;color:#2E7D5B;padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle'>&#x1F501; " + REPEAT_OPTS[item.repeat] + "</span>"
+    : "";
   // Highlight items recently added by the partner and not yet seen
   var unseen = getUnseen(currentList);
   var isNew = !!unseen[item.id];
@@ -4753,7 +4757,7 @@ function cardHTML(item, c) {
   return "<div class='item-card" + (item.done?" done":"") + (isDup?" is-dup":"") + "' data-id='" + item.id + "' style='border-left-color:" + leftColor + (isDup?";background:#FFF8EC":"") + "'>" +
     checkHTML +
     "<div class='item-body' style='flex:1;min-width:0;margin-left:5px;" + (isDetail?"cursor:pointer":"") + "'>" +
-      "<span class='item-name'>" + esc(item.name) + "</span>" + amtChip + newBadge + dupBadge + recipeChip + tagChips +
+      "<span class='item-name'>" + esc(item.name) + "</span>" + amtChip + newBadge + dupBadge + recipeChip + tagChips + repChip +
       (dueLabel ? "<div style='margin-top:3px'>" + dueLabel + (calBtn ? "&nbsp;" + calBtn : "") + "</div>" : "") +
 
       noteSnip + linkChip +
@@ -4763,6 +4767,37 @@ function cardHTML(item, c) {
     "<button class='del-btn'>&#x2715;</button></div>";
 }
 
+// v361: recurring tasks. Valid repeat values for General/Personal items and their row-chip labels.
+var REPEAT_OPTS = { daily:"Daily", weekly:"Weekly", biweekly:"Every 2 wks", monthly:"Monthly" };
+// Next due date strictly after BOTH `today` and the current due date (all "YYYY-MM-DD"),
+// schedule-anchored: steps from the existing due date by the interval, so an overdue weekly
+// Monday task ticked on Wednesday is due next Monday and a long-ignored task needs ONE tick,
+// not one per missed period — while ticking EARLY (due date still in the future) rolls to the
+// occurrence after it, never returning the unchanged date (that no-op was the pre-merge PR #126
+// bug Cathal caught). No due date → anchors from today (UI now requires one, this is a fallback).
+// Pure string-in/string-out (UTC internally, no local-midnight/DST maths); monthly clamps to
+// month end from the base's own day (31st → 28 Feb) without permanently losing the anchor day.
+// Returns null for an unknown repeat value.
+function nextRepeatDue(repeat, fromDate, today) {
+  if (!REPEAT_OPTS[repeat] || !/^\d{4}-\d{2}-\d{2}$/.test(today || "")) return null;
+  var base = /^\d{4}-\d{2}-\d{2}$/.test(fromDate || "") ? fromDate : today;
+  var p = base.split("-"), by = +p[0], bm = +p[1], bd = +p[2];
+  var pad = function(x){ return x < 10 ? "0"+x : ""+x; };
+  var next = base, k = 0;
+  do { // do-while: always at least one step past the base date. ISO strings compare chronologically; guard caps a ~13y-overdue daily task
+    k++;
+    if (repeat === "monthly") {
+      var mo = bm - 1 + k, y = by + Math.floor(mo / 12); mo = mo % 12;
+      var lastDay = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+      next = y + "-" + pad(mo + 1) + "-" + pad(Math.min(bd, lastDay));
+    } else {
+      var days = repeat === "daily" ? 1 : repeat === "weekly" ? 7 : 14;
+      var d = new Date(Date.UTC(by, bm - 1, bd + days * k));
+      next = d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate());
+    }
+  } while (next <= today && k < 5000);
+  return next;
+}
 function toggleItem(id) {
   var items=getItems();
   for (var i=0;i<items.length;i++) { if (items[i].id===id) {
@@ -4772,6 +4807,19 @@ function toggleItem(id) {
       var _tlEntries = getActionLog();
       _tlEntries.unshift({ id: Date.now(), text: "✓ " + items[i].name, ts: Date.now() });
       saveActionLog(_tlEntries);
+    }
+    // v361: a repeating task never rests in "done" — the tick logs (above), then the same item
+    // reschedules in place: done back to false, due date advanced. Same id, so a normal delete/
+    // tombstone still kills it for good. Mutation lives ONLY here (user-tap call sites: checkbox
+    // tap + default-list tap), never in merge/apply/render — sync echoes can't re-fire it.
+    if (items[i].done && items[i].repeat) {
+      var _nd = nextRepeatDue(items[i].repeat, items[i].dueDate, todayStr());
+      if (_nd) {
+        items[i].done = false;
+        items[i].dueDate = _nd;
+        var _ndD = new Date(_nd + "T12:00:00");
+        toast("Done ✓ — next due " + _ndD.toLocaleDateString("en-IE", { weekday:"short", day:"numeric", month:"short" }));
+      }
     }
     break; } }
   saveCurrentList(); renderList();
@@ -8167,6 +8215,12 @@ function openItemSheet(itemId) {
   var isTask = currentList === "todo" || currentList === "personal";
   if (dueRow) dueRow.style.display = isTask ? "block" : "none";
   document.getElementById("itemSheetDueInput").value = item.dueDate || "";
+  // Repeat picker (General/Personal only, v361)
+  var repeatRow = document.getElementById("itemSheetRepeatRow");
+  if (repeatRow) repeatRow.style.display = isTask ? "block" : "none";
+  var repeatSel = document.getElementById("itemSheetRepeatSelect");
+  if (repeatSel) repeatSel.value = (item.repeat && REPEAT_OPTS[item.repeat]) ? item.repeat : "";
+  updateRepeatSelState();
   // Track auto-logging opt-in (General/Personal only)
   var trackLogWrap = document.getElementById("itemSheetTrackLogWrap");
   if (trackLogWrap) trackLogWrap.style.display = isTask ? "block" : "none";
@@ -8186,6 +8240,17 @@ function closeItemSheet() {
   _sheetItemId = null;
 }
 
+// v361: repeating needs a due date to anchor to — the picker stays disabled (and resets to
+// "Doesn't repeat") until one is set. Top-level: called from openItemSheet + the due-input listeners.
+function updateRepeatSelState() {
+  var sel = document.getElementById("itemSheetRepeatSelect");
+  if (!sel) return;
+  var due = document.getElementById("itemSheetDueInput").value;
+  sel.disabled = !due;
+  sel.style.opacity = due ? "1" : ".5";
+  if (!due) sel.value = "";
+}
+
 function closeImport() {
   document.getElementById("importSheet").style.display    = "none";
   document.getElementById("importBackdrop").style.display = "none";
@@ -8197,7 +8262,11 @@ window.addEventListener("DOMContentLoaded", function() {
   document.getElementById("itemSheetBackdrop").addEventListener("click", closeItemSheet);
   document.getElementById("itemSheetDueClear").addEventListener("click", function() {
     document.getElementById("itemSheetDueInput").value = "";
+    updateRepeatSelState();
   });
+  // v361: repeat picker enables/disables live as the due date is set/cleared
+  document.getElementById("itemSheetDueInput").addEventListener("input",  updateRepeatSelState);
+  document.getElementById("itemSheetDueInput").addEventListener("change", updateRepeatSelState);
 
   // ── List import ──────────────────────────────────────────
   // ── Saved recipes (Grocery only) ─────────────────────────
@@ -8465,6 +8534,10 @@ window.addEventListener("DOMContentLoaded", function() {
     if (isTask) {
       var dueVal = document.getElementById("itemSheetDueInput").value;
       item.dueDate = dueVal || null;
+      // v361: repeat setting — needs a due date to anchor to, and whitelisted against
+      // REPEAT_OPTS so a tampered <select> can't store junk
+      var _repSel = document.getElementById("itemSheetRepeatSelect");
+      item.repeat = (dueVal && _repSel && REPEAT_OPTS[_repSel.value]) ? _repSel.value : null;
       var _tlTog = document.getElementById("itemSheetTrackLogToggle");
       item.trackLog = (_tlTog && _tlTog.checked) ? true : null;
     }
@@ -12261,6 +12334,17 @@ if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
       <input id="itemSheetDueInput" type="date" style="flex:1;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#3A3328;font-family:inherit;font-size:14px;outline:none">
       <button id="itemSheetDueClear" style="border:none;background:#F0EBE0;color:#8A7A5A;border-radius:8px;padding:10px 12px;font-family:inherit;font-size:13px;cursor:pointer">Clear</button>
     </div>
+  </div>
+  <div style="margin-bottom:12px;display:none" id="itemSheetRepeatRow">
+    <div style="font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Repeat</div>
+    <select id="itemSheetRepeatSelect" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#3A3328;font-family:inherit;font-size:14px;outline:none">
+      <option value="">Doesn't repeat</option>
+      <option value="daily">Daily</option>
+      <option value="weekly">Weekly</option>
+      <option value="biweekly">Every 2 weeks</option>
+      <option value="monthly">Monthly</option>
+    </select>
+    <div style="font-size:11px;color:#A0906A;margin-top:5px">Needs a due date. Ticking it done reschedules it to the next due date instead of finishing it.</div>
   </div>
   <div style="margin-bottom:12px;display:none" id="itemSheetTrackLogWrap">
     <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;cursor:pointer">
