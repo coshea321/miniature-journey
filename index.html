@@ -3435,6 +3435,101 @@ function cleanGroceryName(raw, light) {
   return s;
 }
 
+// A leading number as recipes write them: "1 1/2", "3/4", "¾", "200", "1.5".
+var GROCERY_NUM_SRC = "\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|[¼½¾⅓⅔⅛⅜⅝⅞]|\\d+(?:\\.\\d+)?";
+
+// Units that may be recovered from inside a NAME and still scale properly —
+// values are the canonical unit scaleIngredient understands, so anything
+// pulled out here doubles when the recipe doubles.
+var GROCERY_NAME_UNITS = {
+  g:"g", gram:"g", grams:"g", kg:"kg", kilogram:"kg", kilograms:"kg",
+  ml:"ml", millilitre:"ml", millilitres:"ml", l:"l", litre:"l", litres:"l", liter:"l", liters:"l",
+  tsp:"tsp", teaspoon:"tsp", teaspoons:"tsp", tbsp:"tbsp", tbs:"tbsp", tablespoon:"tbsp", tablespoons:"tbsp",
+  oz:"oz", ounce:"oz", ounces:"oz", lb:"lb", lbs:"lb", pound:"lb", pounds:"lb",
+  cup:"cup", cups:"cup", clove:"clove", cloves:"clove", can:"can", cans:"can",
+  tin:"tin", tins:"tin", slice:"slice", slices:"slice", piece:"piece", pieces:"piece",
+  pinch:"pinch", pinches:"pinch", cube:"cube", cubes:"cube"
+};
+
+// Pull a buyable name, a quantity and a note out of one ingredient NAME.
+// parseIngredients only peels a leading "<number> <unit>" off a line, so a
+// recipe that writes the measure any other way leaves it stranded in the name
+// — which is what puts "Juice of 1 lemon" and "Garlic - 2 cloves" on the
+// shopping list instead of "Lemon ×1" and "Garlic, 2 cloves".
+//
+// hasAmount: whether parseIngredients already found an amount for this line
+// (if it did, we never invent a second one — we only recover a stranded unit).
+// Returns { name, amount, unit, qty, detail, prep }:
+//   amount+unit → scalable, handed back through scaleIngredient
+//   qty         → a literal quantity we cannot scale ("1/2 thumb size"),
+//                 so it is shown at base servings only, like bracket text
+//   detail      → a note that REPLACES the built-up amount note ("Juice of 1
+//                 lemon" already says the amount, so repeating it reads badly)
+//   prep        → a note fragment that is ADDED to it ("finely chopped")
+function splitGroceryName(raw, hasAmount) {
+  var out = { name: "", amount: null, unit: null, qty: "", detail: "", prep: "" };
+  var s = String(raw || "").replace(/<\/?[^>]+>/g, " ").replace(/\s{2,}/g, " ").trim();
+  if (!s) return out;
+  var body = s;
+  var numRe = new RegExp("^(" + GROCERY_NUM_SRC + ")\\s*([a-zA-Z]+)?\\s*(.*)$");
+
+  // ① "Juice of 1 lemon" → buy a Lemon, quantity 1, and keep the whole
+  //    original as the note (it is what you actually do with the lemon).
+  var jm = body.match(/^(?:grated\s+)?(?:juice|zest|rind|peel)\s+of\s+(.+)$/i);
+  if (jm) {
+    var rest = jm[1].replace(/^(?:a|an|the)\s+/i, "1 ");
+    var jn = rest.match(numRe);
+    if (jn && !GROCERY_NAME_UNITS[String(jn[2] || "").toLowerCase()]) {
+      out.amount = parseAmount(jn[1]);
+      rest = ((jn[2] || "") + " " + (jn[3] || "")).trim();
+    }
+    if (rest) { if (out.amount == null) out.amount = 1; out.detail = s; body = rest; }
+  }
+
+  // ② A trailing " - " clause: a quantity ("Garlic - 2 cloves") or a prep
+  //    instruction ("Fresh coriander - finely chopped"). Spaces around the
+  //    dash are required, so hyphenated names ("self-rising flour") are safe.
+  var dm = body.match(/^(.+?)\s+[-–—]\s+(.+)$/);
+  if (dm) {
+    var clause = dm[2].trim();
+    var cm = clause.match(numRe);
+    if (!cm) { if (!out.prep) out.prep = clause; }
+    else {
+      var cu = GROCERY_NAME_UNITS[String(cm[2] || "").toLowerCase()];
+      if (cu && !cm[3] && out.amount == null) { out.amount = parseAmount(cm[1]); out.unit = cu; }
+      else if (!cm[2] && !cm[3] && out.amount == null) out.amount = parseAmount(cm[1]);
+      else out.qty = clause;               // "1/2 thumb size" — real, but not scalable
+    }
+    body = dm[1].trim();
+  }
+
+  // ③ "200g mushrooms" — number glued to its unit, so parseIngredients' own
+  //    "<number> <space> <unit>" match never fired.
+  if (out.amount == null && !out.qty && !hasAmount) {
+    var lm = body.match(numRe);
+    if (lm && lm[2] && lm[3] && GROCERY_NAME_UNITS[lm[2].toLowerCase()]) {
+      out.amount = parseAmount(lm[1]);
+      out.unit = GROCERY_NAME_UNITS[lm[2].toLowerCase()];
+      body = lm[3];
+    }
+  }
+
+  // ④ "1 tin chopped tomatoes" — the amount parsed but the container word did
+  //    not, so it was left stranded at the front of the name.
+  if (hasAmount && out.amount == null && !out.unit) {
+    var wm = body.match(/^([a-zA-Z]+)\s+(.+)$/);
+    if (wm && GROCERY_NAME_UNITS[wm[1].toLowerCase()]) { out.unit = GROCERY_NAME_UNITS[wm[1].toLowerCase()]; body = wm[2]; }
+  }
+
+  // A comma clause is dropped by cleanGroceryName — keep it as a prep note
+  // rather than losing it ("onion, finely chopped").
+  var ci = body.indexOf(",");
+  if (ci !== -1 && !out.prep) out.prep = body.slice(ci + 1).trim();
+
+  out.name = cleanGroceryName(body);
+  return out;
+}
+
 // Spelling pairs where a recipe and a shopping list legitimately disagree.
 // Matching only — the displayed name is never rewritten. Keep this short and
 // only add pairs that have actually caused a duplicate on the list.
@@ -3493,7 +3588,7 @@ function addRecipeToGroceries(recipe, mult, quiet) {
   // v363: names are cleaned here, not at the call site, so the saved chip
   // below stores buyable names too (it is re-imported through the quick-import
   // path, which would otherwise re-introduce the raw name).
-  var names = ings.map(function(ing){ return cleanGroceryName(ing.name) || String(ing.name).trim(); });
+  var names = ings.map(function(ing){ return splitGroceryName(ing.name, ing.amount != null).name || String(ing.name).trim(); });
   if (!tag || !names.length) { if (!quiet) toast("No ingredients to add"); return null; }
 
   var d = loadListData("grocery");
@@ -3520,26 +3615,40 @@ function addRecipeToGroceries(recipe, mult, quiet) {
     return (ing.approx ? "~" : "") + a + (s.unit ? " " + s.unit : "");
   }
   // The note line's amount detail: the scaled amount, plus whatever bracketed
-  // measure cleanGroceryName stripped out of the name. The bracket text is
-  // taken verbatim from the recipe, so it is only true at BASE servings — it
-  // is dropped whenever the recipe is being scaled.
-  function amtDetail(ing, amt){
+  // measure cleanGroceryName stripped out of the name, plus any prep clause
+  // splitGroceryName recovered. Both of those are verbatim from the recipe, so
+  // the bracket is only true at BASE servings and is dropped when scaling.
+  // A `detail` from splitGroceryName REPLACES the lot: "Juice of 1 lemon"
+  // already states the amount, so prefixing it with "1 " reads badly.
+  function amtDetail(ing, amt, sp){
+    if (sp && sp.detail) return sp.detail;
     var bits = [];
     if (amt) bits.push(amt);
     if (m === 1) {
       var br = String(ing.name || "").match(/\(([^)]+)\)/);
       if (br && br[1].trim() && /\d|[¼½¾⅓⅔⅛⅜⅝⅞]/.test(br[1])) bits.push("(" + br[1].trim() + ")");
     }
+    if (sp && sp.prep) bits.push(sp.prep);
     return bits.join(" ");
   }
 
   var added = 0, tagged = 0;
   ings.forEach(function(ing){
-    var clean = cleanGroceryName(ing.name) || String(ing.name).trim();
+    var sp = splitGroceryName(ing.name, ing.amount != null);
+    var clean = sp.name || String(ing.name).trim();
     var key = groceryNameKey(clean);
     var existing = key ? byName[key] : null;
-    var amt = amtLabel(ing);
-    var detail = amtDetail(ing, amt);
+    // Scale whatever we ended up with: the parser's own amount when it found
+    // one, otherwise the amount/unit recovered from the name. Either way it
+    // goes through scaleIngredient, so it doubles when the recipe doubles.
+    var eff = ing;
+    if (ing.amount == null && sp.amount != null) eff = { name: ing.name, amount: sp.amount, unit: sp.unit, approx: ing.approx };
+    else if (ing.amount != null && !ing.unit && sp.unit) eff = { name: ing.name, amount: ing.amount, unit: sp.unit, approx: ing.approx };
+    var amt = amtLabel(eff);
+    // An unscalable literal quantity ("1/2 thumb size") stands in for the
+    // amount, but only at base servings — same honesty rule as bracket text.
+    if (!amt && sp.qty && m === 1) amt = sp.qty;
+    var detail = amtDetail(ing, amt, sp);
     if (existing) {
       // Re-tag only — never touch an existing item's NAME or amount chip; both
       // are text Cathal typed. The recipe's amount rides in the note instead
@@ -3731,7 +3840,7 @@ function scaleIngredient(ing, mult) {
   if (unit === "lb") return { amount: fmtNumber(amt), unit: "lb" };
   // Count-style units pluralise on scaling
   var countUnits = { pinch:["pinch","pinches"], cube:["cube","cubes"], clove:["clove","cloves"],
-                     can:["can","cans"], slice:["slice","slices"], piece:["piece","pieces"] };
+                     can:["can","cans"], tin:["tin","tins"], slice:["slice","slices"], piece:["piece","pieces"] };
   if (countUnits[unit]) {
     var nWhole = Math.round(amt*100)/100;
     var disp = fmtNumber(amt);
@@ -4379,7 +4488,7 @@ function parseIngredients(text, stripParens) {
     "oz":"oz","ounce":"oz","ounces":"oz",
     "lb":"lb","lbs":"lb","pound":"lb","pounds":"lb",
     "cube":"cube","cubes":"cube","pinch":"pinch","pinches":"pinch",
-    "clove":"clove","cloves":"clove","can":"can","cans":"can",
+    "clove":"clove","cloves":"clove","can":"can","cans":"can","tin":"tin","tins":"tin",
     "slice":"slice","slices":"slice","piece":"piece","pieces":"piece"
   };
   return text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean).map(function(line){
@@ -8702,7 +8811,10 @@ window.addEventListener("DOMContentLoaded", function() {
     var added = 0, tagged = 0;
     var recipeLines = [];
     lines.forEach(function(name) {
-      var clean = cleanGroceryName(name, !isGro);
+      // Grocery gets the full splitter too, so a pasted "Garlic - 2 cloves"
+      // tidies the same way a recipe's does (no amount chip here — a pasted
+      // list has no servings to scale against).
+      var clean = isGro ? splitGroceryName(name, false).name : cleanGroceryName(name, true);
       if (!clean) clean = name;
       if (tag) recipeLines.push(clean);
       var key = importKey(clean);

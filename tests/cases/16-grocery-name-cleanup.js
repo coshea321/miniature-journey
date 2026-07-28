@@ -128,6 +128,106 @@ module.exports = {
       ok('clear: the recipe tag is dropped', restored && !restored.recipe,
         'got: ' + JSON.stringify(restored && restored.recipe));
 
+      // ── splitGroceryName: measures stranded inside the NAME ──────
+      // parseIngredients only peels a leading "<number> <unit>" off a line, so
+      // every other way a recipe writes a measure ends up in the name.
+      function sp(raw, hasAmount){ return splitGroceryName(raw, !!hasAmount); }
+
+      var lemon = sp('Juice of 1 lemon');
+      ok('split: "Juice of 1 lemon" buys a Lemon', lemon.name === 'Lemon', 'got: ' + lemon.name);
+      ok('split: lemon quantity is 1', lemon.amount === 1, 'got: ' + lemon.amount);
+      ok('split: the original line becomes the note', lemon.detail === 'Juice of 1 lemon', 'got: ' + lemon.detail);
+
+      var zest = sp('Zest of a lime');
+      ok('split: "Zest of a lime" reads "a" as one', zest.name === 'Lime' && zest.amount === 1,
+        'got: ' + JSON.stringify(zest));
+
+      var garlic = sp('Garlic - 2 cloves');
+      ok('split: "Garlic - 2 cloves" buys Garlic', garlic.name === 'Garlic', 'got: ' + garlic.name);
+      ok('split: garlic quantity is scalable 2 cloves', garlic.amount === 2 && garlic.unit === 'clove',
+        'got: ' + JSON.stringify(garlic));
+
+      var ginger = sp('Ginger - ½ thumb size');
+      ok('split: "Ginger - ½ thumb size" buys Ginger', ginger.name === 'Ginger', 'got: ' + ginger.name);
+      ok('split: an unscalable measure is kept literally', ginger.qty === '½ thumb size' && ginger.amount === null,
+        'got: ' + JSON.stringify(ginger));
+
+      var cor = sp('Fresh coriander - finely chopped');
+      ok('split: a prep clause is not read as a quantity',
+        cor.name === 'Fresh coriander' && cor.amount === null && cor.prep === 'finely chopped',
+        'got: ' + JSON.stringify(cor));
+
+      var mush = sp('200g mushrooms');
+      ok('split: "200g mushrooms" splits the glued unit',
+        mush.name === 'Mushrooms' && mush.amount === 200 && mush.unit === 'g',
+        'got: ' + JSON.stringify(mush));
+
+      var tin = sp('Tin chopped tomatoes', true);
+      ok('split: a stranded container word becomes the unit',
+        tin.name === 'Chopped tomatoes' && tin.unit === 'tin' && tin.amount === null,
+        'got: ' + JSON.stringify(tin));
+
+      ok('split: a hyphenated name is not treated as a dash clause',
+        sp('self-rising flour').name === 'Self-rising flour', 'got: ' + sp('self-rising flour').name);
+      ok('split: a number followed by a NON-unit word is not raided for a quantity',
+        sp('5 spice powder').name === '5 spice powder' && sp('5 spice powder').amount === null,
+        'got: ' + JSON.stringify(sp('5 spice powder')));
+      ok('split: an ordinary name is untouched',
+        sp('Greek yogurt').name === 'Greek yogurt' && sp('Greek yogurt').amount === null,
+        'got: ' + JSON.stringify(sp('Greek yogurt')));
+
+      // ── the same six, end to end through the real push ───────────
+      listData.grocery = { items: [], hist: [] };
+      var curry = { name: 'Curry', servings: 1, ingredients: [
+        { name: 'Juice of 1 lemon' },
+        { name: 'Garlic - 2 cloves' },
+        { name: 'Ginger - ½ thumb size' },
+        { name: 'Fresh coriander - finely chopped' },
+        { name: '200g mushrooms' },
+        { name: 'Tin chopped tomatoes', amount: 1 }
+      ] };
+      addRecipeToGroceries(curry, 1, true);
+      function got(n){ return listData.grocery.items.find(function(i){ return i.name === n; }); }
+
+      var gLemon = got('Lemon');
+      ok('e2e: Lemon on the list', !!gLemon, 'names: ' + listData.grocery.items.map(function(i){return i.name;}).join(' | '));
+      ok('e2e: Lemon quantity 1', gLemon && gLemon.amount === '1', 'got: ' + (gLemon && gLemon.amount));
+      ok('e2e: Lemon note is the original line', gLemon && gLemon.notes === 'Juice of 1 lemon for Curry',
+        'got: ' + (gLemon && gLemon.notes));
+
+      var gGarlic = got('Garlic');
+      ok('e2e: Garlic quantity is "2 cloves"', gGarlic && gGarlic.amount === '2 cloves',
+        'got: ' + (gGarlic && gGarlic.amount));
+
+      var gGinger = got('Ginger');
+      ok('e2e: Ginger keeps its literal measure', gGinger && gGinger.amount === '½ thumb size',
+        'got: ' + (gGinger && gGinger.amount));
+
+      var gCor = got('Fresh coriander');
+      ok('e2e: Fresh coriander has no bogus quantity', gCor && !gCor.amount, 'got: ' + (gCor && gCor.amount));
+      ok('e2e: Fresh coriander keeps the prep as a note', gCor && gCor.notes === 'finely chopped for Curry',
+        'got: ' + (gCor && gCor.notes));
+
+      var gMush = got('Mushrooms');
+      ok('e2e: Mushrooms quantity is "200 g"', gMush && gMush.amount === '200 g', 'got: ' + (gMush && gMush.amount));
+
+      var gTom = got('Chopped tomatoes');
+      ok('e2e: Chopped tomatoes quantity is "1 tin"', gTom && gTom.amount === '1 tin', 'got: ' + (gTom && gTom.amount));
+
+      ok('e2e: fresh coriander did NOT merge with ground coriander',
+        groceryNameKey('Fresh coriander') !== groceryNameKey('Coriander'));
+
+      // ── recovered quantities scale with servings ─────────────────
+      listData.grocery = { items: [], hist: [] };
+      addRecipeToGroceries(curry, 2, true);
+      var dGarlic = got('Garlic'), dMush = got('Mushrooms'), dTom = got('Chopped tomatoes'), dGing = got('Ginger');
+      ok('scale: "2 cloves" doubles to "4 cloves"', dGarlic && dGarlic.amount === '4 cloves',
+        'got: ' + (dGarlic && dGarlic.amount));
+      ok('scale: "200 g" doubles to "400 g"', dMush && dMush.amount === '400 g', 'got: ' + (dMush && dMush.amount));
+      ok('scale: "1 tin" doubles to "2 tins"', dTom && dTom.amount === '2 tins', 'got: ' + (dTom && dTom.amount));
+      ok('scale: an unscalable measure is dropped rather than shown wrong',
+        dGing && !dGing.amount, 'got: ' + (dGing && dGing.amount));
+
       // ── headers are still never bought ──────────────────────────
       listData.grocery = { items: [], hist: [] };
       addRecipeToGroceries({ name: 'Hdr', servings: 1, ingredients: [
