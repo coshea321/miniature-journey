@@ -73,9 +73,13 @@ module.exports = {
         'got: ' + JSON.stringify(it && it.name));
       ok('push: amount chip is the scaled amount', it && it.amount === '460 g',
         'got: ' + JSON.stringify(it && it.amount));
-      ok('push: note carries amount + the stripped bracket + recipe',
-        it && it.notes === '460 g (1 3/4 cups + 2 tbs) for Rolls',
+      // v364: the note carries ONLY what the Amount field cannot say. The
+      // amount is not repeated, and the recipe is not named (the chip does).
+      ok('push: note carries the stripped bracket, not the amount or the recipe',
+        it && it.notes === '(1 3/4 cups + 2 tbs)',
         'got: ' + JSON.stringify(it && it.notes));
+      ok('push: the note line is remembered for later removal',
+        it && it._recipeNote === '(1 3/4 cups + 2 tbs)', 'got: ' + JSON.stringify(it && it._recipeNote));
 
       // ── the real push: matching an EXISTING typed entry ──────────
       listData.grocery = { items: [
@@ -87,26 +91,62 @@ module.exports = {
       var m = only[0];
       ok('match: the existing entry got tagged', m && m.recipe === 'Rolls', 'got: ' + JSON.stringify(m && m.recipe));
       ok('match: the typed name is left alone', m && m.name === 'Greek Yoghurt', 'got: ' + JSON.stringify(m && m.name));
-      ok('match: the typed amount chip is left alone', m && !m.amount, 'got: ' + JSON.stringify(m && m.amount));
-      ok('match: the amount is appended to the existing note',
-        m && m.notes === 'the big tub\\n460 g (1 3/4 cups + 2 tbs) for Rolls',
+      // v364: an EMPTY Amount field on a matched item gets filled — a
+      // recognised amount belongs in the Amount field wherever it can go.
+      ok('match: an empty Amount field is filled from the recipe',
+        m && m.amount === '460 g', 'got: ' + JSON.stringify(m && m.amount));
+      ok('match: with the amount in the field, the note does not repeat it',
+        m && m.notes === 'the big tub\\n(1 3/4 cups + 2 tbs)',
         'got: ' + JSON.stringify(m && m.notes));
+      ok('match: the recipe name is not repeated in the note',
+        m && m.notes.indexOf('Rolls') === -1, 'got: ' + JSON.stringify(m && m.notes));
       ok('match: the re-tag is stamped (v353 rule still holds)', m && m.updated > 100, 'got: ' + (m && m.updated));
 
       // Re-adding the same recipe must REPLACE its own note line, not stack it
       addRecipeToGroceries(yog, 1, true);
       var m2 = listData.grocery.items[0];
       ok('match: re-adding does not duplicate the note line',
-        m2 && m2.notes === 'the big tub\\n460 g (1 3/4 cups + 2 tbs) for Rolls',
+        m2 && m2.notes === 'the big tub\\n(1 3/4 cups + 2 tbs)',
         'got: ' + JSON.stringify(m2 && m2.notes));
+      // On a re-add the recipe must recognise the amount it put there itself,
+      // rather than mistaking it for one Cathal typed and re-stating it.
+      ok('match: re-adding keeps the amount in the field, not the note',
+        m2 && m2.amount === '460 g' && m2.notes.indexOf('460 g') === -1,
+        'got: ' + JSON.stringify(m2 && { amount: m2.amount, notes: m2.notes }));
+
+      // An amount Cathal typed himself is NEVER overwritten — the recipe's
+      // own amount falls back to the note in that case.
+      listData.grocery = { items: [
+        { id: 52, name: 'Greek Yoghurt', catId: 'other', done: false, amount: '2 tubs', updated: 100 }
+      ], hist: [] };
+      addRecipeToGroceries(yog, 1, true);
+      var typed = listData.grocery.items[0];
+      ok('match: a typed amount is never overwritten', typed && typed.amount === '2 tubs',
+        'got: ' + JSON.stringify(typed && typed.amount));
+      ok('match: the recipe amount falls back to the note when the field is taken',
+        typed && typed.notes === '460 g (1 3/4 cups + 2 tbs)',
+        'got: ' + JSON.stringify(typed && typed.notes));
+
+      // A v363 note ("… for <recipe>") is recognised and cleaned up on re-add
+      listData.grocery = { items: [
+        { id: 51, name: 'Greek Yoghurt', catId: 'other', done: false, amount: '2 tubs',
+          notes: 'the big tub\\n460 g (1 3/4 cups + 2 tbs) for Rolls', updated: 100 }
+      ], hist: [] };
+      addRecipeToGroceries(yog, 1, true);
+      var legacy = listData.grocery.items[0];
+      ok('legacy: a pre-release "… for <recipe>" note line is replaced, not stacked',
+        legacy && legacy.notes === 'the big tub\\n460 g (1 3/4 cups + 2 tbs)',
+        'got: ' + JSON.stringify(legacy && legacy.notes));
 
       // ── scaling: the bracket text is base-servings only ──────────
       listData.grocery = { items: [], hist: [] };
       addRecipeToGroceries(yog, 2, true);
       var sc = listData.grocery.items[0];
       ok('scale: amount doubles', sc && sc.amount === '920 g', 'got: ' + JSON.stringify(sc && sc.amount));
+      // Scaled: the bracket is dropped as base-servings-only, and the amount
+      // is in the chip — so nothing is left to say and there is no note.
       ok('scale: the base-servings bracket is dropped when scaling',
-        sc && sc.notes === '920 g for Rolls', 'got: ' + JSON.stringify(sc && sc.notes));
+        sc && !sc.notes, 'got: ' + JSON.stringify(sc && sc.notes));
 
       // ── Clear/revert puts a matched item's note back ─────────────
       listData.grocery = { items: [
@@ -123,6 +163,10 @@ module.exports = {
       var goBtn = document.getElementById('_rcKeep') || document.getElementById('_rcDel');
       if (goBtn) goBtn.click();
       var restored = listData.grocery.items.find(function(i){ return i.id === 60; });
+      ok('clear: an Amount field the recipe filled is emptied again',
+        restored && !restored.amount, 'got: ' + JSON.stringify(restored && restored.amount));
+      ok('clear: the recipe note marker is dropped',
+        restored && !restored._recipeNote, 'got: ' + JSON.stringify(restored && restored._recipeNote));
       ok('clear: the note is restored exactly as it was',
         restored && restored.notes === 'the big tub', 'got: ' + JSON.stringify(restored && restored.notes));
       ok('clear: the recipe tag is dropped', restored && !restored.recipe,
@@ -216,7 +260,7 @@ module.exports = {
       var gChil = listData.grocery.items[0];
       ok('e2e: the list shows "Chilli"', gChil && gChil.name === 'Chilli',
         'got: ' + (gChil && gChil.name));
-      ok('e2e: with "deseeded" as its note', gChil && gChil.notes === 'deseeded for Curry',
+      ok('e2e: with "deseeded" as its note', gChil && gChil.notes === 'deseeded',
         'got: ' + (gChil && gChil.notes));
 
       // ── the same six, end to end through the real push ───────────
@@ -235,7 +279,7 @@ module.exports = {
       var gLemon = got('Lemon');
       ok('e2e: Lemon on the list', !!gLemon, 'names: ' + listData.grocery.items.map(function(i){return i.name;}).join(' | '));
       ok('e2e: Lemon quantity 1', gLemon && gLemon.amount === '1', 'got: ' + (gLemon && gLemon.amount));
-      ok('e2e: Lemon note is the original line', gLemon && gLemon.notes === 'Juice of 1 lemon for Curry',
+      ok('e2e: Lemon note is the original line', gLemon && gLemon.notes === 'Juice of 1 lemon',
         'got: ' + (gLemon && gLemon.notes));
 
       var gGarlic = got('Garlic');
@@ -248,7 +292,7 @@ module.exports = {
 
       var gCor = got('Fresh coriander');
       ok('e2e: Fresh coriander has no bogus quantity', gCor && !gCor.amount, 'got: ' + (gCor && gCor.amount));
-      ok('e2e: Fresh coriander keeps the prep as a note', gCor && gCor.notes === 'finely chopped for Curry',
+      ok('e2e: Fresh coriander keeps the prep as a note', gCor && gCor.notes === 'finely chopped',
         'got: ' + (gCor && gCor.notes));
 
       var gMush = got('Mushrooms');

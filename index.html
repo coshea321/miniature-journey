@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v363 · 28/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v364 · 28/07/2026</div>
 
   </div>
 </div>
@@ -3578,21 +3578,33 @@ function groceryNameKey(name) {
   return k;
 }
 
-// Recipe amount notes are one line per recipe, "<amount> for <recipe name>",
-// so a second recipe tagging the same item appends rather than overwrites.
-// Amount first: the card's note snippet truncates at 40 chars, and the recipe
-// name is already on the card as its own chip.
-function stripRecipeNote(notes, tag) {
-  var suffix = " for " + tag;
+// The recipe writes at most ONE line into an item's note, and the line no
+// longer names the recipe (v364) — the item's own recipe chip already does,
+// so "200 g for Chickpea curry" was saying it twice. Without that suffix the
+// line is no longer self-identifying, so the exact text is remembered in
+// `item._recipeNote` and removed by value when the recipe is re-added,
+// re-tagged or cleared. Like `_recipePrev`/`_recipeAdded` this bookkeeping
+// field deliberately rides along into storage/sync/export: the clear/revert
+// flow has to survive a reload.
+// `tag` is still taken so a note written by v363 ("… for <recipe>") is
+// recognised and cleaned up on the next add — those notes exist on devices
+// that ran the pre-release test link.
+function stripRecipeNote(notes, tag, own) {
+  var legacy = tag ? " for " + tag : "";
   return String(notes || "").split("\n").filter(function(l){
-    return l.slice(-suffix.length) !== suffix;
+    if (own && l === own) return false;
+    if (legacy && l.slice(-legacy.length) === legacy) return false;
+    return true;
   }).join("\n").replace(/\n{2,}/g, "\n").trim();
 }
-function addRecipeNote(notes, tag, detail) {
-  var base = stripRecipeNote(notes, tag);
-  if (!detail) return base;
-  var line = detail + " for " + tag;
-  return base ? base + "\n" + line : line;
+// Replace this recipe's note line on an item, in place. Pass an empty detail
+// to remove it and leave any note the user typed themselves untouched.
+function setRecipeNote(item, tag, detail) {
+  if (!item) return;
+  var base = stripRecipeNote(item.notes, tag, item._recipeNote);
+  var next = detail ? (base ? base + "\n" + detail : detail) : base;
+  if (next) item.notes = next; else if (item.notes) item.notes = "";
+  if (detail) item._recipeNote = detail; else delete item._recipeNote;
 }
 
 // Push a Recipes-section recipe onto the Grocery list.
@@ -3646,10 +3658,14 @@ function addRecipeToGroceries(recipe, mult, quiet) {
   // the bracket is only true at BASE servings and is dropped when scaling.
   // A `detail` from splitGroceryName REPLACES the lot: "Juice of 1 lemon"
   // already states the amount, so prefixing it with "1 " reads badly.
-  function amtDetail(ing, amt, sp){
+  // amtInChip (v364): when the amount is going into the item's own Amount
+  // field there is no point repeating it in the note, so it is left out.
+  // A matched existing item keeps ITS amount chip untouched, so there the
+  // note is the only place the recipe's amount can appear and it stays.
+  function amtDetail(ing, amt, sp, amtInChip){
     if (sp && sp.detail) return sp.detail;
     var bits = [];
-    if (amt) bits.push(amt);
+    if (amt && !amtInChip) bits.push(amt);
     if (m === 1) {
       var br = String(ing.name || "").match(/\(([^)]+)\)/);
       if (br && br[1].trim() && /\d|[¼½¾⅓⅔⅛⅜⅝⅞]/.test(br[1])) bits.push("(" + br[1].trim() + ")");
@@ -3674,18 +3690,27 @@ function addRecipeToGroceries(recipe, mult, quiet) {
     // An unscalable literal quantity ("1/2 thumb size") stands in for the
     // amount, but only at base servings — same honesty rule as bracket text.
     if (!amt && sp.qty && m === 1) amt = sp.qty;
-    var detail = amtDetail(ing, amt, sp);
     if (existing) {
-      // Re-tag only — never touch an existing item's NAME or amount chip; both
-      // are text Cathal typed. The recipe's amount rides in the note instead
-      // (v363), snapshotted below so Clear puts the note back as it was.
+      // Never touch an existing item's NAME — that is text Cathal typed. Its
+      // Amount field is filled only when EMPTY (v364): a recognised amount
+      // belongs in the Amount field wherever it can go, but an amount already
+      // written there wins and the recipe's rides in the note instead.
+      // Everything changed here is snapshotted first so Clear restores it.
       if (!existing._recipePrev) {
-        existing._recipePrev = { done: !!existing.done, catId: existing.catId, recipe: existing.recipe || null, notes: existing.notes || "" };
+        existing._recipePrev = { done: !!existing.done, catId: existing.catId, recipe: existing.recipe || null,
+                                 notes: existing.notes || "", amount: existing.amount || "" };
       }
       existing.recipe = tag;
       existing._recipeAdded = false;        // pre-existed: restore on clear, don't delete
       if (existing.done) { existing.done = false; existing.added = Date.now(); } // revived = recently added (v325)
-      existing.notes = addRecipeNote(existing.notes, tag, detail);
+      // The snapshot is taken before the first change, so an empty amount in
+      // it means the recipe owns this field — a re-add refreshes it (servings
+      // may have changed) and the note still leaves the amount out. Without
+      // this, re-adding would see its own amount as one Cathal typed.
+      var ownsAmt = existing._recipePrev && existing._recipePrev.amount === "";
+      var filledAmt = false;
+      if (amt && (!existing.amount || ownsAmt)) { existing.amount = amt; filledAmt = true; }
+      setRecipeNote(existing, tag, amtDetail(ing, amt, sp, filledAmt));
       existing.updated = Date.now();
       existing.catId = gcat(clean);
       tagged++;
@@ -3693,8 +3718,9 @@ function addRecipeToGroceries(recipe, mult, quiet) {
       var catId = gcat(clean);
       var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser, recipe: tag, _recipeAdded: true, updated: Date.now(), added: Date.now() };
       if (amt) rec.amount = amt;            // new items carry the scaled amount
-      var note = addRecipeNote("", tag, detail);
-      if (note) rec.notes = note;           // full detail (incl. the stripped bracket)
+      // Only what the Amount field cannot say: the bracketed measure, a prep
+      // instruction, or the "Juice of 1 lemon" style original line.
+      setRecipeNote(rec, tag, amtDetail(ing, amt, sp, !!amt));
       items.unshift(rec);
       if (key) byName[key] = rec;
       addToHistFor("grocery", clean, catId);
@@ -4911,7 +4937,7 @@ function renderList() {
             // Keep: just drop the recipe markers, leave as a normal active item.
             // The amount note stays — the item is still to be bought, and the
             // amount is the only place that detail survives (v363).
-            it.recipe = null; it.updated = Date.now(); delete it._recipePrev; delete it._recipeAdded;
+            it.recipe = null; it.updated = Date.now(); delete it._recipePrev; delete it._recipeAdded; delete it._recipeNote;
             kept.push(it); return;
           }
           // Pre-existed → restore prior state, drop the tag
@@ -4921,11 +4947,14 @@ function renderList() {
             // v363: the recipe appended an amount line to the note — put the
             // note back exactly as it was. Older snapshots have no `notes` key,
             // so fall back to stripping just this recipe's own line.
-            it.notes = (typeof prev.notes === "string") ? prev.notes : stripRecipeNote(it.notes, tag);
+            it.notes = (typeof prev.notes === "string") ? prev.notes : stripRecipeNote(it.notes, tag, it._recipeNote);
+            // v364: an empty Amount field the recipe filled in is emptied
+            // again. Older snapshots have no `amount` key — leave those alone.
+            if (typeof prev.amount === "string") it.amount = prev.amount || null;
           }
-          else { it.recipe = null; if (it.notes) it.notes = stripRecipeNote(it.notes, tag); }
+          else { it.recipe = null; if (it.notes) it.notes = stripRecipeNote(it.notes, tag, it._recipeNote); }
           it.updated = Date.now();
-          delete it._recipePrev; delete it._recipeAdded;
+          delete it._recipePrev; delete it._recipeAdded; delete it._recipeNote;
           kept.push(it);
         });
         listData[currentList].items = kept;
@@ -8848,11 +8877,16 @@ window.addEventListener("DOMContentLoaded", function() {
       if (existing) {
         // Tag the existing item, recording its prior state so Clear can restore it
         if (!existing._recipePrev) {
-          existing._recipePrev = { done: !!existing.done, catId: existing.catId, recipe: existing.recipe || null, notes: existing.notes || "" };
+          existing._recipePrev = { done: !!existing.done, catId: existing.catId, recipe: existing.recipe || null,
+                                  notes: existing.notes || "", amount: existing.amount || "" };
         }
         existing.recipe = tag || existing.recipe; // new tag replaces old
         existing._recipeAdded = false;            // pre-existed: restore, don't delete
         if (existing.done) { existing.done = false; existing.added = Date.now(); } // revived = recently added (v325)
+        // A pasted list carries no amounts, so any note a previous recipe left
+        // on this item is now stale — drop it rather than leave it attached to
+        // a different recipe's chip (v364).
+        if (tag && existing._recipeNote) setRecipeNote(existing, tag, "");
         existing.updated = Date.now();
         if (tag) existing.catId = detectCat(clean); // recipe's category wins
         tagged++;
