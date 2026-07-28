@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v362 · 27/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v363 · 28/07/2026</div>
 
   </div>
 </div>
@@ -3404,11 +3404,84 @@ function headerLabel(ing){
   return String(ing && ing.name || "").replace(/<\/?[^>]+>/g,"").replace(/:\s*$/,"").trim();
 }
 
-// Push a Recipes-section recipe onto the Grocery list (Phase 1: names only).
+// ── Grocery name cleanup + matching (v363) ────────────────────────────────
+// Recipe ingredient names arrive with measure and prep noise baked into the
+// NAME, because parseIngredients only peels a LEADING number+unit off the
+// line: "460 g (1 3/4 cups + 2 tbs) Greek yogurt" parses to amount 460, unit
+// g, name "(1 3/4 cups + 2 tbs) Greek yogurt". Both grocery import paths used
+// to strip only a TRAILING bracket, so that name went onto the list verbatim
+// and could never match a hand-typed "Greek Yoghurt". These two helpers are
+// the single source of truth for both paths (recipe push + quick import).
+//
+// cleanGroceryName returns the buyable name. Nothing it removes is lost: the
+// caller carries the detail into the item's note.
+//   light=true  → brackets and "x2"/"~2" only (used for non-grocery lists,
+//                 where a trailing comma clause is real text: "Call bank,
+//                 ask about fees" must NOT become "Call bank").
+function cleanGroceryName(raw, light) {
+  var s = String(raw || "").replace(/<\/?[^>]+>/g, " ");   // any stray markup
+  s = s.replace(/\([^)]*\)/g, " ");                        // brackets ANYWHERE, not just trailing
+  s = s.replace(/[()]/g, " ");                             // unbalanced leftovers
+  s = s.replace(/\s+[x~]\s*\d+(?:\s|$)/i, " ");            // "Milk x2" (was quick-import only)
+  if (!light) {
+    s = s.split(",")[0];                                   // "onion, finely chopped" → "onion"
+    s = s.replace(/^of\s+/i, "");                          // "1 pinch of salt" → unit=pinch, "of salt"
+  }
+  s = s.replace(/^[\s\-–—.:]+|[\s\-–—.:,]+$/g, "");        // edge punctuation
+  s = s.replace(/\s{2,}/g, " ").trim();
+  // Sentence-case a fully lowercase start so recipe items sit beside typed
+  // ones ("egg" → "Egg"). Guarded so deliberate casing survives ("iPhone").
+  if (!light && /^[a-z]/.test(s) && !/^[a-z][A-Z]/.test(s)) s = s.charAt(0).toUpperCase() + s.slice(1);
+  return s;
+}
+
+// Spelling pairs where a recipe and a shopping list legitimately disagree.
+// Matching only — the displayed name is never rewritten. Keep this short and
+// only add pairs that have actually caused a duplicate on the list.
+var GROCERY_SPELLINGS = [[/yoghurt/g, "yogurt"], [/chilli/g, "chili"], [/&/g, "and"]];
+
+// The key two names are matched on. Case-, punctuation- and plural-insensitive
+// so a recipe's "egg" lands on the existing "Eggs" instead of beside it. Both
+// sides of every comparison go through this, so the folding is symmetric —
+// an imperfect singular ("oats" → "oat") still matches itself.
+function groceryNameKey(name) {
+  var k = String(name || "").toLowerCase().replace(/[^a-z0-9\s&]/g, " ").replace(/\s{2,}/g, " ").trim();
+  GROCERY_SPELLINGS.forEach(function(p){ k = k.replace(p[0], p[1]); });
+  k = k.split(" ").map(function(w){
+    if (w.length > 4 && /ies$/.test(w)) return w.slice(0, -3) + "y";        // berries → berry
+    if (w.length > 4 && /oes$/.test(w)) return w.slice(0, -2);              // tomatoes → tomato
+    if (w.length > 4 && /(s|sh|ch|x|z)es$/.test(w)) return w.slice(0, -2);  // boxes → box
+    if (w.length > 3 && /s$/.test(w) && !/(ss|us|is)$/.test(w)) return w.slice(0, -1); // eggs → egg
+    return w;
+  }).join(" ").replace(/\s{2,}/g, " ").trim();
+  return k;
+}
+
+// Recipe amount notes are one line per recipe, "<amount> for <recipe name>",
+// so a second recipe tagging the same item appends rather than overwrites.
+// Amount first: the card's note snippet truncates at 40 chars, and the recipe
+// name is already on the card as its own chip.
+function stripRecipeNote(notes, tag) {
+  var suffix = " for " + tag;
+  return String(notes || "").split("\n").filter(function(l){
+    return l.slice(-suffix.length) !== suffix;
+  }).join("\n").replace(/\n{2,}/g, "\n").trim();
+}
+function addRecipeNote(notes, tag, detail) {
+  var base = stripRecipeNote(notes, tag);
+  if (!detail) return base;
+  var line = detail + " for " + tag;
+  return base ? base + "\n" + line : line;
+}
+
+// Push a Recipes-section recipe onto the Grocery list.
 // Tag = recipe name, so the batch clears/reverts as a group exactly like the
 // grocery CSV import. Also saves a reusable saved-recipe chip in fl4_recipes at
 // the recipe's BASE servings. Targets grocery directly (not currentList) so it
-// works no matter which section is open. Amount-carrying is a later phase.
+// works no matter which section is open. Names go through cleanGroceryName and
+// match on groceryNameKey (v363) so an ingredient lands ON an existing entry
+// instead of beside it; the amount rides in the amount chip (new items) and in
+// the item note (always, so a matched item still shows how much is needed).
 // quiet (v317, optional): suppress the toast and skip nothing else — the
 // week-planner batch caller shows one combined toast instead. Returns
 // {added, tagged} counts (null when there was nothing to add).
@@ -3417,13 +3490,16 @@ function addRecipeToGroceries(recipe, mult, quiet) {
   var m = (typeof mult === "number" && mult > 0) ? mult : 1;
   var tag = (recipe.name || "").trim();
   var ings = (recipe.ingredients || []).filter(function(ing){ return ing && ing.name && String(ing.name).trim() && !isHeaderIng(ing); });
-  var names = ings.map(function(ing){ return String(ing.name).trim(); });
+  // v363: names are cleaned here, not at the call site, so the saved chip
+  // below stores buyable names too (it is re-imported through the quick-import
+  // path, which would otherwise re-introduce the raw name).
+  var names = ings.map(function(ing){ return cleanGroceryName(ing.name) || String(ing.name).trim(); });
   if (!tag || !names.length) { if (!quiet) toast("No ingredients to add"); return null; }
 
   var d = loadListData("grocery");
   var items = d.items;
   var byName = {};
-  items.forEach(function(it){ if (it){ var k=(it.name||"").trim().toLowerCase(); if(!(k in byName)) byName[k]=it; } });
+  items.forEach(function(it){ if (it){ var k = groceryNameKey(it.name); if (k && !(k in byName)) byName[k]=it; } });
 
   // Grocery-specific category detection (detectCat() is bound to currentList).
   function gcat(name){
@@ -3443,30 +3519,49 @@ function addRecipeToGroceries(recipe, mult, quiet) {
       .replace(/⅔/g,"2/3").replace(/¾/g,"3/4");
     return (ing.approx ? "~" : "") + a + (s.unit ? " " + s.unit : "");
   }
+  // The note line's amount detail: the scaled amount, plus whatever bracketed
+  // measure cleanGroceryName stripped out of the name. The bracket text is
+  // taken verbatim from the recipe, so it is only true at BASE servings — it
+  // is dropped whenever the recipe is being scaled.
+  function amtDetail(ing, amt){
+    var bits = [];
+    if (amt) bits.push(amt);
+    if (m === 1) {
+      var br = String(ing.name || "").match(/\(([^)]+)\)/);
+      if (br && br[1].trim() && /\d|[¼½¾⅓⅔⅛⅜⅝⅞]/.test(br[1])) bits.push("(" + br[1].trim() + ")");
+    }
+    return bits.join(" ");
+  }
 
   var added = 0, tagged = 0;
   ings.forEach(function(ing){
-    var clean = String(ing.name).replace(/\s*\(.*?\)\s*$/, "").trim() || String(ing.name).trim();
-    var key = clean.toLowerCase();
-    var existing = byName[key];
+    var clean = cleanGroceryName(ing.name) || String(ing.name).trim();
+    var key = groceryNameKey(clean);
+    var existing = key ? byName[key] : null;
+    var amt = amtLabel(ing);
+    var detail = amtDetail(ing, amt);
     if (existing) {
-      // Re-tag only — never touch an existing item's text or amount.
+      // Re-tag only — never touch an existing item's NAME or amount chip; both
+      // are text Cathal typed. The recipe's amount rides in the note instead
+      // (v363), snapshotted below so Clear puts the note back as it was.
       if (!existing._recipePrev) {
-        existing._recipePrev = { done: !!existing.done, catId: existing.catId, recipe: existing.recipe || null };
+        existing._recipePrev = { done: !!existing.done, catId: existing.catId, recipe: existing.recipe || null, notes: existing.notes || "" };
       }
       existing.recipe = tag;
       existing._recipeAdded = false;        // pre-existed: restore on clear, don't delete
       if (existing.done) { existing.done = false; existing.added = Date.now(); } // revived = recently added (v325)
+      existing.notes = addRecipeNote(existing.notes, tag, detail);
       existing.updated = Date.now();
       existing.catId = gcat(clean);
       tagged++;
     } else {
       var catId = gcat(clean);
       var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser, recipe: tag, _recipeAdded: true, updated: Date.now(), added: Date.now() };
-      var amt = amtLabel(ing);
       if (amt) rec.amount = amt;            // new items carry the scaled amount
+      var note = addRecipeNote("", tag, detail);
+      if (note) rec.notes = note;           // full detail (incl. the stripped bracket)
       items.unshift(rec);
-      byName[key] = rec;
+      if (key) byName[key] = rec;
       addToHistFor("grocery", clean, catId);
       added++;
     }
@@ -4678,14 +4773,22 @@ function renderList() {
           if (!it || it.recipe !== tag) { kept.push(it); return; }
           if (it._recipeAdded) {
             if (deleteAdded) { addTomb(currentList, it.id); return; } // remove entirely
-            // Keep: just drop the recipe markers, leave as a normal active item
+            // Keep: just drop the recipe markers, leave as a normal active item.
+            // The amount note stays — the item is still to be bought, and the
+            // amount is the only place that detail survives (v363).
             it.recipe = null; it.updated = Date.now(); delete it._recipePrev; delete it._recipeAdded;
             kept.push(it); return;
           }
           // Pre-existed → restore prior state, drop the tag
           var prev = it._recipePrev;
-          if (prev) { it.done = prev.done; it.catId = prev.catId; it.recipe = prev.recipe || null; }
-          else { it.recipe = null; }
+          if (prev) {
+            it.done = prev.done; it.catId = prev.catId; it.recipe = prev.recipe || null;
+            // v363: the recipe appended an amount line to the note — put the
+            // note back exactly as it was. Older snapshots have no `notes` key,
+            // so fall back to stripping just this recipe's own line.
+            it.notes = (typeof prev.notes === "string") ? prev.notes : stripRecipeNote(it.notes, tag);
+          }
+          else { it.recipe = null; if (it.notes) it.notes = stripRecipeNote(it.notes, tag); }
           it.updated = Date.now();
           delete it._recipePrev; delete it._recipeAdded;
           kept.push(it);
@@ -8587,21 +8690,27 @@ window.addEventListener("DOMContentLoaded", function() {
     var lines = raw.split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
     if (!lines.length) { toast("Nothing to import"); return; }
     var items = getItems();
-    // Index existing items by lowercased name (first match wins)
+    // v363: Grocery gets the full treatment — cleaned names and the fuzzy
+    // matching key, so a pasted "eggs" lands on the existing "Egg". The task
+    // lists deliberately keep the old exact-lowercase key and the light clean:
+    // there a trailing comma clause is real text ("Call bank, ask about fees"),
+    // and "Buy tickets" is not necessarily the same item as "Buy ticket".
+    var isGro = currentList === "grocery";
+    function importKey(n){ return isGro ? groceryNameKey(n) : String(n||"").trim().toLowerCase(); }
     var byName = {};
-    items.forEach(function(it){ if (it){ var k=(it.name||"").trim().toLowerCase(); if(!(k in byName)) byName[k]=it; } });
+    items.forEach(function(it){ if (it){ var k = importKey(it.name); if (k && !(k in byName)) byName[k]=it; } });
     var added = 0, tagged = 0;
     var recipeLines = [];
     lines.forEach(function(name) {
-      var clean = name.replace(/\s+[x~]\s*\d+$/i, "").replace(/\s*\(.*?\)\s*$/, "").trim();
+      var clean = cleanGroceryName(name, !isGro);
       if (!clean) clean = name;
       if (tag) recipeLines.push(clean);
-      var key = clean.toLowerCase();
-      var existing = byName[key];
+      var key = importKey(clean);
+      var existing = key ? byName[key] : null;
       if (existing) {
         // Tag the existing item, recording its prior state so Clear can restore it
         if (!existing._recipePrev) {
-          existing._recipePrev = { done: !!existing.done, catId: existing.catId, recipe: existing.recipe || null };
+          existing._recipePrev = { done: !!existing.done, catId: existing.catId, recipe: existing.recipe || null, notes: existing.notes || "" };
         }
         existing.recipe = tag || existing.recipe; // new tag replaces old
         existing._recipeAdded = false;            // pre-existed: restore, don't delete
@@ -8614,7 +8723,7 @@ window.addEventListener("DOMContentLoaded", function() {
         var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser, updated: Date.now(), added: Date.now() };
         if (tag) { rec.recipe = tag; rec._recipeAdded = true; }
         items.unshift(rec);
-        byName[key] = rec;
+        if (key) byName[key] = rec;
         addToHist(clean, catId);
         added++;
       }
