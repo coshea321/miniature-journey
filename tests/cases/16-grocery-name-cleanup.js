@@ -176,6 +176,49 @@ module.exports = {
         sp('Greek yogurt').name === 'Greek yogurt' && sp('Greek yogurt').amount === null,
         'got: ' + JSON.stringify(sp('Greek yogurt')));
 
+      // ── badly-ingested CSV noise (the "Chilli deseeded chili" case) ──
+      // Both rules are TRAILING-only. A modifier that LEADS is part of the
+      // product and must survive untouched — that asymmetry is the whole
+      // safety argument, so it is pinned in both directions here.
+      var chil = sp('Chilli deseeded chili');
+      ok('noise: the repeated trailing word and the prep are both removed',
+        chil.name === 'Chilli', 'got: ' + JSON.stringify(chil));
+      ok('noise: the prep instruction is kept as a note',
+        chil.prep === 'deseeded', 'got: ' + chil.prep);
+      ok('noise: no quantity is invented from thin air',
+        chil.amount === null && !chil.qty, 'got: ' + JSON.stringify(chil));
+
+      ok('noise: a trailing prep word alone is stripped',
+        sp('Onion finely chopped').name === 'Onion' && sp('Onion finely chopped').prep === 'finely chopped',
+        'got: ' + JSON.stringify(sp('Onion finely chopped')));
+      ok('noise: a repeated trailing word alone is stripped',
+        sp('Chilli chili').name === 'Chilli', 'got: ' + JSON.stringify(sp('Chilli chili')));
+
+      // Leading modifiers are real products — none of these may be touched
+      ok('noise: "Chopped tomatoes" survives', sp('Chopped tomatoes').name === 'Chopped tomatoes',
+        'got: ' + sp('Chopped tomatoes').name);
+      ok('noise: "Condensed milk" survives', sp('Condensed milk').name === 'Condensed milk',
+        'got: ' + sp('Condensed milk').name);
+      ok('noise: "Smoked salmon" survives', sp('Smoked salmon').name === 'Smoked salmon',
+        'got: ' + sp('Smoked salmon').name);
+      ok('noise: "Grated cheese" survives', sp('Grated cheese').name === 'Grated cheese',
+        'got: ' + sp('Grated cheese').name);
+      ok('noise: a name that is ONLY a prep word is not emptied',
+        sp('Chopped').name === 'Chopped', 'got: ' + JSON.stringify(sp('Chopped')));
+      ok('noise: an unrelated trailing word is not stripped',
+        sp('Chilli flakes').name === 'Chilli flakes', 'got: ' + sp('Chilli flakes').name);
+
+      // End to end: the item that started this, straight off Cathal's list
+      listData.grocery = { items: [], hist: [] };
+      addRecipeToGroceries({ name: 'Curry', servings: 1, ingredients: [
+        { name: 'Chilli deseeded chili' }
+      ] }, 1, true);
+      var gChil = listData.grocery.items[0];
+      ok('e2e: the list shows "Chilli"', gChil && gChil.name === 'Chilli',
+        'got: ' + (gChil && gChil.name));
+      ok('e2e: with "deseeded" as its note', gChil && gChil.notes === 'deseeded for Curry',
+        'got: ' + (gChil && gChil.notes));
+
       // ── the same six, end to end through the real push ───────────
       listData.grocery = { items: [], hist: [] };
       var curry = { name: 'Curry', servings: 1, ingredients: [

@@ -3451,6 +3451,13 @@ var GROCERY_NAME_UNITS = {
   pinch:"pinch", pinches:"pinch", cube:"cube", cubes:"cube"
 };
 
+// Prep instructions that are only ever stripped when they TRAIL the name (see
+// rule ⑤). Deliberately an explicit list rather than "any -ed word", so a real
+// product name is never mistaken for an instruction.
+var GROCERY_PREP_WORDS = ["deseeded","de-seeded","seeded","chopped","diced","sliced","minced",
+  "crushed","grated","peeled","drained","rinsed","trimmed","halved","quartered","beaten",
+  "melted","softened","cubed","shredded","zested","juiced","washed","separated","divided"];
+
 // Pull a buyable name, a quantity and a note out of one ingredient NAME.
 // parseIngredients only peels a leading "<number> <unit>" off a line, so a
 // recipe that writes the measure any other way leaves it stranded in the name
@@ -3519,6 +3526,25 @@ function splitGroceryName(raw, hasAmount) {
   if (hasAmount && out.amount == null && !out.unit) {
     var wm = body.match(/^([a-zA-Z]+)\s+(.+)$/);
     if (wm && GROCERY_NAME_UNITS[wm[1].toLowerCase()]) { out.unit = GROCERY_NAME_UNITS[wm[1].toLowerCase()]; body = wm[2]; }
+  }
+
+  // ⑤ Unpunctuated trailing noise, as seen in badly-ingested CSV recipes:
+  //    "Chilli deseeded chili" means one chilli, deseeded. Two rules, both
+  //    TRAILING-only — that asymmetry is what makes them safe. A modifier that
+  //    LEADS is part of the product ("chopped tomatoes", "condensed milk",
+  //    "smoked salmon") and is never touched; one that trails is an
+  //    instruction. Rule one: a last word that just repeats the first is
+  //    ingest noise. Rule two: a trailing prep word (optionally with its
+  //    adverb) is a note, not something you buy.
+  var w = body.split(/\s+/);
+  if (w.length > 1) {
+    var firstK = groceryNameKey(w[0]);
+    if (firstK && groceryNameKey(w[w.length - 1]) === firstK) { w.pop(); body = w.join(" "); }
+  }
+  var pm = body.match(/^(.+?)\s+((?:finely|roughly|thinly|coarsely|freshly|lightly|well)\s+)?([a-zA-Z-]+)$/);
+  if (pm && GROCERY_PREP_WORDS.indexOf(pm[3].toLowerCase()) !== -1) {
+    if (!out.prep) out.prep = ((pm[2] || "") + pm[3]).trim();
+    body = pm[1].trim();
   }
 
   // A comma clause is dropped by cleanGroceryName — keep it as a prep note
