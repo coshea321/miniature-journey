@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v364 · 28/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v365 · 28/07/2026</div>
 
   </div>
 </div>
@@ -3622,7 +3622,7 @@ function addRecipeToGroceries(recipe, mult, quiet) {
   if (!recipe) return null;
   var m = (typeof mult === "number" && mult > 0) ? mult : 1;
   var tag = (recipe.name || "").trim();
-  var ings = (recipe.ingredients || []).filter(function(ing){ return ing && ing.name && String(ing.name).trim() && !isHeaderIng(ing); });
+  var ings = (recipe.ingredients || []).filter(function(ing){ return ing && ing.name && String(ing.name).trim() && !isHeaderIng(ing); }).map(rescueIngredientMeasure);
   // v363: names are cleaned here, not at the call site, so the saved chip
   // below stores buyable names too (it is re-imported through the quick-import
   // path, which would otherwise re-introduce the raw name).
@@ -3642,14 +3642,14 @@ function addRecipeToGroceries(recipe, mult, quiet) {
     return "other";
   }
   // ASCII-only amount label, scaled to current servings. Reuses scaleIngredient
-  // so units stay one source of truth. Returns "" when there's no clean amount
-  // (incl. the compound-amount parser gap) → caller falls back to name-only.
+  // so units stay one source of truth. A range (amountMax) renders as
+  // "4-6 tbsp", scaled at both ends. Returns "" when there's no clean amount
+  // → caller falls back to name-only.
+  function ascii(s){ return String(s).replace(/¼/g,"1/4").replace(/⅓/g,"1/3").replace(/½/g,"1/2").replace(/⅔/g,"2/3").replace(/¾/g,"3/4"); }
   function amtLabel(ing){
     var s = scaleIngredient(ing, m);
     if (!s || !s.amount || s.amount === "0") return "";
-    var a = String(s.amount)
-      .replace(/¼/g,"1/4").replace(/⅓/g,"1/3").replace(/½/g,"1/2")
-      .replace(/⅔/g,"2/3").replace(/¾/g,"3/4");
+    var a = ascii(s.amount) + (s.amountMax ? "-" + ascii(s.amountMax) : "");
     return (ing.approx ? "~" : "") + a + (s.unit ? " " + s.unit : "");
   }
   // The note line's amount detail: the scaled amount, plus whatever bracketed
@@ -3667,8 +3667,14 @@ function addRecipeToGroceries(recipe, mult, quiet) {
     var bits = [];
     if (amt && !amtInChip) bits.push(amt);
     if (m === 1) {
-      var br = String(ing.name || "").match(/\(([^)]+)\)/);
-      if (br && br[1].trim() && /\d|[¼½¾⅓⅔⅛⅜⅝⅞]/.test(br[1])) bits.push("(" + br[1].trim() + ")");
+      // A compound sum's original phrasing ("1 3/4 cup + 2 tbsp") is only
+      // true at base servings, same as the bracket text below — at any
+      // other multiplier the scaled `amt` above already says what's needed.
+      if (ing._compoundNote) bits.push(ing._compoundNote);
+      else {
+        var br = String(ing.name || "").match(/\(([^)]+)\)/);
+        if (br && br[1].trim() && /\d|[¼½¾⅓⅔⅛⅜⅝⅞]/.test(br[1])) bits.push("(" + br[1].trim() + ")");
+      }
     }
     if (sp && sp.prep) bits.push(sp.prep);
     return bits.join(" ");
@@ -3684,8 +3690,8 @@ function addRecipeToGroceries(recipe, mult, quiet) {
     // one, otherwise the amount/unit recovered from the name. Either way it
     // goes through scaleIngredient, so it doubles when the recipe doubles.
     var eff = ing;
-    if (ing.amount == null && sp.amount != null) eff = { name: ing.name, amount: sp.amount, unit: sp.unit, approx: ing.approx };
-    else if (ing.amount != null && !ing.unit && sp.unit) eff = { name: ing.name, amount: ing.amount, unit: sp.unit, approx: ing.approx };
+    if (ing.amount == null && sp.amount != null) eff = { name: ing.name, amount: sp.amount, unit: sp.unit, approx: ing.approx, amountMax: ing.amountMax };
+    else if (ing.amount != null && !ing.unit && sp.unit) eff = { name: ing.name, amount: ing.amount, unit: sp.unit, approx: ing.approx, amountMax: ing.amountMax };
     var amt = amtLabel(eff);
     // An unscalable literal quantity ("1/2 thumb size") stands in for the
     // amount, but only at base servings — same honesty rule as bracket text.
@@ -3858,13 +3864,12 @@ function cupToGrams(name) {
   return null;
 }
 
-// Given an ingredient and a scale multiplier, return the display amount + unit.
-// Rule: tsp/tbsp always stay tsp/tbsp; ml stays ml; cups convert to g (dry) or ml (liquid);
-// counts/pinches/cubes scale as whole numbers.
-function scaleIngredient(ing, mult) {
-  var amt = (ing.amount || 0) * mult;
-  var unit = ing.unit;
-
+// Format one already-scaled amount for a given unit + ingredient name. Rule:
+// tsp/tbsp always stay tsp/tbsp; ml stays ml; cups convert to g (dry) or ml
+// (liquid); counts/pinches/cubes scale as whole numbers. Factored out of
+// scaleIngredient so a range's amountMax can be run through the exact same
+// per-unit formatting as its amount.
+function formatScaledAmount(unit, amt, name) {
   if (unit === "tsp" || unit === "tbsp") {
     return { amount: fmtFraction(amt), unit: unit };
   }
@@ -3876,7 +3881,7 @@ function scaleIngredient(ing, mult) {
     return { amount: fmtNumber(amt), unit: "l" };
   }
   if (unit === "cup" || unit === "cups") {
-    var gpc = cupToGrams(ing.name);
+    var gpc = cupToGrams(name);
     if (gpc != null) {
       var grams = amt * gpc;
       var gR = grams >= 100 ? Math.round(grams/5)*5 : Math.round(grams);
@@ -3900,6 +3905,21 @@ function scaleIngredient(ing, mult) {
     return { amount: disp, unit: countUnits[unit][plural ? 1 : 0] };
   }
   return { amount: fmtNumber(amt), unit: unit || "" };
+}
+// Given an ingredient and a scale multiplier, return the display amount + unit.
+// When the ingredient carries amountMax (a range, e.g. "2-3 tbsp"), the
+// returned unit follows the TOP of the range ("1-2 cloves", not "1-2 clove") —
+// non-range ingredients are unaffected, same single-amount result as before.
+function scaleIngredient(ing, mult) {
+  var unit = ing.unit;
+  var min = formatScaledAmount(unit, (ing.amount || 0) * mult, ing.name);
+  var result = { amount: min.amount, unit: min.unit };
+  if (ing.amountMax != null) {
+    var max = formatScaledAmount(unit, ing.amountMax * mult, ing.name);
+    result.amountMax = max.amount;
+    result.unit = max.unit;
+  }
+  return result;
 }
 
 var _recipeView = "list";   // "list" | "detail" | "plan"
@@ -4317,6 +4337,23 @@ function formatMethod(text){
   }).join("");
 }
 
+// Rescue-at-render (recipe-parser second pass, v365): an ingredient stored
+// before compound/range parsing existed may still carry a stranded "+ 2
+// tbsp"/"to 3 tbsp" leftover in its name — the old parser only ever peeled a
+// single leading amount+unit off a line. Reconstructing the original text
+// exactly as `openRecipeEditor` would and re-running it through the current
+// parseIngredients recovers the correct amount/amountMax for display.
+// Stored data is never rewritten here — editing and saving the recipe is
+// still what actually cleans it up (same "zero migration code" mechanism
+// v363's downstream rescue relies on).
+function rescueIngredientMeasure(ing) {
+  if (!ing || isHeaderIng(ing) || ing.amountMax != null) return ing;
+  var raw = (ing.approx ? "~" : "") + (ing.amount != null ? ing.amount + " " : "") + (ing.unit ? ing.unit + " " : "") + ing.name;
+  var reparsed = parseIngredients(raw, false)[0];
+  if (!reparsed || reparsed.header) return ing;
+  if (reparsed.amountMax == null && reparsed.amount == ing.amount) return ing;
+  return reparsed;
+}
 function renderRecipeDetail() {
   var el = document.getElementById("recipesContent");
   var r = getRecipeBook().find(function(x){ return x.id === _recipeOpenId; });
@@ -4330,9 +4367,10 @@ function renderRecipeDetail() {
       ingHtml += "<li style='padding:11px 0 3px;list-style:none;font-size:12px;font-weight:800;color:#B5651D;text-transform:uppercase;letter-spacing:.5px'>" + esc(headerLabel(ing)) + "</li>";
       return;
     }
-    var s = scaleIngredient(ing, mult);
-    var amtStr = (s.amount && s.amount !== "0") ? "<b>" + (ing.approx ? "~" : "") + s.amount + (s.unit ? " " + s.unit : "") + "</b> " : "";
-    ingHtml += "<li style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#2A2010;list-style:none'>" + amtStr + esc(ing.name) + "</li>";
+    var eff = rescueIngredientMeasure(ing);
+    var s = scaleIngredient(eff, mult);
+    var amtStr = (s.amount && s.amount !== "0") ? "<b>" + (eff.approx ? "~" : "") + s.amount + (s.amountMax ? "–" + s.amountMax : "") + (s.unit ? " " + s.unit : "") + "</b> " : "";
+    ingHtml += "<li style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#2A2010;list-style:none'>" + amtStr + esc(eff.name) + "</li>";
   });
 
   el.innerHTML =
@@ -4387,7 +4425,12 @@ function openRecipeEditor(id) {
   var isNew = !r;
   // Build an ingredient text representation: "amount unit name" per line
   var ingText = r ? (r.ingredients||[]).map(function(i){
-    return (i.approx?"~":"") + (i.amount!=null?i.amount+" ":"") + (i.unit?i.unit+" ":"") + i.name;
+    // A compound sum re-emits its ORIGINAL phrasing ("1 3/4 cup + 2 tbsp"),
+    // not the normalized decimal it was stored as, so re-editing a typed
+    // fraction doesn't flatten it — parseIngredients recognises it again on
+    // save either way (round-trip: serialize → parse → same data).
+    if (i._compoundNote) return (i.approx?"~":"") + i._compoundNote + " " + i.name;
+    return (i.approx?"~":"") + (i.amount!=null?i.amount+(i.amountMax!=null?"-"+i.amountMax:"")+" ":"") + (i.unit?i.unit+" ":"") + i.name;
   }).join("\n") : "";
   var el = document.getElementById("recipesContent");
   el.innerHTML =
@@ -4525,9 +4568,32 @@ function recipeCategoryChips() {
 function fieldLabel(t){ return "<div style='font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px'>" + t + "</div>"; }
 function recipeInputCss(){ return "width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;outline:none;"; }
 
+// Same-dimension unit families for summing a compound amount ("1 3/4 cup +
+// 2 tbsp") into ONE normalized amount+unit. Factor = how many of the
+// family's base unit one of this unit holds. Units outside these three
+// families (oz/lb, count units) are deliberately not summable — guessing at
+// a density conversion is worse than leaving the line unparsed.
+var COMPOUND_UNIT_FAMILIES = {
+  tsp:  { base: "tsp", factor: 1 },  tbsp: { base: "tsp", factor: 3 },  cup: { base: "tsp", factor: 48 },
+  ml:   { base: "ml",  factor: 1 },  l:    { base: "ml",  factor: 1000 },
+  g:    { base: "g",   factor: 1 },  kg:   { base: "g",   factor: 1000 }
+};
+function sumCompoundAmount(amt1, unit1, amt2, unit2) {
+  var f1 = COMPOUND_UNIT_FAMILIES[unit1], f2 = COMPOUND_UNIT_FAMILIES[unit2];
+  if (!f1 || !f2 || f1.base !== f2.base || amt1 == null || amt2 == null) return null;
+  var totalBase = amt1 * f1.factor + amt2 * f2.factor;
+  var outUnit = f1.factor >= f2.factor ? unit1 : unit2;
+  return { amount: totalBase / COMPOUND_UNIT_FAMILIES[outUnit].factor, unit: outUnit };
+}
+
 // Parse "amount unit name" lines into ingredient objects.
 // Handles fractions ("1 1/2", "1/3", "¾"), "~" prefix, unit synonyms
 // (tablespoon(s)/teaspoon(s)/grams etc.), and optional bracket-stripping.
+// Also recovers two shapes the leading-amount match alone can't reach:
+// compound amounts ("1 3/4 cup + 2 tbsp", summed via sumCompoundAmount, with
+// the original phrasing kept on `_compoundNote` so the editor round-trips it
+// and the grocery note can cite it) and ranges ("2-3 tbsp" / "2 to 3 tbsp",
+// stored as `amount`+`amountMax`).
 function parseIngredients(text, stripParens) {
   var unitMap = {
     "tsp":"tsp","teaspoon":"tsp","teaspoons":"tsp","teaspoon(s)":"tsp",
@@ -4553,22 +4619,61 @@ function parseIngredients(text, stripParens) {
         (/:\s*$/.test(_bare) && !/^[\d¼½¾⅓⅔⅛⅜⅝⅞]/.test(_bare))) {
       return { name: _bare.replace(/:\s*$/,"").trim(), header: true };
     }
-    // amount: leading number, possibly "1 1/2" or "1/3" or unicode fraction
-    var m = line.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|[¼½¾⅓⅔⅛⅜⅝⅞]|\d+(?:\.\d+)?)\s+(.*)$/);
-    var amount = null, rest = line;
-    if (m) { amount = parseAmount(m[1]); rest = m[2]; }
-    // unit: next word if known (strip trailing punctuation)
-    var unit = null;
-    var parts = rest.split(/\s+/);
-    if (parts.length) {
-      var cand = parts[0].toLowerCase().replace(/[.,]$/,"");
-      if (unitMap[cand]) { unit = unitMap[cand]; rest = parts.slice(1).join(" "); }
+    // amount: a single leading number ("1 1/2" / "1/3" / unicode fraction /
+    // decimal), OR one of two shapes that leading match alone can't reach —
+    // tried first since both start with what looks like a single amount.
+    var AMT = "\\d+\\s*[¼½¾⅓⅔⅛⅜⅝⅞]|\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|[¼½¾⅓⅔⅛⅜⅝⅞]|\\d+(?:\\.\\d+)?";
+    var amount = null, amountMax = null, rest = line, compoundUnit = null, compoundNote = null;
+
+    // Compound: "1 3/4 cup + 2 tbsp flour" (also "plus"). Both terms need a
+    // recognised unit in the SAME family (see sumCompoundAmount) or this
+    // isn't attempted — an unconvertible mix falls through unparsed rather
+    // than guessing at a density.
+    var cm = line.match(new RegExp("^(" + AMT + ")\\s*([a-zA-Z]+)\\s*(?:\\+|plus)\\s*(" + AMT + ")\\s*([a-zA-Z]+)\\s+(.*)$", "i"));
+    if (cm) {
+      var cu1 = unitMap[cm[2].toLowerCase().replace(/[.,]$/,"")];
+      var cu2 = unitMap[cm[4].toLowerCase().replace(/[.,]$/,"")];
+      var csum = (cu1 && cu2) ? sumCompoundAmount(parseAmount(cm[1]), cu1, parseAmount(cm[3]), cu2) : null;
+      if (csum) {
+        amount = csum.amount; compoundUnit = csum.unit; rest = cm[5];
+        compoundNote = cm[1] + " " + cm[2] + " + " + cm[3] + " " + cm[4];
+      }
+    }
+
+    // Range: "2-3 tbsp" / "2–3 tbsp" / "2 to 3 tbsp". Only when the second
+    // number is actually bigger — an unrelated hyphenated fraction like
+    // "1-1/2" must never be misread as a 1-to-0.5 range.
+    if (amount == null) {
+      var rm = line.match(new RegExp("^(" + AMT + ")(?:\\s*[-–—]\\s*|\\s+to\\s+)(" + AMT + ")\\s+(.*)$", "i"));
+      if (rm) {
+        var a1 = parseAmount(rm[1]), a2 = parseAmount(rm[2]);
+        if (a1 != null && a2 != null && a2 > a1) { amount = a1; amountMax = a2; rest = rm[3]; }
+      }
+    }
+
+    // Single leading amount (original behaviour, unchanged).
+    if (amount == null) {
+      var m = line.match(new RegExp("^(" + AMT + ")\\s+(.*)$"));
+      if (m) { amount = parseAmount(m[1]); rest = m[2]; }
+    }
+
+    // unit: next word if known (strip trailing punctuation) — skipped when
+    // the compound match already resolved a normalized unit.
+    var unit = compoundUnit;
+    if (!unit) {
+      var parts = rest.split(/\s+/);
+      if (parts.length) {
+        var cand = parts[0].toLowerCase().replace(/[.,]$/,"");
+        if (unitMap[cand]) { unit = unitMap[cand]; rest = parts.slice(1).join(" "); }
+      }
     }
     rest = rest.replace(/^,\s*/,"").replace(/[\s,]+$/,"").trim();
     var ing = { name: rest };
     if (amount != null) ing.amount = amount;
+    if (amountMax != null) ing.amountMax = amountMax;
     if (unit) ing.unit = unit;
     if (approx) ing.approx = true;
+    if (compoundNote) ing._compoundNote = compoundNote;
     return ing;
   }).filter(function(ing){ return ing.name; });
 }
@@ -4579,6 +4684,9 @@ function parseAmount(s) {
   // mixed "1 1/2"
   var mm = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
   if (mm) return (+mm[1]) + (+mm[2])/(+mm[3]);
+  // mixed integer + unicode fraction: "1 ¾" or "1¾"
+  var um = s.match(/^(\d+)\s*([¼½¾⅓⅔⅛⅜⅝⅞])$/);
+  if (um) return (+um[1]) + fr[um[2]];
   if (s.indexOf("/") !== -1) { var p=s.split("/"); return (+p[0])/(+p[1]); }
   var n = parseFloat(s);
   return isNaN(n) ? null : n;
