@@ -206,6 +206,28 @@ module.exports = {
         ingredientToLine(r2.ingredients[1]) === '200g mushrooms' && r2.updated === 1,
         'got: ' + ingredientToLine(r2.ingredients[1]) + ' updated=' + r2.updated);
 
+      // ── a partner's edit landing mid-review must not be clobbered ──
+      // Reviewing 60 recipes takes minutes and this screen suppresses its own
+      // re-render, so the book can move underneath a stale proposal. Writing
+      // our rewrite of the pre-edit text would silently discard their change.
+      seed();
+      var live = getRecipeBook();
+      var target = live.find(function(x){ return x.id === 1; });
+      target.ingredients = parseIngredients('1 kg something Petra typed', false);
+      target.updated = Date.now() + 5000;          // her edit, newer than our snapshot
+      saveRecipeBook(live);
+      document.getElementById('tidyApply').click();
+      document.getElementById('_cfYes').click();
+      var afterSync = getRecipeBook().find(function(x){ return x.id === 1; });
+      ok('stale: a recipe changed underneath the review is left completely alone',
+        ingredientToLine(afterSync.ingredients[0]) === '1 kg something Petra typed' &&
+        afterSync.ingredients.length === 1,
+        'got: ' + JSON.stringify(afterSync.ingredients.map(ingredientToLine)));
+      var untouched = getRecipeBook().find(function(x){ return x.id === 2; });
+      ok('stale: other recipes in the same apply still go through',
+        ingredientToLine(untouched.ingredients[1]) === '200 g Mushrooms',
+        'got: ' + ingredientToLine(untouched.ingredients[1]));
+
       // ── step two: names that mean the same product ───────────────
       seed();
       document.getElementById('tidyApply').click();
@@ -221,6 +243,40 @@ module.exports = {
       ok('names: nothing is preselected — the default is to leave them alone',
         Object.keys(_tidyState.picks).length === 0, 'got: ' + JSON.stringify(_tidyState.picks));
 
+      // Free text: neither stored spelling is always the one you want.
+      var box = document.querySelector(".tidy-custom[data-gi='0']");
+      box.value = 'Fresh coriander';
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+      ok('names: typing a name selects it without needing a second tap',
+        _tidyState.picks['0'] === 'Fresh coriander' &&
+        document.querySelector(".tidy-pick[data-gi='0'][data-custom]").checked,
+        'got: ' + JSON.stringify(_tidyState.picks['0']));
+      ok('names: the Merge button follows the typed name',
+        document.getElementById('tidyNamesApply').textContent === 'Merge 1 name' &&
+        !document.getElementById('tidyNamesApply').disabled,
+        'got: ' + document.getElementById('tidyNamesApply').textContent);
+      // Clearing it back out must un-choose, not merge to an empty name.
+      box.value = '   ';
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+      ok('names: a blank typed name is not a pick',
+        !_tidyState.picks['0'] && document.getElementById('tidyNamesApply').disabled,
+        'got: ' + JSON.stringify(_tidyState.picks['0']));
+      // Typing a name and applying it should rename BOTH stored spellings.
+      box.value = 'Fresh coriander';
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+      document.getElementById('tidyNamesApply').click();
+      document.getElementById('_cfYes').click();
+      var names = getRecipeBook().reduce(function(acc, r){
+        return acc.concat((r.ingredients || []).map(function(i){ return i.name; })); }, []);
+      ok('names: a typed name replaces every variant, including both stored ones',
+        names.indexOf('Fresh coriander') !== -1 &&
+        names.indexOf('Cilantro') === -1 && names.indexOf('Coriander') === -1,
+        'got: ' + JSON.stringify(names));
+
+      // ── and again, picking one of the offered spellings ──────────
+      seed();
+      document.getElementById('tidyApply').click();
+      document.getElementById('_cfYes').click();
       var win = Array.prototype.filter.call(document.querySelectorAll('.tidy-pick'), function(r){
         return r.getAttribute('data-name') === 'Coriander'; })[0];
       win.checked = true; win.dispatchEvent(new Event('change', { bubbles: true }));

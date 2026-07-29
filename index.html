@@ -3740,6 +3740,10 @@ function tidyRecipeProposal(r) {
   return {
     id: r.id,
     name: r.name || "(untitled)",
+    // The stamp the review was built against. Reviewing 60 recipes takes
+    // minutes, and a partner's edit can land in the middle of it — see the
+    // staleness check in applyTidyLines.
+    updated: r.updated || 0,
     servings: r.servings || 1,
     servesFlag: tidyServesLooksWrong(r),
     lines: lines,
@@ -4547,6 +4551,7 @@ function recipeCardHTML(r, selectMode, selected) {
 // unify names that mean the same product across recipes. Nothing is written
 // until the Apply button on that step is pressed.
 var _tidyState = null;
+var _tidyInputWired = false;   // #recipesContent is permanent — wire its delegated input listener once
 
 function tidyLineValue(p, idx) {
   var k = p.id + ":" + idx;
@@ -4566,7 +4571,7 @@ function buildTidyState() {
   // and untickable before anything is written.
   props.forEach(function(p){ accept[p.id] = p.changedCount > 0; });
   _tidyState = { step: "lines", recipes: props, accept: accept, edits: {}, serves: {},
-                 expanded: {}, groups: [], picks: {} };
+                 expanded: {}, groups: [], picks: {}, custom: {} };
 }
 
 function renderRecipeTidy() {
@@ -4617,8 +4622,13 @@ function renderRecipeTidy() {
   st.recipes.forEach(function(p){
     var on = !!st.accept[p.id], open = !!st.expanded[p.id];
     html += "<div style='border:1.5px solid " + (on?"#D8C0A0":"#ECE4D6") + ";background:" + (on?"#fff":"#FAF7F1") + ";border-radius:12px;margin-bottom:8px;overflow:hidden'>";
-    html += "<div class='tidy-hdr' data-id='" + p.id + "' style='display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer'>" +
-      "<input type='checkbox' class='tidy-chk' data-id='" + p.id + "'" + (on?" checked":"") + " style='width:19px;height:19px;flex:none'>" +
+    // The row toggles expand, the checkbox toggles accept — two actions in one
+    // strip, so the checkbox gets a padded hit box of its own rather than
+    // relying on a 19px target next to a much bigger one.
+    html += "<div class='tidy-hdr' data-id='" + p.id + "' style='display:flex;align-items:center;gap:6px;padding:11px 12px;cursor:pointer;min-height:44px;box-sizing:border-box'>" +
+      "<span class='tidy-chkwrap' data-id='" + p.id + "' style='display:flex;align-items:center;justify-content:center;padding:12px;margin:-12px 0 -12px -12px;flex:none;cursor:pointer'>" +
+        "<input type='checkbox' class='tidy-chk' data-id='" + p.id + "'" + (on?" checked":"") + " aria-label='Apply changes to " + esc(p.name).replace(/'/g,"&#39;") + "' style='width:22px;height:22px;flex:none'>" +
+      "</span>" +
       "<div style='flex:1;min-width:0'>" +
         "<div style='font-size:15px;font-weight:600;color:#2A2010;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + esc(p.name) + "</div>" +
         "<div style='font-size:12px;color:#8A7A5A;margin-top:2px'>" +
@@ -4670,19 +4680,30 @@ function renderRecipeTidy() {
   });
   // Typing is captured as it happens, so expanding another recipe (which
   // re-renders the whole screen) never loses an edit.
-  el.addEventListener("input", function(e){
-    var t = e.target;
-    if (!t) return;
-    if (t.classList && t.classList.contains("tidy-line")) st.edits[t.getAttribute("data-key")] = t.value;
-    else if (t.classList && t.classList.contains("tidy-serves")) {
-      var n = parseInt(t.value, 10);
-      st.serves[t.getAttribute("data-id")] = (n > 0 ? n : null);
-    }
-  });
-  Array.prototype.forEach.call(el.querySelectorAll(".tidy-chk"), function(c){
-    c.addEventListener("click", function(e){
-      e.stopPropagation();
-      st.accept[c.getAttribute("data-id")] = c.checked;
+  // Wired ONCE: #recipesContent is a permanent element whose innerHTML is
+  // replaced, so attaching per render would stack a new listener on every
+  // expand/collapse/tick. Delegated off _tidyState rather than the closure,
+  // since this listener outlives the render that created it.
+  if (!_tidyInputWired) {
+    _tidyInputWired = true;
+    el.addEventListener("input", function(e){
+      var t = e.target;
+      if (!t || !t.classList || !_tidyState) return;
+      if (t.classList.contains("tidy-line")) _tidyState.edits[t.getAttribute("data-key")] = t.value;
+      else if (t.classList.contains("tidy-serves")) {
+        var n = parseInt(t.value, 10);
+        _tidyState.serves[t.getAttribute("data-id")] = (n > 0 ? n : null);
+      }
+    });
+  }
+  // Listen on the padded wrapper, not the 22px box, so a near-miss still hits.
+  Array.prototype.forEach.call(el.querySelectorAll(".tidy-chkwrap"), function(w){
+    w.addEventListener("click", function(e){
+      e.stopPropagation();                       // never also expand the row
+      var c = w.querySelector(".tidy-chk");
+      if (!c) return;
+      if (e.target !== c) c.checked = !c.checked; // tapped the padding, not the box
+      st.accept[w.getAttribute("data-id")] = c.checked;
       renderRecipeTidy();
     });
   });
@@ -4708,11 +4729,18 @@ function tidyExit() {
 function applyTidyLines() {
   var st = _tidyState;
   if (!st) return;
-  var rb = getRecipeBook(), n = 0, skipped = 0;
+  var rb = getRecipeBook(), n = 0, skipped = 0, stale = 0;
   st.recipes.forEach(function(p){
     if (!st.accept[p.id]) return;
     var r = rb.find(function(x){ return x && x.id === p.id; });
     if (!r) return;
+    // The proposals were built from one read of the book, but working through
+    // 60 recipes takes minutes and this screen suppresses its own re-render —
+    // so a partner's edit (or a sync) can land underneath a review that still
+    // shows the pre-edit text. Writing our rewrite of the OLD text would
+    // silently discard their change, which is the stale-copy-wins-the-merge
+    // class this app has been bitten by before. Skip and say so instead.
+    if ((r.updated || 0) !== p.updated) { stale++; return; }
     var text = p.lines.map(function(_l, idx){ return tidyLineValue(p, idx); }).join("\n");
     var next = parseIngredients(text, false);
     // Never let a tidy pass empty a recipe out. If the rewrite produced fewer
@@ -4729,8 +4757,10 @@ function applyTidyLines() {
   pushPersonal();
   // Step two works off the saved names, so rebuild the groups now.
   st.groups = tidyNameGroups(getRecipeBook());
-  st.picks = {};
-  toast(n + " recipe" + (n!==1?"s":"") + " tidied" + (skipped ? " &middot; " + skipped + " skipped" : ""));
+  st.picks = {}; st.custom = {};
+  toast(n + " recipe" + (n!==1?"s":"") + " tidied" +
+        (skipped ? " &middot; " + skipped + " skipped" : "") +
+        (stale ? " &middot; " + stale + " changed on another device, left alone" : ""));
   if (st.groups.length) { st.step = "names"; renderRecipeTidy(); }
   else tidyExit();
 }
@@ -4755,14 +4785,28 @@ function renderRecipeTidyNames() {
     }
     g.variants.forEach(function(v){
       var on = st.picks[gi] === v.name;
-      html += "<label style='display:flex;align-items:center;gap:9px;padding:6px 0;font-size:14px;color:#2A2010;cursor:pointer'>" +
-        "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + gi + "' data-name='" + esc(v.name).replace(/'/g,"&#39;") + "'" + (on?" checked":"") + " style='width:17px;height:17px;flex:none'>" +
+      // Whole row is the target, min 44px — the name and the count are part of
+      // the label, not decoration beside a 17px dot.
+      html += "<label style='display:flex;align-items:center;gap:10px;padding:9px 0;min-height:44px;box-sizing:border-box;font-size:14px;color:#2A2010;cursor:pointer'>" +
+        "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + gi + "' data-name='" + esc(v.name).replace(/'/g,"&#39;") + "'" + (on?" checked":"") + " style='width:20px;height:20px;flex:none'>" +
         "<span style='flex:1'>" + esc(v.name) + "</span>" +
         "<span style='font-size:12px;color:#9A8A6A;flex:none'>" + v.count + "&times;</span>" +
       "</label>";
     });
-    html += "<label style='display:flex;align-items:center;gap:9px;padding:6px 0;font-size:14px;color:#8A7A5A;cursor:pointer;border-top:1px dotted #ECE4D6;margin-top:4px'>" +
-      "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + gi + "' data-name=''" + (st.picks[gi]?"":" checked") + " style='width:17px;height:17px;flex:none'>" +
+    // Neither spelling is always the one you want — the real book threw up
+    // "scoop vanilla protein powder" vs "scoops Vanilla Protein Powder",
+    // where the right answer is a third thing you type yourself.
+    var cust = st.custom[gi] || "";
+    var custOn = !!cust && st.picks[gi] === cust;
+    // A plain div, NOT a label: a label wrapping both a radio and a text input
+    // is ambiguous for screen readers and lets a tap meant for the box hit the
+    // radio instead. Typing already selects the radio in the input handler.
+    html += "<div style='display:flex;align-items:center;gap:10px;padding:9px 0;min-height:44px;box-sizing:border-box;border-top:1px dotted #ECE4D6;margin-top:4px'>" +
+      "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + gi + "' data-custom='1'" + (custOn?" checked":"") + " aria-label='Use a name I type' style='width:20px;height:20px;flex:none'>" +
+      "<input type='text' class='tidy-custom' data-gi='" + gi + "' value='" + esc(cust).replace(/'/g,"&#39;") + "' placeholder='Or type a different name' aria-label='A different name for this ingredient' style='flex:1;min-width:0;padding:10px 9px;border:1.5px solid #D8C8A8;border-radius:8px;font-family:inherit;font-size:14px;color:#2A2010'>" +
+    "</div>";
+    html += "<label style='display:flex;align-items:center;gap:10px;padding:9px 0;min-height:44px;box-sizing:border-box;font-size:14px;color:#8A7A5A;cursor:pointer'>" +
+      "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + gi + "' data-name=''" + (st.picks[gi]?"":" checked") + " style='width:20px;height:20px;flex:none'>" +
       "<span>Leave as they are</span></label>";
     html += "</div>";
   });
@@ -4773,16 +4817,51 @@ function renderRecipeTidyNames() {
   el.innerHTML = html;
   document.getElementById("tidyBackBtn").addEventListener("click", tidyExit);
   document.getElementById("tidyNamesSkip").addEventListener("click", tidyExit);
+  // Nothing on this screen re-renders on a tap or a keystroke: the radios keep
+  // their own state and only the Apply button depends on the picks, so it is
+  // updated in place. Re-rendering would take focus off the text box mid-word.
   Array.prototype.forEach.call(el.querySelectorAll(".tidy-pick"), function(radio){
     radio.addEventListener("change", function(){
-      st.picks[radio.getAttribute("data-gi")] = radio.getAttribute("data-name") || null;
-      renderRecipeTidyNames();
+      var gi = radio.getAttribute("data-gi");
+      if (radio.getAttribute("data-custom")) {
+        var box = el.querySelector(".tidy-custom[data-gi='" + gi + "']");
+        st.picks[gi] = (box && box.value.trim()) || null;
+        if (box) box.focus();
+      } else {
+        st.picks[gi] = radio.getAttribute("data-name") || null;
+      }
+      updateTidyNamesApply();
+    });
+  });
+  Array.prototype.forEach.call(el.querySelectorAll(".tidy-custom"), function(box){
+    box.addEventListener("input", function(){
+      var gi = box.getAttribute("data-gi");
+      st.custom[gi] = box.value;
+      // Typing IS choosing — tick this group's custom radio rather than making
+      // Cathal type the name and then remember to tap the button beside it.
+      var radio = el.querySelector(".tidy-pick[data-gi='" + gi + "'][data-custom]");
+      if (radio) radio.checked = true;
+      st.picks[gi] = box.value.trim() || null;
+      updateTidyNamesApply();
     });
   });
   document.getElementById("tidyNamesApply").addEventListener("click", function(){
-    if (!picked) return;
-    confirmDialog("Use the chosen name" + (picked!==1?"s":"") + " across all recipes?", applyTidyNames);
+    var n = Object.keys(st.picks).filter(function(k){ return st.picks[k]; }).length;
+    if (!n) return;
+    confirmDialog("Use the chosen name" + (n!==1?"s":"") + " across all recipes?", applyTidyNames);
   });
+  updateTidyNamesApply();
+}
+
+// Keep the Merge button in step with the picks without redrawing the screen.
+function updateTidyNamesApply() {
+  var btn = document.getElementById("tidyNamesApply");
+  if (!btn || !_tidyState) return;
+  var n = Object.keys(_tidyState.picks).filter(function(k){ return _tidyState.picks[k]; }).length;
+  btn.disabled = !n;
+  btn.textContent = "Merge " + n + " name" + (n!==1?"s":"");
+  btn.style.background = n ? "#2D6B35" : "#D8CEBC";
+  btn.style.cursor = n ? "pointer" : "default";
 }
 
 function applyTidyNames() {
