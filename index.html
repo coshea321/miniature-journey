@@ -3448,7 +3448,9 @@ var GROCERY_NAME_UNITS = {
   oz:"oz", ounce:"oz", ounces:"oz", lb:"lb", lbs:"lb", pound:"lb", pounds:"lb",
   cup:"cup", cups:"cup", clove:"clove", cloves:"clove", can:"can", cans:"can",
   tin:"tin", tins:"tin", slice:"slice", slices:"slice", piece:"piece", pieces:"piece",
-  pinch:"pinch", pinches:"pinch", cube:"cube", cubes:"cube"
+  pinch:"pinch", pinches:"pinch", cube:"cube", cubes:"cube",
+  scoop:"scoop", scoops:"scoop", rasher:"rasher", rashers:"rasher",
+  sprig:"sprig", sprigs:"sprig", bunch:"bunch", bunches:"bunch", stick:"stick", sticks:"stick"
 };
 
 // Prep instructions that are only ever stripped when they TRAIL the name (see
@@ -3491,7 +3493,9 @@ function splitGroceryName(raw, hasAmount) {
 
   // ① "Juice of 1 lemon" → buy a Lemon, quantity 1, and keep the whole
   //    original as the note (it is what you actually do with the lemon).
-  var jm = body.match(/^(?:grated\s+)?(?:juice|zest|rind|peel)\s+of\s+(.+)$/i);
+  // Also "zest and juice of 1 lime" — the same shape, written with both, which
+  // the single-word version missed and left as an untidyable line.
+  var jm = body.match(/^(?:grated\s+)?(?:juice|zest|rind|peel)(?:\s+and\s+(?:juice|zest|rind|peel))?\s+of\s+(.+)$/i);
   if (jm) {
     var rest = jm[1].replace(/^(?:a|an|the)\s+/i, "1 ");
     var jn = rest.match(numRe);
@@ -3618,6 +3622,22 @@ function tidyIngredient(ing) {
   var amount = eff.amount != null ? eff.amount : null;
   var unit = eff.unit || null;
 
+  // ⓐ0 The "1 x 400g tin chopped tomatoes" multiplier form, very common in UK
+  //     recipes. parseIngredients takes the leading "1" and then stops dead on
+  //     the "x", leaving the whole measure stranded. The multiplication itself
+  //     is not lost by rewriting it — amount × pack size says the same thing —
+  //     so the pack size goes to the bracket and the container becomes the unit.
+  var xm = body.match(new RegExp("^x\\s*(\\d+(?:\\.\\d+)?)\\s*(" + TIDY_SIZE_UNITS + ")\\s+(?:([a-zA-Z]+)\\s+)?(.+)$", "i"));
+  if (xm) {
+    if (xm[3] && TIDY_CONTAINERS[xm[3].toLowerCase()]) {
+      if (!unit) unit = TIDY_CONTAINERS[xm[3].toLowerCase()];
+      body = xm[4];
+    } else {
+      body = ((xm[3] || "") + " " + xm[4]).trim();
+    }
+    detail.unshift(xm[1] + " " + xm[2].toLowerCase());
+  }
+
   // ⓐ A sized container: "15-ounce cans black beans" → 1 can, size to detail.
   //    This is the shape CSV-imported US recipes use constantly and the one
   //    the leading-amount parser can never reach, because the size number is
@@ -3663,7 +3683,10 @@ function tidyIngredient(ing) {
 
   // A name that still carries a digit means a measure survived the pass — the
   // one thing this whole exercise exists to remove. Don't pretend otherwise.
-  if (!name || /\d/.test(name)) { out.ok = false; return out; }
+  // `why` is shown on the flagged row: "couldn't tidy this" on its own tells
+  // Cathal nothing about what to do, and tells us nothing about what to fix.
+  if (!name) { out.ok = false; out.why = "nothing left to buy once the measure was taken out"; return out; }
+  if (/\d/.test(name)) { out.ok = false; out.why = "a number is still stuck in the name"; return out; }
 
   var tidied = { name: name };
   if (amount != null) tidied.amount = amount;
@@ -3682,8 +3705,12 @@ function tidyIngredient(ing) {
   if (!rt || rt.header || rt.name !== tidied.name ||
       (rt.amount == null) !== (amount == null) ||
       (rt.amount != null && Math.abs(rt.amount - amount) > 0.001) ||
-      (rt.unit || null) !== (unit || null)) { out.ok = false; return out; }
-  if (!tidyIsLossless(before, after)) { out.ok = false; return out; }
+      (rt.unit || null) !== (unit || null)) {
+    out.ok = false; out.why = "the tidied line wouldn't read back the same"; return out;
+  }
+  if (!tidyIsLossless(before, after)) {
+    out.ok = false; out.why = "some of the wording would have been lost"; return out;
+  }
 
   out.after = after;
   out.ing = tidied;
@@ -3705,7 +3732,9 @@ function tidyIsLossless(before, after) {
     s = String(s || "").replace(/(\d)\s*([a-zA-Z])/g, "$1 $2").replace(/[^\w\s./-]/g, " ");
     groceryNameKey(s).split(/\s+/).forEach(function(w){
       w = w.replace(/^[-.\/]+|[-.\/]+$/g, "");
-      if (!w || /^(of|the|a|an|and)$/.test(w)) return;
+      // A bare "x" is the multiplier symbol in "1 x 400g", not information:
+      // amount × pack size carries it, so rewriting it away is not a loss.
+      if (!w || /^(of|the|a|an|and|x)$/.test(w)) return;
       m[w] = (m[w] || 0) + 1;
     });
     return m;
@@ -3744,6 +3773,7 @@ function tidyRecipeProposal(r) {
     // minutes, and a partner's edit can land in the middle of it — see the
     // staleness check in applyTidyLines.
     updated: r.updated || 0,
+    method: r.method || "",   // shown in the expanded card: you can't judge an ingredient blind
     servings: r.servings || 1,
     servesFlag: tidyServesLooksWrong(r),
     lines: lines,
@@ -4160,7 +4190,12 @@ function formatScaledAmount(unit, amt, name) {
   if (unit === "lb") return { amount: fmtNumber(amt), unit: "lb" };
   // Count-style units pluralise on scaling
   var countUnits = { pinch:["pinch","pinches"], cube:["cube","cubes"], clove:["clove","cloves"],
-                     can:["can","cans"], tin:["tin","tins"], slice:["slice","slices"], piece:["piece","pieces"] };
+                     can:["can","cans"], tin:["tin","tins"], slice:["slice","slices"], piece:["piece","pieces"],
+                     // v366: count words that were being left stranded in the
+                     // NAME instead of scaling — "2 scoops vanilla protein
+                     // powder" was Cathal's own reported case.
+                     scoop:["scoop","scoops"], rasher:["rasher","rashers"],
+                     sprig:["sprig","sprigs"], bunch:["bunch","bunches"], stick:["stick","sticks"] };
   if (countUnits[unit]) {
     var nWhole = Math.round(amt*100)/100;
     var disp = fmtNumber(amt);
@@ -4649,18 +4684,29 @@ function renderRecipeTidy() {
           "<input type='number' min='1' max='50' class='tidy-serves' data-id='" + p.id + "' value='" + sv + "' style='width:70px;padding:6px 8px;border:1.5px solid #D8C8A8;border-radius:8px;font-family:inherit;font-size:14px'>" +
           "</label></div>";
       }
+      // EVERY line, not just the ones with something to say. Cathal's report:
+      // "it is sometimes difficult to make a change without the context of the
+      // full recipe" — a flagged line in isolation tells you nothing about
+      // whether it's the tin or the topping. Untouched lines render quieter but
+      // stay editable, so anything can be fixed from here.
       p.lines.forEach(function(l, idx){
         var val = tidyLineValue(p, idx);
-        var flagged = !l.ok;
-        if (!flagged && !l.changed) return;   // unchanged lines aren't worth the scroll
+        var flagged = !l.ok, quiet = l.ok && !l.changed;
         html += "<div style='padding:7px 0;border-top:1px dotted #ECE4D6'>" +
           "<div style='font-size:12px;color:#9A8A6A;margin-bottom:4px'>" +
-            (flagged ? "<span style='color:#B5651D;font-weight:700'>&#x26A0;&#xFE0F; couldn't tidy this one &mdash; left as it was</span>"
+            (flagged ? "<span style='color:#B5651D;font-weight:700'>&#x26A0;&#xFE0F; left as it was &mdash; " + esc(l.why || "couldn't tidy this one") + "</span>"
+             : quiet ? "<span>already fine</span>"
                      : "<span style='text-decoration:line-through'>" + esc(l.before) + "</span>") +
           "</div>" +
-          "<input type='text' class='tidy-line' data-key='" + p.id + ":" + idx + "' value='" + esc(val).replace(/'/g,"&#39;") + "' style='width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid " + (flagged?"#E8C89A":"#D8C8A8") + ";border-radius:8px;font-family:inherit;font-size:14px;color:#2A2010;background:" + (flagged?"#FFFBF3":"#fff") + "'>" +
+          "<input type='text' class='tidy-line' data-key='" + p.id + ":" + idx + "' value='" + esc(val).replace(/'/g,"&#39;") + "' style='width:100%;box-sizing:border-box;padding:10px;border:1.5px solid " + (flagged?"#E8C89A":quiet?"#ECE4D6":"#D8C8A8") + ";border-radius:8px;font-family:inherit;font-size:14px;color:" + (quiet?"#7A6A50":"#2A2010") + ";background:" + (flagged?"#FFFBF3":"#fff") + "'>" +
         "</div>";
       });
+      if (p.method) {
+        html += "<div style='margin-top:10px;border-top:1px dotted #ECE4D6;padding-top:8px'>" +
+          "<div style='font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px'>Method &mdash; for context</div>" +
+          "<div style='font-size:12px;color:#7A6A50;line-height:1.5;max-height:150px;overflow-y:auto;white-space:pre-wrap'>" + esc(p.method) + "</div>" +
+        "</div>";
+      }
       html += "</div>";
     }
     html += "</div>";
@@ -4778,6 +4824,15 @@ function renderRecipeTidyNames() {
       "Leave anything you're unsure about &mdash; they're only merged if you pick one." +
     "</div>";
 
+  // Most groups are pure spelling or plural differences ("sea salt" / "Sea
+  // salt"), which groceryNameKey already folds — merging them changes nothing
+  // on the shopping list, they just bury the groups that DO need a decision.
+  // One tap clears the lot. Only the synonym groups are real judgement calls.
+  var trivial = st.groups.filter(function(g){ return !g.viaSynonym; }).length;
+  if (trivial > 1) {
+    html += "<button id='tidyPickCommon' style='width:100%;box-sizing:border-box;padding:11px;margin-bottom:12px;border:1.5px solid #2D6B35;background:#fff;color:#2D6B35;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Use the most common spelling everywhere (" + trivial + ")</button>";
+  }
+
   st.groups.forEach(function(g, gi){
     html += "<div style='border:1.5px solid #ECE4D6;background:#fff;border-radius:12px;padding:12px;margin-bottom:8px'>";
     if (g.viaSynonym) {
@@ -4817,6 +4872,12 @@ function renderRecipeTidyNames() {
   el.innerHTML = html;
   document.getElementById("tidyBackBtn").addEventListener("click", tidyExit);
   document.getElementById("tidyNamesSkip").addEventListener("click", tidyExit);
+  var _pickCommon = document.getElementById("tidyPickCommon");
+  if (_pickCommon) _pickCommon.addEventListener("click", function(){
+    // variants are sorted count-desc, so [0] IS the most common spelling.
+    st.groups.forEach(function(g, gi){ if (!g.viaSynonym) st.picks[gi] = g.variants[0].name; });
+    renderRecipeTidyNames();   // a deliberate button tap, so a redraw is fine here
+  });
   // Nothing on this screen re-renders on a tap or a keystroke: the radios keep
   // their own state and only the Apply button depends on the picks, so it is
   // updated in place. Re-rendering would take focus off the text box mid-word.
@@ -5265,7 +5326,9 @@ function parseIngredients(text, stripParens) {
     "lb":"lb","lbs":"lb","pound":"lb","pounds":"lb",
     "cube":"cube","cubes":"cube","pinch":"pinch","pinches":"pinch",
     "clove":"clove","cloves":"clove","can":"can","cans":"can","tin":"tin","tins":"tin",
-    "slice":"slice","slices":"slice","piece":"piece","pieces":"piece"
+    "slice":"slice","slices":"slice","piece":"piece","pieces":"piece",
+    "scoop":"scoop","scoops":"scoop","rasher":"rasher","rashers":"rasher",
+    "sprig":"sprig","sprigs":"sprig","bunch":"bunch","bunches":"bunch","stick":"stick","sticks":"stick"
   };
   return text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean).map(function(line){
     var approx = false;

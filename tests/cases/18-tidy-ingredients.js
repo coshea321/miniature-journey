@@ -73,6 +73,40 @@ module.exports = {
         after('460 g (1 3/4 cups + 2 tbs) Greek yogurt') === '460 g Greek yogurt (1 3/4 cups + 2 tbs)',
         'got: ' + after('460 g (1 3/4 cups + 2 tbs) Greek yogurt'));
 
+      // The "1 x 400g tin" multiplier form — very common in UK recipes, and
+      // the leading-amount parser stops dead on the "x".
+      ok('tidy: the "N x <size> <container>" multiplier form',
+        after('1 x 400g tin chopped tomatoes') === '1 tin Chopped tomatoes (400 g)',
+        'got: ' + after('1 x 400g tin chopped tomatoes'));
+      ok('tidy: the same form with a space and a plural container',
+        after('2 x 400 g tins chickpeas') === '2 tin Chickpeas (400 g)',
+        'got: ' + after('2 x 400 g tins chickpeas'));
+      ok('guard: a bare multiplier "x" is not counted as lost wording',
+        tidyIsLossless('2 x 400 g tins chickpeas', '2 tin Chickpeas (400 g)'));
+      // Count words that were being left stranded in the name.
+      ok('tidy: "scoops" is read as a unit, not part of the product',
+        after('2 scoops vanilla protein powder') === '2 scoop Vanilla protein powder',
+        'got: ' + after('2 scoops vanilla protein powder'));
+      ok('scale: a scoop pluralises like other count units',
+        scaleIngredient({ name:'Protein powder', amount:1, unit:'scoop' }, 3).unit === 'scoops',
+        'got: ' + JSON.stringify(scaleIngredient({ name:'Protein powder', amount:1, unit:'scoop' }, 3)));
+      // "zest and juice of" is the same shape as "juice of", written with both.
+      var zj = tidy('zest and juice of 1 lime');
+      ok('tidy: "zest and juice of" is recognised and left alone, not flagged',
+        zj.ok && !zj.changed, 'got: ok=' + zj.ok + ' why=' + zj.why);
+      ok('split: "zest and juice of 1 lime" yields a buyable lime',
+        splitGroceryName('zest and juice of 1 lime', false).name === 'Lime',
+        'got: ' + JSON.stringify(splitGroceryName('zest and juice of 1 lime', false).name));
+
+      // ── every flagged line explains itself ───────────────────────
+      // "couldn't tidy this" alone tells Cathal nothing about what to do next.
+      var whyDigit = tidyIngredient({ name: '3 bean mix 250' });
+      ok('why: a leftover number says so', !whyDigit.ok && /number/.test(whyDigit.why || ''),
+        'got: ' + JSON.stringify(whyDigit.why));
+      var whyLost = tidy('1 sweet potato, peeled and diced');
+      ok('why: an ok line carries no reason', whyLost.ok && !whyLost.why,
+        'got: ' + JSON.stringify(whyLost.why));
+
       // ── what it must NOT do ──────────────────────────────────────
       var h = tidy('<b>For the sauce</b>');
       ok('tidy: a header is never rewritten', h.ok && !h.changed && h.after === '<b>For the sauce</b>',
@@ -143,7 +177,7 @@ module.exports = {
             '4 cloves garlic, minced',
             '600 ml water',
             '2 tbsp chili powder'
-          ].join('\\n')) },
+          ].join('\\n')), method: 'Roast the sweet potato, then simmer everything for 25 minutes.' },
           { id:2, name:'Curry', servings:4, updated:1, ingredients: parseIngredients(
             '<b>For the sauce</b>\\n200g mushrooms\\nCilantro') },
           { id:3, name:'Soup', servings:2, updated:1, ingredients: parseIngredients('Coriander\\n1 Yoghurt') }
@@ -165,6 +199,12 @@ module.exports = {
       var vals = Array.prototype.map.call(document.querySelectorAll('.tidy-line'), function(i){ return i.value; });
       ok('screen: the proposal is shown, ready to edit',
         vals[0] === '2 can Black beans (15-ounce, 425 g, rinsed)', 'got: ' + JSON.stringify(vals[0]));
+      // Cathal: "difficult to make a change without the context of the full
+      // recipe" — so EVERY line is listed, not just the ones that changed.
+      ok('context: every ingredient line is shown, not only the changed ones',
+        vals.length === 5, 'got ' + vals.length + ' of 5 lines');
+      ok('context: the method is shown for context when the recipe has one',
+        document.getElementById('recipesContent').textContent.indexOf('Method') !== -1);
 
       // Typing is captured on input, so re-rendering must not lose it.
       var li = document.querySelector('.tidy-line');
@@ -321,6 +361,49 @@ module.exports = {
       var garlic = items.filter(function(i){ return i.name === 'Garlic'; })[0];
       ok('grocery: a prep-only bracket still reaches the note',
         garlic && garlic.notes === '(minced)', 'got: ' + JSON.stringify(garlic && garlic.notes));
+
+      // ── the bulk "most common spelling" button ───────────────────
+      // Most groups are pure case/plural differences that groceryNameKey
+      // already folds, so merging them changes nothing on the shopping list —
+      // they just bury the ones that need a decision. One tap clears them,
+      // and it must NOT touch the synonym groups (the real judgement calls).
+      storeSet('fl4_recipebook', [
+        { id:10, name:'A', servings:2, updated:1, ingredients: parseIngredients(
+          'sea salt\\nsoya sauce\\nCilantro') },
+        { id:11, name:'B', servings:2, updated:1, ingredients: parseIngredients(
+          'Sea salt\\nsea salt\\nSoya sauce\\nCoriander') }
+      ]);
+      _tidyState = null;
+      _tidyState = { step:'names', recipes:[], accept:{}, edits:{}, serves:{},
+                     expanded:{}, groups: tidyNameGroups(getRecipeBook()), picks:{}, custom:{} };
+      switchSection('recipes'); _recipeView = 'tidy'; renderRecipeTidy();
+      var triv = _tidyState.groups.filter(function(g){ return !g.viaSynonym; }).length;
+      var syn  = _tidyState.groups.filter(function(g){ return g.viaSynonym; }).length;
+      ok('bulk: the seeded book gives both trivial and synonym groups',
+        triv === 2 && syn === 1, 'got trivial=' + triv + ' synonym=' + syn);
+      var bulkBtn = document.getElementById('tidyPickCommon');
+      ok('bulk: the button appears and counts only the trivial groups',
+        bulkBtn && bulkBtn.textContent.indexOf('(2)') !== -1,
+        'got: ' + (bulkBtn && bulkBtn.textContent));
+      bulkBtn.click();
+      var picks = _tidyState.picks, groups = _tidyState.groups;
+      var pickedTriv = 0, pickedSyn = 0;
+      groups.forEach(function(g, gi){
+        if (!picks[gi]) return;
+        if (g.viaSynonym) pickedSyn++; else pickedTriv++;
+      });
+      ok('bulk: every trivial group gets a pick', pickedTriv === 2, 'got: ' + pickedTriv);
+      ok('bulk: the synonym group is deliberately left for Cathal',
+        pickedSyn === 0, 'got: ' + pickedSyn);
+      // "sea salt" appears 2x vs "Sea salt" 1x, so the most common wins.
+      var seaGroup = groups.filter(function(g){
+        return g.variants.map(function(v){ return v.name; }).sort().join(',') === 'Sea salt,sea salt'; })[0];
+      var seaIdx = groups.indexOf(seaGroup);
+      ok('bulk: the winner is the most common spelling, not the first seen',
+        picks[seaIdx] === 'sea salt', 'got: ' + JSON.stringify(picks[seaIdx]));
+      ok('bulk: the Merge button follows the bulk pick',
+        document.getElementById('tidyNamesApply').textContent === 'Merge 2 names',
+        'got: ' + document.getElementById('tidyNamesApply').textContent);
 
       return { pass: pass, fail: fail };
     })()`);
