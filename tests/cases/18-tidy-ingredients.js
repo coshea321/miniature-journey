@@ -147,6 +147,22 @@ module.exports = {
         parseIngredients('1 1/2 C dry beans', false)[0].unit === 'cup',
         'got: ' + JSON.stringify(parseIngredients('1 1/2 C dry beans', false)[0]));
 
+      // ── scraped strikethrough markup ─────────────────────────────
+      // A struck-out ingredient on the original page arrives as
+      // "<s>2 tbsp sugar</s>", which doesn't START with a digit.
+      ok('parse: leftover markup is stripped before the amount is read',
+        (function(){ var i = parseIngredients('<s>2 tbsp sugar</s>', false)[0];
+          return i.amount === 2 && i.unit === 'tbsp' && i.name === 'sugar'; })(),
+        'got: ' + JSON.stringify(parseIngredients('<s>2 tbsp sugar</s>', false)[0]));
+      ok('parse: the markup strip runs AFTER header detection, so <b> still works',
+        !!parseIngredients('<b>For the sauce</b>', false)[0].header);
+      var struck = tidyIngredient({ name: '<s>2 tbsp sugar</s>' });
+      ok('tidy: a stored struck-out line is rescued, not flagged',
+        struck.ok && struck.changed && struck.after === '2 tbsp Sugar',
+        'got: ok=' + struck.ok + ' after=' + JSON.stringify(struck.after) + ' why=' + struck.why);
+      ok('guard: tag characters are not counted as lost wording',
+        tidyIsLossless('<s>2 tbsp sugar</s>', '2 tbsp Sugar'));
+
       // ── "and" joins a compound as often as "+" ───────────────────
       ok('tidy: "1 cup and 4 tablespoons" is summed as a compound',
         tidy('1 cup and 4 tablespoons granulated sugar, divided').ing.unit === 'cup' &&
@@ -432,6 +448,69 @@ module.exports = {
       var garlic = items.filter(function(i){ return i.name === 'Garlic'; })[0];
       ok('grocery: a prep-only bracket still reaches the note',
         garlic && garlic.notes === '(minced)', 'got: ' + JSON.stringify(garlic && garlic.notes));
+
+      // ── narrow undo ──────────────────────────────────────────────
+      // Restoring a whole Hearth backup to walk back a recipe cleanup would
+      // also roll back baby data, trips and lists. This keeps just enough to
+      // put the recipes back, and only what the cleanup itself wrote.
+      storeSet('fl4_tidy_undo', null);
+      storeSet('fl4_recipebook', [
+        { id:20, name:'Chili', servings:1, updated:1, ingredients: parseIngredients(
+          '2 15-ounce cans black beans, rinsed / 425 g\\n1 onion, diced') },
+        { id:21, name:'Pie', servings:2, updated:1, ingredients: parseIngredients(
+          '225 g plain flour\\n110 g butter, cubed') }
+      ]);
+      function snapshotBook(){
+        return getRecipeBook().map(function(r){
+          return r.servings + ':' + r.ingredients.map(ingredientToLine).join('|'); }).join('||');
+      }
+      var bookBefore = snapshotBook();
+      _tidyState = null; switchSection('recipes'); _recipeView = 'tidy'; renderRecipes();
+      ok('undo: no offer before anything has been applied',
+        !document.getElementById('tidyUndoBtn') && tidyUndoInfo() === null);
+      document.getElementById('tidyApply').click();
+      document.getElementById('_cfYes').click();
+      ok('undo: a receipt is written by the apply',
+        tidyUndoInfo() && tidyUndoInfo().kind === 'lines' && tidyUndoInfo().recipes.length === 2,
+        'got: ' + JSON.stringify(tidyUndoInfo() && tidyUndoInfo().kind));
+      ok('undo: the recipes really did change first',
+        snapshotBook() !== bookBefore);
+      _tidyState = null; _recipeView = 'tidy'; renderRecipes();
+      ok('undo: the offer appears on the tidy screen', !!document.getElementById('tidyUndoBtn'));
+      document.getElementById('tidyUndoBtn').click();
+      document.getElementById('_cfYes').click();
+      ok('undo: puts the book back exactly as it was',
+        snapshotBook() === bookBefore,
+        'got: ' + snapshotBook() + '  want: ' + bookBefore);
+      ok('undo: the receipt is spent, so it cannot be replayed',
+        tidyUndoInfo() === null);
+
+      // The safety half: a recipe edited AFTER the cleanup keeps its newer
+      // version — undo must not clobber a later change, here or on a partner's
+      // phone. Same stamp guard as the apply path.
+      storeSet('fl4_tidy_undo', null);
+      storeSet('fl4_recipebook', [
+        { id:22, name:'Curry', servings:2, updated:1, ingredients: parseIngredients('200g mushrooms') },
+        { id:23, name:'Soup', servings:2, updated:1, ingredients: parseIngredients('300ml stock') }
+      ]);
+      _tidyState = null; _recipeView = 'tidy'; renderRecipes();
+      document.getElementById('tidyApply').click();
+      document.getElementById('_cfYes').click();
+      var edited = getRecipeBook();
+      var curry = edited.find(function(x){ return x.id === 22; });
+      curry.ingredients = parseIngredients('something Petra typed later');
+      curry.updated = Date.now() + 9000;
+      saveRecipeBook(edited);
+      _tidyState = null; _recipeView = 'tidy'; renderRecipes();
+      document.getElementById('tidyUndoBtn').click();
+      document.getElementById('_cfYes').click();
+      var post = getRecipeBook();
+      ok('undo: a recipe edited since the cleanup is left alone',
+        ingredientToLine(post.find(function(x){ return x.id === 22; }).ingredients[0]) === 'something Petra typed later',
+        'got: ' + ingredientToLine(post.find(function(x){ return x.id === 22; }).ingredients[0]));
+      ok('undo: an untouched recipe is still restored',
+        ingredientToLine(post.find(function(x){ return x.id === 23; }).ingredients[0]) === '300ml stock',
+        'got: ' + ingredientToLine(post.find(function(x){ return x.id === 23; }).ingredients[0]));
 
       // ── the bulk "most common spelling" button ───────────────────
       // Most groups are pure case/plural differences that groceryNameKey
