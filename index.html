@@ -3599,6 +3599,20 @@ var TIDY_CONTAINERS = {
 // Measure words a container size is written in ("15-ounce", "400 g").
 var TIDY_SIZE_UNITS = "ounce|ounces|oz|g|gram|grams|kg|ml|millilitre|millilitres|l|litre|litres|lb|lbs|pound|pounds";
 
+// Some recipe sites gloss a spoon measure with its metric size — "2 x 15ml
+// tablespoons olive oil" means two tablespoons, and a tablespoon IS 15ml, so
+// the gloss restates the unit and carries no information of its own. It does
+// however stop the parser dead: the leading amount is taken, the "x" isn't a
+// unit, and everything after it is stranded in the name. Collapsing it to
+// "2 tablespoons" lets every existing rule (including compound summing) work.
+// Applied to BOTH sides of the losslessness comparison, so dropping a pure
+// restatement never reads as lost wording.
+function normaliseIngredientLine(line) {
+  return String(line || "").replace(
+    /(\d+(?:\.\d+)?)\s*x\s*\d+(?:\.\d+)?\s*(?:ml|g|oz|fl\s?oz)\s+(tablespoons?|teaspoons?|tbsps?|tsps?|cups?|dessertspoons?)/gi,
+    "$1 $2");
+}
+
 // Rewrite one ingredient into the canonical shape. Returns:
 //   { before, after, changed, ok, ing }
 // ok=false means low confidence — the caller flags it and leaves it alone.
@@ -3608,6 +3622,13 @@ function tidyIngredient(ing) {
   if (!ing || isHeaderIng(ing)) return out;
 
   var eff = rescueIngredientMeasure(ing);   // recover a compound/range first
+  // Collapse a "2 x 15ml tablespoons" gloss and re-parse, so the compound and
+  // range rules get a line they can actually read.
+  var effLine = ingredientToLine(eff), normLine = normaliseIngredientLine(effLine);
+  if (normLine !== effLine) {
+    var renorm = parseIngredients(normLine, false)[0];
+    if (renorm && !renorm.header && renorm.name) eff = renorm;
+  }
   var detail = [];
   var body = String(eff.name || "").replace(/<\/?[^>]+>/g, " ").replace(/\s{2,}/g, " ").trim();
   if (!body) return out;
@@ -3665,6 +3686,17 @@ function tidyIngredient(ing) {
     var clause = body.slice(cc + 1).trim();
     if (clause) detail.push(clause);
     body = body.slice(0, cc).trim();
+  }
+
+  // ⓒ2 A trailing "or <alternative>" measure. v365 deliberately dropped
+  //     "or"-alternatives from the PARSER because it would have had to choose
+  //     between them — but moving the alternative into the bracket chooses
+  //     nothing, it just stops the second measure blocking the name. A number
+  //     is required in the tail so a product name ("salt or pepper") is safe.
+  var om = body.match(/^(.+?)\s+or\s+(.+)$/i);
+  if (om && /\d|[¼½¾⅓⅔⅛⅜⅝⅞]/.test(om[2]) && om[1].trim()) {
+    detail.push("or " + om[2].trim());
+    body = om[1].trim();
   }
 
   // ⓓ Everything the existing splitter already knows: glued units, stranded
@@ -3729,12 +3761,18 @@ function tidyIsLossless(before, after) {
     // "200g" and "200 g" are the same two facts written differently, and the
     // whole point of the pass is to separate them — so split a glued
     // number+unit before comparing, or every such fix would read as a loss.
-    s = String(s || "").replace(/(\d)\s*([a-zA-Z])/g, "$1 $2").replace(/[^\w\s./-]/g, " ");
+    // Compared post-normalisation, so collapsing a "2 x 15ml tablespoons"
+    // gloss — a restatement of the unit, not information — isn't a loss.
+    s = normaliseIngredientLine(String(s || ""));
+    s = s.replace(/(\d)\s*([a-zA-Z])/g, "$1 $2").replace(/[^\w\s./-]/g, " ");
     groceryNameKey(s).split(/\s+/).forEach(function(w){
       w = w.replace(/^[-.\/]+|[-.\/]+$/g, "");
       // A bare "x" is the multiplier symbol in "1 x 400g", not information:
       // amount × pack size carries it, so rewriting it away is not a loss.
       if (!w || /^(of|the|a|an|and|x)$/.test(w)) return;
+      // Fold a unit word to the parser's canonical form, so writing
+      // "2 tablespoons" as "2 tbsp" is recognised as the same two facts.
+      if (INGREDIENT_UNIT_MAP[w]) w = INGREDIENT_UNIT_MAP[w];
       m[w] = (m[w] || 0) + 1;
     });
     return m;
@@ -5313,8 +5351,10 @@ function sumCompoundAmount(amt1, unit1, amt2, unit2) {
 // the original phrasing kept on `_compoundNote` so the editor round-trips it
 // and the grocery note can cite it) and ranges ("2-3 tbsp" / "2 to 3 tbsp",
 // stored as `amount`+`amountMax`).
-function parseIngredients(text, stripParens) {
-  var unitMap = {
+// Hoisted out of parseIngredients (v366) so the losslessness check can fold a
+// unit word to the same canonical form the parser uses — otherwise rewriting
+// "2 tablespoons" as "2 tbsp" reads as a lost word.
+var INGREDIENT_UNIT_MAP = {
     "tsp":"tsp","teaspoon":"tsp","teaspoons":"tsp","teaspoon(s)":"tsp",
     "tbsp":"tbsp","tbs":"tbsp","tablespoon":"tbsp","tablespoons":"tbsp","tablespoon(s)":"tbsp",
     "ml":"ml","millilitre":"ml","millilitres":"ml","milliliter":"ml","milliliters":"ml",
@@ -5329,7 +5369,9 @@ function parseIngredients(text, stripParens) {
     "slice":"slice","slices":"slice","piece":"piece","pieces":"piece",
     "scoop":"scoop","scoops":"scoop","rasher":"rasher","rashers":"rasher",
     "sprig":"sprig","sprigs":"sprig","bunch":"bunch","bunches":"bunch","stick":"stick","sticks":"stick"
-  };
+};
+function parseIngredients(text, stripParens) {
+  var unitMap = INGREDIENT_UNIT_MAP;
   return text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean).map(function(line){
     var approx = false;
     if (line[0] === "~") { approx = true; line = line.slice(1).trim(); }

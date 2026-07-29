@@ -98,6 +98,39 @@ module.exports = {
         splitGroceryName('zest and juice of 1 lime', false).name === 'Lime',
         'got: ' + JSON.stringify(splitGroceryName('zest and juice of 1 lime', false).name));
 
+      // ── the "2 x 15ml tablespoons" gloss (Cathal's real book) ────
+      // Some sites gloss a spoon with its metric size. A tablespoon IS 15ml,
+      // so the gloss restates the unit — but it stopped the parser dead and
+      // was the single biggest source of "need your eye" in his 60 recipes.
+      ok('tidy: a "N x 15ml tablespoons" gloss collapses to the unit',
+        after('2 x 15ml tablespoons tomato puree') === '2 tbsp Tomato puree',
+        'got: ' + after('2 x 15ml tablespoons tomato puree'));
+      ok('tidy: the singular gloss too',
+        after('1 x 15ml tablespoon balsamic vinegar') === '1 tbsp Balsamic vinegar',
+        'got: ' + after('1 x 15ml tablespoon balsamic vinegar'));
+      ok('tidy: the gloss inside a COMPOUND sums both terms',
+        tidy('2 x 15ml tablespoons + 2 x 15ml tablespoons olive oil').ing.amount === 4,
+        'got: ' + JSON.stringify(tidy('2 x 15ml tablespoons + 2 x 15ml tablespoons olive oil').ing));
+      ok('tidy: the gloss plus a comma clause',
+        after('3 x 15ml tablespoons olive oil, plus extra to serve') === '3 tbsp Olive oil (plus extra to serve)',
+        'got: ' + after('3 x 15ml tablespoons olive oil, plus extra to serve'));
+      ok('normalise: leaves a line without a gloss completely alone',
+        normaliseIngredientLine('2 tbsp olive oil') === '2 tbsp olive oil');
+      ok('guard: folding a unit word to its canonical form is not a loss',
+        tidyIsLossless('2 tablespoons tomato puree', '2 tbsp Tomato puree'));
+
+      // ── a trailing "or <alternative>" measure ────────────────────
+      // v365 dropped "or" from the PARSER because it would have to choose
+      // between the two. Moving it to the bracket chooses nothing.
+      ok('tidy: an "or" alternative moves into the bracket',
+        after('1 tsp Maldon sea salt flakes or 1/2 tsp fine salt') === '1 tsp Maldon sea salt flakes (or 1/2 tsp fine salt)',
+        'got: ' + after('1 tsp Maldon sea salt flakes or 1/2 tsp fine salt'));
+      ok('tidy: "or" with no number in the tail is left as product wording',
+        after('200 g cheddar or gruyere') === '200 g Cheddar or gruyere',
+        'got: ' + after('200 g cheddar or gruyere'));
+      ok('tidy: a bare "salt or pepper" is not split',
+        after('salt or pepper') === 'Salt or pepper', 'got: ' + after('salt or pepper'));
+
       // ── every flagged line explains itself ───────────────────────
       // "couldn't tidy this" alone tells Cathal nothing about what to do next.
       var whyDigit = tidyIngredient({ name: '3 bean mix 250' });
