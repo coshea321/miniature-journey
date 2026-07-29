@@ -119,6 +119,44 @@ module.exports = {
       ok('guard: folding a unit word to its canonical form is not a loss',
         tidyIsLossless('2 tablespoons tomato puree', '2 tbsp Tomato puree'));
 
+      // ── scraped tick boxes (Cathal's Vegetarian Chili: 16 flags) ──
+      // The website's own checkbox came through the CSV as the first
+      // character. A line that doesn't START with a digit gets no amount at
+      // all, so one glyph stranded the whole measure in the name.
+      ok('parse: a leading tick box is stripped and the amount is found',
+        (function(){ var i = parseIngredients('\\u2610 2 tsp Ground Cumin', false)[0];
+          return i.amount === 2 && i.unit === 'tsp' && i.name === 'Ground Cumin'; })(),
+        'got: ' + JSON.stringify(parseIngredients('\\u2610 2 tsp Ground Cumin', false)[0]));
+      ok('parse: a ticked box too',
+        parseIngredients('\\u2611 1 tbsp olive oil', false)[0].amount === 1);
+      ok('parse: a "[ ]" style box too',
+        parseIngredients('[ ] 1 tbsp olive oil', false)[0].amount === 1);
+      ok('parse: a leading asterisk is NOT stripped — it marks a footnote',
+        parseIngredients('*see note about salt', false)[0].name.indexOf('*') === 0,
+        'got: ' + JSON.stringify(parseIngredients('*see note about salt', false)[0].name));
+      // The important half: ALREADY-STORED data, where the old parser found no
+      // amount and the whole measure sits in the name behind the box.
+      var boxed = tidyIngredient({ name: '\\u2610 2 Tbs Dried Oregano' });
+      ok('tidy: a stored tick-box line is rescued, not flagged',
+        boxed.ok && boxed.changed && boxed.after === '2 tbsp Dried Oregano',
+        'got: ok=' + boxed.ok + ' after=' + JSON.stringify(boxed.after) + ' why=' + boxed.why);
+      ok('guard: the tick box itself is not counted as lost wording',
+        tidyIsLossless('\\u2610 2 Tbs Dried Oregano', '2 tbsp Dried Oregano'));
+      // "C" is cup in US shorthand and means cup in either case.
+      ok('parse: "C" is read as cup',
+        parseIngredients('1 1/2 C dry beans', false)[0].unit === 'cup',
+        'got: ' + JSON.stringify(parseIngredients('1 1/2 C dry beans', false)[0]));
+
+      // ── "and" joins a compound as often as "+" ───────────────────
+      ok('tidy: "1 cup and 4 tablespoons" is summed as a compound',
+        tidy('1 cup and 4 tablespoons granulated sugar, divided').ing.unit === 'cup' &&
+        tidy('1 cup and 4 tablespoons granulated sugar, divided').ing.amount > 1,
+        'got: ' + JSON.stringify(tidy('1 cup and 4 tablespoons granulated sugar, divided').ing));
+      ok('tidy: "and" between a unit and a NON-unit is not read as a compound',
+        (function(){ var i = parseIngredients('2 cloves and 1 onion, chopped', false)[0];
+          return i.amount === 2 && i.unit === 'clove'; })(),
+        'got: ' + JSON.stringify(parseIngredients('2 cloves and 1 onion, chopped', false)[0]));
+
       // ── a trailing "or <alternative>" measure ────────────────────
       // v365 dropped "or" from the PARSER because it would have to choose
       // between the two. Moving it to the bracket chooses nothing.

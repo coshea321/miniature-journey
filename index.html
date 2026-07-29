@@ -5361,7 +5361,11 @@ var INGREDIENT_UNIT_MAP = {
     "l":"l","litre":"l","litres":"l","liter":"l","liters":"l",
     "g":"g","gram":"g","grams":"g","gr":"g",
     "kg":"kg","kilogram":"kg","kilograms":"kg",
-    "cup":"cup","cups":"cup",
+    // "C" is cup in US recipe shorthand ("1 1/2 C Dry Beans"), and it means
+    // cup in either case so there is no ambiguity to get wrong. "T"/"t" are
+    // deliberately absent: they mean tablespoon vs teaspoon by CASE, and unit
+    // lookups here are lowercased, so the two could never be told apart.
+    "cup":"cup","cups":"cup","c":"cup",
     "oz":"oz","ounce":"oz","ounces":"oz",
     "lb":"lb","lbs":"lb","pound":"lb","pounds":"lb",
     "cube":"cube","cubes":"cube","pinch":"pinch","pinches":"pinch",
@@ -5373,6 +5377,16 @@ var INGREDIENT_UNIT_MAP = {
 function parseIngredients(text, stripParens) {
   var unitMap = INGREDIENT_UNIT_MAP;
   return text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean).map(function(line){
+    // Scraped ingredient lists often carry the website's own tick box as the
+    // first character ("☐ 2 tsp Ground Cumin"). It is pure ingest noise, but a
+    // line that doesn't START with a digit gets no amount at all, so a single
+    // glyph was stranding the entire measure in the name. Stripped before
+    // anything else looks at the line. Bare "-"/"*" are deliberately NOT in
+    // here: a leading asterisk is usually a footnote marker, not a bullet.
+    line = line.replace(/^[☐☑☒■□▢▣○●•◦▪‣✓✔✗✘❑❏]+\s*/, "")
+               .replace(/^\[\s*[xX✓]?\s*\]\s*/, "")
+               .trim();
+    if (!line) return { name: "" };
     var approx = false;
     if (line[0] === "~") { approx = true; line = line.slice(1).trim(); }
     if (stripParens) line = line.replace(/\s*\([^)]*\)/g, "").replace(/\s*\)\s*/g," ").replace(/[\s,]+$/,"").replace(/\s{2,}/g," ").trim();
@@ -5392,7 +5406,11 @@ function parseIngredients(text, stripParens) {
     // recognised unit in the SAME family (see sumCompoundAmount) or this
     // isn't attempted — an unconvertible mix falls through unparsed rather
     // than guessing at a density.
-    var cm = line.match(new RegExp("^(" + AMT + ")\\s*([a-zA-Z]+)\\s*(?:\\+|plus)\\s*(" + AMT + ")\\s*([a-zA-Z]+)\\s+(.*)$", "i"));
+    // "and" joins a compound as often as "+" does ("1 cup and 4 tablespoons
+    // granulated sugar"). Safe to add because BOTH sides must still resolve to
+    // a recognised unit in the same family, so "2 cloves and 1 onion" — where
+    // "onion" is not a unit — still doesn't match.
+    var cm = line.match(new RegExp("^(" + AMT + ")\\s*([a-zA-Z]+)\\s*(?:\\+|plus|and)\\s*(" + AMT + ")\\s*([a-zA-Z]+)\\s+(.*)$", "i"));
     if (cm) {
       var cu1 = unitMap[cm[2].toLowerCase().replace(/[.,]$/,"")];
       var cu2 = unitMap[cm[4].toLowerCase().replace(/[.,]$/,"")];
