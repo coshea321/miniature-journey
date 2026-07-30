@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v368 · 30/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v369 · 30/07/2026</div>
 
   </div>
 </div>
@@ -7247,6 +7247,7 @@ function renderLogView() {
     btn.addEventListener("click", function() {
       confirmDialog("Delete this log entry?", function(){
         var id = +btn.dataset.logid;
+        addTomb("action_log", id);
         var entries = getActionLog().filter(function(e2){ return e2.id !== id; });
         saveActionLog(entries);
         pushPersonal();
@@ -7476,6 +7477,7 @@ function renderFoodView() {
   document.getElementById("foodEntries").querySelectorAll(".food-del-btn").forEach(function(btn) {
     btn.addEventListener("click", function() {
       var id = +btn.dataset.foodid;
+      addTomb("food_log", id);
       saveFoodLog(getFoodLog().filter(function(e){ return e.id !== id; }));
       renderFoodView();
     });
@@ -8879,7 +8881,9 @@ var d = {};
     d[c.dfield] = purgeTombs(getTombs(c.tomb));
   });
   d.action_log   = getActionLog();
+  d.action_log_deleted = purgeTombs(getTombs("action_log"));
   d.food_log     = getFoodLog();
+  d.food_log_deleted   = purgeTombs(getTombs("food_log"));
   d.food_notes   = storeGet("fl4_food_notes")  || {};
   d.saved_meals  = storeGet("fl4_saved_meals") || [];
   d.cal_goal     = storeGet("fl4_cal_goal") || 2000;
@@ -8973,20 +8977,26 @@ function applyPersonal(d) {
   });
   if (_notesRepush) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
 
-  // ── Action log: merge by entry ID ────────────────────────────────────────
+  // ── Action log: merge by entry ID + deletion tombstones ──────────────────
+  var _alTombs = mergeTombs(getTombs("action_log"), (d.action_log_deleted && typeof d.action_log_deleted === "object") ? d.action_log_deleted : {});
+  storeSet("fl4_tomb_action_log", purgeTombs(_alTombs));
   if (Array.isArray(d.action_log)) {
     var localLog = getActionLog(), logIndex = {};
     localLog.forEach(function(e){ if(e) logIndex[e.id]=e; });
     d.action_log.filter(Boolean).forEach(function(e){ logIndex[e.id]=e; });
-    storeSet("fl4_action_log", Object.values(logIndex).sort(function(a,b){return b.ts-a.ts;}));
+    var alOut = Object.values(logIndex).filter(function(e){ return e && _alTombs[e.id] == null; });
+    storeSet("fl4_action_log", alOut.sort(function(a,b){return b.ts-a.ts;}));
   }
 
-  // ── Food log: merge by entry ID ───────────────────────────────────────────
+  // ── Food log: merge by entry ID + deletion tombstones ────────────────────
+  var _flTombs = mergeTombs(getTombs("food_log"), (d.food_log_deleted && typeof d.food_log_deleted === "object") ? d.food_log_deleted : {});
+  storeSet("fl4_tomb_food_log", purgeTombs(_flTombs));
   if (Array.isArray(d.food_log)) {
     var localFood = getFoodLog(), foodIndex = {};
     localFood.forEach(function(e){ if(e) foodIndex[e.id]=e; });
     d.food_log.filter(Boolean).forEach(function(e){ foodIndex[e.id]=e; });
-    storeSet("fl4_food_log", Object.values(foodIndex).sort(function(a,b){return b.id-a.id;}));
+    var flOut = Object.values(foodIndex).filter(function(e){ return e && _flTombs[e.id] == null; });
+    storeSet("fl4_food_log", flOut.sort(function(a,b){return b.id-a.id;}));
   }
 
   if (d.food_notes  && typeof d.food_notes === "object") {
@@ -9849,6 +9859,7 @@ function renderCardioLog() {
   el.querySelectorAll("[data-cardio-id]").forEach(function(btn) {
     btn.addEventListener("click", function() {
       confirmDialog("Delete this cardio entry?", function(){
+      addTomb("action_log", +btn.dataset.cardioId);
       storeSet("fl4_action_log", getActionLog().filter(function(e){ return e&&e.id!==+btn.dataset.cardioId; }));
       pushPersonal(); renderCardioLog();
       });
