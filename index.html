@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v365 · 28/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v366 · 29/07/2026</div>
 
   </div>
 </div>
@@ -3448,7 +3448,9 @@ var GROCERY_NAME_UNITS = {
   oz:"oz", ounce:"oz", ounces:"oz", lb:"lb", lbs:"lb", pound:"lb", pounds:"lb",
   cup:"cup", cups:"cup", clove:"clove", cloves:"clove", can:"can", cans:"can",
   tin:"tin", tins:"tin", slice:"slice", slices:"slice", piece:"piece", pieces:"piece",
-  pinch:"pinch", pinches:"pinch", cube:"cube", cubes:"cube"
+  pinch:"pinch", pinches:"pinch", cube:"cube", cubes:"cube",
+  scoop:"scoop", scoops:"scoop", rasher:"rasher", rashers:"rasher",
+  sprig:"sprig", sprigs:"sprig", bunch:"bunch", bunches:"bunch", stick:"stick", sticks:"stick"
 };
 
 // Prep instructions that are only ever stripped when they TRAIL the name (see
@@ -3477,12 +3479,23 @@ function splitGroceryName(raw, hasAmount) {
   var out = { name: "", amount: null, unit: null, qty: "", detail: "", prep: "" };
   var s = String(raw || "").replace(/<\/?[^>]+>/g, " ").replace(/\s{2,}/g, " ").trim();
   if (!s) return out;
-  var body = s;
+  // Bracket text is the caller's business, not this function's: amtDetail reads
+  // it straight off the raw name and cleanGroceryName strips it from the final
+  // name anyway. Taking it out of `body` up front stops the trailing rules ⑤
+  // matching THROUGH a closing bracket — "Black beans (425 g, rinsed)" was
+  // yielding a prep note of "rinsed)", stray paren and all, which mattered a
+  // lot more once v366's tidy tool started writing brackets deliberately.
+  // `s` deliberately stays whole: rule ① hands the untouched original back as
+  // the note detail.
+  var body = s.replace(/\([^)]*\)/g, " ").replace(/[()]/g, " ").replace(/\s{2,}/g, " ").trim();
+  if (!body) return out;
   var numRe = new RegExp("^(" + GROCERY_NUM_SRC + ")\\s*([a-zA-Z]+)?\\s*(.*)$");
 
   // ① "Juice of 1 lemon" → buy a Lemon, quantity 1, and keep the whole
   //    original as the note (it is what you actually do with the lemon).
-  var jm = body.match(/^(?:grated\s+)?(?:juice|zest|rind|peel)\s+of\s+(.+)$/i);
+  // Also "zest and juice of 1 lime" — the same shape, written with both, which
+  // the single-word version missed and left as an untidyable line.
+  var jm = body.match(/^(?:grated\s+)?(?:juice|zest|rind|peel)(?:\s+and\s+(?:juice|zest|rind|peel))?\s+of\s+(.+)$/i);
   if (jm) {
     var rest = jm[1].replace(/^(?:a|an|the)\s+/i, "1 ");
     var jn = rest.match(numRe);
@@ -3553,6 +3566,322 @@ function splitGroceryName(raw, hasAmount) {
   if (ci !== -1 && !out.prep) out.prep = body.slice(ci + 1).trim();
 
   out.name = cleanGroceryName(body);
+  return out;
+}
+
+// ── Tidy ingredients (v366) ───────────────────────────────────────────────
+// A one-off maintenance pass over the whole recipe book. Everything above this
+// point is DOWNSTREAM rescue — it cleans a name on its way to the grocery list
+// and never touches what is stored. This is the opposite: it rewrites the
+// stored ingredient into the shape the parser wanted all along, so the recipe
+// VIEW reads properly too and no rescue is needed on the way out.
+//
+// The canonical shape is "<amount> <unit> <Name> (<detail>)", which needs no
+// new field: parseIngredients already reads the amount and unit, and since
+// v363 anything in brackets is stripped out of the grocery name and carried
+// into the item's note. So a tidied line survives an editor round-trip and
+// produces exactly the item Cathal asked for — "Black beans", amount "2 cans",
+// note "(15-ounce / 425 g, rinsed)".
+//
+// SAFETY: this rewrites household-synced data, so the bar for touching a line
+// is losslessness, not cleverness. Every word of the original has to reappear
+// somewhere in the rewrite (see tidyIsLossless) and the rewrite has to reparse
+// to the same amount/unit/name. A line that fails either check is reported as
+// "needs your eye" and left exactly as it was — the tool never guesses.
+
+// Container words that can carry a size ("15-ounce cans"). Values are the
+// canonical singular scaleIngredient understands.
+var TIDY_CONTAINERS = {
+  can:"can", cans:"can", tin:"tin", tins:"tin", jar:"jar", jars:"jar",
+  pack:"pack", packs:"pack", packet:"packet", packets:"packet",
+  bottle:"bottle", bottles:"bottle", box:"box", boxes:"box", bag:"bag", bags:"bag"
+};
+// Measure words a container size is written in ("15-ounce", "400 g").
+var TIDY_SIZE_UNITS = "ounce|ounces|oz|g|gram|grams|kg|ml|millilitre|millilitres|l|litre|litres|lb|lbs|pound|pounds";
+
+// Some recipe sites gloss a spoon measure with its metric size — "2 x 15ml
+// tablespoons olive oil" means two tablespoons, and a tablespoon IS 15ml, so
+// the gloss restates the unit and carries no information of its own. It does
+// however stop the parser dead: the leading amount is taken, the "x" isn't a
+// unit, and everything after it is stranded in the name. Collapsing it to
+// "2 tablespoons" lets every existing rule (including compound summing) work.
+// Applied to BOTH sides of the losslessness comparison, so dropping a pure
+// restatement never reads as lost wording.
+function normaliseIngredientLine(line) {
+  return String(line || "").replace(
+    /(\d+(?:\.\d+)?)\s*x\s*\d+(?:\.\d+)?\s*(?:ml|g|oz|fl\s?oz)\s+(tablespoons?|teaspoons?|tbsps?|tsps?|cups?|dessertspoons?)/gi,
+    "$1 $2");
+}
+
+// Rewrite one ingredient into the canonical shape. Returns:
+//   { before, after, changed, ok, ing }
+// ok=false means low confidence — the caller flags it and leaves it alone.
+function tidyIngredient(ing) {
+  var before = ingredientToLine(ing);
+  var out = { before: before, after: before, changed: false, ok: true, ing: ing };
+  if (!ing || isHeaderIng(ing)) return out;
+
+  var eff = rescueIngredientMeasure(ing);   // recover a compound/range first
+  // Collapse a "2 x 15ml tablespoons" gloss and re-parse, so the compound and
+  // range rules get a line they can actually read.
+  var effLine = ingredientToLine(eff), normLine = normaliseIngredientLine(effLine);
+  if (normLine !== effLine) {
+    var renorm = parseIngredients(normLine, false)[0];
+    if (renorm && !renorm.header && renorm.name) eff = renorm;
+  }
+  var detail = [];
+  var body = String(eff.name || "").replace(/<\/?[^>]+>/g, " ").replace(/\s{2,}/g, " ").trim();
+  if (!body) return out;
+
+  // Bracket text already in the name is detail by definition — lift it out
+  // verbatim and keep it, rather than re-deriving it.
+  body = body.replace(/\(([^)]*)\)/g, function(_m, inner){
+    if (inner && inner.trim()) detail.push(inner.trim());
+    return " ";
+  }).replace(/[()]/g, " ").replace(/\s{2,}/g, " ").trim();
+
+  var amount = eff.amount != null ? eff.amount : null;
+  var unit = eff.unit || null;
+
+  // ⓐ0 The "1 x 400g tin chopped tomatoes" multiplier form, very common in UK
+  //     recipes. parseIngredients takes the leading "1" and then stops dead on
+  //     the "x", leaving the whole measure stranded. The multiplication itself
+  //     is not lost by rewriting it — amount × pack size says the same thing —
+  //     so the pack size goes to the bracket and the container becomes the unit.
+  var xm = body.match(new RegExp("^x\\s*(\\d+(?:\\.\\d+)?)\\s*(" + TIDY_SIZE_UNITS + ")\\s+(?:([a-zA-Z]+)\\s+)?(.+)$", "i"));
+  if (xm) {
+    if (xm[3] && TIDY_CONTAINERS[xm[3].toLowerCase()]) {
+      if (!unit) unit = TIDY_CONTAINERS[xm[3].toLowerCase()];
+      body = xm[4];
+    } else {
+      body = ((xm[3] || "") + " " + xm[4]).trim();
+    }
+    detail.unshift(xm[1] + " " + xm[2].toLowerCase());
+  }
+
+  // ⓐ A sized container: "15-ounce cans black beans" → 1 can, size to detail.
+  //    This is the shape CSV-imported US recipes use constantly and the one
+  //    the leading-amount parser can never reach, because the size number is
+  //    where it expects the product name to start.
+  var sc = body.match(new RegExp("^(\\d+(?:\\.\\d+)?)\\s*[-\\s]\\s*(" + TIDY_SIZE_UNITS + ")\\s+([a-zA-Z]+)\\s+(.+)$", "i"));
+  if (sc && TIDY_CONTAINERS[sc[3].toLowerCase()]) {
+    if (!unit) unit = TIDY_CONTAINERS[sc[3].toLowerCase()];
+    detail.unshift(sc[1] + "-" + sc[2].toLowerCase());
+    body = sc[4];
+  }
+
+  // ⓑ A dual-unit tail: "black beans / 425 g" — the metric equivalent the
+  //    recipe site printed alongside the imperial measure. Real information,
+  //    but it is a note, not part of what you buy.
+  var du = body.match(new RegExp("^(.+?)\\s*/\\s*((?:\\d+(?:\\.\\d+)?)\\s*(?:" + TIDY_SIZE_UNITS + ")\\b.*)$", "i"));
+  if (du) { detail.push(du[2].trim()); body = du[1].trim(); }
+
+  // ⓒ The comma clause, taken WHOLE. splitGroceryName only keeps it when its
+  //    trailing prep-word rule hasn't already claimed part of it, so leaving
+  //    this to the splitter loses words out of the middle ("onion, peeled and
+  //    diced" kept only "diced"). Losing words is exactly what the tidy pass
+  //    must never do, so it is handled here first.
+  var cc = body.indexOf(",");
+  if (cc !== -1) {
+    var clause = body.slice(cc + 1).trim();
+    if (clause) detail.push(clause);
+    body = body.slice(0, cc).trim();
+  }
+
+  // ⓒ2 A trailing "or <alternative>" measure. v365 deliberately dropped
+  //     "or"-alternatives from the PARSER because it would have had to choose
+  //     between them — but moving the alternative into the bracket chooses
+  //     nothing, it just stops the second measure blocking the name. A number
+  //     is required in the tail so a product name ("salt or pepper") is safe.
+  var om = body.match(/^(.+?)\s+or\s+(.+)$/i);
+  if (om && /\d|[¼½¾⅓⅔⅛⅜⅝⅞]/.test(om[2]) && om[1].trim()) {
+    detail.push("or " + om[2].trim());
+    body = om[1].trim();
+  }
+
+  // ⓓ Everything the existing splitter already knows: glued units, stranded
+  //    container words, " - " clauses, trailing prep.
+  var sp = splitGroceryName(body, amount != null);
+  // A "Juice of 1 lemon" line (sp.detail) is deliberately left alone: v363's
+  // downstream rescue already turns it into the right grocery item, and any
+  // rewrite here either duplicates the phrase in a bracket or drops what you
+  // actually do with the lemon. Nothing to add, so don't touch it.
+  if (sp.detail) return out;
+  if (amount == null && sp.amount != null) { amount = sp.amount; unit = unit || sp.unit; }
+  else if (amount != null && !unit && sp.unit) unit = sp.unit;
+  if (sp.qty) detail.push(sp.qty);
+  if (sp.prep) detail.push(sp.prep);
+  var name = sp.name || cleanGroceryName(body);
+
+  // A name that still carries a digit means a measure survived the pass — the
+  // one thing this whole exercise exists to remove. Don't pretend otherwise.
+  // `why` is shown on the flagged row: "couldn't tidy this" on its own tells
+  // Cathal nothing about what to do, and tells us nothing about what to fix.
+  if (!name) { out.ok = false; out.why = "nothing left to buy once the measure was taken out"; return out; }
+  if (/\d/.test(name)) { out.ok = false; out.why = "a number is still stuck in the name"; return out; }
+
+  var tidied = { name: name };
+  if (amount != null) tidied.amount = amount;
+  if (eff.amountMax != null) tidied.amountMax = eff.amountMax;
+  if (unit) tidied.unit = unit;
+  if (eff.approx) tidied.approx = true;
+  // Keep the compound's original phrasing — dropping it would flatten
+  // "1 3/4 cup + 2 tbsp" to a decimal in the editor for good.
+  if (eff._compoundNote) tidied._compoundNote = eff._compoundNote;
+  if (detail.length) tidied.name = name + " (" + detail.join(", ") + ")";
+
+  var after = ingredientToLine(tidied);
+  // Round-trip: the rewritten line has to come back out of the parser as the
+  // same ingredient, or the editor would quietly change it on the next save.
+  var rt = parseIngredients(after, false)[0];
+  if (!rt || rt.header || rt.name !== tidied.name ||
+      (rt.amount == null) !== (amount == null) ||
+      (rt.amount != null && Math.abs(rt.amount - amount) > 0.001) ||
+      (rt.unit || null) !== (unit || null)) {
+    out.ok = false; out.why = "the tidied line wouldn't read back the same"; return out;
+  }
+  if (!tidyIsLossless(before, after)) {
+    out.ok = false; out.why = "some of the wording would have been lost"; return out;
+  }
+
+  out.after = after;
+  out.ing = tidied;
+  out.changed = after !== before;
+  return out;
+}
+
+// Every meaningful word of the original must still be present afterwards.
+// Compared through groceryNameKey so "cans"→"can" and "Beans"→"bean" don't
+// read as losses, and with punctuation-only noise ignored. This is what
+// makes "confident" mean something: the tool may MOVE text between the name,
+// the unit and the bracket, but it may never drop any.
+function tidyIsLossless(before, after) {
+  function bag(s) {
+    var m = {};
+    // "200g" and "200 g" are the same two facts written differently, and the
+    // whole point of the pass is to separate them — so split a glued
+    // number+unit before comparing, or every such fix would read as a loss.
+    // Markup is not wording: "<s>2 tbsp sugar</s>" would otherwise leave a
+    // stray "s" token behind and read as a lost word.
+    s = String(s || "").replace(/<\/?[^>]+>/g, " ");
+    // Compared post-normalisation, so collapsing a "2 x 15ml tablespoons"
+    // gloss — a restatement of the unit, not information — isn't a loss.
+    s = normaliseIngredientLine(s);
+    s = s.replace(/(\d)\s*([a-zA-Z])/g, "$1 $2").replace(/[^\w\s./-]/g, " ");
+    groceryNameKey(s).split(/\s+/).forEach(function(w){
+      w = w.replace(/^[-.\/]+|[-.\/]+$/g, "");
+      // A bare "x" is the multiplier symbol in "1 x 400g", not information:
+      // amount × pack size carries it, so rewriting it away is not a loss.
+      if (!w || /^(of|the|a|an|and|x)$/.test(w)) return;
+      // Fold a unit word to the parser's canonical form, so writing
+      // "2 tablespoons" as "2 tbsp" is recognised as the same two facts.
+      if (INGREDIENT_UNIT_MAP[w]) w = INGREDIENT_UNIT_MAP[w];
+      m[w] = (m[w] || 0) + 1;
+    });
+    return m;
+  }
+  var b = bag(before), a = bag(after);
+  for (var k in b) { if (!a[k]) return false; }
+  return true;
+}
+
+// Does this recipe's Serves look wrong? CSV imports routinely landed on 1
+// because the source's quantity column was blank or unparseable. Flag only —
+// a guessed serves silently rescales every amount in the recipe, so the number
+// is never changed without Cathal typing it.
+function tidyServesLooksWrong(r) {
+  if (!r || (r.servings || 1) > 1) return false;
+  var ings = (r.ingredients || []).filter(function(i){ return !isHeaderIng(i); });
+  if (ings.length < 5) return false;
+  return ings.some(function(i){
+    var a = i.amount, u = i.unit;
+    if (a == null) return false;
+    if ((u === "g" || u === "ml") && a >= 300) return true;
+    if ((u === "kg" || u === "l") && a >= 1) return true;
+    if ((u === "can" || u === "tin") && a >= 2) return true;
+    if (u === "clove" && a >= 3) return true;
+    return false;
+  });
+}
+
+// Build the full proposal for one recipe.
+function tidyRecipeProposal(r) {
+  var lines = (r.ingredients || []).map(function(ing){ return tidyIngredient(ing); });
+  return {
+    id: r.id,
+    name: r.name || "(untitled)",
+    // The stamp the review was built against. Reviewing 60 recipes takes
+    // minutes, and a partner's edit can land in the middle of it — see the
+    // staleness check in applyTidyLines.
+    updated: r.updated || 0,
+    method: r.method || "",   // shown in the expanded card: you can't judge an ingredient blind
+    servings: r.servings || 1,
+    servesFlag: tidyServesLooksWrong(r),
+    lines: lines,
+    changedCount: lines.filter(function(l){ return l.ok && l.changed; }).length,
+    flagCount: lines.filter(function(l){ return !l.ok; }).length
+  };
+}
+
+// UK/US names for the same product. Used ONLY to PROPOSE a merge in step two
+// of the tidy screen — never applied on its own, because some of these pairs
+// are genuinely ambiguous in a British kitchen: "coriander" on a UK shelf is
+// the ground seed while "cilantro" is always the leaf, so folding them
+// together can be flat wrong. A group formed this way is labelled as a
+// spelling variant and starts on "leave as they are".
+var TIDY_SYNONYMS = [
+  ["coriander","cilantro"], ["aubergine","eggplant"], ["courgette","zucchini"],
+  ["spring onion","scallion"], ["rocket","arugula"], ["prawn","shrimp"],
+  ["chickpea","garbanzo bean"], ["plain flour","all purpose flour"],
+  ["caster sugar","superfine sugar"], ["bicarbonate of soda","baking soda"],
+  ["tomato puree","tomato paste"], ["double cream","heavy cream"],
+  ["beetroot","beet"], ["swede","rutabaga"], ["mangetout","snow pea"]
+];
+// The buyable part of an ingredient name — what's left once the bracket the
+// tidy pass wrote is taken back off.
+function tidyBaseName(name) {
+  return String(name || "").replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s{2,}/g, " ").trim();
+}
+function tidyMergeKey(base) {
+  var k = groceryNameKey(base);
+  TIDY_SYNONYMS.forEach(function(p){
+    var re = new RegExp("(^|\\s)" + p[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "($|\\s)");
+    if (re.test(k)) k = k.replace(re, "$1" + p[0] + "$2");
+  });
+  return k;
+}
+// Find products written more than one way across the whole book. Two sources:
+// names that already fold to the same grocery key (pure spelling/plural
+// differences), and names joined by the synonym table above. Anything else is
+// left well alone — "Coriander" and "Fresh coriander" are different products
+// on a shelf, and merging by word-overlap would wreck exactly that case.
+function tidyNameGroups(rb) {
+  var byKey = {};
+  (rb || []).forEach(function(r){
+    (r.ingredients || []).forEach(function(ing){
+      if (isHeaderIng(ing)) return;
+      var base = tidyBaseName(ing.name);
+      if (!base) return;
+      var mk = tidyMergeKey(base);
+      if (!mk) return;
+      var g = byKey[mk] || (byKey[mk] = { key: mk, names: {}, exact: {} });
+      g.names[base] = (g.names[base] || 0) + 1;
+      g.exact[groceryNameKey(base)] = true;
+    });
+  });
+  var out = [];
+  Object.keys(byKey).forEach(function(k){
+    var g = byKey[k];
+    var variants = Object.keys(g.names);
+    if (variants.length < 2) return;
+    variants.sort(function(a, b){ return g.names[b] - g.names[a] || a.localeCompare(b); });
+    out.push({
+      key: k,
+      variants: variants.map(function(n){ return { name: n, count: g.names[n] }; }),
+      viaSynonym: Object.keys(g.exact).length > 1
+    });
+  });
+  out.sort(function(a, b){ return b.variants.length - a.variants.length || a.key.localeCompare(b.key); });
   return out;
 }
 
@@ -3672,8 +4001,13 @@ function addRecipeToGroceries(recipe, mult, quiet) {
       // other multiplier the scaled `amt` above already says what's needed.
       if (ing._compoundNote) bits.push(ing._compoundNote);
       else {
+        // Any bracket, not just one holding a measure (v366). Before the tidy
+        // pass a digit-free bracket was usually junk; after it, the bracket is
+        // where every prep instruction deliberately lives — "Garlic (minced)"
+        // has to reach the note or tidying a recipe would quietly lose the
+        // wording that used to come through as a trailing comma clause.
         var br = String(ing.name || "").match(/\(([^)]+)\)/);
-        if (br && br[1].trim() && /\d|[¼½¾⅓⅔⅛⅜⅝⅞]/.test(br[1])) bits.push("(" + br[1].trim() + ")");
+        if (br && br[1].trim()) bits.push("(" + br[1].trim() + ")");
       }
     }
     if (sp && sp.prep) bits.push(sp.prep);
@@ -3897,7 +4231,12 @@ function formatScaledAmount(unit, amt, name) {
   if (unit === "lb") return { amount: fmtNumber(amt), unit: "lb" };
   // Count-style units pluralise on scaling
   var countUnits = { pinch:["pinch","pinches"], cube:["cube","cubes"], clove:["clove","cloves"],
-                     can:["can","cans"], tin:["tin","tins"], slice:["slice","slices"], piece:["piece","pieces"] };
+                     can:["can","cans"], tin:["tin","tins"], slice:["slice","slices"], piece:["piece","pieces"],
+                     // v366: count words that were being left stranded in the
+                     // NAME instead of scaling — "2 scoops vanilla protein
+                     // powder" was Cathal's own reported case.
+                     scoop:["scoop","scoops"], rasher:["rasher","rashers"],
+                     sprig:["sprig","sprigs"], bunch:["bunch","bunches"], stick:["stick","sticks"] };
   if (countUnits[unit]) {
     var nWhole = Math.round(amt*100)/100;
     var disp = fmtNumber(amt);
@@ -3937,6 +4276,7 @@ function renderRecipes() {
   seedRecipes();
   if (_recipeView === "detail" && _recipeOpenId != null) { renderRecipeDetail(); return; }
   if (_recipeView === "plan") { renderMealPlanner(); return; }
+  if (_recipeView === "tidy") { renderRecipeTidy(); return; }
   var el = document.getElementById("recipesContent");
   var rb = getRecipeBook();
   if (!rb.length) {
@@ -3980,8 +4320,9 @@ function renderRecipes() {
       "<button id='rcpSelCancel' style='padding:10px 14px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Cancel</button>" +
     "</div>";
   } else {
-    selectHdr = "<div style='display:flex;justify-content:space-between;margin-bottom:10px'>" +
+    selectHdr = "<div style='display:flex;flex-wrap:wrap;gap:6px;justify-content:space-between;margin-bottom:10px'>" +
       "<button id='rcpPlanBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F4C5; Week plan</button>" +
+      "<button id='rcpTidyBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F9F9; Tidy</button>" +
       "<button id='rcpSelStart' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x2713; Select</button>" +
     "</div>";
   }
@@ -4042,6 +4383,13 @@ function renderRecipes() {
   if (_rcpPlanBtn) _rcpPlanBtn.addEventListener("click", function(){
     _recipeScrollPos = window.scrollY || document.documentElement.scrollTop;
     _recipeView = "plan";
+    renderRecipes();
+  });
+  var _rcpTidyBtn = document.getElementById("rcpTidyBtn");
+  if (_rcpTidyBtn) _rcpTidyBtn.addEventListener("click", function(){
+    _recipeScrollPos = window.scrollY || document.documentElement.scrollTop;
+    _tidyState = null;            // always recompute against what's stored now
+    _recipeView = "tidy";
     renderRecipes();
   });
   var _selStart = document.getElementById("rcpSelStart");
@@ -4273,6 +4621,475 @@ function recipeCardHTML(r, selectMode, selected) {
 // Bulk-add selected recipes to the rotation pool (never bulk-removes — taking
 // a recipe out of rotation is a deliberate single-recipe edit, done from its
 // own editor checkbox).
+// ── Tidy ingredients screen (v366) ────────────────────────────────────────
+// Two steps, both review-first: ① every proposed line rewrite on one screen,
+// tick per recipe, edit anything inline; ② once those are saved, offer to
+// unify names that mean the same product across recipes. Nothing is written
+// until the Apply button on that step is pressed.
+var _tidyState = null;
+var _tidyInputWired = false;   // #recipesContent is permanent — wire its delegated input listener once
+
+function tidyLineValue(p, idx) {
+  var k = p.id + ":" + idx;
+  if (_tidyState.edits[k] != null) return _tidyState.edits[k];
+  var l = p.lines[idx];
+  return l.ok ? l.after : l.before;   // a flagged line keeps its original text
+}
+
+function buildTidyState() {
+  var rb = getRecipeBook();
+  var props = rb.map(tidyRecipeProposal).filter(function(p){
+    return p.changedCount > 0 || p.flagCount > 0 || p.servesFlag;
+  });
+  var accept = {};
+  // Pre-ticked: a recipe with confident changes is the normal case and
+  // ticking 60 boxes by hand would defeat the point. Everything is visible
+  // and untickable before anything is written.
+  props.forEach(function(p){ accept[p.id] = p.changedCount > 0; });
+  _tidyState = { step: "lines", recipes: props, accept: accept, edits: {}, serves: {},
+                 expanded: {}, groups: [], picks: {}, custom: {} };
+}
+
+function renderRecipeTidy() {
+  // Same guard the recipe editor uses: this screen holds unsaved input, so a
+  // sync landing mid-review must not re-render it out from under Cathal.
+  _recipeEditing = true;
+  if (!_tidyState) buildTidyState();
+  if (_tidyState.step === "names") return renderRecipeTidyNames();
+  var el = document.getElementById("recipesContent");
+  var st = _tidyState;
+  var totalChanged = 0, totalFlagged = 0, accepted = 0;
+  st.recipes.forEach(function(p){
+    totalChanged += p.changedCount; totalFlagged += p.flagCount;
+    if (st.accept[p.id]) accepted++;
+  });
+
+  var html =
+    "<button id='tidyBackBtn' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; All recipes</button>" +
+    "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:6px'>Tidy ingredients</div>";
+
+  if (!st.recipes.length) {
+    // The undo offer belongs here too — finishing a cleanup lands you on this
+    // screen, and that is exactly when you might want it back.
+    html += tidyUndoCardHtml() +
+            "<div style='text-align:center;color:#8A7A5A;padding:30px 10px'><div style='font-size:34px;margin-bottom:8px'>&#x2728;</div>" +
+            "<div style='font-size:15px;font-weight:600'>Nothing to tidy</div>" +
+            "<div style='font-size:13px;margin-top:4px'>Every recipe already reads cleanly.</div></div>";
+    el.innerHTML = html;
+    document.getElementById("tidyBackBtn").addEventListener("click", tidyExit);
+    wireTidyUndoBtn();
+    return;
+  }
+
+  html +=
+    "<div style='font-size:13px;color:#6A5A40;line-height:1.6;margin-bottom:10px'>" +
+      "Moves the measure and prep wording out of each ingredient's name and into brackets, so the shopping list gets a name you can buy. " +
+      "Nothing is saved until you tap Apply." +
+    "</div>" +
+    tidyUndoCardHtml() +
+    "<div style='background:#FDF6E8;border:1px solid #E8D8B8;border-radius:10px;padding:10px 12px;margin-bottom:14px'>" +
+      "<div style='font-size:13px;color:#7A5A30;font-weight:600;margin-bottom:6px'>&#x26A0;&#xFE0F; This rewrites recipes on every family device. You can put them back straight afterwards, on this phone only &mdash; a backup is the safer net.</div>" +
+      "<button id='tidyBackupBtn' style='padding:7px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>&#x2B07;&#xFE0F; Export a backup first</button>" +
+    "</div>" +
+    "<div style='font-size:13px;color:#6A5A40;margin-bottom:10px'>" +
+      "<b>" + st.recipes.length + "</b> recipe" + (st.recipes.length!==1?"s":"") + " to look at &middot; <b>" + totalChanged + "</b> line" + (totalChanged!==1?"s":"") + " tidied" +
+      (totalFlagged ? " &middot; <b style='color:#B5651D'>" + totalFlagged + "</b> need your eye" : "") +
+    "</div>" +
+    "<div style='display:flex;gap:8px;margin-bottom:12px'>" +
+      "<button id='tidyAll' style='flex:1;padding:8px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Tick all</button>" +
+      "<button id='tidyNone' style='flex:1;padding:8px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Untick all</button>" +
+    "</div>";
+
+  st.recipes.forEach(function(p){
+    var on = !!st.accept[p.id], open = !!st.expanded[p.id];
+    html += "<div style='border:1.5px solid " + (on?"#D8C0A0":"#ECE4D6") + ";background:" + (on?"#fff":"#FAF7F1") + ";border-radius:12px;margin-bottom:8px;overflow:hidden'>";
+    // The row toggles expand, the checkbox toggles accept — two actions in one
+    // strip, so the checkbox gets a padded hit box of its own rather than
+    // relying on a 19px target next to a much bigger one.
+    html += "<div class='tidy-hdr' data-id='" + p.id + "' style='display:flex;align-items:center;gap:6px;padding:11px 12px;cursor:pointer;min-height:44px;box-sizing:border-box'>" +
+      "<span class='tidy-chkwrap' data-id='" + p.id + "' style='display:flex;align-items:center;justify-content:center;padding:12px;margin:-12px 0 -12px -12px;flex:none;cursor:pointer'>" +
+        "<input type='checkbox' class='tidy-chk' data-id='" + p.id + "'" + (on?" checked":"") + " aria-label='Apply changes to " + esc(p.name).replace(/'/g,"&#39;") + "' style='width:22px;height:22px;flex:none'>" +
+      "</span>" +
+      "<div style='flex:1;min-width:0'>" +
+        "<div style='font-size:15px;font-weight:600;color:#2A2010;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + esc(p.name) + "</div>" +
+        "<div style='font-size:12px;color:#8A7A5A;margin-top:2px'>" +
+          (p.changedCount ? p.changedCount + " tidied" : "no changes") +
+          (p.flagCount ? " &middot; <span style='color:#B5651D;font-weight:700'>" + p.flagCount + " needs your eye</span>" : "") +
+          (p.servesFlag ? " &middot; <span style='color:#B5651D;font-weight:700'>serves?</span>" : "") +
+        "</div>" +
+      "</div>" +
+      "<span style='color:#B5651D;font-size:13px;font-weight:700;flex:none'>" + (open?"Hide":"Show") + "</span>" +
+    "</div>";
+    if (open) {
+      html += "<div style='padding:0 12px 12px'>";
+      if (p.servesFlag) {
+        var sv = st.serves[p.id] != null ? st.serves[p.id] : p.servings;
+        html += "<div style='background:#FDF6E8;border:1px solid #E8D8B8;border-radius:9px;padding:9px 10px;margin-bottom:10px'>" +
+          "<div style='font-size:12px;color:#7A5A30;margin-bottom:6px'>The amounts look bigger than " + p.servings + " serving" + (p.servings!==1?"s":"") + ". Set the right number if you know it &mdash; it's never guessed for you.</div>" +
+          "<label style='display:flex;align-items:center;gap:8px;font-size:13px;color:#7A5A30;font-weight:600'>Serves " +
+          "<input type='number' min='1' max='50' class='tidy-serves' data-id='" + p.id + "' value='" + sv + "' style='width:70px;padding:6px 8px;border:1.5px solid #D8C8A8;border-radius:8px;font-family:inherit;font-size:14px'>" +
+          "</label></div>";
+      }
+      // EVERY line, not just the ones with something to say. Cathal's report:
+      // "it is sometimes difficult to make a change without the context of the
+      // full recipe" — a flagged line in isolation tells you nothing about
+      // whether it's the tin or the topping. Untouched lines render quieter but
+      // stay editable, so anything can be fixed from here.
+      p.lines.forEach(function(l, idx){
+        var val = tidyLineValue(p, idx);
+        var flagged = !l.ok, quiet = l.ok && !l.changed;
+        html += "<div style='padding:7px 0;border-top:1px dotted #ECE4D6'>" +
+          "<div style='font-size:12px;color:#9A8A6A;margin-bottom:4px'>" +
+            (flagged ? "<span style='color:#B5651D;font-weight:700'>&#x26A0;&#xFE0F; left as it was &mdash; " + esc(l.why || "couldn't tidy this one") + "</span>"
+             : quiet ? "<span>already fine</span>"
+                     : "<span style='text-decoration:line-through'>" + esc(l.before) + "</span>") +
+          "</div>" +
+          "<input type='text' class='tidy-line' data-key='" + p.id + ":" + idx + "' value='" + esc(val).replace(/'/g,"&#39;") + "' style='width:100%;box-sizing:border-box;padding:10px;border:1.5px solid " + (flagged?"#E8C89A":quiet?"#ECE4D6":"#D8C8A8") + ";border-radius:8px;font-family:inherit;font-size:14px;color:" + (quiet?"#7A6A50":"#2A2010") + ";background:" + (flagged?"#FFFBF3":"#fff") + "'>" +
+        "</div>";
+      });
+      if (p.method) {
+        html += "<div style='margin-top:10px;border-top:1px dotted #ECE4D6;padding-top:8px'>" +
+          "<div style='font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px'>Method &mdash; for context</div>" +
+          "<div style='font-size:12px;color:#7A6A50;line-height:1.5;max-height:150px;overflow-y:auto;white-space:pre-wrap'>" + esc(p.method) + "</div>" +
+        "</div>";
+      }
+      html += "</div>";
+    }
+    html += "</div>";
+  });
+
+  html += "<button id='tidyApply'" + (accepted?"":" disabled") + " style='width:100%;box-sizing:border-box;padding:13px;margin-top:10px;border:none;background:" + (accepted?"#2D6B35":"#D8CEBC") + ";color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:" + (accepted?"pointer":"default") + "'>Apply to " + accepted + " recipe" + (accepted!==1?"s":"") + "</button>";
+
+  el.innerHTML = html;
+
+  document.getElementById("tidyBackBtn").addEventListener("click", tidyExit);
+  document.getElementById("tidyBackupBtn").addEventListener("click", exportAllData);
+  wireTidyUndoBtn();
+  document.getElementById("tidyAll").addEventListener("click", function(){
+    st.recipes.forEach(function(p){ st.accept[p.id] = true; }); renderRecipeTidy();
+  });
+  document.getElementById("tidyNone").addEventListener("click", function(){
+    st.recipes.forEach(function(p){ st.accept[p.id] = false; }); renderRecipeTidy();
+  });
+  // Typing is captured as it happens, so expanding another recipe (which
+  // re-renders the whole screen) never loses an edit.
+  // Wired ONCE: #recipesContent is a permanent element whose innerHTML is
+  // replaced, so attaching per render would stack a new listener on every
+  // expand/collapse/tick. Delegated off _tidyState rather than the closure,
+  // since this listener outlives the render that created it.
+  if (!_tidyInputWired) {
+    _tidyInputWired = true;
+    el.addEventListener("input", function(e){
+      var t = e.target;
+      if (!t || !t.classList || !_tidyState) return;
+      if (t.classList.contains("tidy-line")) _tidyState.edits[t.getAttribute("data-key")] = t.value;
+      else if (t.classList.contains("tidy-serves")) {
+        var n = parseInt(t.value, 10);
+        _tidyState.serves[t.getAttribute("data-id")] = (n > 0 ? n : null);
+      }
+    });
+  }
+  // Listen on the padded wrapper, not the 22px box, so a near-miss still hits.
+  Array.prototype.forEach.call(el.querySelectorAll(".tidy-chkwrap"), function(w){
+    w.addEventListener("click", function(e){
+      e.stopPropagation();                       // never also expand the row
+      var c = w.querySelector(".tidy-chk");
+      if (!c) return;
+      if (e.target !== c) c.checked = !c.checked; // tapped the padding, not the box
+      st.accept[w.getAttribute("data-id")] = c.checked;
+      renderRecipeTidy();
+    });
+  });
+  Array.prototype.forEach.call(el.querySelectorAll(".tidy-hdr"), function(h){
+    h.addEventListener("click", function(){
+      var id = h.getAttribute("data-id");
+      st.expanded[id] = !st.expanded[id];
+      renderRecipeTidy();
+    });
+  });
+  document.getElementById("tidyApply").addEventListener("click", function(){
+    if (!accepted) return;
+    confirmDialog("Rewrite the ingredients in " + accepted + " recipe" + (accepted!==1?"s":"") + "?", applyTidyLines);
+  });
+}
+
+function tidyExit() {
+  _tidyState = null;
+  _recipeView = "list";
+  renderRecipes();
+}
+
+// ── Narrow undo for a tidy pass (v366) ────────────────────────────────────
+// "Export a backup first" is real protection but wildly disproportionate:
+// restoring a whole Hearth backup to walk back a recipe cleanup would also
+// roll back baby data, trips and lists. This keeps just enough to put the
+// recipes back — previous ingredients and servings per recipe, plus the stamp
+// we wrote, so a recipe touched since is left alone rather than clobbered.
+// DEVICE-LOCAL and single-slot on purpose: it is a safety net for the minutes
+// after a cleanup, not a version history. Never synced, never exported.
+var TIDY_UNDO_KEY = "fl4_tidy_undo";
+var TIDY_UNDO_DAYS = 7;
+
+function tidySnapshotRecipe(r) {
+  return { id: r.id, name: r.name || "",
+           // Deep copy: the caller is about to replace these in place.
+           ingredients: JSON.parse(JSON.stringify(r.ingredients || [])),
+           servings: r.servings || 1,
+           appliedUpdated: 0 };   // filled in once the new stamp is written
+}
+function tidySaveUndo(kind, entries) {
+  if (!entries || !entries.length) return;
+  storeSet(TIDY_UNDO_KEY, { kind: kind, ts: Date.now(), recipes: entries });
+}
+// The receipt, or null when there isn't a usable one.
+function tidyUndoInfo() {
+  var rec = storeGet(TIDY_UNDO_KEY);
+  if (!rec || !rec.recipes || !rec.recipes.length || !rec.ts) return null;
+  if (Date.now() - rec.ts > TIDY_UNDO_DAYS * 86400000) return null;
+  return rec;
+}
+function applyTidyUndo() {
+  var rec = tidyUndoInfo();
+  if (!rec) return;
+  var rb = getRecipeBook(), n = 0, stale = 0;
+  rec.recipes.forEach(function(e){
+    var r = rb.find(function(x){ return x && x.id === e.id; });
+    if (!r) return;
+    // Only put back what this cleanup actually wrote. Anything edited since —
+    // here or on a partner's phone — keeps its newer version.
+    if ((r.updated || 0) !== e.appliedUpdated) { stale++; return; }
+    r.ingredients = e.ingredients;
+    if (e.servings) r.servings = e.servings;
+    r.updated = Date.now();
+    n++;
+  });
+  saveRecipeBook(rb);
+  pushPersonal();
+  storeSet(TIDY_UNDO_KEY, null);
+  toast("Put back " + n + " recipe" + (n!==1?"s":"") +
+        (stale ? " &middot; " + stale + " changed since, left as they are" : ""));
+  tidyExit();
+}
+// The undo offer, shown at the top of the tidy screen while a receipt lasts.
+function tidyUndoCardHtml() {
+  var rec = tidyUndoInfo();
+  if (!rec) return "";
+  var mins = Math.round((Date.now() - rec.ts) / 60000);
+  var when = mins < 1 ? "just now" : mins < 60 ? mins + " min ago"
+           : mins < 1440 ? Math.round(mins/60) + "h ago" : Math.round(mins/1440) + "d ago";
+  return "<div style='background:#F1F6EE;border:1px solid #CFE0C6;border-radius:10px;padding:10px 12px;margin-bottom:14px'>" +
+    "<div style='font-size:13px;color:#2D6B35;font-weight:600;margin-bottom:6px'>" +
+      "Last " + (rec.kind === "names" ? "name merge" : "tidy") + ": " + rec.recipes.length +
+      " recipe" + (rec.recipes.length!==1?"s":"") + " changed, " + when +
+    "</div>" +
+    "<button id='tidyUndoBtn' style='padding:7px 12px;border:1.5px solid #2D6B35;background:#fff;color:#2D6B35;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>&#x21A9;&#xFE0F; Put them back</button>" +
+  "</div>";
+}
+function wireTidyUndoBtn() {
+  var b = document.getElementById("tidyUndoBtn");
+  if (!b) return;
+  b.addEventListener("click", function(){
+    var rec = tidyUndoInfo();
+    if (!rec) return;
+    confirmDialog("Put " + rec.recipes.length + " recipe" + (rec.recipes.length!==1?"s":"") +
+                  " back the way they were?", applyTidyUndo);
+  });
+}
+
+function applyTidyLines() {
+  var st = _tidyState;
+  if (!st) return;
+  var rb = getRecipeBook(), n = 0, skipped = 0, stale = 0, undo = [];
+  st.recipes.forEach(function(p){
+    if (!st.accept[p.id]) return;
+    var r = rb.find(function(x){ return x && x.id === p.id; });
+    if (!r) return;
+    // The proposals were built from one read of the book, but working through
+    // 60 recipes takes minutes and this screen suppresses its own re-render —
+    // so a partner's edit (or a sync) can land underneath a review that still
+    // shows the pre-edit text. Writing our rewrite of the OLD text would
+    // silently discard their change, which is the stale-copy-wins-the-merge
+    // class this app has been bitten by before. Skip and say so instead.
+    if ((r.updated || 0) !== p.updated) { stale++; return; }
+    var text = p.lines.map(function(_l, idx){ return tidyLineValue(p, idx); }).join("\n");
+    var next = parseIngredients(text, false);
+    // Never let a tidy pass empty a recipe out. If the rewrite produced fewer
+    // ingredients than the recipe started with, something went wrong in the
+    // text and losing them is worse than leaving the recipe untidied.
+    if (next.length < p.lines.length) { skipped++; return; }
+    var snap = tidySnapshotRecipe(r);      // before anything is replaced
+    r.ingredients = next;
+    var sv = st.serves[p.id];
+    if (sv && sv > 0 && sv !== r.servings) r.servings = sv;
+    r.updated = Date.now();
+    snap.appliedUpdated = r.updated;
+    undo.push(snap);
+    n++;
+  });
+  saveRecipeBook(rb);
+  tidySaveUndo("lines", undo);
+  pushPersonal();
+  // Step two works off the saved names, so rebuild the groups now.
+  st.groups = tidyNameGroups(getRecipeBook());
+  st.picks = {}; st.custom = {};
+  toast(n + " recipe" + (n!==1?"s":"") + " tidied" +
+        (skipped ? " &middot; " + skipped + " skipped" : "") +
+        (stale ? " &middot; " + stale + " changed on another device, left alone" : ""));
+  if (st.groups.length) { st.step = "names"; renderRecipeTidy(); }
+  else tidyExit();
+}
+
+function renderRecipeTidyNames() {
+  var el = document.getElementById("recipesContent");
+  var st = _tidyState;
+  var picked = Object.keys(st.picks).filter(function(k){ return st.picks[k]; }).length;
+
+  var html =
+    "<button id='tidyBackBtn' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; All recipes</button>" +
+    "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:6px'>Same thing, different names</div>" +
+    "<div style='font-size:13px;color:#6A5A40;line-height:1.6;margin-bottom:14px'>" +
+      "Ingredients written more than one way across your recipes. Pick the name you'd rather buy under and it's used everywhere. " +
+      "Leave anything you're unsure about &mdash; they're only merged if you pick one." +
+    "</div>";
+
+  // Most groups are pure spelling or plural differences ("sea salt" / "Sea
+  // salt"), which groceryNameKey already folds — merging them changes nothing
+  // on the shopping list, they just bury the groups that DO need a decision.
+  // One tap clears the lot. Only the synonym groups are real judgement calls.
+  var trivial = st.groups.filter(function(g){ return !g.viaSynonym; }).length;
+  if (trivial > 1) {
+    html += "<button id='tidyPickCommon' style='width:100%;box-sizing:border-box;padding:11px;margin-bottom:12px;border:1.5px solid #2D6B35;background:#fff;color:#2D6B35;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Use the most common spelling everywhere (" + trivial + ")</button>";
+  }
+
+  st.groups.forEach(function(g, gi){
+    html += "<div style='border:1.5px solid #ECE4D6;background:#fff;border-radius:12px;padding:12px;margin-bottom:8px'>";
+    if (g.viaSynonym) {
+      html += "<div style='font-size:12px;color:#B5651D;font-weight:700;margin-bottom:8px'>&#x26A0;&#xFE0F; Spelling variant &mdash; check these really are the same thing</div>";
+    }
+    g.variants.forEach(function(v){
+      var on = st.picks[gi] === v.name;
+      // Whole row is the target, min 44px — the name and the count are part of
+      // the label, not decoration beside a 17px dot.
+      html += "<label style='display:flex;align-items:center;gap:10px;padding:9px 0;min-height:44px;box-sizing:border-box;font-size:14px;color:#2A2010;cursor:pointer'>" +
+        "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + gi + "' data-name='" + esc(v.name).replace(/'/g,"&#39;") + "'" + (on?" checked":"") + " style='width:20px;height:20px;flex:none'>" +
+        "<span style='flex:1'>" + esc(v.name) + "</span>" +
+        "<span style='font-size:12px;color:#9A8A6A;flex:none'>" + v.count + "&times;</span>" +
+      "</label>";
+    });
+    // Neither spelling is always the one you want — the real book threw up
+    // "scoop vanilla protein powder" vs "scoops Vanilla Protein Powder",
+    // where the right answer is a third thing you type yourself.
+    var cust = st.custom[gi] || "";
+    var custOn = !!cust && st.picks[gi] === cust;
+    // A plain div, NOT a label: a label wrapping both a radio and a text input
+    // is ambiguous for screen readers and lets a tap meant for the box hit the
+    // radio instead. Typing already selects the radio in the input handler.
+    html += "<div style='display:flex;align-items:center;gap:10px;padding:9px 0;min-height:44px;box-sizing:border-box;border-top:1px dotted #ECE4D6;margin-top:4px'>" +
+      "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + gi + "' data-custom='1'" + (custOn?" checked":"") + " aria-label='Use a name I type' style='width:20px;height:20px;flex:none'>" +
+      "<input type='text' class='tidy-custom' data-gi='" + gi + "' value='" + esc(cust).replace(/'/g,"&#39;") + "' placeholder='Or type a different name' aria-label='A different name for this ingredient' style='flex:1;min-width:0;padding:10px 9px;border:1.5px solid #D8C8A8;border-radius:8px;font-family:inherit;font-size:14px;color:#2A2010'>" +
+    "</div>";
+    html += "<label style='display:flex;align-items:center;gap:10px;padding:9px 0;min-height:44px;box-sizing:border-box;font-size:14px;color:#8A7A5A;cursor:pointer'>" +
+      "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + gi + "' data-name=''" + (st.picks[gi]?"":" checked") + " style='width:20px;height:20px;flex:none'>" +
+      "<span>Leave as they are</span></label>";
+    html += "</div>";
+  });
+
+  html += "<button id='tidyNamesApply'" + (picked?"":" disabled") + " style='width:100%;box-sizing:border-box;padding:13px;margin-top:10px;border:none;background:" + (picked?"#2D6B35":"#D8CEBC") + ";color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:" + (picked?"pointer":"default") + "'>Merge " + picked + " name" + (picked!==1?"s":"") + "</button>" +
+    "<button id='tidyNamesSkip' style='width:100%;box-sizing:border-box;padding:11px;margin-top:8px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Done, leave names alone</button>";
+
+  el.innerHTML = html;
+  document.getElementById("tidyBackBtn").addEventListener("click", tidyExit);
+  document.getElementById("tidyNamesSkip").addEventListener("click", tidyExit);
+  var _pickCommon = document.getElementById("tidyPickCommon");
+  if (_pickCommon) _pickCommon.addEventListener("click", function(){
+    // variants are sorted count-desc, so [0] IS the most common spelling.
+    st.groups.forEach(function(g, gi){ if (!g.viaSynonym) st.picks[gi] = g.variants[0].name; });
+    renderRecipeTidyNames();   // a deliberate button tap, so a redraw is fine here
+  });
+  // Nothing on this screen re-renders on a tap or a keystroke: the radios keep
+  // their own state and only the Apply button depends on the picks, so it is
+  // updated in place. Re-rendering would take focus off the text box mid-word.
+  Array.prototype.forEach.call(el.querySelectorAll(".tidy-pick"), function(radio){
+    radio.addEventListener("change", function(){
+      var gi = radio.getAttribute("data-gi");
+      if (radio.getAttribute("data-custom")) {
+        var box = el.querySelector(".tidy-custom[data-gi='" + gi + "']");
+        st.picks[gi] = (box && box.value.trim()) || null;
+        if (box) box.focus();
+      } else {
+        st.picks[gi] = radio.getAttribute("data-name") || null;
+      }
+      updateTidyNamesApply();
+    });
+  });
+  Array.prototype.forEach.call(el.querySelectorAll(".tidy-custom"), function(box){
+    box.addEventListener("input", function(){
+      var gi = box.getAttribute("data-gi");
+      st.custom[gi] = box.value;
+      // Typing IS choosing — tick this group's custom radio rather than making
+      // Cathal type the name and then remember to tap the button beside it.
+      var radio = el.querySelector(".tidy-pick[data-gi='" + gi + "'][data-custom]");
+      if (radio) radio.checked = true;
+      st.picks[gi] = box.value.trim() || null;
+      updateTidyNamesApply();
+    });
+  });
+  document.getElementById("tidyNamesApply").addEventListener("click", function(){
+    var n = Object.keys(st.picks).filter(function(k){ return st.picks[k]; }).length;
+    if (!n) return;
+    confirmDialog("Use the chosen name" + (n!==1?"s":"") + " across all recipes?", applyTidyNames);
+  });
+  updateTidyNamesApply();
+}
+
+// Keep the Merge button in step with the picks without redrawing the screen.
+function updateTidyNamesApply() {
+  var btn = document.getElementById("tidyNamesApply");
+  if (!btn || !_tidyState) return;
+  var n = Object.keys(_tidyState.picks).filter(function(k){ return _tidyState.picks[k]; }).length;
+  btn.disabled = !n;
+  btn.textContent = "Merge " + n + " name" + (n!==1?"s":"");
+  btn.style.background = n ? "#2D6B35" : "#D8CEBC";
+  btn.style.cursor = n ? "pointer" : "default";
+}
+
+function applyTidyNames() {
+  var st = _tidyState;
+  if (!st) return;
+  // name-as-written → winner, for every group Cathal actually picked
+  var map = {};
+  st.groups.forEach(function(g, gi){
+    var win = st.picks[gi];
+    if (!win) return;
+    g.variants.forEach(function(v){ if (v.name !== win) map[v.name] = win; });
+  });
+  var rb = getRecipeBook(), changed = 0, recipes = 0, undo = [];
+  rb.forEach(function(r){
+    var snap = tidySnapshotRecipe(r);      // before any name is replaced
+    var touched = false;
+    (r.ingredients || []).forEach(function(ing){
+      if (isHeaderIng(ing)) return;
+      var base = tidyBaseName(ing.name);
+      if (!map[base]) return;
+      // Keep the bracket detail — only the buyable part of the name changes.
+      var br = String(ing.name || "").match(/\(([^)]*)\)/);
+      ing.name = map[base] + (br ? " (" + br[1] + ")" : "");
+      changed++; touched = true;
+    });
+    if (touched) {
+      r.updated = Date.now();
+      snap.appliedUpdated = r.updated;
+      undo.push(snap);
+      recipes++;
+    }
+  });
+  saveRecipeBook(rb);
+  tidySaveUndo("names", undo);
+  pushPersonal();
+  toast(changed + " ingredient" + (changed!==1?"s":"") + " renamed in " + recipes + " recipe" + (recipes!==1?"s":""));
+  tidyExit();
+}
+
 function applyBulkInRotation(ids){
   var rb = getRecipeBook(), set = {}, n = 0;
   (ids||[]).forEach(function(id){ set[id] = true; });
@@ -4346,6 +5163,50 @@ function formatMethod(text){
 // Stored data is never rewritten here — editing and saving the recipe is
 // still what actually cleans it up (same "zero migration code" mechanism
 // v363's downstream rescue relies on).
+// Serialize one ingredient back to its editor line — the exact text the
+// recipe editor's textarea shows, and the format parseIngredients reads. Kept
+// as one function so the editor and v366's tidy pass can never disagree about
+// what a stored ingredient "says".
+// NOTE: rescueIngredientMeasure deliberately does NOT use this. It rebuilds a
+// line in order to RE-PARSE it, so it must leave out amountMax and the
+// compound note — re-emitting those would just hand the parser back what it
+// already produced and the rescue could never find anything.
+function ingredientToLine(i) {
+  if (!i) return "";
+  // A header has to go back out in a shape parseIngredients still reads AS a
+  // header, or saving the recipe silently demotes it to an ingredient: the
+  // parser stores "<b>Base</b>" and "Sauce:" alike as {name:"Base"|"Sauce",
+  // header:true}, and a bare "Base" reparses as something you buy.
+  if (i.header) return "<b>" + String(i.name || "") + "</b>";
+  // A compound sum re-emits its ORIGINAL phrasing ("1 3/4 cup + 2 tbsp"), not
+  // the normalized decimal it was stored as, so re-editing a typed fraction
+  // doesn't flatten it — parseIngredients recognises it again on save either
+  // way (round-trip: serialize → parse → same data).
+  if (i._compoundNote) return (i.approx?"~":"") + i._compoundNote + " " + i.name;
+  return (i.approx?"~":"") +
+         (i.amount!=null ? fmtIngredientAmount(i.amount) + (i.amountMax!=null ? "-"+fmtIngredientAmount(i.amountMax) : "") + " " : "") +
+         (i.unit ? i.unit + " " : "") + i.name;
+}
+// Amounts are stored as floats, so "1 2/3 tbsp" comes back out of the parser
+// as 1.6666666666666665 and the editor showed it that way. Re-emit a common
+// fraction when one reparses to the same number (within a hair), so a typed
+// fraction survives an edit instead of decaying into a wall of digits.
+var INGREDIENT_FRACTIONS = [[0.125,"1/8"],[0.25,"1/4"],[0.333,"1/3"],[0.375,"3/8"],[0.5,"1/2"],
+                            [0.625,"5/8"],[0.667,"2/3"],[0.75,"3/4"],[0.875,"7/8"]];
+function fmtIngredientAmount(n) {
+  if (typeof n !== "number" || !isFinite(n)) return String(n);
+  if (n === Math.floor(n)) return String(n);
+  var whole = Math.floor(n), frac = n - whole;
+  for (var i = 0; i < INGREDIENT_FRACTIONS.length; i++) {
+    if (Math.abs(frac - INGREDIENT_FRACTIONS[i][0]) < 0.0005) {
+      var s = (whole ? whole + " " : "") + INGREDIENT_FRACTIONS[i][1];
+      // Only if it really does come back as the same amount.
+      var back = parseAmount(s);
+      if (back != null && Math.abs(back - n) < 0.0005) return s;
+    }
+  }
+  return String(Math.round(n * 100) / 100);
+}
 function rescueIngredientMeasure(ing) {
   if (!ing || isHeaderIng(ing) || ing.amountMax != null) return ing;
   var raw = (ing.approx ? "~" : "") + (ing.amount != null ? ing.amount + " " : "") + (ing.unit ? ing.unit + " " : "") + ing.name;
@@ -4424,14 +5285,7 @@ function openRecipeEditor(id) {
   var r = id != null ? getRecipeBook().find(function(x){ return x.id === id; }) : null;
   var isNew = !r;
   // Build an ingredient text representation: "amount unit name" per line
-  var ingText = r ? (r.ingredients||[]).map(function(i){
-    // A compound sum re-emits its ORIGINAL phrasing ("1 3/4 cup + 2 tbsp"),
-    // not the normalized decimal it was stored as, so re-editing a typed
-    // fraction doesn't flatten it — parseIngredients recognises it again on
-    // save either way (round-trip: serialize → parse → same data).
-    if (i._compoundNote) return (i.approx?"~":"") + i._compoundNote + " " + i.name;
-    return (i.approx?"~":"") + (i.amount!=null?i.amount+(i.amountMax!=null?"-"+i.amountMax:"")+" ":"") + (i.unit?i.unit+" ":"") + i.name;
-  }).join("\n") : "";
+  var ingText = r ? (r.ingredients||[]).map(ingredientToLine).join("\n") : "";
   var el = document.getElementById("recipesContent");
   el.innerHTML =
     "<button id='recipeCancelEdit' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; Cancel</button>" +
@@ -4594,22 +5448,42 @@ function sumCompoundAmount(amt1, unit1, amt2, unit2) {
 // the original phrasing kept on `_compoundNote` so the editor round-trips it
 // and the grocery note can cite it) and ranges ("2-3 tbsp" / "2 to 3 tbsp",
 // stored as `amount`+`amountMax`).
-function parseIngredients(text, stripParens) {
-  var unitMap = {
+// Hoisted out of parseIngredients (v366) so the losslessness check can fold a
+// unit word to the same canonical form the parser uses — otherwise rewriting
+// "2 tablespoons" as "2 tbsp" reads as a lost word.
+var INGREDIENT_UNIT_MAP = {
     "tsp":"tsp","teaspoon":"tsp","teaspoons":"tsp","teaspoon(s)":"tsp",
     "tbsp":"tbsp","tbs":"tbsp","tablespoon":"tbsp","tablespoons":"tbsp","tablespoon(s)":"tbsp",
     "ml":"ml","millilitre":"ml","millilitres":"ml","milliliter":"ml","milliliters":"ml",
     "l":"l","litre":"l","litres":"l","liter":"l","liters":"l",
     "g":"g","gram":"g","grams":"g","gr":"g",
     "kg":"kg","kilogram":"kg","kilograms":"kg",
-    "cup":"cup","cups":"cup",
+    // "C" is cup in US recipe shorthand ("1 1/2 C Dry Beans"), and it means
+    // cup in either case so there is no ambiguity to get wrong. "T"/"t" are
+    // deliberately absent: they mean tablespoon vs teaspoon by CASE, and unit
+    // lookups here are lowercased, so the two could never be told apart.
+    "cup":"cup","cups":"cup","c":"cup",
     "oz":"oz","ounce":"oz","ounces":"oz",
     "lb":"lb","lbs":"lb","pound":"lb","pounds":"lb",
     "cube":"cube","cubes":"cube","pinch":"pinch","pinches":"pinch",
     "clove":"clove","cloves":"clove","can":"can","cans":"can","tin":"tin","tins":"tin",
-    "slice":"slice","slices":"slice","piece":"piece","pieces":"piece"
-  };
+    "slice":"slice","slices":"slice","piece":"piece","pieces":"piece",
+    "scoop":"scoop","scoops":"scoop","rasher":"rasher","rashers":"rasher",
+    "sprig":"sprig","sprigs":"sprig","bunch":"bunch","bunches":"bunch","stick":"stick","sticks":"stick"
+};
+function parseIngredients(text, stripParens) {
+  var unitMap = INGREDIENT_UNIT_MAP;
   return text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean).map(function(line){
+    // Scraped ingredient lists often carry the website's own tick box as the
+    // first character ("☐ 2 tsp Ground Cumin"). It is pure ingest noise, but a
+    // line that doesn't START with a digit gets no amount at all, so a single
+    // glyph was stranding the entire measure in the name. Stripped before
+    // anything else looks at the line. Bare "-"/"*" are deliberately NOT in
+    // here: a leading asterisk is usually a footnote marker, not a bullet.
+    line = line.replace(/^[☐☑☒■□▢▣○●•◦▪‣✓✔✗✘❑❏]+\s*/, "")
+               .replace(/^\[\s*[xX✓]?\s*\]\s*/, "")
+               .trim();
+    if (!line) return { name: "" };
     var approx = false;
     if (line[0] === "~") { approx = true; line = line.slice(1).trim(); }
     if (stripParens) line = line.replace(/\s*\([^)]*\)/g, "").replace(/\s*\)\s*/g," ").replace(/[\s,]+$/,"").replace(/\s{2,}/g," ").trim();
@@ -4619,6 +5493,13 @@ function parseIngredients(text, stripParens) {
         (/:\s*$/.test(_bare) && !/^[\d¼½¾⅓⅔⅛⅜⅝⅞]/.test(_bare))) {
       return { name: _bare.replace(/:\s*$/,"").trim(), header: true };
     }
+    // Any REMAINING markup is ingest noise and has to go before the amount is
+    // read: a scraped struck-through line arrives as "<s>2 tbsp sugar</s>",
+    // which doesn't START with a digit, so a stray tag pair was stranding the
+    // whole measure in the name. Done after the header check above, because
+    // that check needs the <b>/<strong> tags it matches on.
+    line = line.replace(/<\/?[^>]+>/g, " ").replace(/\s{2,}/g, " ").trim();
+    if (!line) return { name: "" };
     // amount: a single leading number ("1 1/2" / "1/3" / unicode fraction /
     // decimal), OR one of two shapes that leading match alone can't reach —
     // tried first since both start with what looks like a single amount.
@@ -4629,7 +5510,11 @@ function parseIngredients(text, stripParens) {
     // recognised unit in the SAME family (see sumCompoundAmount) or this
     // isn't attempted — an unconvertible mix falls through unparsed rather
     // than guessing at a density.
-    var cm = line.match(new RegExp("^(" + AMT + ")\\s*([a-zA-Z]+)\\s*(?:\\+|plus)\\s*(" + AMT + ")\\s*([a-zA-Z]+)\\s+(.*)$", "i"));
+    // "and" joins a compound as often as "+" does ("1 cup and 4 tablespoons
+    // granulated sugar"). Safe to add because BOTH sides must still resolve to
+    // a recognised unit in the same family, so "2 cloves and 1 onion" — where
+    // "onion" is not a unit — still doesn't match.
+    var cm = line.match(new RegExp("^(" + AMT + ")\\s*([a-zA-Z]+)\\s*(?:\\+|plus|and)\\s*(" + AMT + ")\\s*([a-zA-Z]+)\\s+(.*)$", "i"));
     if (cm) {
       var cu1 = unitMap[cm[2].toLowerCase().replace(/[.,]$/,"")];
       var cu2 = unitMap[cm[4].toLowerCase().replace(/[.,]$/,"")];
@@ -6727,7 +7612,9 @@ function buildExportPayload() {
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*, fl4_last_backup, fl4_backup_snooze,
   //  fl4_last_cloudbackup, fl4_tomb_* (sync deletion tombstones),
-  //  fl4_mealplan_prompted (device-local weekly roll-over banner marker, v362).
+  //  fl4_mealplan_prompted (device-local weekly roll-over banner marker, v362),
+  //  fl4_tidy_undo (v366: device-local single-slot receipt for putting a recipe
+  //   tidy back; a short-lived safety net, deliberately not version history).
   //  Used by BOTH the manual file export and the daily cloud backup — one
   //  payload definition, so coverage can never drift between the two.
   var exportData = {
