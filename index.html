@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v366 · 29/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v367 · 30/07/2026</div>
 
   </div>
 </div>
@@ -5362,12 +5362,12 @@ function openRecipeEditor(id) {
 // Build recipe objects from pasted CSV text. Returns {recipes, skipped}.
 function recipesFromCSV(text) {
   var rows = parseCSV(text);
-  if (!rows.length) return { recipes: [], skipped: 0 };
+  if (!rows.length) return { recipes: [], skipped: 0, tidied: 0 };
   var header = rows[0].map(function(h){ return (h||"").trim().toLowerCase(); });
   function col(name){ return header.indexOf(name); }
   var iTitle = col("title"), iIng = col("ingredients"), iInstr = col("instructions"),
       iQty = col("quantity"), iNotes = col("notes"), iSource = col("source");
-  var recipes = [], skipped = 0;
+  var recipes = [], skipped = 0, tidied = 0;
   for (var r = 1; r < rows.length; r++) {
     var row = rows[r];
     if (!row || !row.length) continue;
@@ -5382,6 +5382,16 @@ function recipesFromCSV(text) {
       if (qm) servings = parseInt(qm[0], 10) || 1;
     }
     var ingredients = parseIngredients(ingRaw, true); // strip parens
+    // Run the same lossless tidy pass the v366 "🧹 Tidy" tool applies to the
+    // existing book, so a freshly-imported recipe never needs tidying again.
+    // Only confident (ok) rewrites are kept; a flagged line imports exactly
+    // as it does today — the import preview is not a place to ask questions.
+    ingredients = ingredients.map(function(ing){
+      var t = tidyIngredient(ing);
+      if (!t.ok) return ing;
+      if (t.changed) tidied++;
+      return t.ing;
+    });
     var method = iInstr >= 0 ? cleanText(row[iInstr]) : "";
     var notes  = iNotes >= 0 ? cleanText(row[iNotes]) : "";
     var source = iSource >= 0 ? (row[iSource]||"").trim() : "";
@@ -5394,7 +5404,7 @@ function recipesFromCSV(text) {
       method: method, notes: notes, updated: Date.now() + r, addedBy: hearthUser
     });
   }
-  return { recipes: recipes, skipped: skipped };
+  return { recipes: recipes, skipped: skipped, tidied: tidied };
 }
 function cleanText(s) {
   s = (s||"").trim();
@@ -10244,7 +10254,9 @@ function closeRecipeImport(){
     if (!txt) { prev.textContent = ""; return; }
     try {
       var res = recipesFromCSV(txt);
-      prev.textContent = res.recipes.length + " recipe" + (res.recipes.length!==1?"s":"") + " found" + (res.skipped ? ", " + res.skipped + " row(s) skipped" : "");
+      prev.textContent = res.recipes.length + " recipe" + (res.recipes.length!==1?"s":"") + " found" +
+        (res.tidied ? " · " + res.tidied + " ingredient line" + (res.tidied!==1?"s":"") + " tidied" : "") +
+        (res.skipped ? ", " + res.skipped + " row(s) skipped" : "");
     } catch(e) { prev.textContent = "Couldn't read that — check it's CSV text."; }
   });
   var doBtn = document.getElementById("recipeImportDo");
