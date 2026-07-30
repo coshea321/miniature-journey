@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v367 · 30/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v368 · 30/07/2026</div>
 
   </div>
 </div>
@@ -3936,6 +3936,79 @@ function setRecipeNote(item, tag, detail) {
   if (detail) item._recipeNote = detail; else delete item._recipeNote;
 }
 
+// ── Per-ingredient shopping preferences (v368) ─────────────────────────────
+// Two optional fields can sit on a recipe ingredient, both set from the
+// "Add to grocery list" review screen and both remembered for every later add:
+//   groceryName — the name to buy it under, when the recipe's own wording is
+//                 not what you want to read on the shopping list;
+//   noBuy       — a staple you never need to shop for (olive oil, salt).
+// They ride inside recipe.ingredients[] and so sync/export with the
+// fl4_recipebook whole-record merge — no new plumbing anywhere.
+// groceryName deliberately does NOT rewrite the recipe's own line: the recipe
+// keeps its full wording (amount, brackets, prep clause) and only the shopping
+// name changes, so a rename can never lose detail out of the recipe.
+function recipeGroceryName(ing, sp) {
+  if (!ing) return "";
+  var own = String(ing.groceryName || "").trim();
+  if (own) return own;
+  var s = sp || splitGroceryName(ing.name, ing.amount != null);
+  return s.name || String(ing.name || "").trim();
+}
+// Anything that re-parses a recipe's ingredient TEXT (the editor textarea, the
+// tidy pass) builds fresh plain objects from each line and would silently drop
+// the two fields above — the same "object rebuilt from a hand-typed field
+// list" class as the babySex incident. Match the new lines back onto the old
+// ingredients and carry the preferences across. Matching is on the shopping
+// key, so re-wording a line ("200g mushrooms" → "200 g Mushrooms") keeps them.
+function carryGroceryPrefs(next, prev) {
+  if (!next || !next.length || !prev || !prev.length) return next;
+  var by = {};
+  prev.forEach(function(ing){
+    if (!ing || isHeaderIng(ing)) return;
+    if (!ing.groceryName && !ing.noBuy) return;
+    // Keyed on BOTH the derived name and any override, so the preference is
+    // found whether the edited line still reads like the recipe's original
+    // wording or has been brought into line with the shopping name.
+    var k1 = groceryNameKey(splitGroceryName(ing.name, ing.amount != null).name || ing.name);
+    var k2 = groceryNameKey(recipeGroceryName(ing));
+    if (k1 && !(k1 in by)) by[k1] = ing;
+    if (k2 && !(k2 in by)) by[k2] = ing;
+  });
+  next.forEach(function(ing){
+    if (!ing || isHeaderIng(ing)) return;
+    var k = groceryNameKey(splitGroceryName(ing.name, ing.amount != null).name || ing.name);
+    var src = k ? by[k] : null;
+    if (!src) return;
+    if (src.groceryName) ing.groceryName = src.groceryName;
+    if (src.noBuy) ing.noBuy = true;
+  });
+  return next;
+}
+// The amount label that would land on the grocery list for this ingredient at
+// multiplier m. Shared by the push itself and the review screen's preview, so
+// the two can never disagree about what is about to be bought.
+// Scale whatever we ended up with: the parser's own amount when it found one,
+// otherwise the amount/unit splitGroceryName recovered from the name. Either
+// way it goes through scaleIngredient, so it doubles when the recipe doubles.
+// Returns "" when there is no clean amount → callers fall back to name-only.
+function groceryAmtLabel(ing, m, sp) {
+  if (!ing) return "";
+  var s = sp || splitGroceryName(ing.name, ing.amount != null);
+  var eff = ing;
+  if (ing.amount == null && s.amount != null) eff = { name: ing.name, amount: s.amount, unit: s.unit, approx: ing.approx, amountMax: ing.amountMax };
+  else if (ing.amount != null && !ing.unit && s.unit) eff = { name: ing.name, amount: ing.amount, unit: s.unit, approx: ing.approx, amountMax: ing.amountMax };
+  function ascii(x){ return String(x).replace(/¼/g,"1/4").replace(/⅓/g,"1/3").replace(/½/g,"1/2").replace(/⅔/g,"2/3").replace(/¾/g,"3/4"); }
+  var sc = scaleIngredient(eff, m);
+  if (sc && sc.amount && sc.amount !== "0") {
+    var a = ascii(sc.amount) + (sc.amountMax ? "-" + ascii(sc.amountMax) : "");
+    return (ing.approx ? "~" : "") + a + (sc.unit ? " " + sc.unit : "");
+  }
+  // An unscalable literal quantity ("1/2 thumb size") stands in for the
+  // amount, but only at base servings — same honesty rule as bracket text.
+  if (s.qty && m === 1) return s.qty;
+  return "";
+}
+
 // Push a Recipes-section recipe onto the Grocery list.
 // Tag = recipe name, so the batch clears/reverts as a group exactly like the
 // grocery CSV import. Also saves a reusable saved-recipe chip in fl4_recipes at
@@ -3951,11 +4024,15 @@ function addRecipeToGroceries(recipe, mult, quiet) {
   if (!recipe) return null;
   var m = (typeof mult === "number" && mult > 0) ? mult : 1;
   var tag = (recipe.name || "").trim();
-  var ings = (recipe.ingredients || []).filter(function(ing){ return ing && ing.name && String(ing.name).trim() && !isHeaderIng(ing); }).map(rescueIngredientMeasure);
+  // noBuy (v368): a line ticked off in the review screen as something you
+  // never shop for is skipped on EVERY path — the single-recipe add, the week
+  // planner and the roll-over banner all come through here.
+  var ings = (recipe.ingredients || []).filter(function(ing){ return ing && ing.name && String(ing.name).trim() && !isHeaderIng(ing) && !ing.noBuy; }).map(rescueIngredientMeasure);
   // v363: names are cleaned here, not at the call site, so the saved chip
   // below stores buyable names too (it is re-imported through the quick-import
   // path, which would otherwise re-introduce the raw name).
-  var names = ings.map(function(ing){ return splitGroceryName(ing.name, ing.amount != null).name || String(ing.name).trim(); });
+  // v368: a groceryName saved on the ingredient wins over the derived name.
+  var names = ings.map(function(ing){ return recipeGroceryName(ing); });
   if (!tag || !names.length) { if (!quiet) toast("No ingredients to add"); return null; }
 
   var d = loadListData("grocery");
@@ -3970,17 +4047,9 @@ function addRecipeToGroceries(recipe, mult, quiet) {
     for (var i=0;i<GROCERY_KW.length;i++){ if (low.indexOf(GROCERY_KW[i][0])!==-1) return GROCERY_KW[i][1]; }
     return "other";
   }
-  // ASCII-only amount label, scaled to current servings. Reuses scaleIngredient
-  // so units stay one source of truth. A range (amountMax) renders as
-  // "4-6 tbsp", scaled at both ends. Returns "" when there's no clean amount
-  // → caller falls back to name-only.
-  function ascii(s){ return String(s).replace(/¼/g,"1/4").replace(/⅓/g,"1/3").replace(/½/g,"1/2").replace(/⅔/g,"2/3").replace(/¾/g,"3/4"); }
-  function amtLabel(ing){
-    var s = scaleIngredient(ing, m);
-    if (!s || !s.amount || s.amount === "0") return "";
-    var a = ascii(s.amount) + (s.amountMax ? "-" + ascii(s.amountMax) : "");
-    return (ing.approx ? "~" : "") + a + (s.unit ? " " + s.unit : "");
-  }
+  // The amount label (scaled, ASCII-only, ranges as "4-6 tbsp") is built by
+  // the shared top-level groceryAmtLabel so the review screen can preview
+  // exactly what will land here.
   // The note line's amount detail: the scaled amount, plus whatever bracketed
   // measure cleanGroceryName stripped out of the name, plus any prep clause
   // splitGroceryName recovered. Both of those are verbatim from the recipe, so
@@ -4017,19 +4086,10 @@ function addRecipeToGroceries(recipe, mult, quiet) {
   var added = 0, tagged = 0;
   ings.forEach(function(ing){
     var sp = splitGroceryName(ing.name, ing.amount != null);
-    var clean = sp.name || String(ing.name).trim();
+    var clean = recipeGroceryName(ing, sp);
     var key = groceryNameKey(clean);
     var existing = key ? byName[key] : null;
-    // Scale whatever we ended up with: the parser's own amount when it found
-    // one, otherwise the amount/unit recovered from the name. Either way it
-    // goes through scaleIngredient, so it doubles when the recipe doubles.
-    var eff = ing;
-    if (ing.amount == null && sp.amount != null) eff = { name: ing.name, amount: sp.amount, unit: sp.unit, approx: ing.approx, amountMax: ing.amountMax };
-    else if (ing.amount != null && !ing.unit && sp.unit) eff = { name: ing.name, amount: ing.amount, unit: sp.unit, approx: ing.approx, amountMax: ing.amountMax };
-    var amt = amtLabel(eff);
-    // An unscalable literal quantity ("1/2 thumb size") stands in for the
-    // amount, but only at base servings — same honesty rule as bracket text.
-    if (!amt && sp.qty && m === 1) amt = sp.qty;
+    var amt = groceryAmtLabel(ing, m, sp);
     if (existing) {
       // Never touch an existing item's NAME — that is text Cathal typed. Its
       // Amount field is filled only when EMPTY (v364): a recognised amount
@@ -4277,6 +4337,7 @@ function renderRecipes() {
   if (_recipeView === "detail" && _recipeOpenId != null) { renderRecipeDetail(); return; }
   if (_recipeView === "plan") { renderMealPlanner(); return; }
   if (_recipeView === "tidy") { renderRecipeTidy(); return; }
+  if (_recipeView === "grocerypick") { renderGroceryPick(); return; }
   var el = document.getElementById("recipesContent");
   var rb = getRecipeBook();
   if (!rb.length) {
@@ -4918,7 +4979,9 @@ function applyTidyLines() {
     // text and losing them is worse than leaving the recipe untidied.
     if (next.length < p.lines.length) { skipped++; return; }
     var snap = tidySnapshotRecipe(r);      // before anything is replaced
-    r.ingredients = next;
+    // A tidy rebuilds every ingredient from text, so the v368 shopping
+    // preferences have to be carried onto the rewritten lines.
+    r.ingredients = carryGroceryPrefs(next, r.ingredients);
     var sv = st.serves[p.id];
     if (sv && sv > 0 && sv !== r.servings) r.servings = sv;
     r.updated = Date.now();
@@ -5213,6 +5276,10 @@ function rescueIngredientMeasure(ing) {
   var reparsed = parseIngredients(raw, false)[0];
   if (!reparsed || reparsed.header) return ing;
   if (reparsed.amountMax == null && reparsed.amount == ing.amount) return ing;
+  // A rescue re-parses the line into a FRESH object, so the v368 shopping
+  // preferences have to be carried across or an add would forget them.
+  if (ing.groceryName) reparsed.groceryName = ing.groceryName;
+  if (ing.noBuy) reparsed.noBuy = true;
   return reparsed;
 }
 function renderRecipeDetail() {
@@ -5231,7 +5298,12 @@ function renderRecipeDetail() {
     var eff = rescueIngredientMeasure(ing);
     var s = scaleIngredient(eff, mult);
     var amtStr = (s.amount && s.amount !== "0") ? "<b>" + (eff.approx ? "~" : "") + s.amount + (s.amountMax ? "–" + s.amountMax : "") + (s.unit ? " " + s.unit : "") + "</b> " : "";
-    ingHtml += "<li style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#2A2010;list-style:none'>" + amtStr + esc(eff.name) + "</li>";
+    // A shopping preference set in the review screen (v368) is shown here, so
+    // "why does olive oil never reach my list?" has a visible answer.
+    var pref = "";
+    if (eff.noBuy) pref = "<span style='font-size:11px;color:#9A8A6A'> &middot; not added to the shopping list</span>";
+    else if (eff.groceryName) pref = "<span style='font-size:11px;color:#9A8A6A'> &middot; bought as &ldquo;" + esc(eff.groceryName) + "&rdquo;</span>";
+    ingHtml += "<li style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#2A2010;list-style:none'>" + amtStr + esc(eff.name) + pref + "</li>";
   });
 
   el.innerHTML =
@@ -5251,7 +5323,7 @@ function renderRecipeDetail() {
     "<ul style='margin:0 0 18px;padding:0'>" + ingHtml + "</ul>" +
     (r.method ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Method</div><div style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + formatMethod(r.method) + "</div>" : "") +
     (r.notes ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Notes</div><div style='font-size:14px;color:#6A5A40;line-height:1.6;margin-bottom:18px'>" + esc(r.notes) + "</div>" : "") +
-    "<button id='recipeToGroceryBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#2D6B35;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F6D2; Add to grocery list</button>" +
+    "<button id='recipeToGroceryBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#2D6B35;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F6D2; Add to grocery list&hellip;</button>" +
     "<div style='display:flex;gap:8px;margin-top:8px'>" +
       "<button id='recipeEditBtn' style='flex:1;padding:11px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Edit</button>" +
       "<button id='recipeDeleteBtn' style='padding:11px 16px;border:1.5px solid #E0C0C0;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Delete</button>" +
@@ -5275,8 +5347,207 @@ function renderRecipeDetail() {
       _recipeView="list"; _recipeOpenId=null; renderRecipes();
     });
   });
-  document.getElementById("recipeToGroceryBtn").addEventListener("click", function(){ addRecipeToGroceries(r, mult); });
+  document.getElementById("recipeToGroceryBtn").addEventListener("click", function(){ openGroceryPicker(r.id, mult); });
   document.getElementById("recipeEditBtn").addEventListener("click", function(){ openRecipeEditor(r.id); });
+}
+
+// ── "Add to grocery list" review screen (v368) ─────────────────────────────
+// Cathal's ask: tick which ingredients actually go on the list, and rename one
+// before it goes, with the new name remembered for next time. Both choices are
+// stored on the ingredient (groceryName / noBuy — see recipeGroceryName), so
+// this screen is the only place they are set and every add path honours them.
+// A full screen rather than a sheet: a 15-ingredient recipe should not have to
+// scroll inside a small box on a phone.
+var _grocPickState = null;
+var _grocPickWired = false;   // #recipesContent is permanent — wire its delegated listeners once
+
+function openGroceryPicker(id, mult) {
+  var r = getRecipeBook().find(function(x){ return x && x.id === id; });
+  if (!r) { _recipeView = "list"; renderRecipes(); return; }
+  var m = (typeof mult === "number" && mult > 0) ? mult : 1;
+  var rows = [], names = {}, take = {};
+  (r.ingredients || []).forEach(function(ing, i){
+    if (!ing) return;
+    if (isHeaderIng(ing)) { rows.push({ i: i, header: true, label: headerLabel(ing) }); return; }
+    if (!ing.name || !String(ing.name).trim()) return;
+    var eff = rescueIngredientMeasure(ing);
+    var sp = splitGroceryName(eff.name, eff.amount != null);
+    var def = recipeGroceryName({ name: eff.name, amount: eff.amount }, sp);   // derived name, ignoring any override
+    rows.push({ i: i, header: false, def: def, line: ingredientToLine(eff), amt: groceryAmtLabel(eff, m, sp) });
+    names[i] = String(ing.groceryName || "").trim() || def;
+    take[i] = !ing.noBuy;
+  });
+  // `updated` is remembered so a partner's edit landing mid-review can't be
+  // overwritten by preferences written against the pre-edit ingredient list
+  // (the stale-copy-wins class — same guard as the tidy pass).
+  _grocPickState = { id: id, mult: m, updated: r.updated || 0, rows: rows, names: names, take: take };
+  _recipeView = "grocerypick";
+  renderGroceryPick();
+}
+
+function grocPickCount() {
+  var st = _grocPickState;
+  if (!st) return 0;
+  return st.rows.filter(function(row){ return !row.header && st.take[row.i]; }).length;
+}
+// The Add button is updated IN PLACE — nothing on this screen re-renders on a
+// tick or a keystroke, because a re-render steals focus from a name box
+// mid-word (the v366 tidy-screen lesson).
+function updateGrocPickAdd() {
+  var btn = document.getElementById("gpkAdd");
+  if (!btn || !_grocPickState) return;
+  var n = grocPickCount();
+  btn.disabled = !n;
+  btn.style.opacity = n ? "1" : ".5";
+  btn.innerHTML = n ? "&#x1F6D2; Add " + n + " to grocery list" : "Nothing ticked";
+}
+
+function renderGroceryPick() {
+  _recipeEditing = true;   // a sync landing here must not wipe half-typed names
+  var el = document.getElementById("recipesContent");
+  var st = _grocPickState;
+  if (!st) { _recipeView = "detail"; renderRecipeDetail(); return; }
+  var r = getRecipeBook().find(function(x){ return x && x.id === st.id; });
+  if (!r) { _grocPickState = null; _recipeView = "list"; renderRecipes(); return; }
+  var serves = Math.round((r.servings || 1) * st.mult * 100) / 100;
+
+  var rowsHtml = "";
+  st.rows.forEach(function(row){
+    if (row.header) {
+      rowsHtml += "<div style='padding:14px 0 4px;font-size:12px;font-weight:800;color:#B5651D;text-transform:uppercase;letter-spacing:.5px'>" + esc(row.label) + "</div>";
+      return;
+    }
+    var v = st.names[row.i] != null ? st.names[row.i] : row.def;
+    var on = !!st.take[row.i];
+    rowsHtml +=
+      "<div style='display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-bottom:1px dotted #ECE4D6'>" +
+        // Padded wrapper, not the 20px box, so a near-miss still hits (44px tall)
+        "<span class='gpk-chkwrap' data-i='" + row.i + "' style='display:flex;align-items:center;min-height:44px;padding:0 8px 0 2px;cursor:pointer'>" +
+          "<input class='gpk-chk' type='checkbox' data-i='" + row.i + "'" + (on ? " checked" : "") +
+            " aria-label='Add " + esc(row.def).replace(/'/g,"&#39;") + " to the grocery list' style='width:20px;height:20px'>" +
+        "</span>" +
+        "<div style='flex:1;min-width:0;padding-top:5px'>" +
+          "<div style='display:flex;align-items:center;gap:8px'>" +
+            "<input class='gpk-name' data-i='" + row.i + "' type='text' value='" + esc(v).replace(/'/g,"&#39;") + "'" +
+              " aria-label='Name on the shopping list' style='flex:1;min-width:0;padding:9px 10px;border:1.5px solid #E0D0B8;border-radius:8px;font-family:inherit;font-size:15px;color:#2A2010;background:#fff'>" +
+            (row.amt ? "<span style='font-size:13px;font-weight:700;color:#2D6B35;white-space:nowrap'>" + esc(row.amt) + "</span>" : "") +
+          "</div>" +
+          "<div style='font-size:11px;color:#9A8A6A;margin-top:3px'>" + esc(row.line) + "</div>" +
+        "</div>" +
+      "</div>";
+  });
+
+  el.innerHTML =
+    "<button id='gpkBackBtn' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; Cancel</button>" +
+    "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;color:#2A2010;margin-bottom:2px'>Add to grocery list</div>" +
+    "<div style='font-size:13px;color:#9A7A4A;font-weight:600;margin-bottom:10px'>" + esc(r.name) + " &middot; serves " + serves + "</div>" +
+    "<div style='font-size:13px;color:#6A5A40;line-height:1.5;background:#FBF5EC;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:12px'>" +
+      "Untick anything you already have, and change a name to whatever you&rsquo;d rather read in the shop. Both are remembered for this recipe next time &mdash; the recipe itself keeps its own wording." +
+    "</div>" +
+    (rowsHtml ? "<div style='display:flex;gap:8px;margin-bottom:6px'>" +
+      "<button id='gpkAll' style='flex:1;padding:8px;border:1.5px solid #D8C8A8;background:#fff;color:#7A5A30;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Tick all</button>" +
+      "<button id='gpkNone' style='flex:1;padding:8px;border:1.5px solid #D8C8A8;background:#fff;color:#7A5A30;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Untick all</button>" +
+    "</div>" : "") +
+    (rowsHtml || "<div style='font-size:14px;color:#8A7A5A;padding:14px 0'>This recipe has no ingredients to add.</div>") +
+    "<button id='gpkAdd' style='width:100%;box-sizing:border-box;padding:13px;margin-top:14px;border:none;background:#2D6B35;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F6D2; Add to grocery list</button>";
+
+  document.getElementById("gpkBackBtn").addEventListener("click", grocPickCancel);
+  var addBtn = document.getElementById("gpkAdd");
+  if (addBtn) addBtn.addEventListener("click", applyGroceryPick);
+  var allBtn = document.getElementById("gpkAll"), noneBtn = document.getElementById("gpkNone");
+  // Tick/untick all flips the boxes in place rather than re-rendering, so a
+  // name being typed is never interrupted.
+  function setAll(on){
+    if (!_grocPickState) return;
+    Array.prototype.forEach.call(el.querySelectorAll(".gpk-chk"), function(c){
+      c.checked = on;
+      _grocPickState.take[Number(c.getAttribute("data-i"))] = on;
+    });
+    updateGrocPickAdd();
+  }
+  if (allBtn)  allBtn.addEventListener("click", function(){ setAll(true); });
+  if (noneBtn) noneBtn.addEventListener("click", function(){ setAll(false); });
+
+  // Delegated and wired ONCE: #recipesContent is permanent (only its innerHTML
+  // is replaced), so attaching per render would stack listeners. Both handlers
+  // read _grocPickState rather than this render's closure.
+  if (!_grocPickWired) {
+    _grocPickWired = true;
+    el.addEventListener("input", function(e){
+      var t = e.target;
+      if (!t || !t.classList || !_grocPickState) return;
+      if (t.classList.contains("gpk-name")) _grocPickState.names[Number(t.getAttribute("data-i"))] = t.value;
+    });
+    el.addEventListener("click", function(e){
+      if (!_grocPickState) return;
+      var w = e.target && e.target.closest ? e.target.closest(".gpk-chkwrap") : null;
+      if (!w) return;
+      var c = w.querySelector(".gpk-chk");
+      if (!c) return;
+      if (e.target !== c) c.checked = !c.checked;   // tapped the padding, not the box
+      _grocPickState.take[Number(w.getAttribute("data-i"))] = c.checked;
+      updateGrocPickAdd();
+    });
+  }
+  updateGrocPickAdd();
+}
+
+function grocPickCancel() {
+  _grocPickState = null;
+  _recipeEditing = false;
+  _recipeView = "detail";
+  renderRecipeDetail();
+}
+
+// Save the preferences onto the recipe first, then push with the normal
+// addRecipeToGroceries — the push reads noBuy/groceryName off the ingredients,
+// so there is exactly one code path onto the grocery list.
+function applyGroceryPick() {
+  var st = _grocPickState;
+  if (!st) return;
+  if (!grocPickCount()) { toast("Tick at least one ingredient"); return; }
+  var rb = getRecipeBook();
+  var r = rb.find(function(x){ return x && x.id === st.id; });
+  if (!r) { _grocPickState = null; _recipeView = "list"; renderRecipes(); return; }
+  // The recipe moved under us (a partner's edit, a sync, the tidy pass): the
+  // indexes this screen holds may no longer point at the same ingredients, so
+  // rebuild from what is stored now instead of writing against a stale copy.
+  if ((r.updated || 0) !== st.updated) {
+    toast("This recipe just changed &mdash; check the list again");
+    openGroceryPicker(st.id, st.mult);
+    return;
+  }
+  var ings = r.ingredients || [];
+  var changed = false;
+  st.rows.forEach(function(row){
+    if (row.header) return;
+    var ing = ings[row.i];
+    if (!ing || isHeaderIng(ing)) return;
+    var typed = String(st.names[row.i] != null ? st.names[row.i] : "").trim();
+    // Typing the derived name back in is not an override — keep the data clean
+    // so a later parser improvement still reaches this ingredient.
+    var want = (typed && typed !== row.def) ? typed : "";
+    if (want !== String(ing.groceryName || "")) {
+      if (want) ing.groceryName = want; else delete ing.groceryName;
+      changed = true;
+    }
+    var take = !!st.take[row.i];
+    if (take === !!ing.noBuy) {
+      if (take) delete ing.noBuy; else ing.noBuy = true;
+      changed = true;
+    }
+  });
+  if (changed) {
+    r.updated = Date.now();
+    saveRecipeBook(rb);
+    pushPersonal();
+  }
+  var mult = st.mult;
+  _grocPickState = null;
+  _recipeEditing = false;
+  addRecipeToGroceries(r, mult);
+  _recipeView = "detail";
+  renderRecipeDetail();
 }
 
 // Minimal create/edit for step one (raw text entry; richer parsing comes later)
@@ -5350,7 +5621,9 @@ function openRecipeEditor(id) {
       _recipeOpenId = nid;
     } else {
       var ex = rb.find(function(x){ return x.id === id; });
-      if (ex) { ex.name=name; ex.servings=servings; ex.category=category; ex.ingredients=ingredients; ex.method=method; ex.notes=notes; ex.inRotation=inRotation; ex.updated=Date.now(); }
+      // The textarea only carries "amount unit name", so re-parsing it would
+      // drop the v368 shopping preferences — carry them onto the new lines.
+      if (ex) { ex.name=name; ex.servings=servings; ex.category=category; ex.ingredients=carryGroceryPrefs(ingredients, ex.ingredients); ex.method=method; ex.notes=notes; ex.inRotation=inRotation; ex.updated=Date.now(); }
     }
     saveRecipeBook(rb);
     _recipeEditing = false;
