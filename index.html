@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v369 · 30/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v371 · 31/07/2026</div>
 
   </div>
 </div>
@@ -1965,14 +1965,13 @@ function mergeBottles(a, b) {
   });
   return out;
 }
-function mergeBabyData(local, remote, medTombs) {
-  function mergeByKey(a, b, key) {
-    var idx = {};
-    (a||[]).forEach(function(x){ if(x) idx[x[key]]=x; });
-    (b||[]).forEach(function(x){ if(x) idx[x[key]]=x; }); // remote wins on same key
-    return Object.values(idx);
-  }
-  function mergeMedicine(a, b) {
+function mergeBabyData(local, remote, medTombs, growthTombs, msTombs) {
+  // v371: generalised from the old mergeMedicine (v329) — medicine and
+  // milestones share the same shape (id-keyed, `updated` stamp falling back
+  // to `id` for pre-migration entries). Growth keeps its own date-keyed
+  // variant: the date IS the merge key, so it must never double as the
+  // recency fallback (unstamped entries fall back to 0, tie → remote).
+  function mergeIdKeyed(a, b, tombs) {
     var idx = {};
     [a, b].forEach(function(arr){                          // local first, remote second → remote wins ties
       (arr||[]).forEach(function(m){
@@ -1982,16 +1981,32 @@ function mergeBabyData(local, remote, medTombs) {
       });
     });
     var out = Object.values(idx).filter(function(m){
-      var ts = medTombs ? medTombs[m.id] : null;
+      var ts = tombs ? tombs[m.id] : null;
       return !(ts != null && ts >= medUpdatedTs(m));       // deleted at/after last edit → drop
     });
     out.sort(function(x,y){ return y.id - x.id; });        // newest-first, matches the unshift add order
     return out;
   }
+  function mergeDateKeyed(a, b, tombs) {
+    var idx = {};
+    [a, b].forEach(function(arr){                          // local first, remote second → remote wins ties
+      (arr||[]).forEach(function(e){
+        if (!e || e.date == null) return;
+        var ex = idx[e.date];
+        if (!ex || (e.updated||0) >= (ex.updated||0)) idx[e.date] = e;
+      });
+    });
+    var out = Object.values(idx).filter(function(e){
+      var ts = tombs ? tombs[e.date] : null;
+      return !(ts != null && ts >= (e.updated||0));        // deleted at/after last edit → drop
+    });
+    out.sort(function(a,b){ return b.date.localeCompare(a.date); });
+    return out;
+  }
   var merged = {
-    growth:     mergeByKey(local.growth,      remote.growth,     "date"),
-    medicine:   mergeMedicine(local.medicine, remote.medicine),
-    milestones: mergeByKey(local.milestones,  remote.milestones, "id"),
+    growth:     mergeDateKeyed(local.growth,   remote.growth,     growthTombs),
+    medicine:   mergeIdKeyed(local.medicine,   remote.medicine,   medTombs),
+    milestones: mergeIdKeyed(local.milestones, remote.milestones, msTombs),
     teeth:      Object.assign({}, local.teeth||{}, remote.teeth||{}),
     bottles:    mergeBottles(local.bottles,   remote.bottles),
     bags:       remote.bags || local.bags
@@ -4117,6 +4132,11 @@ function addRecipeToGroceries(recipe, mult, quiet) {
     } else {
       var catId = gcat(clean);
       var rec = { id: Date.now() + Math.floor(Math.random()*10000), name: clean, catId: catId, done: false, addedBy: hearthUser, recipe: tag, _recipeAdded: true, updated: Date.now(), added: Date.now() };
+      // Snapshot amount:"" from creation so a later re-add at different
+      // servings knows this field is recipe-owned (see ownsAmt above) and
+      // refreshes it, instead of mistaking the recipe's own first value for
+      // something Cathal typed.
+      rec._recipePrev = { done: false, catId: catId, recipe: null, notes: "", amount: "" };
       if (amt) rec.amount = amt;            // new items carry the scaled amount
       // Only what the Amount field cannot say: the bracketed measure, a prep
       // instruction, or the "Juice of 1 lemon" style original line.
@@ -8129,11 +8149,12 @@ function importBackupData(data) {
     // v329: local medicine tombstones apply on import too — restoring a backup
     // does NOT resurrect a deleted dose within the 90d window (deliberate,
     // matches the v323 history rule: a dose delete is a correction of safety
-    // data and must stick; list items still resurrect per v288).
-    var medT=getTombs("med");
-    bd.growth=mArr(bd.growth||[],bd2.growth,"date");
+    // data and must stick; list items still resurrect per v288). v371: growth
+    // (by date) and milestones (by id) now get the same tombstone filter.
+    var medT=getTombs("med"), growthT=getTombs("growth"), msT=getTombs("ms");
+    bd.growth=mArr(bd.growth||[],(bd2.growth||[]).filter(function(g){return g&&!(growthT[g.date]!=null&&growthT[g.date]>=(g.updated||0));}),"date");
     bd.medicine=mArr(bd.medicine||[],(bd2.medicine||[]).filter(function(m){return m&&!(medT[m.id]!=null&&medT[m.id]>=medUpdatedTs(m));}),"id");
-    bd.milestones=mArr(bd.milestones||[],bd2.milestones,"id"); bd.teeth=Object.assign({},bd2.teeth||{},bd.teeth||{});
+    bd.milestones=mArr(bd.milestones||[],(bd2.milestones||[]).filter(function(m){return m&&!(msT[m.id]!=null&&msT[m.id]>=medUpdatedTs(m));}),"id"); bd.teeth=Object.assign({},bd2.teeth||{},bd.teeth||{});
     bd.bottles=mergeBottles(bd.bottles||{},bd2.bottles||{});
     if(bd2.babySex && !bd.babySex) bd.babySex=bd2.babySex;
     if(Array.isArray(bd2.bags) && (!Array.isArray(bd.bags)||!bd.bags.length)) bd.bags=bd2.bags;
@@ -8889,6 +8910,8 @@ var d = {};
   d.cal_goal     = storeGet("fl4_cal_goal") || 2000;
   d.baby = getBD();
   d.med_deleted = purgeTombs(getTombs("med"));
+  d.growth_deleted = purgeTombs(getTombs("growth"));
+  d.ms_deleted  = purgeTombs(getTombs("ms"));
   d.recipebook  = storeGet("fl4_recipebook") || [];
   d.rb_deleted  = purgeTombs(getTombs("recipes"));
   d.mealplan    = storeGet("fl4_mealplan") || [];
@@ -9064,8 +9087,14 @@ function applyPersonal(d) {
   if (d.med_deleted && typeof d.med_deleted === "object") {
     storeSet("fl4_tomb_med", purgeTombs(mergeTombs(getTombs("med"), d.med_deleted)));
   }
+  if (d.growth_deleted && typeof d.growth_deleted === "object") {
+    storeSet("fl4_tomb_growth", purgeTombs(mergeTombs(getTombs("growth"), d.growth_deleted)));
+  }
+  if (d.ms_deleted && typeof d.ms_deleted === "object") {
+    storeSet("fl4_tomb_ms", purgeTombs(mergeTombs(getTombs("ms"), d.ms_deleted)));
+  }
   if (d.baby && typeof d.baby === "object") {
-    storeSet("fl4_baby", mergeBabyData(getBD(), d.baby, getTombs("med")));
+    storeSet("fl4_baby", mergeBabyData(getBD(), d.baby, getTombs("med"), getTombs("growth"), getTombs("ms")));
     if (currentSection === "baby") renderBabyView();
   }
 
@@ -9132,6 +9161,8 @@ var data = {};
     if ((bd.growth||[]).length || (bd.medicine||[]).length || (bd.milestones||[]).length || Object.keys(bd.teeth||{}).length || Object.keys(bd.bottles||{}).length)
       data["baby"] = bd;
     data["med_deleted"] = purgeTombs(getTombs("med")); // outside the non-empty guard: a delete of the LAST dose must still propagate
+    data["growth_deleted"] = purgeTombs(getTombs("growth"));
+    data["ms_deleted"] = purgeTombs(getTombs("ms"));
   }
   // Recipe book is shared household-wide (merge-by-id on the receiving side).
   data["recipebook"] = storeGet("fl4_recipebook") || [];
@@ -12582,13 +12613,20 @@ function applyHousehold(data) {
   if (isSynced("baby") && data["med_deleted"] && typeof data["med_deleted"] === "object") {
     storeSet("fl4_tomb_med", purgeTombs(mergeTombs(getTombs("med"), data["med_deleted"])));
   }
+  if (isSynced("baby") && data["growth_deleted"] && typeof data["growth_deleted"] === "object") {
+    storeSet("fl4_tomb_growth", purgeTombs(mergeTombs(getTombs("growth"), data["growth_deleted"])));
+  }
+  if (isSynced("baby") && data["ms_deleted"] && typeof data["ms_deleted"] === "object") {
+    storeSet("fl4_tomb_ms", purgeTombs(mergeTombs(getTombs("ms"), data["ms_deleted"])));
+  }
   if (isSynced("baby") && data["baby"] && typeof data["baby"] === "object") {
     // v329: was a top-level Object.assign (v296) — remote's medicine/growth/
     // milestones/teeth WHOLESALE-replaced the local collections, so a dose
     // logged here but not yet received by the last-pushing device was
     // silently dropped. Now the same per-entry merge the personal channel
-    // runs (mergeBabyData), incl. medicine tombstones.
-    storeSet("fl4_baby", mergeBabyData(getBD(), data["baby"], getTombs("med")));
+    // runs (mergeBabyData), incl. medicine tombstones. (v371: growth +
+    // milestones now get the same per-entry merge + tombstones.)
+    storeSet("fl4_baby", mergeBabyData(getBD(), data["baby"], getTombs("med"), getTombs("growth"), getTombs("ms")));
     if (currentSection === "baby") renderBabyView();
   }
   // Recipe book — merge by id with NEWEST-WINS (by `updated` timestamp), so a
@@ -12830,7 +12868,7 @@ function renderGrowth() {
     if (!date||(!weight&&!height)) { toast("Enter a date and at least one measurement"); return; }
     var bd2=getBD(); bd2.growth=bd2.growth||[];
     var idx2=bd2.growth.findIndex(function(e){ return e.date===date; });
-    var rec = {date:date,weight:weight,height:height,note:note||null};
+    var rec = {date:date,weight:weight,height:height,note:note||null,updated:Date.now()};
     if(idx2>=0) bd2.growth[idx2]=rec; else bd2.growth.push(rec);
     bd2.growth.sort(function(a,b){ return b.date.localeCompare(a.date); });
     saveBD(bd2); renderGrowth(); toast("&#x1F4CF; Logged");
@@ -12841,7 +12879,10 @@ function renderGrowth() {
   el.querySelectorAll(".growth-del-btn").forEach(function(btn){
     btn.addEventListener("click", function(){ confirmDialog("Delete this measurement?", function(){
       var bd2=getBD(); var gidx=parseInt(btn.dataset.gidx,10);
-      if (!isNaN(gidx) && gidx>=0 && gidx<bd2.growth.length) bd2.growth.splice(gidx,1);
+      if (!isNaN(gidx) && gidx>=0 && gidx<bd2.growth.length) {
+        addTomb("growth", bd2.growth[gidx].date); // v371: so a partner's copy can't resurrect it
+        bd2.growth.splice(gidx,1);
+      }
       saveBD(bd2); renderGrowth();
     }); });
   });
@@ -12879,7 +12920,10 @@ function renderGrowth() {
         if (nd !== rec.date && bd2.growth.some(function(x){ return x !== rec && x.date === nd; })) {
           toast("An entry for that date already exists &mdash; edit or delete it first"); return;
         }
-        rec.date=nd; rec.weight=nw; rec.height=nh; rec.note=nn||null;
+        // v371: the date IS the merge key — changing it without a tombstone
+        // would let a partner's copy under the OLD date resurrect as a dupe.
+        if (nd !== rec.date) addTomb("growth", rec.date);
+        rec.date=nd; rec.weight=nw; rec.height=nh; rec.note=nn||null; rec.updated=Date.now();
         bd2.growth.sort(function(a,b){ return b.date.localeCompare(a.date); });
         saveBD(bd2); renderGrowth();
       });
@@ -13591,12 +13635,12 @@ function renderMilestones() {
     var text=document.getElementById("msText").value.trim();
     if(!text){toast("Enter a milestone");return;}
     var bd2=getBD(); bd2.milestones=bd2.milestones||[];
-    bd2.milestones.unshift({id:Date.now(),text:text,date:document.getElementById("msDate").value});
+    bd2.milestones.unshift({id:Date.now(),text:text,date:document.getElementById("msDate").value,updated:Date.now()});
     saveBD(bd2); document.getElementById("msText").value="";
     renderMilestones(); toast("&#x2B50; Milestone logged!");
   });
   el.querySelectorAll(".ms-del-btn").forEach(function(btn){
-    btn.addEventListener("click",function(){ confirmDialog("Delete this milestone?", function(){ var bd2=getBD(); bd2.milestones=bd2.milestones.filter(function(m){return m.id!==+btn.dataset.msid;}); saveBD(bd2); renderMilestones(); }); });
+    btn.addEventListener("click",function(){ confirmDialog("Delete this milestone?", function(){ var bd2=getBD(); var id=+btn.dataset.msid; addTomb("ms", id); bd2.milestones=bd2.milestones.filter(function(m){return m.id!==id;}); saveBD(bd2); renderMilestones(); }); });
   });
   el.querySelectorAll(".ms-date-edit").forEach(function(span){
     span.addEventListener("click", function(){
@@ -13615,7 +13659,7 @@ function renderMilestones() {
       span.closest(".ms-row").appendChild(picker);
       picker.querySelector("._msSave").addEventListener("click", function(){
         var nd = picker.querySelector("input").value;
-        if (nd) { m.date = nd; saveBD(bd2); }
+        if (nd) { m.date = nd; m.updated = Date.now(); saveBD(bd2); }
         renderMilestones();
       });
       picker.querySelector("._msCancel").addEventListener("click", function(){ picker.remove(); });

@@ -62,6 +62,15 @@ module.exports = {
       tombs['backuptestapples'] = Date.now();
       storeSet('fl4_tomb_' + tombKey, tombs);
 
+      // v371: a local growth/milestone tombstone must block a restore from
+      // resurrecting a deleted entry within the 90d window, mirroring the
+      // existing medicine rule (tombstone ts >= the entry's own updated).
+      payload.baby = payload.baby || {};
+      payload.baby.growth = (payload.baby.growth || []).concat([{date:'2026-06-15', weight:10, updated:100}]);
+      payload.baby.milestones = (payload.baby.milestones || []).concat([{id:999004, text:'BackupTestTombstonedMilestone', updated:100}]);
+      addTomb('growth', '2026-06-15');
+      addTomb('ms', 999004);
+
       // Pre-existing local entry colliding with the backup on the same date —
       // batch A (finding 1) says restore is keep-local-on-collision.
       var wd = getWD();
@@ -86,6 +95,8 @@ module.exports = {
         hasTrip: trips.some(function(t){ return t.id === 999001; }),
         hasGrowth: (bd.growth||[]).some(function(g){ return g.date === '2026-01-01' && g.weight === 9; }),
         hasMedicine: (bd.medicine||[]).some(function(m){ return m.id === 999002; }),
+        growthTombstoneBlocksRestore: !(bd.growth||[]).some(function(g){ return g.date === '2026-06-15'; }),
+        msTombstoneBlocksRestore: !(bd.milestones||[]).some(function(m){ return m.id === 999004; }),
         hasNote: notes.some(function(n){ return n.id === 999003; }),
         bodyweightKeptLocalOnCollision: (wd2.bodyweight||[]).some(function(e){ return e.date === '2026-01-01' && e.weight === 999; }),
         hasBp: (wd2.bp||[]).some(function(e){ return e.ts === 1735689600000 && e.sys === 120; })
@@ -98,6 +109,8 @@ module.exports = {
     ok('trip imported', importResult.hasTrip, JSON.stringify(importResult));
     ok('baby growth imported', importResult.hasGrowth, JSON.stringify(importResult));
     ok('baby medicine imported', importResult.hasMedicine, JSON.stringify(importResult));
+    ok('local growth tombstone blocks restore (v371)', importResult.growthTombstoneBlocksRestore, JSON.stringify(importResult));
+    ok('local milestone tombstone blocks restore (v371)', importResult.msTombstoneBlocksRestore, JSON.stringify(importResult));
     ok('note imported', importResult.hasNote, JSON.stringify(importResult));
     ok('bodyweight restore keeps local value on same-date collision (finding 1)', importResult.bodyweightKeptLocalOnCollision, JSON.stringify(importResult));
     ok('bp restored from backup (finding 1)', importResult.hasBp, JSON.stringify(importResult));
