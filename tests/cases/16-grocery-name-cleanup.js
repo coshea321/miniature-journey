@@ -81,6 +81,16 @@ module.exports = {
       ok('push: the note line is remembered for later removal',
         it && it._recipeNote === '(1 3/4 cups + 2 tbs)', 'got: ' + JSON.stringify(it && it._recipeNote));
 
+      // ── re-add at DIFFERENT servings must refresh its own Amount field ──
+      // (found 29/07/2026: the first re-add snapshotted the recipe's own
+      // written amount as if Cathal had typed it, so ownsAmt never came true)
+      addRecipeToGroceries(yog, 2, true);
+      var it2 = listData.grocery.items[0];
+      ok('re-add: amount refreshes to the new servings, not stuck at the first add',
+        it2 && it2.amount === '920 g', 'got: ' + JSON.stringify(it2 && it2.amount));
+      ok('re-add: still no duplicate item created', listData.grocery.items.length === 1,
+        'got ' + listData.grocery.items.length);
+
       // ── the real push: matching an EXISTING typed entry ──────────
       listData.grocery = { items: [
         { id: 50, name: 'Greek Yoghurt', catId: 'other', done: false, notes: 'the big tub', updated: 100 }
