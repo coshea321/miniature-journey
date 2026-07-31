@@ -45,6 +45,14 @@ module.exports = {
       ok('non-colliding edit applies', afterEdit.some(function(r){ return r.date === '2026-01-06' && r.weight === 8.2; }),
         'got: ' + JSON.stringify(afterEdit));
       ok('non-colliding edit: still 2 records', afterEdit.length === 2, 'got: ' + JSON.stringify(afterEdit));
+      // v371: a date-change moves the merge key — the OLD date must be
+      // tombstoned (or a partner's copy under it could resurrect as a dupe)
+      // and the moved record stamped so newest-wins merge can see it.
+      var movedRec = afterEdit.find(function(r){ return r.date === '2026-01-06'; });
+      ok('date-change stamps the moved record', movedRec && typeof movedRec.updated === 'number', 'got: ' + JSON.stringify(movedRec));
+      var gTombsAfterMove = getTombs('growth');
+      ok('date-change tombstones the OLD date', gTombsAfterMove['2026-01-05'] != null, 'got: ' + JSON.stringify(gTombsAfterMove));
+      ok('date-change does not tombstone the NEW date', gTombsAfterMove['2026-01-06'] == null, 'got: ' + JSON.stringify(gTombsAfterMove));
 
       // ── Single-record delete: seed a duplicate-date pair, delete one, keep the other ──
       var bd2 = getBD();
@@ -70,6 +78,8 @@ module.exports = {
         'got: ' + JSON.stringify(afterDelete));
       ok('single-record delete: unrelated record untouched', afterDelete.some(function(r){ return r.date === '2026-02-10'; }),
         'got: ' + JSON.stringify(afterDelete));
+      // v371: delete writes a tombstone keyed by the deleted record's date
+      ok('delete tombstones the deleted date', getTombs('growth')['2026-02-01'] != null, 'got: ' + JSON.stringify(getTombs('growth')));
 
       return {pass:pass, fail:fail};
     })()`);
