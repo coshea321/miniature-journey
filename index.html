@@ -829,7 +829,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v371 · 31/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v372 · 31/07/2026</div>
 
   </div>
 </div>
@@ -8859,7 +8859,7 @@ function onLoginSuccess() {
           startListening();
         });
       }
-    }).catch(function(err){ console.error("SW registration failed:", err); });
+    }).catch(function(err){ console.error("Household code fetch failed:", err); });
   } else {
     fetchHousehold(function() {
       pushHousehold();
@@ -9709,6 +9709,7 @@ function startSSEFallback() {
   }, 5 * 60 * 1000); // every 5 minutes
 }
 
+var _personalReconnectPending = false;
 function startPersonalListening() {
   if (_isTestBuild) return;
   if (!isLoggedIn()) return;
@@ -9719,8 +9720,9 @@ function startPersonalListening() {
     hearthHealthES.addEventListener("put",   handlePersonalEvent);
     hearthHealthES.addEventListener("patch", handlePersonalEvent);
     hearthHealthES.onerror = function() {
-      if (hearthHealthES && hearthHealthES.readyState === 2) {
-        setTimeout(function(){ if (isLoggedIn()) startPersonalListening(); }, 5000);
+      if (hearthHealthES && hearthHealthES.readyState === 2 && !_personalReconnectPending) {
+        _personalReconnectPending = true;
+        setTimeout(function(){ _personalReconnectPending = false; if (isLoggedIn()) startPersonalListening(); }, 5000);
       }
     };
   });
@@ -9741,6 +9743,7 @@ function handlePersonalEvent(e) {
 
 // ── SSE: household sync listener ──────────────────────────
 var hearthSyncES = null;
+var _householdReconnectPending = false;
 function startListening() {
   if (_isTestBuild) return;
   if (!isHouseholdSet()) return;
@@ -9751,8 +9754,9 @@ function startListening() {
     hearthSyncES.addEventListener("put",   handleHouseholdEvent);
     hearthSyncES.addEventListener("patch", handleHouseholdEvent);
     hearthSyncES.onerror = function() {
-      if (hearthSyncES && hearthSyncES.readyState === 2) {
-        setTimeout(function(){ if (isHouseholdSet()) startListening(); }, 5000);
+      if (hearthSyncES && hearthSyncES.readyState === 2 && !_householdReconnectPending) {
+        _householdReconnectPending = true;
+        setTimeout(function(){ _householdReconnectPending = false; if (isHouseholdSet()) startListening(); }, 5000);
       }
     };
   });
@@ -13921,9 +13925,18 @@ if (!_bootSplashGone) {
 }
 
 if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
+  function watchBootInstalling(worker) {
+    if (!worker) return;
+    _bootUpdateInstalling = true;
+    worker.addEventListener("statechange", function() {
+      if (worker.state === "activated" || worker.state === "redundant") {
+        _bootUpdateInstalling = false;
+      }
+    });
+  }
   navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).then(function(reg) {
-    reg.addEventListener("updatefound", function(){ _bootUpdateInstalling = true; });
-    if (reg.installing) _bootUpdateInstalling = true;
+    reg.addEventListener("updatefound", function(){ watchBootInstalling(reg.installing); });
+    watchBootInstalling(reg.installing);
     var upd = reg.update();
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: "GET_VERSION" });
@@ -13989,8 +14002,8 @@ if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
   });
 }
 
-// ── Debug overlay (temporary) ─────────────────────────────
-(function() {
+// ── Debug overlay (test builds only — never runs in production) ──
+if (_isTestBuild) (function() {
   var errors = [];
   function showDbg(type, msg) {
     errors.push({ type: type, msg: msg.substring(0, 300) });
