@@ -654,8 +654,9 @@ body.train-mode #toast{background:#3A3328}
 </head>
 <body>
 
-<!-- Boot splash (v312): covers everything until the boot gate confirms the
-     newest app version is showing (or gives up). Inline styles so it paints
+<!-- Boot splash (v312; non-blocking since v373): covers everything only
+     while the main script parses and boots — it hides the moment the app
+     is ready, never waiting on the network. Inline styles so it paints
      before any CSS/JS. Matches the Android launch screen (#1C0A04). -->
 <div id="bootSplash" style="position:fixed;inset:0;z-index:9998;background:#1C0A04;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .18s ease">
   <img src="icon-192.png" width="96" height="96" style="border-radius:22px" alt="Hearth">
@@ -671,17 +672,18 @@ body.train-mode #toast{background:#3A3328}
 @keyframes bsPulse{0%,100%{opacity:.25}40%{opacity:.9}}
 </style>
 <script>
-// ── Boot splash failsafe (v356) ────────────────────────────────────────
-// Every path that hides #bootSplash — including the gate's own 4s/8s
-// deadline timer — lives at the BOTTOM of the one giant inline script.
-// So anything that stops that script from reaching the bottom (an uncaught
-// throw ~12,000 lines up, a reload navigation that never commits) left the
-// splash covering the app forever: the reported "stuck on the loading
-// screen until I close and reopen it".
+// ── Boot splash failsafe (v356; ceiling lowered v373) ──────────────────
+// Every path that hides #bootSplash lives at the BOTTOM of the one giant
+// inline script. So anything that stops that script from reaching the
+// bottom (an uncaught throw ~12,000 lines up) would leave the splash
+// covering the app forever: the reported "stuck on the loading screen
+// until I close and reopen it".
 // This block runs at parse time, before that script exists, so nothing in
-// it can disable this ceiling. Worst case the app is revealed at 12s.
+// it can disable this ceiling. Since v373 the main script hides the splash
+// the moment it finishes booting (no update-wait), so the ceiling only
+// needs to outlast parse+boot on a slow phone — 8s, down from 12s.
 (function(){
-  var HARD_MS = 12000;   // > the gate's own 8s worst case, so it never pre-empts a real update
+  var HARD_MS = 8000;    // well above worst observed parse+boot time
   var ERR_MS  = 1500;    // boot threw before the gate armed — reveal quickly
 
   window.__hearthSplashGone = false;
@@ -829,7 +831,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v372 · 31/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v373 · 31/07/2026</div>
 
   </div>
 </div>
@@ -8781,35 +8783,15 @@ function doLogin(username, password) {
 
 function verifySession() {
   if (!isLoggedIn()) { showLoginOverlay(); return; }
-  // Boot watchdog (v290): every path below is already lenient — stored
-  // credentials are trusted on any FAILURE — but a network call that HANGS
-  // (flaky mobile radio on app wake) neither succeeds nor fails, so
-  // onLoginSuccess never ran and the boot screen stayed up forever.
-  // Guarantee entry after 6s no matter what; the flag makes whichever
-  // callback arrives second a no-op.
-  var _entered = false;
-  function enterApp() { if (_entered) return; _entered = true; onLoginSuccess(); }
-  setTimeout(enterApp, 6000);
-  // If API key + refresh token → re-auth silently via Firebase Auth
-  if (hearthApiKey && storeGet("hearth_refresh_token")) {
-    getAuthToken(function(token) {
-      // Token or not — allow access with stored creds
-      enterApp();
-    });
-    return;
-  }
-  // Legacy OR no API key: trust stored credentials, verify lazily.
-  // Don't wipe credentials on a failed fetch — just let them in.
-  fetch(hearthBase() + "/hearth/users/" + hearthUser + "/auth.json")
-    .then(function(r) {
-      if (!r.ok) { enterApp(); return; } // rules locked or network issue — trust stored creds
-      return r.json().then(function(authRec) {
-        enterApp(); // be lenient regardless of hash match — don't wipe data
-      });
-    })
-    .catch(function() {
-      enterApp(); // network error — allow offline use
-    });
+  // v373: stored credentials are enough — enter immediately, no network
+  // round-trip gates entry. All the data is local; only SYNC needs the
+  // network, and onLoginSuccess sequences the sync kick-off behind the
+  // background token refresh itself. (Replaces the v290 6s entry watchdog:
+  // its job — surviving a hung request — moves to the sync kick-off, which
+  // is the only thing still waiting on one. The old lenient auth.json probe
+  // is gone with it: it entered the app on success, failure AND error, so
+  // it verified nothing and only added a request to every launch.)
+  onLoginSuccess();
 }
 
 function onLoginSuccess() {
@@ -8833,41 +8815,59 @@ function onLoginSuccess() {
     });
   }
 
-  // Set the awaiting flag BEFORE switching so the first render shows the
-  // loading state, not stale cached data (prevents flash of old content)
-  _homeAwaitingFetch = true;
+  // v373: render Home from local data immediately — no loading state, no
+  // waiting on the fetch. Sync landing later re-renders (the callbacks
+  // below already do). _homeAwaitingFetch stays false at boot; renderers
+  // still honour it for any future flow that sets it.
   switchSection("home");
-  // Safety: never leave home blank if the fetch hangs
-  setTimeout(function(){ if (_homeAwaitingFetch) { _homeAwaitingFetch = false; if (currentSection === "home") renderHomeScreen(); } }, 4000);
 
-  fetchPersonal(function() {
-    pushPersonal();
-    startPersonalListening();
-    startSSEFallback();
-    _homeAwaitingFetch = false;
-    // Render home with fresh remote data
-    if (currentSection === "home") renderHomeScreen();
-  });
+  // Sync kick-off — the ONLY part of entry allowed to wait on the network.
+  // fetchPersonal sends the auth token on the URL, so on a cold start it
+  // must run AFTER the background token refresh or it 401s and wrongly
+  // shows the stale-data/"re-login" banner. A hung refresh is capped by
+  // the 6s watchdog (v290's timer, moved here in v373 — it used to gate
+  // the whole UI, now it caps only how late the first sync can start).
+  var _syncStarted = false;
+  function startSync() {
+    if (_syncStarted) return;
+    _syncStarted = true;
 
-  // Load household code from user profile if not stored locally
-  if (!hearthHouse) {
-    fetch(authUrl(userUrl("/household"))).then(function(r){ return r.json(); }).then(function(code) {
-      if (code && typeof code === "string") {
-        hearthHouse = code; storeSet("hearth_household", hearthHouse);
-        fetchHousehold(function() {
-          pushHousehold();
-          startListening();
-        });
-      }
-    }).catch(function(err){ console.error("Household code fetch failed:", err); });
-  } else {
-    fetchHousehold(function() {
-      pushHousehold();
-      startListening();
+    fetchPersonal(function() {
+      pushPersonal();
+      startPersonalListening();
+      startSSEFallback();
+      _homeAwaitingFetch = false;
+      // Render home with fresh remote data
+      if (currentSection === "home") renderHomeScreen();
     });
+
+    // Load household code from user profile if not stored locally
+    if (!hearthHouse) {
+      fetch(authUrl(userUrl("/household"))).then(function(r){ return r.json(); }).then(function(code) {
+        if (code && typeof code === "string") {
+          hearthHouse = code; storeSet("hearth_household", hearthHouse);
+          fetchHousehold(function() {
+            pushHousehold();
+            startListening();
+          });
+        }
+      }).catch(function(err){ console.error("Household code fetch failed:", err); });
+    } else {
+      fetchHousehold(function() {
+        pushHousehold();
+        startListening();
+      });
+    }
+
+    updateSyncStatus();
   }
 
-  updateSyncStatus();
+  if (hearthApiKey && storeGet("hearth_refresh_token")) {
+    setTimeout(startSync, 6000);
+    getAuthToken(function() { startSync(); });
+  } else {
+    startSync();
+  }
 }
 
 function logout(silent) {
@@ -13837,15 +13837,16 @@ try {
 
 try { applySectionVisibility(); } catch (visErr) { console.error("applySectionVisibility failed:", visErr); }
 
-// ── Service worker + boot splash gate (v312) ───────────────
-// The #bootSplash overlay covers the app from first paint. It hides only
-// when we know the page on screen is the newest deployed version — or when
-// waiting stops being worth it: ~4s normally, ~8s while an update is
-// visibly installing, instantly when offline / unsupported / first visit /
-// preview. If a newer version lands while the splash is up, we reload once
-// (behind the splash, sessionStorage loop guard) so a cold start never
-// flashes a stale build. After the splash hides, the tap-to-refresh banner
-// remains the mid-session fallback.
+// ── Service worker + boot splash (v312; non-blocking since v373) ─────
+// The #bootSplash overlay covers the app only while this script parses
+// and the boot renderers run — the moment execution reaches here, local
+// content is ready and the splash hides. The version check runs ENTIRELY
+// in the background: when a newer build is installed/activated, the
+// tap-to-refresh banner appears. There is NO automatic reload at startup
+// any more (v312's bootStaleReload is gone — a stalled boot reload was
+// the one remaining way to freeze startup, the v356 residual). Trade-off
+// accepted by Cathal 31/07/2026: on a bad connection the app may briefly
+// run the previous cached build, with the banner offering the newer one.
 var PAGE_VERSION = (function(){
   var el = document.getElementById("appVersionLabel");
   return el ? el.textContent.trim() : "";
@@ -13855,19 +13856,12 @@ function _verNum(v) {
   var m = /^v(\d+)/.exec(String(v || ""));
   return m ? parseInt(m[1], 10) : 0;
 }
-// Seeded from the failsafe: if its ceiling already fired (this script took
-// >12s to reach here), the splash is gone and the gate must not act as if
-// it were still up.
+// Seeded from the failsafe in case its ceiling somehow fired first.
 var _bootSplashGone = !!window.__hearthSplashGone;
-var _bootUpdateInstalling = false;   // a new SW is downloading/installing
-var _bootUpdateCheckDone = false;    // reg.update() has settled
-var _bootExtended = false;           // 4s→8s extension already used
-var _bootDeadline = null;
 
 function hideBootSplash() {
   if (_bootSplashGone) return;
   _bootSplashGone = true;
-  if (_bootDeadline) { clearTimeout(_bootDeadline); _bootDeadline = null; }
   if (window.__hearthSplashHide) { window.__hearthSplashHide(); return; }
   var s = document.getElementById("bootSplash");
   if (!s) return;
@@ -13879,85 +13873,25 @@ function hideBootSplash() {
 // matches what is on screen (v356).
 window.__hearthSplashGoneHook = function() {
   _bootSplashGone = true;
-  if (_bootDeadline) { clearTimeout(_bootDeadline); _bootDeadline = null; }
 };
 
-function bootConfirmedCurrent() {
-  try { sessionStorage.removeItem("hearthBootReloaded"); } catch(err) {}
-  hideBootSplash();
-}
-
-function bootStaleReload() {
-  // A newer version is ready — reload once behind the splash to show it.
-  // Guarded so a mismatch can never reload-loop; second time falls back
-  // to hiding the splash (the banner covers it from there).
-  var already = false;
-  try { already = sessionStorage.getItem("hearthBootReloaded") === "1"; } catch(err) { already = true; }
-  if (already) { hideBootSplash(); return; }
-  try { sessionStorage.setItem("hearthBootReloaded", "1"); } catch(err) { hideBootSplash(); return; }
-  window.location.reload();
-}
-
-if (!("serviceWorker" in navigator) || _isPreview || _isTestBuild) {
-  hideBootSplash();
-} else if (!navigator.serviceWorker.controller) {
-  // First visit (or hard refresh): the page came straight from the network,
-  // so there is nothing stale to hide.
-  hideBootSplash();
-}
-
-// Tells the failsafe the real deadline timer now exists, so a later error
-// no longer means "nothing will ever hide the splash" (v356).
+// Tells the failsafe the script reached its hide logic, so a later error
+// can't be mistaken for "nothing will ever hide the splash" (v356).
 window.__hearthBootGateArmed = true;
+hideBootSplash();
 
-if (!_bootSplashGone) {
-  _bootDeadline = setTimeout(function bootDeadlineHit() {
-    if (_bootSplashGone) return;
-    if (_bootUpdateInstalling && !_bootExtended) {
-      _bootExtended = true;
-      var m = document.getElementById("bootSplashMsg");
-      if (m) m.textContent = "Updating…";
-      _bootDeadline = setTimeout(bootDeadlineHit, 4000);
-      return;
-    }
-    hideBootSplash();
-  }, 4000);
+function showUpdateBanner() {
+  var banner = document.getElementById("updateBanner");
+  if (banner) banner.style.display = "flex";
 }
 
 if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
-  function watchBootInstalling(worker) {
-    if (!worker) return;
-    _bootUpdateInstalling = true;
-    worker.addEventListener("statechange", function() {
-      if (worker.state === "activated" || worker.state === "redundant") {
-        _bootUpdateInstalling = false;
-      }
-    });
-  }
   navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).then(function(reg) {
-    reg.addEventListener("updatefound", function(){ watchBootInstalling(reg.installing); });
-    watchBootInstalling(reg.installing);
-    var upd = reg.update();
+    reg.update(); // background check; a new build announces itself via SW_UPDATED
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: "GET_VERSION" });
     }
-    Promise.resolve(upd).then(function() {
-      _bootUpdateCheckDone = true;
-      // Update check finished with nothing new installing → ask the active
-      // SW its version; a matching SW_VERSION reply hides the splash.
-      if (!_bootSplashGone && !reg.installing && !reg.waiting) {
-        if (navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage({ type: "GET_VERSION" });
-        } else {
-          hideBootSplash();
-        }
-      }
-    }, function() {
-      // Offline or the update check failed — show what we have.
-      _bootUpdateCheckDone = true;
-      hideBootSplash();
-    });
-  }).catch(function(err){ console.error("SW registration failed:", err); hideBootSplash(); });
+  }).catch(function(err){ console.error("SW registration failed:", err); });
 
   navigator.serviceWorker.addEventListener("controllerchange", function() {
     if (navigator.serviceWorker.controller) {
@@ -13966,38 +13900,17 @@ if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
   });
 
   navigator.serviceWorker.addEventListener("message", function(e) {
-    if (e.data && e.data.type === "SW_UPDATED") {
-      if (!_bootSplashGone) {
-        // Still behind the splash: the new SW just activated. If this page
-        // already IS that version (network-first served the fresh HTML),
-        // we're done; if the SW is newer, reload once to paint the new build.
-        if (_verNum(e.data.version) > _verNum(PAGE_VERSION)) bootStaleReload();
-        else bootConfirmedCurrent();
-      } else if (e.data.version !== PAGE_VERSION) {
-        // Mid-session update — don't force-reload. Show the banner.
-        // (Version check added in v312: no banner when this page already
-        // matches the freshly activated SW.)
-        var banner = document.getElementById("updateBanner");
-        if (banner) banner.style.display = "flex";
-      }
-    }
-    if (e.data && e.data.type === "SW_VERSION") {
+    if (!e.data) return;
+    if (e.data.type === "SW_VERSION") {
       var el = document.getElementById("appVersionLabel");
       if (el) el.textContent = e.data.version;
-      if (!_bootSplashGone) {
-        var swN = _verNum(e.data.version), pgN = _verNum(PAGE_VERSION);
-        if (swN > pgN) {
-          // Active SW is already newer than this page (e.g. HTTP cache
-          // served a stale shell) — the fresh shell is in the SW cache.
-          bootStaleReload();
-        } else if (swN === pgN && _bootUpdateCheckDone && !_bootUpdateInstalling) {
-          // Versions match AND the update check found nothing new → this
-          // really is the newest deployed build.
-          bootConfirmedCurrent();
-        }
-        // swN < pgN: this page is fresher than the still-active old SW —
-        // its replacement is installing; SW_UPDATED will confirm shortly.
-      }
+    }
+    if (e.data.type === "SW_UPDATED" || e.data.type === "SW_VERSION") {
+      // A strictly NEWER build is active (numeric compare, v312 lesson:
+      // never banner/reload when this page already is the new build, and
+      // never when the page is FRESHER than a not-yet-replaced old SW —
+      // its replacement is installing and will announce itself shortly).
+      if (_verNum(e.data.version) > _verNum(PAGE_VERSION)) showUpdateBanner();
     }
   });
 }

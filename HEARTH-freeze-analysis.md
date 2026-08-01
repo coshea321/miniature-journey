@@ -1,9 +1,10 @@
 # Startup freeze / "doesn't open" — review verification notes (31/07/2026)
 
-**Status: COMPLETE.** Verified on v371 by a Fable 5 analysis-only session (no app code changed).
-Branch `claude/hearth-freeze-startup-myxl6g`. Every claim in Cathal's external review was checked
-against the actual code; anchors below are v371 line numbers. **A build session must still read the
-exact lines before editing** — anchors drift with every version.
+**Status: analysis COMPLETE; Release A shipped v372, Release B shipped v373 (both 31/07/2026).**
+Verified on v371 by a Fable 5 session. Anchors below are v371 line numbers — **v372/v373 moved
+things; a build session must re-grep and read the exact lines before editing.** Remaining work:
+Releases C (fetch timeouts — build-ready), D (batch sync renders), E (SW-capable test harness);
+current status lives in the `HEARTH-notes.md` backlog entry.
 
 ## The symptom, mapped to code
 
