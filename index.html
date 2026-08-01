@@ -831,7 +831,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v373 · 31/07/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v374 · 01/08/2026</div>
 
   </div>
 </div>
@@ -8522,6 +8522,17 @@ function hearthBase()   { return hearthFbId.replace(/\/+$/, ""); } // hearthFbId
 function userUrl(path)  { return hearthBase() + "/hearth/users/" + hearthUser + (path||"") + ".json"; }
 function houseUrl(path) { return hearthBase() + "/hearth/households/" + hearthHouse + (path||"") + ".json"; }
 
+// Shared timeout wrapper for the sync/auth fetch stack — a hung request
+// (bad "lie-fi" connection) used to survive indefinitely behind whatever
+// watchdog called it; this aborts it after timeoutMs so callers' existing
+// .catch()/error handling fires instead of waiting forever.
+function fetchWithTimeout(url, options, timeoutMs) {
+  var controller = new AbortController();
+  var timer = setTimeout(function(){ controller.abort(); }, timeoutMs || 8000);
+  var opts = Object.assign({}, options || {}, { signal: controller.signal });
+  return fetch(url, opts).then(function(r){ clearTimeout(timer); return r; }, function(e){ clearTimeout(timer); throw e; });
+}
+
 // ── Firebase Auth REST API ────────────────────────────────
 function getAuthToken(cb) {
   if (_isTestBuild) { cb(null); return; } // test builds never get a token, so Firebase denies every read/write
@@ -8536,7 +8547,7 @@ function getAuthToken(cb) {
   // Fall back to storing refresh token
   var rt = storeGet("hearth_refresh_token");
   if (rt) {
-    fetch("https://securetoken.googleapis.com/v1/token?key=" + hearthApiKey, {
+    fetchWithTimeout("https://securetoken.googleapis.com/v1/token?key=" + hearthApiKey, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: "grant_type=refresh_token&refresh_token=" + encodeURIComponent(rt)
@@ -8556,7 +8567,7 @@ function getAuthToken(cb) {
 
 function firebaseSignIn(email, password, cb) {
   if (_isTestBuild) { cb("Sync is disabled in test builds"); return; }
-  fetch("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + hearthApiKey, {
+  fetchWithTimeout("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + hearthApiKey, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email: email, password: password, returnSecureToken: true })
@@ -8575,7 +8586,7 @@ function firebaseSignIn(email, password, cb) {
 
 function firebaseSignUp(email, password, cb) {
   if (_isTestBuild) { cb("Sync is disabled in test builds"); return; }
-  fetch("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + hearthApiKey, {
+  fetchWithTimeout("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + hearthApiKey, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email: email, password: password, returnSecureToken: true })
@@ -8705,11 +8716,11 @@ function doCreateAccount(username, password) {
   if (!hearthApiKey) {
     // Legacy mode
     hashPw(password).then(function(hash) {
-      return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json")
+      return fetchWithTimeout(hearthBase() + "/hearth/users/" + username + "/auth.json")
         .then(function(r){ return r.json(); })
         .then(function(existing) {
           if (existing && existing.hash) { showLoginError("Username already taken"); setLoginSpinner(false); throw new Error("taken"); }
-          return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json", {
+          return fetchWithTimeout(hearthBase() + "/hearth/users/" + username + "/auth.json", {
             method:"PUT", body:JSON.stringify({ hash:hash, createdAt:Date.now() }), headers:{"Content-Type":"application/json"}
           }).then(function(resp) {
             if (!resp.ok) throw new Error("HTTP " + resp.status);
@@ -8731,7 +8742,7 @@ function doCreateAccount(username, password) {
       hearthUser = username; hearthToken = data.idToken;
       storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
       // Write username record so verifySession works
-      fetch(authUrl(hearthBase() + "/hearth/users/" + username + "/auth.json"), {
+      fetchWithTimeout(authUrl(hearthBase() + "/hearth/users/" + username + "/auth.json"), {
         method:"PUT", body:JSON.stringify({ uid:data.localId, createdAt:Date.now() }),
         headers:{"Content-Type":"application/json"}
       }).catch(function(){});
@@ -8745,7 +8756,7 @@ function doLogin(username, password) {
   if (!hearthApiKey) {
     // Legacy mode — no API key set, use old hash method
     hashPw(password).then(function(hash) {
-      return fetch(hearthBase() + "/hearth/users/" + username + "/auth.json")
+      return fetchWithTimeout(hearthBase() + "/hearth/users/" + username + "/auth.json")
         .then(function(r){
           if (r.status === 401 || r.status === 403) {
             showLoginError("Database rules are locked. Please set your Web API Key first, or temporarily open your Firebase rules.");
@@ -8843,7 +8854,7 @@ function onLoginSuccess() {
 
     // Load household code from user profile if not stored locally
     if (!hearthHouse) {
-      fetch(authUrl(userUrl("/household"))).then(function(r){ return r.json(); }).then(function(code) {
+      fetchWithTimeout(authUrl(userUrl("/household"))).then(function(r){ return r.json(); }).then(function(code) {
         if (code && typeof code === "string") {
           hearthHouse = code; storeSet("hearth_household", hearthHouse);
           fetchHousehold(function() {
@@ -8918,7 +8929,7 @@ var d = {};
   d.trips       = storeGet("fl4_trips") || [];
   d.trips_deleted    = purgeTombs(getTombs("trips"));
   d.bookings_deleted = purgeTombs(getTombs("bookings"));
-  fetch(authUrl(userUrl("/data")), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastPersonalPush = Date.now(); }).catch(function(){});
+  fetchWithTimeout(authUrl(userUrl("/data")), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastPersonalPush = Date.now(); }).catch(function(){});
   }, 800);
 }
 
@@ -9108,7 +9119,7 @@ function fetchPersonal(cb) {
   // Show subtle loading indicator on sync button
   var btn = document.getElementById("syncBtn");
   if (btn) { btn._origColor = btn.style.color; btn.style.opacity = "0.5"; }
-  fetch(authUrl(userUrl("/data")))
+  fetchWithTimeout(authUrl(userUrl("/data")))
     .then(function(r){
       if (btn) { btn.style.opacity = ""; }
       if (r.status === 401 || r.status === 403) {
@@ -9174,7 +9185,7 @@ var data = {};
   data["trips_deleted"]    = purgeTombs(getTombs("trips"));
   data["bookings_deleted"] = purgeTombs(getTombs("bookings"));
   lastPushTs = Date.now();
-  fetch(authUrl(houseUrl("/shared")), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastHouseholdPush = Date.now(); }).catch(function(){});
+  fetchWithTimeout(authUrl(houseUrl("/shared")), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastHouseholdPush = Date.now(); }).catch(function(){});
   }, 800);
 }
 
@@ -12547,7 +12558,7 @@ function saveBD(data) { storeSet("fl4_baby", data); pushPersonal(); if (isHouseh
 // ── Household fetch/apply ─────────────────────────────────
 function fetchHousehold(cb) {
   if (!isHouseholdSet()) { if(cb)cb(); return; }
-  fetch(authUrl(houseUrl("/shared")))
+  fetchWithTimeout(authUrl(houseUrl("/shared")))
     .then(function(r){ return r.json(); })
     .then(function(data) {
       if (data && typeof data === "object") applyHousehold(data);
