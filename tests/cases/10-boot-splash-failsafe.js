@@ -69,6 +69,21 @@ module.exports = {
     check('hide is idempotent', idem.indexOf('true|') === 0, 'result was "' + idem + '"');
     check('ceiling timer cleared on hide', idem.indexOf('|true') > 0, 'result was "' + idem + '"');
 
+    // 5. v373 — startup is non-blocking: the splash hides the moment the
+    //    script finishes booting (no waiting on SW/network confirmation),
+    //    and the automatic boot reload is gone for good. If either of
+    //    these reappears, the "app frozen on open" class is back.
+    const nb = await page.evaluate(
+      '(function(){ return {' +
+        'gone: window.__hearthSplashGone === true,' +
+        'staleReload: typeof window.bootStaleReload,' +
+        'deadline: typeof window._bootDeadline' +
+      '}; })()'
+    );
+    check('splash hidden without any SW confirmation', nb.gone, '__hearthSplashGone was not true after boot');
+    check('boot-time auto reload removed', nb.staleReload === 'undefined', 'bootStaleReload still exists: ' + nb.staleReload);
+    check('blocking deadline timer removed', nb.deadline === 'undefined', '_bootDeadline still exists: ' + nb.deadline);
+
     return { pass, fail };
   },
 };

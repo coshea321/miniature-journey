@@ -1,5 +1,5 @@
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v372 · 31/07/2026';
+const VERSION = 'v373 · 31/07/2026';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
@@ -43,9 +43,9 @@ self.addEventListener('message', e => {
 
 // Fetch strategy:
 //  - sw.js itself: never intercepted (browser always fetches it fresh)
-//  - app shell ('/' and index.html): NETWORK-FIRST so updates land
-//    immediately, falling back to the cached copy when offline —
-//    without the fallback the installed app fails to open offline
+//  - app shell ('/' and index.html): CACHE-FIRST with background refresh
+//    (v373) so opening is instant and never waits on the network; updates
+//    land via the refreshed cache + the in-page update banner
 //  - other same-origin assets: cache-first
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
@@ -55,28 +55,31 @@ self.addEventListener('fetch', e => {
   const isShell = e.request.mode === 'navigate' ||
                   url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
   if (isShell) {
-    // Network-first with a 3.5s cap (v295). On a connection that is present
-    // but not passing data ("lie-fi"), plain network-first waited for the
-    // browser's own timeout — a near-blank screen for up to a minute. If the
-    // network hasn't answered within 3.5s, serve the cached shell; a late
-    // network response still lands in the cache for next open. With no cached
-    // copy yet (first ever visit) we keep waiting on the network as before.
+    // Cache-first with background refresh (v373). The cached shell paints
+    // immediately — opening never waits on the network at all (v295's
+    // network-first-with-3.5s-cap still cost 3.5s on every bad-signal
+    // open). The network fetch still runs on every open and updates the
+    // cache, so the shell a device serves is at most one open behind what
+    // it could last download; the page's own update banner offers anything
+    // newer that the SW update finds. With no cached copy yet (first ever
+    // visit) we wait on the network exactly as before.
     e.respondWith((() => {
-      const network = fetch(e.request).then(response => {
+      const refresh = fetch(e.request).then(response => {
         if (response && response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return response;
       });
-      const cachedShell = () =>
-        caches.match(e.request, { ignoreSearch: true })
-          .then(cached => cached || caches.match('./index.html'));
-      const timer = new Promise(resolve => setTimeout(resolve, 3500, '__timeout__'));
-      return Promise.race([network.catch(() => '__failed__'), timer]).then(winner => {
-        if (winner !== '__timeout__' && winner !== '__failed__') return winner;
-        return cachedShell().then(cached => cached || network);
-      });
+      return caches.match(e.request, { ignoreSearch: true })
+        .then(cached => cached || caches.match('./index.html'))
+        .then(cached => {
+          if (cached) {
+            refresh.catch(() => {}); // background refresh may fail offline — fine
+            return cached;
+          }
+          return refresh;
+        });
     })());
     return;
   }
