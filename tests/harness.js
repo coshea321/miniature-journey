@@ -29,7 +29,8 @@ function findChrome() {
   throw new Error('No Chrome/Chromium binary found. Set CHROME_BIN to an explicit path.');
 }
 
-async function launch() {
+async function launch(opts) {
+  const options = opts || {};
   const chrome = findChrome();
   const port = 9200 + Math.floor(Math.random() * 800);
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hearth-test-'));
@@ -42,8 +43,12 @@ async function launch() {
     '--user-data-dir=' + userDataDir,
     // Belt-and-braces network block — nothing should leave the machine even
     // if a future code change loosens a Firebase/fetch guard (§3).
+    // The service-worker phase also LEANS on this: it maps the production
+    // hostname at the local test server, so the app's own `_isTestBuild`
+    // guard sees production and registers the SW for real. Nothing leaves
+    // the machine either way.
     '--host-resolver-rules=MAP * 127.0.0.1',
-  ];
+  ].concat(options.extraArgs || []);
   const proc = spawn(chrome, args, { stdio: 'ignore' });
   proc.on('error', (e) => {
     throw new Error('Failed to spawn Chrome (' + chrome + '): ' + e.message);
@@ -121,12 +126,72 @@ async function launch() {
     return result.result.value;
   }
 
+  // Navigate WITHOUT the fixed settle wait. The service-worker cases time how
+  // long an open takes, so they can't have 2.5s of sleep baked into it; they
+  // pair this with waitFor().
+  //
+  // Page.navigate does NOT resolve until the navigation response arrives, so
+  // any network wait in front of the paint lands INSIDE this call — which is
+  // why the offline cases must start their clock before calling it. The
+  // timeout matters for the same reason: a shell fetch that never returns
+  // (the uncapped lie-fi case) would otherwise hang the whole run instead of
+  // failing one assertion.
+  async function goto(url, timeoutMs) {
+    const limit = timeoutMs || 30000;
+    let timer;
+    const guard = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Page.navigate did not resolve within ' + limit + 'ms: ' + url)), limit);
+    });
+    try {
+      await Promise.race([send('Page.navigate', { url }), guard]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Poll an expression until it is truthy; returns how long that took (ms).
+  // Errors from evaluate are swallowed on purpose — a navigation tears the
+  // execution context down mid-poll, which is expected here, not a failure.
+  async function waitFor(exprString, timeoutMs, pollMs) {
+    const limit = timeoutMs || 10000;
+    const step = pollMs || 100;
+    const started = Date.now();
+    let lastErr = '';
+    while (Date.now() - started < limit) {
+      try {
+        if (await evaluate(exprString)) return Date.now() - started;
+      } catch (e) {
+        lastErr = e.message;
+      }
+      await sleep(step);
+    }
+    throw new Error(
+      'waitFor timed out after ' + limit + 'ms: ' + exprString + (lastErr ? ' (last error: ' + lastErr + ')' : '')
+    );
+  }
+
   async function reset(url) {
     // Deliberately not `evaluate('localStorage.clear(); location.reload()')`:
     // a self-triggered reload races the in-flight evaluate response. Clearing
     // storage first (no navigation involved) then re-navigating via CDP reuses
     // the same reliable path as the initial boot.
     await evaluate('localStorage.clear();');
+    await navigate(url);
+  }
+
+  // Full reset for the service-worker phase: drop every registration and cache
+  // as well as localStorage, so each SW case file starts from a first-ever-visit
+  // state. Unregistering does not evict the worker controlling THIS page, which
+  // is why the re-navigate afterwards matters.
+  async function resetSW(url) {
+    await evaluate(
+      'Promise.all([' +
+        'navigator.serviceWorker.getRegistrations().then(function(rs){' +
+          'return Promise.all(rs.map(function(r){ return r.unregister(); })); }),' +
+        'caches.keys().then(function(ks){' +
+          'return Promise.all(ks.map(function(k){ return caches.delete(k); })); })' +
+      ']).then(function(){ localStorage.clear(); return true; })'
+    );
     await navigate(url);
   }
 
@@ -144,7 +209,7 @@ async function launch() {
     }
   }
 
-  return { navigate, evaluate, reset, pageErrors, close };
+  return { navigate, goto, waitFor, evaluate, reset, resetSW, pageErrors, close };
 }
 
 module.exports = { launch };

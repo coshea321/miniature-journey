@@ -1,10 +1,16 @@
 # Startup freeze / "doesn't open" — review verification notes (31/07/2026)
 
-**Status: analysis COMPLETE; Release A shipped v372, Release B shipped v373 (both 31/07/2026).**
-Verified on v371 by a Fable 5 session. Anchors below are v371 line numbers — **v372/v373 moved
-things; a build session must re-grep and read the exact lines before editing.** Remaining work:
-Releases C (fetch timeouts — build-ready), D (batch sync renders), E (SW-capable test harness);
-current status lives in the `HEARTH-notes.md` backlog entry.
+**Status: PLAN COMPLETE — A (v372), B (v373), C (v374), D (v375), E (v376) all shipped.**
+Verified on v371 by a Fable 5 session. Anchors below are v371 line numbers — **v372–v376 moved
+things; any later session must re-grep and read the exact lines before editing.** Per-release
+detail lives in the `HEARTH-notes.md` changelog entries.
+
+**One correction worth carrying forward (found building Release E):** the "http://localhost server
+mode" this document proposes below **cannot work as written** — `_isPreview` treats `localhost` and
+`127.0.0.1` as preview, and `_isTestBuild` treats any non-production hostname as a test build, so
+the page skips service-worker registration on a localhost origin exactly as it does on a
+raw.githack link. v376 instead serves the repo locally *under the production hostname*, redirected
+inside the test browser only. Anything similar in future must clear those two guards first.
 
 ## The symptom, mapped to code
 
@@ -82,8 +88,11 @@ the watchdogs and keep running.
 each visible section once per apply cycle; wrap `applyPersonal` in try/catch to match
 `applyHousehold`.
 
-**Release E — backlog, prevention:** extend the test harness with an http://localhost server mode so
-a service worker can register, then add the gate/update/hang scenarios from claim 8's verdict.
+**Release E — SHIPPED v376 (prevention).** Extend the test harness so a service worker can register,
+then add the update/hang scenarios from claim 8's verdict. Built as a second phase of
+`node tests/run.js` (own server + own browser, `tests/sw-cases/`) — see the correction at the top of
+this file about why the "localhost" wording had to change, and the v376 changelog entry for the two
+measurement traps that made an earlier draft of the offline test pass against a network-first shell.
 
 **Explicitly not recommended:** splitting index.html (rejected 02/07/2026 triage — don't re-open);
 removing the 3.5s lie-fi cap without Release B's decision; any change that drops the update banner.
