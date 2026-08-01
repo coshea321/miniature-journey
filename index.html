@@ -831,7 +831,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v374 · 01/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v375 · 01/08/2026</div>
 
   </div>
 </div>
@@ -8933,8 +8933,38 @@ var d = {};
   }, 800);
 }
 
+// ── Batched sync-apply rendering (v375, Release D) ────────────────────────
+// applyPersonal/applyHousehold used to render *inside* the merge loop, so one
+// apply cycle could call renderRecipes() twice (recipe book, then meal plan)
+// and always rebuilt the Lists DOM even when Lists wasn't the visible section.
+// Now each merge block only marks a dirty flag and this runs once at the end:
+// merge everything first, then redraw each affected + visible section once.
+// The per-block guards are preserved, not dropped — they're evaluated here
+// instead (currentSection / _recipeEditing / _tripEditing cannot change mid
+// apply cycle, so this is the same decision, made once). Each render is
+// individually try/caught so one failing view can't block the others.
+function flushSyncRenders(dirty) {
+  dirty = dirty || {};
+  function safeRender(name, fn) {
+    try { fn(); } catch (err) { console.warn("sync render failed (" + name + "):", err); }
+  }
+  if (dirty.recipes && currentSection === "recipes" && !_recipeEditing) safeRender("recipes", renderRecipes);
+  if (dirty.trips   && currentSection === "trips"   && !_tripEditing)   safeRender("trips",   renderTrips);
+  if (dirty.baby    && currentSection === "baby")                       safeRender("baby",    renderBabyView);
+  // Lists: unchanged except for the section guard. switchSection() re-renders
+  // the list on entry, so skipping it while hidden can't leave a stale view.
+  if (dirty.list    && currentSection === "lists")                      safeRender("list",    renderList);
+  // Tab dots stay unconditional (they reflect unseen counts, and must run
+  // AFTER renderList, which rebuilds the tab bar they attach to).
+  if (dirty.dots)                                                       safeRender("listDots", updateListTabDots);
+  if (dirty.home    && currentSection === "home")                       safeRender("home",    renderHomeScreen);
+  if (dirty.train   && currentSection === "train")                      safeRender("train",   renderTrainView);
+}
+
 function applyPersonal(d) {
   if (!d || typeof d !== "object") return;
+  var _rDirty = {};
+  try {
 
   // ── Workouts: merge by workout ID, not last-write-wins ───────────────────
   if (d.health && typeof d.health === "object") {
@@ -9070,7 +9100,7 @@ function applyPersonal(d) {
       if (rbFullP.length < rbPreP) rbPush = true;
     }
     storeSet("fl4_recipebook", rbFullP);
-    if (currentSection === "recipes" && !_recipeEditing) renderRecipes();
+    _rDirty.recipes = true;
     if (rbPush) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
   }
 
@@ -9078,7 +9108,7 @@ function applyPersonal(d) {
   if (Array.isArray(d.mealplan)) {
     var mpMergeP = mergeMealPlanData(getMealPlan(), d.mealplan);
     storeSet("fl4_mealplan", mpMergeP.plan);
-    if (currentSection === "recipes" && !_recipeEditing) renderRecipes();
+    _rDirty.recipes = true;
     if (mpMergeP.push) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
   }
 
@@ -9090,7 +9120,7 @@ function applyPersonal(d) {
     storeSet("fl4_tomb_bookings", purgeTombs(bkTombsP));
     var tpMergeP = mergeTripsData(storeGet("fl4_trips") || [], d.trips, tpTombsP, bkTombsP);
     storeSet("fl4_trips", tpMergeP.trips);
-    if (currentSection === "trips" && !_tripEditing) renderTrips();
+    _rDirty.trips = true;
     if (tpMergeP.push) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
   }
 
@@ -9106,13 +9136,15 @@ function applyPersonal(d) {
   }
   if (d.baby && typeof d.baby === "object") {
     storeSet("fl4_baby", mergeBabyData(getBD(), d.baby, getTombs("med"), getTombs("growth"), getTombs("ms")));
-    if (currentSection === "baby") renderBabyView();
+    _rDirty.baby = true;
   }
 
-  syncPaused = false;
-  renderList();
-  if (currentSection === "home") renderHomeScreen();
-  if (currentSection === "train") renderTrainView();
+  // v375: was bare (no try/catch) while applyHousehold had one — a throw in any
+  // merge block left syncPaused stuck true and skipped every render below.
+  } catch (err) { console.warn("applyPersonal error (sync continues):", err); }
+  finally { syncPaused = false; }
+  flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby,
+                     list:true, home:true, train:true });
 }
 function fetchPersonal(cb) {
   if (!isLoggedIn()) { if(cb)cb(); return; }
@@ -12569,8 +12601,10 @@ function fetchHousehold(cb) {
 
 function applyHousehold(data) {
   syncPaused = true;
-  try {
+  var _rDirty = {}; // v375: render targets touched by this apply cycle (see flushSyncRenders)
+  // Declared outside the try so the partner-added toast below is still safe if a merge throws.
   var _newFromOther = {}; // lt → count of new items added by the other user
+  try {
   var _listRepush = false; // true if our merge is fuller/newer than /shared → re-push to converge
   ["grocery","todo","travel","personal"].forEach(function(lt) {
     if (!isSynced(lt)) return;
@@ -12642,7 +12676,7 @@ function applyHousehold(data) {
     // runs (mergeBabyData), incl. medicine tombstones. (v371: growth +
     // milestones now get the same per-entry merge + tombstones.)
     storeSet("fl4_baby", mergeBabyData(getBD(), data["baby"], getTombs("med"), getTombs("growth"), getTombs("ms")));
-    if (currentSection === "baby") renderBabyView();
+    _rDirty.baby = true;
   }
   // Recipe book — merge by id with NEWEST-WINS (by `updated` timestamp), so a
   // stale copy pushed by another device can never revert a newer edit. Partner's
@@ -12684,7 +12718,7 @@ function applyHousehold(data) {
         : "&#x1F37D;&#xFE0F; " + _rpartner + " added " + _rbNew.length + " recipes";
       setTimeout(function(){ toast(_rmsg); }, 400);
     }
-    if (currentSection === "recipes" && !_recipeEditing) renderRecipes();
+    _rDirty.recipes = true;
     if (rbNeedPush) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
   }
   // Meal plan — shared household-wide; union of days, newest-wins by
@@ -12693,7 +12727,7 @@ function applyHousehold(data) {
   if (Array.isArray(data["mealplan"])) {
     var mpMerge = mergeMealPlanData(getMealPlan(), data["mealplan"]);
     storeSet("fl4_mealplan", mpMerge.plan);
-    if (currentSection === "recipes" && !_recipeEditing) renderRecipes();
+    _rDirty.recipes = true;
     if (mpMerge.push) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
   }
   // Trips — shared household-wide; nested merge on each trip's bookings so two
@@ -12705,13 +12739,15 @@ function applyHousehold(data) {
     storeSet("fl4_tomb_bookings", purgeTombs(bkTombs));
     var tpMerge = mergeTripsData(storeGet("fl4_trips") || [], data["trips"], tpTombs, bkTombs);
     storeSet("fl4_trips", tpMerge.trips);
-    if (currentSection === "trips" && !_tripEditing) renderTrips();
+    _rDirty.trips = true;
     if (tpMerge.push) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
   }
   } catch (err) { console.warn("applyHousehold error (sync continues):", err); }
   finally { syncPaused = false; }
-  renderList();
-  updateListTabDots();
+  // v375: one batched flush instead of renders scattered through the merge above.
+  // No renderTrainView here — the Train view is fed by the personal channel only.
+  flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby,
+                     list:true, dots:true, home:true });
   // Gentle in-app toast if the partner added something while we're using the app
   var _totalNew = 0, _firstLt = null;
   Object.keys(_newFromOther).forEach(function(lt){ _totalNew += _newFromOther[lt]; if(!_firstLt) _firstLt = lt; });
@@ -12720,7 +12756,6 @@ function applyHousehold(data) {
     var partner = hearthUser === "cathal1" ? "Petra" : "Cathal";
     toast("&#x1F465; " + partner + " added " + _totalNew + " item" + (_totalNew!==1?"s":"") + (_firstLt && _totalNew===_newFromOther[_firstLt] ? " to " + ltName : ""));
   }
-  if (currentSection === "home") renderHomeScreen();
 }
 
 // ── "Added by partner" unseen tracking ──────────────────────
