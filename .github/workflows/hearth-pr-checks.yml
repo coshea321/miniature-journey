@@ -52,8 +52,19 @@ jobs:
             || err "in-file version label count != 1"
           BYTES=$(wc -c < index.html)
           echo "index.html is $BYTES bytes"
-          [ "$BYTES" -lt 900000 ] \
-            || err "index.html is $BYTES bytes - v221-style document doubling?"
+          # A doubling tripwire, not a size budget: the v221 incident duplicated
+          # the whole document in one edit. Measured against the base branch
+          # rather than a fixed ceiling (which v379 grew into at 902KB, going
+          # red on ordinary growth), so this number never needs touching again.
+          git fetch --quiet --depth=1 origin "$BASE_REF"
+          BASE_BYTES=$(git show FETCH_HEAD:index.html | wc -c)
+          echo "index.html on $BASE_REF is $BASE_BYTES bytes"
+          if [ "$BASE_BYTES" -lt 1000 ]; then
+            err "could not read index.html from $BASE_REF (got $BASE_BYTES bytes)"
+          else
+            [ "$BYTES" -lt "$(( BASE_BYTES * 14 / 10 ))" ] \
+              || err "index.html is $BYTES bytes vs $BASE_BYTES on $BASE_REF (over 1.4x) - v221-style document doubling?"
+          fi
           tail -c 40 index.html | tr -d '[:space:]' | grep -q '</body></html>$' \
             || err "index.html does not end cleanly with </body></html>"
 
