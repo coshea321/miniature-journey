@@ -854,7 +854,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v381 · 02/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v383 · 02/08/2026</div>
 
   </div>
 </div>
@@ -5331,6 +5331,18 @@ var _recipeSelected = {};       // id -> true while selected
 var _recipeFilter = "fav"; // "all" | "fav" | category name — opens on Favourites by default (falls back to "all" in renderRecipes if none are favourited)
 var _recipeSearchQuery = "";
 var _recipeScrollPos = 0;
+// Everything a recipe search should look at, lowercased once (v383). Kept
+// top-level because renderRecipes() calls it — a locally scoped helper is the
+// classic breakage in this file. Ingredient text covers both the written name
+// and any grocery-name override, so "which recipe used chorizo?" works.
+function recipeSearchText(r) {
+  if (!r) return "";
+  var ings = (r.ingredients || []).map(function(i){
+    return i ? ((i.name || "") + " " + (i.groceryName || "")) : "";
+  }).join(" ");
+  return ((r.name || "") + " " + (r.notes || "") + " " + (r.category || "") + " " +
+          (r.method || "") + " " + ings).toLowerCase();
+}
 function renderRecipes() {
   _recipeEditing = false; // reaching the list/detail dispatcher means the editor isn't open
   seedRecipes();
@@ -5368,8 +5380,27 @@ function renderRecipes() {
     if (_recipeFilter === "fav") return !!r.fav;
     return (r.category||"").trim() === _recipeFilter;
   });
+  // Recipe search (v383). Two changes that only work as a pair.
+  // WIDER haystack: name+notes alone could not answer "which recipe used the
+  // chorizo?" — ingredients, method and category are searched too now.
+  // TIGHTER match: fuzzyMatch is a SUBSEQUENCE matcher, so "curry" matched any
+  // text containing c..u..r..r..y ("slow cooker ... crusty bread, very yummy").
+  // On a real-sized book that returned most of the shelf for a plain
+  // recipe-name search, so the list looked as though it had not filtered at
+  // all — the bug Cathal actually reported. Substring is now the primary
+  // match; the fuzzy pass runs ONLY when substring finds nothing, and the list
+  // says so on screen rather than quietly showing near-misses as if they were
+  // hits. Widening without tightening would have made this markedly worse.
+  var _rcpFuzzy = false;
   if (_recipeSearchQuery) {
-    shown = shown.filter(function(r){ return fuzzyMatch(_recipeSearchQuery, r.name + " " + (r.notes||"")); });
+    var _qLow = _recipeSearchQuery.toLowerCase();
+    var _exact = shown.filter(function(r){ return recipeSearchText(r).indexOf(_qLow) !== -1; });
+    if (_exact.length) {
+      shown = _exact;
+    } else {
+      shown = shown.filter(function(r){ return fuzzyMatch(_recipeSearchQuery, recipeSearchText(r)); });
+      _rcpFuzzy = shown.length > 0;
+    }
   }
 
   var _selCount = Object.keys(_recipeSelected).filter(function(k){ return _recipeSelected[k]; }).length;
@@ -5388,8 +5419,22 @@ function renderRecipes() {
     "</div>";
   }
   var html = selectHdr + bar;
+  if (_rcpFuzzy) {
+    html += "<div style='text-align:center;color:#9A7A4A;font-size:12px;padding:2px 10px 10px'>No exact matches &#x2014; showing similar.</div>";
+  }
   if (!shown.length) {
-    html += "<div style='text-align:center;color:#9A8A6A;padding:30px'>Nothing here yet.</div>";
+    // Say WHY the list is empty (v383). A bare "Nothing here yet." under an
+    // active search or a category chip reads as a broken app — that exact
+    // misread is what sent v381 and v382 chasing the wrong bug twice.
+    // No "fav" branch on purpose: the hasFav fallback above already flips an
+    // empty Favourites filter to "all", so a bare empty favourites list is
+    // unreachable here and a message for it would be dead code.
+    var why = _recipeSearchQuery
+      ? "No recipes match &#x201C;" + esc(_recipeSearchQuery) + "&#x201D;."
+      : (_recipeFilter === "all" || _recipeFilter === "fav")
+        ? "Nothing here yet."
+        : "Nothing in &#x201C;" + esc(_recipeFilter) + "&#x201D; yet.";
+    html += "<div style='text-align:center;color:#9A8A6A;padding:30px'>" + why + "</div>";
   } else {
     // Group by category when showing All; otherwise flat
     if (_recipeFilter === "all" && cats.length) {
@@ -15177,8 +15222,21 @@ if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
   navigator.serviceWorker.addEventListener("message", function(e) {
     if (!e.data) return;
     if (e.data.type === "SW_VERSION") {
+      // Never show a version whose code is NOT the code running (v382).
+      // The worker updates independently of the document already loaded in
+      // the tab: during an update the new SW installs, claims this page and
+      // announces vNEW while this page is still the OLD build's HTML+JS.
+      // Writing vNEW into the label there made the app claim a version it
+      // was not running — the update banner then read as a spurious glitch
+      // (the label already "proved" you were up to date), so it got
+      // dismissed and a shipped fix stayed invisible. That is exactly how
+      // v381's recipe-search fix looked broken on Cathal's phone.
+      // A STRICTLY NEWER worker now gets the banner only; the label keeps
+      // showing what is actually executing until a reload makes it true.
+      // Same-or-older still writes through, which is the original intent
+      // (the label is sourced from sw.js, the single source of truth).
       var el = document.getElementById("appVersionLabel");
-      if (el) el.textContent = e.data.version;
+      if (el && _verNum(e.data.version) <= _verNum(PAGE_VERSION)) el.textContent = e.data.version;
     }
     if (e.data.type === "SW_UPDATED" || e.data.type === "SW_VERSION") {
       // A strictly NEWER build is active (numeric compare, v312 lesson:
