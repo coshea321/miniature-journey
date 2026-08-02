@@ -832,7 +832,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v377 · 01/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v378 · 02/08/2026</div>
 
   </div>
 </div>
@@ -1137,6 +1137,7 @@ body.train-mode #toast{background:#3A3328}
 <div id="plantsSection" style="display:none">
   <div style="display:flex;gap:4px;padding:8px 10px;background:#2E7D4F;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
     <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1FAB4; Plants</span>
+    <button id="plantImportBtn" aria-label="Import plant" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F4E5;</button>
     <button id="plantNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
   </div>
   <div id="plantsContent" style="padding:14px 14px 100px"></div>
@@ -2802,6 +2803,183 @@ function plantShrinkPhoto(file, cb) {
   reader.readAsDataURL(file);
 }
 
+// ── Import / export (v378) ────────────────────────────────────────────────
+// A plant file is exactly what the export writes: one plant object, or
+// {plants:[...]} for a whole shelf. The point is the AI round-trip — photograph
+// a plant, have a chat identify it and write the care sheet, paste the JSON
+// back in here.
+//
+// Deliberately NOT in the file: `id` (regenerated), `updated` (set to now),
+// `photo` (a chat can't write one, and base64 would swamp the paste box) and
+// the water/feed logs (your own history, not care information). Import never
+// touches any of them, so an update keeps your photo and your logging streak.
+//
+// KEEP IN SYNC: the text sections come from PLANT_SECTIONS, so adding one
+// there flows through export, import and the AI prompt automatically. The
+// scalar fields (name/latin/room/emoji/waterDays/feedDays) are hand-listed in
+// plantExportObj + plantApplyImport — add new ones to BOTH.
+var PLANT_FILE_TAG = "plant-v1";
+var PLANT_FIELD_MAX = 4000;   // per section; a runaway AI reply must not eat localStorage
+
+function plantCleanText(v) {
+  if (typeof v !== "string") return "";
+  return v.trim().slice(0, PLANT_FIELD_MAX);
+}
+function plantCleanDays(v) {
+  var n = parseInt(v, 10);
+  if (!n || n < 1) return 0;                 // 0 (or junk) means "no reminder"
+  return Math.min(365, n);
+}
+// PLANT_SECTIONS labels are HTML source; the AI prompt is plain text.
+function plantPlainLabel(s) { return String(s || "").replace(/&amp;/g, "&"); }
+
+function plantExportObj(p) {
+  var out = {
+    name:      p.name  || "",
+    latin:     p.latin || "",
+    room:      p.room  || "",
+    emoji:     p.emoji || "",
+    waterDays: parseInt(p.waterDays, 10) || 0,
+    feedDays:  parseInt(p.feedDays, 10)  || 0
+  };
+  PLANT_SECTIONS.forEach(function(sec){ out[sec.key] = p[sec.key] || ""; });
+  return out;
+}
+
+function plantDownloadJSON(payload, filename) {
+  var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function plantFileSlug(s) {
+  return (s || "plant").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "plant";
+}
+
+// The template Cathal hands to an AI chat along with his photo and notes.
+// Built from PLANT_SECTIONS so it can never drift from what import accepts.
+function plantAIPrompt() {
+  var skeleton = ['  "hearth": "' + PLANT_FILE_TAG + '",',
+                  '  "name": "",',
+                  '  "latin": "",',
+                  '  "room": "",',
+                  '  "emoji": "",',
+                  '  "waterDays": 0,',
+                  '  "feedDays": 0,'];
+  PLANT_SECTIONS.forEach(function(sec, i){
+    skeleton.push('  "' + sec.key + '": ""' + (i === PLANT_SECTIONS.length - 1 ? "" : ","));
+  });
+  var guide = PLANT_SECTIONS.map(function(sec){
+    return "- " + sec.key + " (" + plantPlainLabel(sec.label) + "): " + plantPlainLabel(sec.hint);
+  }).join("\n");
+  return "Here is a photo of a houseplant, plus my own notes on it. Identify it if you can, " +
+    "then write me a care sheet for my Hearth app.\n\n" +
+    "Reply with ONLY this JSON — no code fences, no commentary before or after:\n\n" +
+    "{\n" + skeleton.join("\n") + "\n}\n\n" +
+    "Field notes:\n" +
+    "- name: what I'd call it. latin: the botanical name. room: leave \"\" unless I told you where it lives.\n" +
+    "- emoji: one emoji for it, or \"\".\n" +
+    "- waterDays / feedDays: whole days between waterings / feeds, as numbers. Use 0 for no reminder " +
+    "(feeding is often 0 over winter — say so in the feeding text instead).\n" +
+    "- The text fields are plain prose, a few short lines each. No markdown, no bullet characters, " +
+    "no headings — they're shown as-is on a phone.\n" +
+    guide + "\n" +
+    "- Leave a field as \"\" if you genuinely don't know. An empty field keeps whatever I've already " +
+    "written in the app; a filled one replaces it.\n" +
+    "- Anything you're unsure of (especially the identification, and anything in safety) — say so in " +
+    "that field rather than guessing confidently.\n" +
+    "- For several plants at once, reply {\"hearth\":\"" + PLANT_FILE_TAG + "\",\"plants\":[ {...}, {...} ]}.";
+}
+
+// Clipboard with an execCommand fallback — writeText needs a user gesture and
+// a secure context, and neither is guaranteed on every browser he opens this in.
+function plantCopyPrompt() {
+  var text = plantAIPrompt();
+  function fallback() {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      var ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      toast(ok ? "&#x1F4CB; Prompt copied" : "Couldn't copy — select the prompt below by hand");
+    } catch (e) { toast("Couldn't copy — select the prompt below by hand"); }
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function(){ toast("&#x1F4CB; Prompt copied"); }, fallback);
+  } else { fallback(); }
+}
+
+// Returns {plants:[...]} or {error}. Accepts a bare plant object as well as a
+// {plants:[...]} list, so a one-plant chat reply and a whole-book export both
+// come through the same door.
+function parsePlantFile(raw) {
+  var obj;
+  try { obj = JSON.parse(raw); } catch (e) { return { error: "Couldn't parse JSON — check the format and try again." }; }
+  if (!obj || obj.hearth !== PLANT_FILE_TAG) return { error: "Not a Hearth plant file. Make sure the JSON includes \"hearth\":\"" + PLANT_FILE_TAG + "\"." };
+  var list = (Array.isArray(obj.plants) ? obj.plants : [obj]).filter(function(p){
+    return p && typeof p === "object" && !Array.isArray(p);
+  });
+  if (!list.length) return { error: "No plants found in that file." };
+  var unnamed = list.some(function(p){ return !p.name || typeof p.name !== "string" || !p.name.trim(); });
+  if (unnamed) return { error: "Every plant needs a \"name\"." };
+  return { plants: list };
+}
+
+// "File wins, blanks left alone": a field the file fills in replaces what's
+// there, a field it leaves empty keeps the existing text. Photo and the two
+// logs are never in a file, so they always survive an update.
+function plantApplyImport(rec, src) {
+  var name = plantCleanText(src.name);
+  if (name) rec.name = name.slice(0, 80);
+  var latin = plantCleanText(src.latin); if (latin) rec.latin = latin.slice(0, 120);
+  var room  = plantCleanText(src.room);  if (room)  rec.room  = room.slice(0, 120);
+  var emoji = plantCleanText(src.emoji); if (emoji) rec.emoji = emoji.slice(0, 4);
+  if (src.waterDays !== undefined && src.waterDays !== null && src.waterDays !== "") rec.waterDays = plantCleanDays(src.waterDays);
+  if (src.feedDays  !== undefined && src.feedDays  !== null && src.feedDays  !== "") rec.feedDays  = plantCleanDays(src.feedDays);
+  PLANT_SECTIONS.forEach(function(sec){
+    var v = plantCleanText(src[sec.key]);
+    if (v) rec[sec.key] = v;
+  });
+  if (!Array.isArray(rec.waterLog)) rec.waterLog = [];
+  if (!Array.isArray(rec.feedLog))  rec.feedLog  = [];
+  rec.updated = Date.now();
+  return rec;
+}
+
+// Adds every entry as a new plant. Returns the id of the first one so the UI
+// can open it; null if the list was empty.
+function importPlantsAsNew(list) {
+  var all = getPlants();
+  var firstId = null;
+  var now = Date.now();
+  (list || []).forEach(function(src, i){
+    var rec = plantApplyImport({ id: now + i * 1000 + Math.floor(Math.random() * 1000), photo: "", waterLog: [], feedLog: [] }, src);
+    all.push(rec);
+    if (firstId === null) firstId = rec.id;
+  });
+  if (firstId === null) return null;
+  savePlants(all);
+  return firstId;
+}
+
+// Updates one plant already in the book from one file entry.
+function importPlantInto(id, src) {
+  var all = getPlants();
+  var i = all.findIndex(function(p){ return p && p.id === id; });
+  if (i < 0) return { error: "That plant was deleted on another device." };   // guard the -1
+  plantApplyImport(all[i], src);
+  savePlants(all);
+  return { id: id };
+}
+
 // ── Plants views ──────────────────────────────────────────────────────────
 var _plantView = "list";      // "list" | "detail" | "editor"
 var _plantOpenId = null;
@@ -2809,6 +2987,8 @@ var _plantEditing = false;
 var _plantCancelFn = null;    // back-button discard closure (v345 pattern), nulled on every exit path
 var _plantListScrollPos = 0;
 var _plantPhotoDraft = null;  // photo held while the editor is open; null = editor closed
+var _plantImporting = false;  // import screen open (v378) — step 1 paste, step 2 destination
+var _plantImportParsed = null;// parsed file entries once step 1 validates; null = still on step 1
 
 function plantThumbHTML(p, size) {
   var s = size || 46;
@@ -2840,6 +3020,7 @@ function renderPlants() {
   _plantEditing = false;
   _plantCancelFn = null;
   _plantPhotoDraft = null;
+  if (_plantImporting) { renderPlantImport(); return; }
   if (_plantView === "detail" && _plantOpenId != null) { renderPlantDetail(); return; }
   _plantView = "list";
   var el = document.getElementById("plantsContent");
@@ -2852,7 +3033,7 @@ function renderPlants() {
     el.innerHTML = "<div style='text-align:center;color:#7A8A6A;padding:40px 20px'>" +
       "<div style='font-size:40px;margin-bottom:10px'>&#x1FAB4;</div>" +
       "<div style='font-size:16px;font-weight:600;margin-bottom:4px'>No plants yet</div>" +
-      "<div style='font-size:13px'>Tap &ldquo;+ New&rdquo; to add one.</div></div>";
+      "<div style='font-size:13px'>Tap &ldquo;+ New&rdquo; to add one, or &#x1F4E5; to paste one in from a chat.</div></div>";
     return;
   }
 
@@ -2863,6 +3044,8 @@ function renderPlants() {
       due.length + " plant" + (due.length === 1 ? "" : "s") + " need" + (due.length === 1 ? "s" : "") + " watering</div>";
   }
   plants.forEach(function(p){ html += plantCardHTML(p); });
+  html += "<button id='plExportAll' style='width:100%;padding:12px;border:1.5px solid #DCE4D2;background:#fff;color:#5A6A4A;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;touch-action:manipulation'>&#x1F4E4; Export all plants (JSON)</button>" +
+    "<div style='font-size:11px;color:#9A9A7A;text-align:center;margin:6px 2px 0;line-height:1.5'>The written care notes only &mdash; photos and care logs live in the full backup under Settings.</div>";
   el.innerHTML = html;
 
   el.querySelectorAll(".plant-card").forEach(function(card){
@@ -2872,6 +3055,122 @@ function renderPlants() {
       _plantView = "detail";
       renderPlantDetail();
       window.scrollTo(0, 0);
+    });
+  });
+  var expAll = document.getElementById("plExportAll");
+  if (expAll) expAll.addEventListener("click", function(){
+    plantDownloadJSON({ hearth: PLANT_FILE_TAG, plants: getPlants().map(plantExportObj) }, "hearth-plants.json");
+  });
+}
+
+// Import screen (v378). Step 1 pastes the file, step 2 chooses where it lands —
+// deliberately two steps so nothing is written until he's picked a destination
+// (the same shape as the trip importer).
+function renderPlantImport() {
+  var el = document.getElementById("plantsContent");
+  if (!el) return;
+  function leave() {
+    _plantImporting = false; _plantImportParsed = null;
+    _plantView = "list"; _plantOpenId = null;
+    renderPlants(); window.scrollTo(0, 0);
+  }
+
+  if (!_plantImportParsed) {
+    el.innerHTML =
+      "<button id='plImpCancel' style='border:none;background:none;color:#2E7D4F;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px;touch-action:manipulation'>&larr; Cancel</button>" +
+      "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:10px;color:#1A2E1E'>Import plant</div>" +
+      "<div style='font-size:13px;color:#4A5A3A;background:#F2F7EE;border:1px solid #DCE4D2;border-radius:10px;padding:12px 14px;margin-bottom:12px;line-height:1.65'>" +
+        "<b>How to use this with an AI chat:</b>" +
+        "<div style='margin-top:6px'>1. Copy the prompt below.</div>" +
+        "<div>2. Start a chat, paste it, and attach a photo of the plant plus anything you already know about it.</div>" +
+        "<div>3. Paste the JSON it replies with into the box below.</div>" +
+      "</div>" +
+      "<button id='plCopyPrompt' style='width:100%;padding:12px;border:1.5px solid #2E7D4F;background:#fff;color:#2E7D4F;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px;touch-action:manipulation'>&#x1F4CB; Copy the prompt</button>" +
+      "<details style='margin-bottom:14px'><summary style='font-size:12px;color:#7A8A6A;cursor:pointer;padding:4px 2px'>See the prompt</summary>" +
+        "<textarea id='plPromptText' readonly rows='10' style='" + recipeInputCss() + "margin-top:8px;resize:vertical;line-height:1.5;font-size:11px;font-family:monospace'>" + esc(plantAIPrompt()) + "</textarea>" +
+      "</details>" +
+      "<textarea id='plImportJson' rows='8' placeholder='Paste the JSON here&hellip;' style='" + recipeInputCss() + "margin-bottom:14px;resize:vertical;line-height:1.5;font-size:12px;font-family:monospace'></textarea>" +
+      "<button id='plImportGo' style='width:100%;padding:13px;border:none;background:#2E7D4F;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation'>Next &rsaquo;</button>";
+
+    document.getElementById("plImpCancel").addEventListener("click", leave);
+    document.getElementById("plCopyPrompt").addEventListener("click", plantCopyPrompt);
+    document.getElementById("plImportGo").addEventListener("click", function(){
+      var raw = (document.getElementById("plImportJson").value || "").trim();
+      // Chats love to wrap JSON in ```json fences even when told not to.
+      raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+      if (!raw) { toast("Paste the JSON first"); return; }
+      var parsed = parsePlantFile(raw);
+      if (parsed.error) { toast(parsed.error); return; }
+      _plantImportParsed = parsed.plants;
+      renderPlantImport();
+      window.scrollTo(0, 0);
+    });
+    return;
+  }
+
+  // Step 2 — destination. One plant can either be added or merged onto an
+  // existing plant; several can only be added (updating is a one-at-a-time job).
+  var list = _plantImportParsed;
+  var one = list.length === 1 ? list[0] : null;
+  var filled = one ? PLANT_SECTIONS.filter(function(sec){ return plantCleanText(one[sec.key]); }).length : 0;
+
+  var html = "<button id='plImpBack' style='border:none;background:none;color:#2E7D4F;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px;touch-action:manipulation'>&larr; Back</button>" +
+    "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:10px;color:#1A2E1E'>Import plant</div>";
+
+  if (one) {
+    html += "<div style='background:#F2F7EE;border:1px solid #C8DCBC;border-radius:10px;padding:12px 14px;margin-bottom:14px'>" +
+      "<div style='font-size:15px;font-weight:700;color:#1A2E1E'>" + esc(plantCleanText(one.name)) + "</div>" +
+      (plantCleanText(one.latin) ? "<div style='font-size:12px;color:#7A8A6A;font-style:italic;margin-top:2px'>" + esc(plantCleanText(one.latin)) + "</div>" : "") +
+      "<div style='font-size:12px;color:#5A6A4A;margin-top:5px'>" + filled + " of " + PLANT_SECTIONS.length + " section" + (filled === 1 ? "" : "s") + " filled in" +
+        (plantCleanDays(one.waterDays) ? " &middot; water every " + plantCleanDays(one.waterDays) + " days" : "") + "</div>" +
+    "</div>";
+  } else {
+    html += "<div style='background:#F2F7EE;border:1px solid #C8DCBC;border-radius:10px;padding:12px 14px;margin-bottom:14px'>" +
+      "<div style='font-size:15px;font-weight:700;color:#1A2E1E;margin-bottom:4px'>" + list.length + " plants in this file</div>" +
+      "<div style='font-size:12px;color:#5A6A4A;line-height:1.6'>" + esc(list.map(function(p){ return plantCleanText(p.name); }).join(", ")) + "</div>" +
+    "</div>";
+  }
+
+  html += "<button id='plImpNew' style='width:100%;padding:13px;border:none;background:#2E7D4F;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation'>" +
+    (one ? "Add as a new plant" : "Add all " + list.length + " as new plants") + "</button>";
+
+  var existing = getPlants().slice().sort(function(a, b){
+    return String((a && a.name) || "").localeCompare(String((b && b.name) || ""));
+  });
+  if (one && existing.length) {
+    html += "<div style='font-size:13px;color:#7A8A6A;text-align:center;margin:16px 0 10px;font-weight:600'>&mdash; or update one you already have &mdash;</div>";
+    existing.forEach(function(p){
+      html += "<button class='plImpTarget' data-pid='" + p.id + "' style='display:block;width:100%;text-align:left;padding:11px 14px;margin-bottom:6px;border:1px solid #DCE4D2;background:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;color:#2A3A22;cursor:pointer;touch-action:manipulation'>" +
+        esc(p.name || "Untitled plant") + "<span style='float:right;color:#2E7D4F;font-size:12px;font-weight:700'>Update</span></button>";
+    });
+    html += "<div style='font-size:11px;color:#9A9A7A;margin:8px 2px 0;line-height:1.5'>Updating fills in the sections this file has and leaves the rest of your notes alone. Your photo and watering history are never changed.</div>";
+  }
+  el.innerHTML = html;
+
+  document.getElementById("plImpBack").addEventListener("click", function(){
+    _plantImportParsed = null; renderPlantImport(); window.scrollTo(0, 0);
+  });
+  document.getElementById("plImpNew").addEventListener("click", function(){
+    var firstId = importPlantsAsNew(list);
+    if (firstId === null) { toast("Nothing to import"); return; }
+    _plantImporting = false; _plantImportParsed = null;
+    if (list.length === 1) { _plantOpenId = firstId; _plantView = "detail"; }
+    else { _plantOpenId = null; _plantView = "list"; }
+    renderPlants(); window.scrollTo(0, 0);
+    toast(list.length === 1 ? "&#x1FAB4; Plant imported" : "&#x1FAB4; " + list.length + " plants imported");
+  });
+  el.querySelectorAll(".plImpTarget").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var pid = parseInt(btn.getAttribute("data-pid"), 10);
+      var target = getPlants().find(function(x){ return x && x.id === pid; });
+      confirmDialog("Update " + ((target && target.name) || "this plant") + " from this file?", function(){
+        var res = importPlantInto(pid, one);
+        if (res.error) { toast(res.error); return; }
+        _plantImporting = false; _plantImportParsed = null;
+        _plantOpenId = pid; _plantView = "detail";
+        renderPlants(); window.scrollTo(0, 0);
+        toast("&#x1FAB4; Plant updated");
+      });
     });
   });
 }
@@ -2940,7 +3239,8 @@ function renderPlantDetail() {
   html += "<div style='display:flex;gap:8px;margin-top:18px'>" +
     "<button id='plEdit' style='flex:1;padding:13px;border:none;background:#2E7D4F;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation'>Edit</button>" +
     "<button id='plDelete' style='padding:13px 16px;border:1px solid #E0C0C0;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation'>Delete</button>" +
-  "</div>";
+  "</div>" +
+  "<button id='plExport' style='width:100%;padding:12px;border:1.5px solid #DCE4D2;background:#fff;color:#5A6A4A;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;touch-action:manipulation'>&#x1F4E4; Export this plant (JSON)</button>";
 
   el.innerHTML = html;
 
@@ -2959,6 +3259,12 @@ function renderPlantDetail() {
   document.getElementById("plDelete").addEventListener("click", function(){
     confirmDialog("Delete " + (p.name || "this plant") + "?", function(){ deletePlant(p.id); });
   });
+  document.getElementById("plExport").addEventListener("click", function(){
+    var cur = getPlants().find(function(x){ return x && x.id === p.id; });
+    if (!cur) { toast("Plant not found"); return; }
+    plantDownloadJSON(Object.assign({ hearth: PLANT_FILE_TAG }, plantExportObj(cur)),
+                      "hearth-plant-" + plantFileSlug(cur.name) + ".json");
+  });
 }
 
 function openPlantEditor(id) {
@@ -2970,6 +3276,7 @@ function openPlantEditor(id) {
 
   _plantEditing = true;
   _plantView = "editor";
+  _plantImporting = false; _plantImportParsed = null;   // opening the editor abandons any half-finished import
   _plantPhotoDraft = p.photo || "";
 
   function lbl(t){ return "<div style='font-size:12px;font-weight:700;color:#5A6A4A;margin:12px 2px 5px'>" + t + "</div>"; }
@@ -9473,7 +9780,9 @@ function flushSyncRenders(dirty) {
   }
   if (dirty.recipes && currentSection === "recipes" && !_recipeEditing) safeRender("recipes", renderRecipes);
   if (dirty.trips   && currentSection === "trips"   && !_tripEditing)   safeRender("trips",   renderTrips);
-  if (dirty.plants  && currentSection === "plants"  && !_plantEditing)  safeRender("plants",  renderPlants);
+  // v378: the import screen holds pasted text that isn't saved yet, so an
+  // incoming sync must not redraw it out from under him either.
+  if (dirty.plants  && currentSection === "plants"  && !_plantEditing && !_plantImporting) safeRender("plants",  renderPlants);
   if (dirty.baby    && currentSection === "baby")                       safeRender("baby",    renderBabyView);
   // Lists: unchanged except for the section guard. switchSection() re-renders
   // the list on entry, so skipping it while hidden can't leave a stale view.
@@ -11205,8 +11514,13 @@ document.getElementById("bnTrips").addEventListener("click", function(){ switchS
 document.getElementById("bnTrack").addEventListener("click", function(){ switchSection("track"); });
 document.getElementById("bnSports").addEventListener("click", function(){ switchSection("sports"); });
 document.getElementById("bnFamlog").addEventListener("click", function(){ switchSection("famlog"); });
-document.getElementById("bnPlants").addEventListener("click", function(){ _plantView = "list"; _plantOpenId = null; switchSection("plants"); });
+document.getElementById("bnPlants").addEventListener("click", function(){ _plantView = "list"; _plantOpenId = null; _plantImporting = false; _plantImportParsed = null; switchSection("plants"); });
 document.getElementById("plantNewBtn").addEventListener("click", function(){ openPlantEditor(null); window.scrollTo(0, 0); });
+document.getElementById("plantImportBtn").addEventListener("click", function(){
+  _plantImporting = true; _plantImportParsed = null;
+  _plantView = "list"; _plantOpenId = null;
+  renderPlants(); window.scrollTo(0, 0);
+});
 
 // ============================================================
 // HOME SCREEN
@@ -11599,6 +11913,7 @@ function renderTodayCard() {
         // list, which already leads with the "N need watering" banner.
         if (row.dataset.id) { _plantOpenId = Number(row.dataset.id); _plantView = "detail"; }
         else { _plantOpenId = null; _plantView = "list"; }
+        _plantImporting = false; _plantImportParsed = null;   // a deep-link wins over a half-finished import
         switchSection("plants");
       }
     });
