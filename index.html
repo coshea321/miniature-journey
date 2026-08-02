@@ -854,7 +854,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v381 · 02/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v382 · 02/08/2026</div>
 
   </div>
 </div>
@@ -15177,8 +15177,21 @@ if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
   navigator.serviceWorker.addEventListener("message", function(e) {
     if (!e.data) return;
     if (e.data.type === "SW_VERSION") {
+      // Never show a version whose code is NOT the code running (v382).
+      // The worker updates independently of the document already loaded in
+      // the tab: during an update the new SW installs, claims this page and
+      // announces vNEW while this page is still the OLD build's HTML+JS.
+      // Writing vNEW into the label there made the app claim a version it
+      // was not running — the update banner then read as a spurious glitch
+      // (the label already "proved" you were up to date), so it got
+      // dismissed and a shipped fix stayed invisible. That is exactly how
+      // v381's recipe-search fix looked broken on Cathal's phone.
+      // A STRICTLY NEWER worker now gets the banner only; the label keeps
+      // showing what is actually executing until a reload makes it true.
+      // Same-or-older still writes through, which is the original intent
+      // (the label is sourced from sw.js, the single source of truth).
       var el = document.getElementById("appVersionLabel");
-      if (el) el.textContent = e.data.version;
+      if (el && _verNum(e.data.version) <= _verNum(PAGE_VERSION)) el.textContent = e.data.version;
     }
     if (e.data.type === "SW_UPDATED" || e.data.type === "SW_VERSION") {
       // A strictly NEWER build is active (numeric compare, v312 lesson:
