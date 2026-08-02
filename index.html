@@ -416,6 +416,11 @@ body.baby-mode #toast{background:#3A3328}
 .today-card-baby .tc-count{color:#7E22CE}
 .today-card-baby .tc-label{color:#A87AC8}
 .today-card-baby .tc-sub{color:#8A4AB8}
+/* Plants glance card (v379) — the permanent way into a section that has no nav slot */
+.today-card-plants{background:linear-gradient(135deg,#E7F3E0 0%,#F2FAED 100%);border:1px solid #2E7D4F33;cursor:pointer}
+.today-card-plants .tc-count{color:#2E7D4F}
+.today-card-plants .tc-label{color:#8AA87A}
+.today-card-plants .tc-sub{color:#3A7A48}
 
 /* ============================================================
    TRAIN SECTION — dark theme
@@ -792,6 +797,23 @@ body.train-mode #toast{background:#3A3328}
           </div>
         </div>
       </div>
+      <!-- Plants (v379): always shown, unlike the self-suppressing Today-card row.
+           Plants has no nav-bar slot by default, so this is its permanent door. -->
+      <div class="today-card today-card-plants" id="tcPlantsCard" style="grid-column:span 2">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div>
+            <div class="tc-icon" style="margin-bottom:0">&#x1FAB4;</div>
+          </div>
+          <div style="flex:1">
+            <div class="tc-label" style="margin-bottom:2px">Plants</div>
+            <div class="tc-sub" id="tcPlantsSub" style="font-size:13px">No plants yet</div>
+          </div>
+          <div style="text-align:right">
+            <div class="tc-count" style="font-size:20px" id="tcPlantsCount">&mdash;</div>
+            <div class="tc-label" id="tcPlantsLabel">in the book</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Quick-add buttons -->
@@ -832,7 +854,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v378 · 02/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v379 · 02/08/2026</div>
 
   </div>
 </div>
@@ -2721,6 +2743,71 @@ function plantDueIn(p, kind) {
 function plantOverdue(p) { var d = plantDueIn(p, "water"); return d !== null && d <= 0; }
 function plantsNeedingWater() { return getPlants().filter(plantOverdue); }
 
+// ── Areas (v379) ───────────────────────────────────────────────────────────
+// The existing `room` field IS the area — no new field, so every plant already
+// in the book and every `plant-v1` file written before v379 filters correctly
+// with nothing to migrate.
+function plantAreaKey(v) { return String(v == null ? "" : v).trim().toLowerCase(); }
+// Distinct areas in use, grouped case-insensitively so "kitchen" typed once
+// doesn't split off its own chip. The label shown is the commonest spelling,
+// preferring a capitalised one on a tie — otherwise the chip's capitalisation
+// would depend on which plant happened to sort first, which looks like a bug.
+// Sorted so the chip order is stable between renders.
+function plantAreas(plants) {
+  var by = {}, keys = [];
+  (plants || []).forEach(function(p){
+    var k = plantAreaKey(p && p.room);
+    if (!k) return;
+    var label = String(p.room).trim();
+    if (!by[k]) { by[k] = {}; keys.push(k); }
+    by[k][label] = (by[k][label] || 0) + 1;
+  });
+  return keys.map(function(k){
+    var best = null, bestN = -1;
+    Object.keys(by[k]).forEach(function(label){
+      var n = by[k][label];
+      var tidier = best !== null && n === bestN &&
+        label.charAt(0) === label.charAt(0).toUpperCase() && best.charAt(0) !== best.charAt(0).toUpperCase();
+      if (n > bestN || tidier) { best = label; bestN = n; }
+    });
+    return best;
+  }).sort(function(a, b){ return a.localeCompare(b); });
+}
+// area: "" = every plant, PLANT_AREA_NONE = the ones with no area set yet.
+// The sentinel is JS-only and never reaches an HTML attribute.
+var PLANT_AREA_NONE = "__none__";
+function plantsInArea(plants, area) {
+  var list = (plants || []).filter(function(p){ return !!p; });
+  if (!area) return list;
+  if (area === PLANT_AREA_NONE) return list.filter(function(p){ return !plantAreaKey(p.room); });
+  var k = plantAreaKey(area);
+  return list.filter(function(p){ return plantAreaKey(p.room) === k; });
+}
+
+// Home glance card (v379). Unlike the Today-card row this never suppresses
+// itself — "nothing due" is a real answer, and the card's other job is simply
+// being a permanent way into the section.
+function plantHomeSummary(plants) {
+  var list = (plants || []).filter(function(p){ return !!p; });
+  if (!list.length) return { count:0, countText:"—", label:"in the book", sub:"Tap to add your first plant" };
+  var due = list.filter(plantOverdue);
+  var sub;
+  if (due.length === 1)    sub = (due[0].name || "A plant") + " needs watering";
+  else if (due.length > 1) sub = due.length + " plants need watering";
+  else {
+    var next = null;
+    list.forEach(function(p){
+      var d = plantDueIn(p, "water");
+      if (d === null) return;                       // no interval, or never logged — don't nag
+      if (next === null || d < next) next = d;
+    });
+    if (next === null)   sub = "Nothing scheduled";
+    else if (next === 1) sub = "All watered · next tomorrow";
+    else                 sub = "All watered · next in " + next + " days";
+  }
+  return { count:list.length, countText:String(list.length), label:(list.length === 1 ? "plant" : "plants"), sub:sub };
+}
+
 function plantAgoLabel(ts) {
   var d = plantDaysSince(ts);
   if (d === null) return "not logged yet";
@@ -2880,7 +2967,8 @@ function plantAIPrompt() {
     "Reply with ONLY this JSON — no code fences, no commentary before or after:\n\n" +
     "{\n" + skeleton.join("\n") + "\n}\n\n" +
     "Field notes:\n" +
-    "- name: what I'd call it. latin: the botanical name. room: leave \"\" unless I told you where it lives.\n" +
+    "- name: what I'd call it. latin: the botanical name. room: the area it lives in " +
+    "(\"Kitchen\", \"Outside\") — leave \"\" unless I told you where it lives.\n" +
     "- emoji: one emoji for it, or \"\".\n" +
     "- waterDays / feedDays: whole days between waterings / feeds, as numbers. Use 0 for no reminder " +
     "(feeding is often 0 over winter — say so in the feeding text instead).\n" +
@@ -2987,6 +3075,7 @@ var _plantEditing = false;
 var _plantCancelFn = null;    // back-button discard closure (v345 pattern), nulled on every exit path
 var _plantListScrollPos = 0;
 var _plantPhotoDraft = null;  // photo held while the editor is open; null = editor closed
+var _plantArea = "";          // area filter (v379): "" = all, PLANT_AREA_NONE = untagged. Session-only, never stored.
 var _plantImporting = false;  // import screen open (v378) — step 1 paste, step 2 destination
 var _plantImportParsed = null;// parsed file entries once step 1 validates; null = still on step 1
 
@@ -3005,12 +3094,21 @@ function plantDuePill(p) {
   var fg = d < 0 ? "#B03030" : (d === 0 ? "#8A6A10" : "#2E7D4F");
   return "<div style='flex-shrink:0;background:" + bg + ";color:" + fg + ";font-size:12px;font-weight:700;border-radius:20px;padding:5px 11px;white-space:nowrap'>&#x1F4A7; " + esc(plantDueLabel(p, "water")) + "</div>";
 }
+// Botanical name, then the area. The area is what the chips filter on, so it
+// earns its place on the card even when a filter is already narrowing the list.
+function plantCardSubHTML(p) {
+  var bits = [];
+  if (p && p.latin) bits.push("<i>" + esc(p.latin) + "</i>");
+  var area = String((p && p.room) || "").trim();
+  if (area) bits.push("&#x1F4CD; " + esc(area));
+  return bits.join(" &middot; ");
+}
 function plantCardHTML(p) {
   return "<div class='plant-card' data-pid='" + p.id + "' style='display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:#fff;border:1px solid #E4EADC;border-radius:12px;padding:12px;margin-bottom:10px;cursor:pointer'>" +
     plantThumbHTML(p, 46) +
     "<div style='flex:1;min-width:0'>" +
       "<div style='font-size:16px;font-weight:700;color:#1A2E1E;margin-bottom:2px'>" + esc(p.name || "Untitled plant") + "</div>" +
-      "<div style='font-size:12px;color:#8A9A7A;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + esc(p.latin || p.room || "") + "</div>" +
+      "<div style='font-size:12px;color:#8A9A7A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + plantCardSubHTML(p) + "</div>" +
     "</div>" +
     plantDuePill(p) +
   "</div>";
@@ -3037,13 +3135,46 @@ function renderPlants() {
     return;
   }
 
-  var due = plants.filter(plantOverdue);
+  // ── Area filter (v379) ──────────────────────────────────────────────────
+  var areas = plantAreas(plants);
+  var untagged = plantsInArea(plants, PLANT_AREA_NONE).length;
+  // Only worth a row when there's something to choose between: one area (with
+  // everything else untagged) already tells you nothing you can't see.
+  var showChips = (areas.length + ((untagged && areas.length) ? 1 : 0)) >= 2;
+  if (!showChips) _plantArea = "";
+  // The chosen area can vanish — its last plant retagged, deleted, or dropped
+  // by a sync from the other phone. Fall back to All rather than showing an
+  // empty list with no explanation.
+  if (_plantArea && _plantArea !== PLANT_AREA_NONE &&
+      !areas.some(function(a){ return plantAreaKey(a) === plantAreaKey(_plantArea); })) _plantArea = "";
+  if (_plantArea === PLANT_AREA_NONE && !untagged) _plantArea = "";
+  var shown = plantsInArea(plants, _plantArea);
+
   var html = "";
+  if (showChips) {
+    html += "<div style='display:flex;gap:7px;overflow-x:auto;padding:1px 1px 10px;-webkit-overflow-scrolling:touch'>";
+    var chips = [{ kind:"all", v:"", t:"All" }];
+    areas.forEach(function(a){ chips.push({ kind:"area", v:a, t:a }); });
+    if (untagged) chips.push({ kind:"none", v:"", t:"No area" });
+    chips.forEach(function(c){
+      var on = c.kind === "all"  ? !_plantArea
+             : c.kind === "none" ? _plantArea === PLANT_AREA_NONE
+             : plantAreaKey(c.v) === plantAreaKey(_plantArea);
+      html += "<button class='plant-area-chip' data-kind='" + c.kind + "' data-area='" + esc(c.v) + "' " +
+        "style='flex-shrink:0;border-radius:20px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation;" +
+        (on ? "background:#2E7D4F;color:#fff;border:1.5px solid #2E7D4F" : "background:#fff;color:#5A6A4A;border:1.5px solid #DCE4D2") +
+        "'>" + esc(c.t) + "</button>";
+    });
+    html += "</div>";
+  }
+
+  // Counts what's on screen, so the banner and the list can never disagree.
+  var due = shown.filter(plantOverdue);
   if (due.length) {
     html += "<div style='background:#FBE4E4;color:#B03030;border-radius:10px;padding:10px 13px;margin-bottom:12px;font-size:13px;font-weight:700'>&#x1F4A7; " +
       due.length + " plant" + (due.length === 1 ? "" : "s") + " need" + (due.length === 1 ? "s" : "") + " watering</div>";
   }
-  plants.forEach(function(p){ html += plantCardHTML(p); });
+  shown.forEach(function(p){ html += plantCardHTML(p); });
   html += "<button id='plExportAll' style='width:100%;padding:12px;border:1.5px solid #DCE4D2;background:#fff;color:#5A6A4A;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;touch-action:manipulation'>&#x1F4E4; Export all plants (JSON)</button>" +
     "<div style='font-size:11px;color:#9A9A7A;text-align:center;margin:6px 2px 0;line-height:1.5'>The written care notes only &mdash; photos and care logs live in the full backup under Settings.</div>";
   el.innerHTML = html;
@@ -3055,6 +3186,13 @@ function renderPlants() {
       _plantView = "detail";
       renderPlantDetail();
       window.scrollTo(0, 0);
+    });
+  });
+  el.querySelectorAll(".plant-area-chip").forEach(function(chip){
+    chip.addEventListener("click", function(){
+      var k = chip.dataset.kind;
+      _plantArea = k === "all" ? "" : (k === "none" ? PLANT_AREA_NONE : (chip.dataset.area || ""));
+      renderPlants();
     });
   });
   var expAll = document.getElementById("plExportAll");
@@ -3300,7 +3438,10 @@ function openPlantEditor(id) {
   html += lbl("Name") + "<input id='plName' type='text' value='" + esc(p.name || "") + "' placeholder='Spider Plant' style='" + recipeInputCss() + "'>";
   html += lbl("Botanical name (optional)") + "<input id='plLatin' type='text' value='" + esc(p.latin || "") + "' placeholder=\"Chlorophytum comosum 'Vittatum'\" style='" + recipeInputCss() + "'>";
   html += "<div style='display:flex;gap:10px'>" +
-    "<div style='flex:1'>" + lbl("Room") + "<input id='plRoom' type='text' value='" + esc(p.room || "") + "' placeholder='Living room' style='" + recipeInputCss() + "'></div>" +
+    // Suggests the areas already in use so spellings don't drift into two chips,
+    // while staying a plain text box for a brand-new area.
+    "<div style='flex:1'>" + lbl("Area") + "<input id='plRoom' type='text' list='plAreaList' value='" + esc(p.room || "") + "' placeholder='Kitchen' style='" + recipeInputCss() + "'>" +
+      "<datalist id='plAreaList'>" + plantAreas(getPlants()).map(function(a){ return "<option value='" + esc(a) + "'>"; }).join("") + "</datalist></div>" +
     "<div style='width:92px'>" + lbl("Icon") + "<input id='plEmoji' type='text' value='" + esc(p.emoji || "") + "' placeholder='&#x1FAB4;' maxlength='4' style='" + recipeInputCss() + "text-align:center'></div>" +
   "</div>";
   html += "<div style='display:flex;gap:10px'>" +
@@ -11914,6 +12055,7 @@ function renderTodayCard() {
         if (row.dataset.id) { _plantOpenId = Number(row.dataset.id); _plantView = "detail"; }
         else { _plantOpenId = null; _plantView = "list"; }
         _plantImporting = false; _plantImportParsed = null;   // a deep-link wins over a half-finished import
+        _plantArea = "";                                      // and over an area filter — the row counted every plant
         switchSection("plants");
       }
     });
@@ -12029,6 +12171,19 @@ function renderHomeScreen() {
     }
   } catch(e) {}
 
+  // ── Plants glance card (v379) ────────────────────────────
+  // Always painted: this card is how Plants stays reachable without spending a
+  // slot in the nav bar, so it must not self-suppress the way the Today row does.
+  try {
+    var _ps = plantHomeSummary(getPlants());
+    var _pCount = document.getElementById("tcPlantsCount");
+    var _pLabel = document.getElementById("tcPlantsLabel");
+    var _pSub   = document.getElementById("tcPlantsSub");
+    if (_pCount) _pCount.textContent = _ps.countText;
+    if (_pLabel) _pLabel.textContent = _ps.label;
+    if (_pSub)   _pSub.textContent   = _ps.sub;
+  } catch(e){ console.error("plants card: "+e.message); }
+
   // ── Today summary card (v302) ────────────────────────────
   try { renderTodayCard(); } catch(e){ console.error("renderTodayCard: "+e.message); }
 
@@ -12117,6 +12272,17 @@ function renderWeekStrip() {
 
 // ── Today-card tap → navigate to section ─────────────────
 document.getElementById("tcTrainCard").addEventListener("click", function(){ switchSection("train"); });
+(function(){
+  var pc = document.getElementById("tcPlantsCard");
+  if (!pc) return;
+  pc.addEventListener("click", function(){
+    // Always the full list: the card counts every plant, so landing on a
+    // filtered view would contradict the number just tapped.
+    _plantOpenId = null; _plantView = "list"; _plantArea = "";
+    _plantImporting = false; _plantImportParsed = null;
+    switchSection("plants");
+  });
+})();
 (function(){
   var hw = document.getElementById("homeWeather");
   if (hw) hw.addEventListener("click", function(){ openWeatherSheet(); });
