@@ -45,5 +45,8 @@ When Cathal says **"use my council"**, invoke the **`hearth-council` skill** —
 
 Current booking fields in the export: `type`, `title`, `start`, `end`, `location`, `ref`, `notes`, `connectsFrom`, `boarding` (v292, "HH:MM" or ""), `gate` (v292), `seats` (v293, free text). Fields intentionally omitted: `id` (regenerated on import), `updated` (set to now on import).
 
+## Plant data model — same rule, one table plus six scalars
+Plant import/export (v378, `plant-v1` files) iterates **`PLANT_SECTIONS`**, so adding a text section there flows through export, import and the AI prompt template automatically. The **scalar** fields are hand-listed in two places — **`plantExportObj`** and **`plantApplyImport`** — and a new one must be added to **both**: `name`, `latin`, `room`, `emoji`, `waterDays`, `feedDays`. Intentionally never in a plant file: `id` (regenerated), `updated` (set to now), `photo`, `waterLog`, `feedLog` — import must never touch a photo or a care log.
+
 ## After significant work
 Update `HEARTH-notes.md` (changelog entry + sync the version state) so the next session starts current.
