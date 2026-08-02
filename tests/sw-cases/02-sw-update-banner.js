@@ -44,21 +44,26 @@ module.exports = {
     // version, and the label flips — that flip is our signal that the whole
     // update round trip completed, so the "no banner" check below is a real
     // assertion rather than a race we won.
-    async function installWorkerAnnouncing(version) {
+    // v382 changed what counts as "the round trip finished". The label is no
+    // longer written when the worker announces a STRICTLY NEWER build (it
+    // would name a version whose code is not the code running), so the label
+    // flip only works as a completion signal for the same-or-older case.
+    // Each caller now passes the signal that is true for ITS direction.
+    async function installWorkerAnnouncing(version, doneWhen) {
       page.server.setSwVersion(version);
       await page.evaluate('document.getElementById("appVersionLabel").textContent = "—";');
       await page.evaluate(
         'navigator.serviceWorker.getRegistration().then(function(r){ return r.update(); }).then(function(){ return true; })'
       );
-      await page.waitFor(
-        'document.getElementById("appVersionLabel").textContent.trim() === ' + JSON.stringify(version),
-        20000
-      );
+      await page.waitFor(doneWhen, 20000);
     }
+    const labelReads = (v) =>
+      'document.getElementById("appVersionLabel").textContent.trim() === ' + JSON.stringify(v);
+    const bannerIsShown = '(document.getElementById("updateBanner")||{style:{}}).style.display === "flex"';
 
     let olderErr = '';
     try {
-      await installWorkerAnnouncing(OLDER);
+      await installWorkerAnnouncing(OLDER, labelReads(OLDER));
     } catch (e) {
       olderErr = e.message;
     }
@@ -72,11 +77,24 @@ module.exports = {
     // Now a genuinely newer build. Same machinery, opposite expectation.
     let newerErr = '';
     try {
-      await installWorkerAnnouncing(NEWER);
+      await installWorkerAnnouncing(NEWER, bannerIsShown);
     } catch (e) {
       newerErr = e.message;
     }
     check('a newer build installs and announces itself', newerErr === '', newerErr);
+
+    // v382 regression pin. The label was blanked to "—" just before the update,
+    // so if the page wrote the announced version into it we would see NEWER
+    // here. It must not: the running code is still this build, and claiming
+    // otherwise is what made v381's shipped fix look like it had never landed.
+    const labelAfterNewer = await page.evaluate(
+      'document.getElementById("appVersionLabel").textContent.trim()'
+    );
+    check(
+      'label does NOT adopt a newer worker\'s version (code is still the old build)',
+      labelAfterNewer !== NEWER,
+      'label read "' + labelAfterNewer + '" while the page is ' + pageVersion
+    );
 
     let bannerErr = '';
     try {
