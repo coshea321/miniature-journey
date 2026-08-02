@@ -300,6 +300,7 @@ body.home-mode .bn-btn.home-active{color:#C2691A}
 .bn-btn.sports-active{color:#2A7A3A}
 .bn-btn.famlog-active{color:#8A5A9A}
 .bn-btn.track-active{color:#A05A10}
+.bn-btn.plants-active{color:#2E7D4F}
 .notes-tab-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .notes-tab-btn.active{color:#fff;background:rgba(255,255,255,.2)}
 
@@ -831,7 +832,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v376 · 01/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v377 · 01/08/2026</div>
 
   </div>
 </div>
@@ -1128,6 +1129,17 @@ body.train-mode #toast{background:#3A3328}
     <button id="tripNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New trip</button>
   </div>
   <div id="tripsContent" style="padding:14px 14px 100px"></div>
+</div>
+
+<!-- ============================================================
+     PLANTS SECTION (v377)
+     ============================================================ -->
+<div id="plantsSection" style="display:none">
+  <div style="display:flex;gap:4px;padding:8px 10px;background:#2E7D4F;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
+    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1FAB4; Plants</span>
+    <button id="plantNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
+  </div>
+  <div id="plantsContent" style="padding:14px 14px 100px"></div>
 </div>
 
 <!-- ============================================================
@@ -1484,6 +1496,10 @@ body.train-mode #toast{background:#3A3328}
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="track" checked><span class="toggle-slider"></span></label>
       </div>
       <div class="sync-toggle-row">
+        <span class="sync-toggle-label">&#x1FAB4; Plants</span>
+        <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="plants"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="sync-toggle-row">
         <span class="sync-toggle-label">&#x26BD; Sports</span>
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="sports"><span class="toggle-slider"></span></label>
       </div>
@@ -1541,6 +1557,9 @@ body.train-mode #toast{background:#3A3328}
   </button>
   <button class="bn-btn" id="bnTrack" aria-label="Track">
     <span class="bn-ico">&#x1F4C8;</span>Track
+  </button>
+  <button class="bn-btn" id="bnPlants" aria-label="Plants" style="display:none">
+    <span class="bn-ico">&#x1FAB4;</span>Plants
   </button>
   <button class="bn-btn" id="bnSports" aria-label="Sports" style="display:none">
     <span class="bn-ico">&#x26BD;</span>Sports
@@ -2572,6 +2591,490 @@ function runMealPlanFill() {
   else if (result.filledCount) toast("&#x1F37D; Filled " + result.filledCount + " of " + result.emptyCount + " empty days — not enough recipes in rotation for the rest");
   else toast("No recipes in rotation to fill with");
   return result;
+}
+
+// ============================================================
+// PLANTS (v377) — a houseplant care book. Each plant opens to a
+// summary + a watering/feeding panel, with the deeper reference
+// sections (light, repotting, propagation, safety, notes) below.
+//
+// Household-shared, WHOLE-RECORD newest-wins by `updated` plus
+// deletion tombstones — the recipebook contract, not the nested
+// per-booking merge trips need. A plant is a single edit unit, so
+// there is nothing inside it for two devices to edit separately.
+// ============================================================
+
+// The care write-up, in the order it renders. `top` and `care` mark the
+// three that sit above the "More on this plant" divider; everything else
+// falls below it. Adding a section here is all it takes — the detail
+// view, the editor and the export all iterate this list.
+var PLANT_SECTIONS = [
+  { key:"summary",     label:"Summary",                     ico:"&#x1F4DD;",         top:true,
+    hint:"What it is, how easy it is, how it's doing." },
+  { key:"watering",    label:"Watering",                    ico:"&#x1F4A7;",         care:true,
+    hint:"How much, how often, how to tell it needs it — including how that changes in winter." },
+  { key:"feeding",     label:"Feeding",                     ico:"&#x1F331;",         care:true,
+    hint:"Which feed, what strength, which months." },
+  { key:"light",       label:"Light &amp; position",        ico:"&#x2600;&#xFE0F;",
+    hint:"How much light, and where in the room it wants to be." },
+  { key:"repotting",   label:"Repotting",                   ico:"&#x1FAB4;",
+    hint:"How often, what size pot, what to look for." },
+  { key:"propagation", label:"Propagation",                 ico:"&#x2702;&#xFE0F;",
+    hint:"How to take cuttings or pot up babies." },
+  { key:"safety",      label:"Safety (children &amp; pets)", ico:"&#x26A0;&#xFE0F;",
+    hint:"Safe, or toxic if chewed?" },
+  { key:"notes",       label:"Notes &amp; observations",    ico:"&#x1F50D;",
+    hint:"Anything you've noticed — brown tips, pale leaves, what you tried." }
+];
+
+function getPlants() { return storeGet("fl4_plants") || []; }
+function savePlants(p) {
+  storeSet("fl4_plants", p);
+  pushPersonal();
+  if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold();
+  plantStorageWarn(p);
+}
+
+// Photos are the only thing in Hearth big enough to threaten the browser's
+// ~5MB localStorage budget (and the sync payload with it), so say something
+// while it's still fixable rather than waiting for storeSet's quota catch.
+var _plantSizeWarned = false;
+function plantStorageWarn(p) {
+  var bytes;
+  try { bytes = JSON.stringify(p || []).length; } catch (e) { return; }
+  if (bytes > 1500000) {
+    if (!_plantSizeWarned) {
+      _plantSizeWarned = true;
+      toast("&#x1F4E6; Plant photos are using a lot of storage — consider removing a few");
+    }
+  } else {
+    _plantSizeWarned = false;
+  }
+}
+
+// Whole-record newest-wins by `updated`, tombstone-filtered.
+// Returns {plants, push} — push=true means our merged copy is fuller or
+// newer than what arrived, so the caller re-pushes to converge (the same
+// contract as mergeTripsData / mergeMealPlanData).
+function mergePlantsData(localPlants, incomingPlants, tombs) {
+  tombs = tombs || {};
+  var push = false;
+  var incById = {};
+  (incomingPlants || []).forEach(function(p){ if (p && p.id != null) incById[p.id] = p; });
+  var localIds = {};
+  var merged = (localPlants || []).map(function(p){
+    if (!p || p.id == null) return p;
+    localIds[p.id] = true;
+    var inc = incById[p.id];
+    if (!inc) { push = true; return p; }                       // partner missing this → push
+    var winner, loser;
+    if ((inc.updated||0) > (p.updated||0)) { winner = inc; loser = p; }  // incoming newer → take it
+    else {
+      if ((p.updated||0) > (inc.updated||0)) push = true;      // local newer → push to converge
+      winner = p; loser = inc;
+    }
+    // v296 lesson (the babySex incident class): a copy written by an older
+    // build doesn't know about newer fields, so fill keys UNDEFINED on the
+    // winner from the loser rather than letting them vanish. A field the
+    // user deliberately cleared is "" (defined) and stays cleared.
+    Object.keys(loser).forEach(function(k){ if (winner[k] === undefined) winner[k] = loser[k]; });
+    return winner;
+  });
+  var fresh = (incomingPlants || []).filter(function(p){ return p && p.id != null && !localIds[p.id]; });
+  var full = fresh.concat(merged);
+  var pre = full.length;
+  full = full.filter(function(p){ return !(p && tombs[p.id] && tombs[p.id] >= (p.updated||0)); });
+  if (full.length < pre) push = true;
+  return { plants: full, push: push };
+}
+
+// ── Watering / feeding schedule ───────────────────────────────────────────
+function plantLastTs(log) {
+  if (!Array.isArray(log) || !log.length) return 0;
+  return log[0] || 0;
+}
+// Whole days from a timestamp to today's local midnight. Both endpoints are
+// local midnight so a DST change can't shift the count (same rule as
+// tripDaysUntil). null if unparseable or never logged.
+function plantDaysSince(ts) {
+  if (!ts) return null;
+  var d = new Date(ts);
+  if (isNaN(d.getTime())) return null;
+  var then = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  var now = new Date();
+  var todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((todayMid - then) / 86400000);
+}
+// Days until the next water/feed is due: negative = overdue, 0 = due today.
+// null means "don't nag" — either no interval is set, or it has never been
+// logged. A plant you have not watered YET is not overdue, or every plant
+// would land red the moment it's added.
+function plantDueIn(p, kind) {
+  if (!p) return null;
+  var iv = parseInt(kind === "feed" ? p.feedDays : p.waterDays, 10);
+  if (!iv || iv < 1) return null;
+  var since = plantDaysSince(plantLastTs(kind === "feed" ? p.feedLog : p.waterLog));
+  if (since === null) return null;
+  return iv - since;
+}
+function plantOverdue(p) { var d = plantDueIn(p, "water"); return d !== null && d <= 0; }
+function plantsNeedingWater() { return getPlants().filter(plantOverdue); }
+
+function plantAgoLabel(ts) {
+  var d = plantDaysSince(ts);
+  if (d === null) return "not logged yet";
+  if (d <= 0)     return "today";
+  if (d === 1)    return "yesterday";
+  return d + " days ago";
+}
+function plantDueLabel(p, kind) {
+  var d = plantDueIn(p, kind);
+  if (d === null) return "";
+  if (d < 0)   return (-d) + " day" + (d === -1 ? "" : "s") + " overdue";
+  if (d === 0) return "due today";
+  if (d === 1) return "due tomorrow";
+  return "due in " + d + " days";
+}
+
+// Newest first, capped — this is a "when did I last do it" habit tracker,
+// not a diary, and an uncapped array would ride the sync payload forever.
+var PLANT_LOG_CAP = 40;
+function plantLogCare(id, kind) {
+  var plants = getPlants();
+  var i = plants.findIndex(function(p){ return p && p.id === id; });
+  if (i < 0) { toast("Plant not found"); return; }   // never write at an unguarded -1
+  var key = kind === "feed" ? "feedLog" : "waterLog";
+  var log = Array.isArray(plants[i][key]) ? plants[i][key].slice() : [];
+  log.unshift(Date.now());
+  plants[i][key] = log.slice(0, PLANT_LOG_CAP);
+  plants[i].updated = Date.now();
+  savePlants(plants);
+}
+function plantUndoCare(id, kind) {
+  var plants = getPlants();
+  var i = plants.findIndex(function(p){ return p && p.id === id; });
+  if (i < 0) return;
+  var key = kind === "feed" ? "feedLog" : "waterLog";
+  var log = Array.isArray(plants[i][key]) ? plants[i][key].slice() : [];
+  if (!log.length) return;
+  log.shift();
+  plants[i][key] = log;
+  plants[i].updated = Date.now();
+  savePlants(plants);
+}
+
+function deletePlant(id) {
+  var all = getPlants();
+  var i = all.findIndex(function(x){ return x && x.id === id; });
+  if (i < 0) return;
+  all.splice(i, 1);
+  addTomb("plants", id);
+  savePlants(all);
+  _plantView = "list"; _plantOpenId = null;
+  renderPlants();
+  toast("Plant deleted");
+}
+
+// Shrink to a ~400px thumbnail before it ever reaches localStorage — a raw
+// phone photo is several MB and a handful would break both storage and sync.
+var PLANT_PHOTO_MAX = 400;
+function plantShrinkPhoto(file, cb) {
+  if (!file) { cb(""); return; }
+  var reader = new FileReader();
+  reader.onerror = function(){ cb(""); };
+  reader.onload = function() {
+    var img = new Image();
+    img.onerror = function(){ cb(""); };
+    img.onload = function() {
+      var w = img.width || 0, h = img.height || 0;
+      if (!w || !h) { cb(""); return; }
+      var scale = Math.min(1, PLANT_PHOTO_MAX / Math.max(w, h));
+      var cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+      var c = document.createElement("canvas");
+      c.width = cw; c.height = ch;
+      try {
+        c.getContext("2d").drawImage(img, 0, 0, cw, ch);
+        cb(c.toDataURL("image/jpeg", 0.7));
+      } catch (e) { cb(""); }
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Plants views ──────────────────────────────────────────────────────────
+var _plantView = "list";      // "list" | "detail" | "editor"
+var _plantOpenId = null;
+var _plantEditing = false;
+var _plantCancelFn = null;    // back-button discard closure (v345 pattern), nulled on every exit path
+var _plantListScrollPos = 0;
+var _plantPhotoDraft = null;  // photo held while the editor is open; null = editor closed
+
+function plantThumbHTML(p, size) {
+  var s = size || 46;
+  if (p && p.photo) {
+    return "<div style='flex-shrink:0;width:" + s + "px;height:" + s + "px;border-radius:10px;background-image:url(\"" + esc(p.photo) + "\");background-size:cover;background-position:center;background-color:#EAF2E4'></div>";
+  }
+  return "<div style='flex-shrink:0;width:" + s + "px;height:" + s + "px;border-radius:10px;background:#EAF2E4;display:flex;align-items:center;justify-content:center;font-size:" + Math.round(s * 0.5) + "px'>" +
+    ((p && p.emoji) ? esc(p.emoji) : "&#x1FAB4;") + "</div>";
+}
+function plantDuePill(p) {
+  var d = plantDueIn(p, "water");
+  if (d === null) return "";
+  var bg = d < 0 ? "#FBE4E4" : (d === 0 ? "#FDF0D8" : "#E6F2E6");
+  var fg = d < 0 ? "#B03030" : (d === 0 ? "#8A6A10" : "#2E7D4F");
+  return "<div style='flex-shrink:0;background:" + bg + ";color:" + fg + ";font-size:12px;font-weight:700;border-radius:20px;padding:5px 11px;white-space:nowrap'>&#x1F4A7; " + esc(plantDueLabel(p, "water")) + "</div>";
+}
+function plantCardHTML(p) {
+  return "<div class='plant-card' data-pid='" + p.id + "' style='display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:#fff;border:1px solid #E4EADC;border-radius:12px;padding:12px;margin-bottom:10px;cursor:pointer'>" +
+    plantThumbHTML(p, 46) +
+    "<div style='flex:1;min-width:0'>" +
+      "<div style='font-size:16px;font-weight:700;color:#1A2E1E;margin-bottom:2px'>" + esc(p.name || "Untitled plant") + "</div>" +
+      "<div style='font-size:12px;color:#8A9A7A;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + esc(p.latin || p.room || "") + "</div>" +
+    "</div>" +
+    plantDuePill(p) +
+  "</div>";
+}
+
+function renderPlants() {
+  _plantEditing = false;
+  _plantCancelFn = null;
+  _plantPhotoDraft = null;
+  if (_plantView === "detail" && _plantOpenId != null) { renderPlantDetail(); return; }
+  _plantView = "list";
+  var el = document.getElementById("plantsContent");
+  if (!el) return;
+
+  var plants = getPlants().slice().sort(function(a, b){
+    return String((a && a.name) || "").localeCompare(String((b && b.name) || ""));
+  });
+  if (!plants.length) {
+    el.innerHTML = "<div style='text-align:center;color:#7A8A6A;padding:40px 20px'>" +
+      "<div style='font-size:40px;margin-bottom:10px'>&#x1FAB4;</div>" +
+      "<div style='font-size:16px;font-weight:600;margin-bottom:4px'>No plants yet</div>" +
+      "<div style='font-size:13px'>Tap &ldquo;+ New&rdquo; to add one.</div></div>";
+    return;
+  }
+
+  var due = plants.filter(plantOverdue);
+  var html = "";
+  if (due.length) {
+    html += "<div style='background:#FBE4E4;color:#B03030;border-radius:10px;padding:10px 13px;margin-bottom:12px;font-size:13px;font-weight:700'>&#x1F4A7; " +
+      due.length + " plant" + (due.length === 1 ? "" : "s") + " need" + (due.length === 1 ? "s" : "") + " watering</div>";
+  }
+  plants.forEach(function(p){ html += plantCardHTML(p); });
+  el.innerHTML = html;
+
+  el.querySelectorAll(".plant-card").forEach(function(card){
+    card.addEventListener("click", function(){
+      _plantListScrollPos = window.scrollY;
+      _plantOpenId = +card.dataset.pid;
+      _plantView = "detail";
+      renderPlantDetail();
+      window.scrollTo(0, 0);
+    });
+  });
+}
+
+function plantCareRowHTML(p, kind) {
+  var isFeed = kind === "feed";
+  var last = plantLastTs(isFeed ? p.feedLog : p.waterLog);
+  var iv = parseInt(isFeed ? p.feedDays : p.waterDays, 10) || 0;
+  var d = plantDueIn(p, kind);
+  var col = (d !== null && d < 0) ? "#B03030" : (d === 0 ? "#8A6A10" : "#7A8A6A");
+  var sub = iv ? (plantDueLabel(p, kind) || ("every " + iv + " day" + (iv === 1 ? "" : "s"))) : "no reminder set";
+  var loggedToday = !!last && plantDaysSince(last) === 0;
+  return "<div style='display:flex;align-items:center;gap:10px;padding:11px 0" + (isFeed ? "" : ";border-bottom:1px solid #EDF0E8") + "'>" +
+    "<span style='font-size:17px'>" + (isFeed ? "&#x1F331;" : "&#x1F4A7;") + "</span>" +
+    "<div style='flex:1;min-width:0'>" +
+      "<div style='font-size:14px;font-weight:700;color:#2A3A22'>" + (isFeed ? "Fed" : "Watered") + " " + esc(plantAgoLabel(last)) + "</div>" +
+      "<div style='font-size:12px;color:" + col + "'>" + esc(sub) + "</div>" +
+    "</div>" +
+    (loggedToday ? "<button class='plant-undo' data-kind='" + kind + "' aria-label='Undo today&#39;s " + (isFeed ? "feed" : "water") + "' style='border:none;background:none;color:#9A9A7A;font-size:13px;font-weight:700;cursor:pointer;padding:11px 8px;touch-action:manipulation'>Undo</button>" : "") +
+    "<button class='plant-log' data-kind='" + kind + "' style='border:none;background:#2E7D4F;color:#fff;border-radius:9px;padding:10px 15px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;min-height:44px'>Log</button>" +
+  "</div>";
+}
+function plantSectionHTML(sec, text) {
+  return "<div style='background:#fff;border:1px solid #E4EADC;border-radius:12px;padding:14px;margin-bottom:10px'>" +
+    "<div style='font-size:12px;font-weight:700;color:#2E7D4F;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px'>" + sec.ico + " " + sec.label + "</div>" +
+    "<div style='font-size:14px;line-height:1.65;color:#3A4A32;white-space:pre-wrap'>" + esc(text) + "</div>" +
+  "</div>";
+}
+
+function renderPlantDetail() {
+  var el = document.getElementById("plantsContent");
+  if (!el) return;
+  var p = getPlants().find(function(x){ return x && x.id === _plantOpenId; });
+  if (!p) { _plantView = "list"; _plantOpenId = null; renderPlants(); return; }   // stale id → back to the list
+
+  var html = "<button id='plBack' style='border:none;background:none;color:#2E7D4F;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px;touch-action:manipulation'>&larr; All plants</button>";
+
+  html += "<div style='display:flex;gap:12px;align-items:center;margin-bottom:14px'>" +
+    plantThumbHTML(p, 72) +
+    "<div style='flex:1;min-width:0'>" +
+      "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;color:#1A2E1E;line-height:1.25'>" + esc(p.name || "Untitled plant") + "</div>" +
+      (p.latin ? "<div style='font-size:13px;color:#7A8A6A;font-style:italic;margin-top:2px'>" + esc(p.latin) + "</div>" : "") +
+      (p.room  ? "<div style='font-size:12px;color:#9A9A7A;margin-top:3px'>&#x1F4CD; " + esc(p.room) + "</div>" : "") +
+    "</div>" +
+  "</div>";
+
+  // Care panel — the bit a note can't do: what you actually did, and when.
+  html += "<div style='background:#fff;border:1px solid #E4EADC;border-radius:12px;padding:2px 14px;margin-bottom:14px'>" +
+    plantCareRowHTML(p, "water") + plantCareRowHTML(p, "feed") + "</div>";
+
+  // Summary + watering/feeding first, then everything else under a divider.
+  var lowerStarted = false;
+  PLANT_SECTIONS.forEach(function(sec){
+    var text = (p[sec.key] || "").trim();
+    if (!text) return;                                   // an empty section simply doesn't appear
+    if (!sec.top && !sec.care && !lowerStarted) {
+      lowerStarted = true;
+      html += "<div style='display:flex;align-items:center;gap:10px;margin:20px 2px 12px'>" +
+        "<div style='flex:1;height:1px;background:#DCE4D2'></div>" +
+        "<span style='font-size:11px;font-weight:700;color:#9AA88A;text-transform:uppercase;letter-spacing:.6px'>More on this plant</span>" +
+        "<div style='flex:1;height:1px;background:#DCE4D2'></div></div>";
+    }
+    html += plantSectionHTML(sec, text);
+  });
+
+  html += "<div style='display:flex;gap:8px;margin-top:18px'>" +
+    "<button id='plEdit' style='flex:1;padding:13px;border:none;background:#2E7D4F;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation'>Edit</button>" +
+    "<button id='plDelete' style='padding:13px 16px;border:1px solid #E0C0C0;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation'>Delete</button>" +
+  "</div>";
+
+  el.innerHTML = html;
+
+  document.getElementById("plBack").addEventListener("click", function(){
+    _plantView = "list"; _plantOpenId = null;
+    renderPlants();
+    window.scrollTo(0, _plantListScrollPos || 0);
+  });
+  el.querySelectorAll(".plant-log").forEach(function(btn){
+    btn.addEventListener("click", function(){ plantLogCare(p.id, btn.dataset.kind); renderPlantDetail(); });
+  });
+  el.querySelectorAll(".plant-undo").forEach(function(btn){
+    btn.addEventListener("click", function(){ plantUndoCare(p.id, btn.dataset.kind); renderPlantDetail(); });
+  });
+  document.getElementById("plEdit").addEventListener("click", function(){ openPlantEditor(p.id); });
+  document.getElementById("plDelete").addEventListener("click", function(){
+    confirmDialog("Delete " + (p.name || "this plant") + "?", function(){ deletePlant(p.id); });
+  });
+}
+
+function openPlantEditor(id) {
+  var el = document.getElementById("plantsContent");
+  if (!el) return;
+  var existing = id != null ? getPlants().find(function(x){ return x && x.id === id; }) : null;
+  if (id != null && !existing) { toast("Plant not found"); _plantView = "list"; _plantOpenId = null; renderPlants(); return; }
+  var p = existing || { name:"", latin:"", emoji:"", room:"", photo:"", waterDays:7, feedDays:0 };
+
+  _plantEditing = true;
+  _plantView = "editor";
+  _plantPhotoDraft = p.photo || "";
+
+  function lbl(t){ return "<div style='font-size:12px;font-weight:700;color:#5A6A4A;margin:12px 2px 5px'>" + t + "</div>"; }
+
+  var html = "<button id='plCancel' style='border:none;background:none;color:#2E7D4F;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px;touch-action:manipulation'>&larr; Cancel</button>" +
+    "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:6px;color:#1A2E1E'>" + (existing ? "Edit plant" : "New plant") + "</div>";
+
+  html += "<div style='display:flex;gap:12px;align-items:center;margin:14px 0 4px'>" +
+    "<div id='plPhotoPreview'>" + plantThumbHTML({ photo:_plantPhotoDraft, emoji:p.emoji }, 64) + "</div>" +
+    "<div style='flex:1;min-width:0'>" +
+      "<label for='plPhoto' style='display:inline-block;background:#EAF2E4;color:#2E7D4F;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation'>&#x1F4F7; Choose photo</label>" +
+      "<input id='plPhoto' type='file' accept='image/*' style='display:none'>" +
+      // Always rendered, just hidden when there's nothing to remove — a photo
+      // added during this editing session needs the button to appear without a
+      // re-render (which would throw away everything already typed below).
+      "<button id='plPhotoClear' style='border:none;background:none;color:#B03030;font-size:13px;font-weight:700;cursor:pointer;padding:10px 8px;touch-action:manipulation" + (_plantPhotoDraft ? "" : ";display:none") + "'>Remove</button>" +
+      "<div style='font-size:11px;color:#9A9A7A;margin-top:4px'>Shrunk to a thumbnail before it's saved.</div>" +
+    "</div>" +
+  "</div>";
+
+  html += lbl("Name") + "<input id='plName' type='text' value='" + esc(p.name || "") + "' placeholder='Spider Plant' style='" + recipeInputCss() + "'>";
+  html += lbl("Botanical name (optional)") + "<input id='plLatin' type='text' value='" + esc(p.latin || "") + "' placeholder=\"Chlorophytum comosum 'Vittatum'\" style='" + recipeInputCss() + "'>";
+  html += "<div style='display:flex;gap:10px'>" +
+    "<div style='flex:1'>" + lbl("Room") + "<input id='plRoom' type='text' value='" + esc(p.room || "") + "' placeholder='Living room' style='" + recipeInputCss() + "'></div>" +
+    "<div style='width:92px'>" + lbl("Icon") + "<input id='plEmoji' type='text' value='" + esc(p.emoji || "") + "' placeholder='&#x1FAB4;' maxlength='4' style='" + recipeInputCss() + "text-align:center'></div>" +
+  "</div>";
+  html += "<div style='display:flex;gap:10px'>" +
+    "<div style='flex:1'>" + lbl("Water every (days)") + "<input id='plWaterDays' type='number' inputmode='numeric' min='0' max='365' value='" + (parseInt(p.waterDays, 10) || 0) + "' style='" + recipeInputCss() + "'></div>" +
+    "<div style='flex:1'>" + lbl("Feed every (days)") + "<input id='plFeedDays' type='number' inputmode='numeric' min='0' max='365' value='" + (parseInt(p.feedDays, 10) || 0) + "' style='" + recipeInputCss() + "'></div>" +
+  "</div>" +
+  "<div style='font-size:11px;color:#9A9A7A;margin:5px 2px 0'>0 means no reminder. Seasonal changes belong in the Watering and Feeding notes below.</div>";
+
+  PLANT_SECTIONS.forEach(function(sec){
+    html += lbl(sec.ico + " " + sec.label) +
+      "<textarea id='plF_" + sec.key + "' rows='4' placeholder='" + esc(sec.hint) + "' style='" + recipeInputCss() + "resize:vertical;line-height:1.6'>" + esc(p[sec.key] || "") + "</textarea>";
+  });
+
+  html += "<button id='plSave' style='width:100%;padding:14px;border:none;background:#2E7D4F;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-top:18px;touch-action:manipulation'>Save plant</button>";
+
+  el.innerHTML = html;
+
+  var plCancel = function(){
+    _plantEditing = false; _plantCancelFn = null; _plantPhotoDraft = null;
+    if (existing) { _plantView = "detail"; _plantOpenId = existing.id; renderPlantDetail(); }
+    else { _plantView = "list"; _plantOpenId = null; renderPlants(); }
+  };
+  _plantCancelFn = plCancel;
+  document.getElementById("plCancel").addEventListener("click", plCancel);
+
+  document.getElementById("plPhoto").addEventListener("change", function(e){
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    plantShrinkPhoto(f, function(dataUrl){
+      if (!dataUrl) { toast("Couldn't read that image"); return; }
+      _plantPhotoDraft = dataUrl;
+      // Swap the preview in place — a full re-render would throw away
+      // everything already typed into the section boxes.
+      var prev = document.getElementById("plPhotoPreview");
+      if (prev) prev.innerHTML = plantThumbHTML({ photo:dataUrl }, 64);
+      var clr = document.getElementById("plPhotoClear");
+      if (clr) clr.style.display = "";
+    });
+  });
+  var clearBtn = document.getElementById("plPhotoClear");
+  if (clearBtn) clearBtn.addEventListener("click", function(){
+    _plantPhotoDraft = "";
+    var prev = document.getElementById("plPhotoPreview");
+    if (prev) prev.innerHTML = plantThumbHTML({ photo:"", emoji:(document.getElementById("plEmoji")||{}).value }, 64);
+    clearBtn.style.display = "none";
+  });
+
+  document.getElementById("plSave").addEventListener("click", function(){
+    var name = document.getElementById("plName").value.trim();
+    if (!name) { toast("Give the plant a name"); return; }
+    var all = getPlants(), rec;
+    if (existing) {
+      var i = all.findIndex(function(x){ return x && x.id === existing.id; });
+      if (i < 0) { toast("That plant was deleted on another device"); plCancel(); return; }  // guard the -1
+      rec = all[i];
+    } else {
+      rec = { id: Date.now() + Math.floor(Math.random() * 1000), waterLog:[], feedLog:[] };
+      all.push(rec);
+    }
+    rec.name  = name;
+    rec.latin = document.getElementById("plLatin").value.trim();
+    rec.room  = document.getElementById("plRoom").value.trim();
+    rec.emoji = document.getElementById("plEmoji").value.trim().slice(0, 4);
+    rec.waterDays = Math.max(0, Math.min(365, parseInt(document.getElementById("plWaterDays").value, 10) || 0));
+    rec.feedDays  = Math.max(0, Math.min(365, parseInt(document.getElementById("plFeedDays").value, 10) || 0));
+    PLANT_SECTIONS.forEach(function(sec){
+      var f = document.getElementById("plF_" + sec.key);
+      if (f) rec[sec.key] = f.value.trim();
+    });
+    if (_plantPhotoDraft !== null) rec.photo = _plantPhotoDraft;
+    if (!Array.isArray(rec.waterLog)) rec.waterLog = [];
+    if (!Array.isArray(rec.feedLog))  rec.feedLog  = [];
+    rec.updated = Date.now();
+
+    _plantEditing = false; _plantCancelFn = null; _plantPhotoDraft = null;
+    savePlants(all);
+    _plantOpenId = rec.id; _plantView = "detail";
+    renderPlantDetail();
+    window.scrollTo(0, 0);
+    toast(existing ? "Plant updated" : "&#x1FAB4; Plant added");
+  });
 }
 
 // ============================================================
@@ -7745,15 +8248,15 @@ document.getElementById("trackSubNav").addEventListener("click", function(e) {
   renderTrackView();
 });
 
-var HIDEABLE_SECTIONS = ["home", "train", "trips", "track", "sports", "famlog"]; // lists and baby are always visible; notes lives inside Lists (v318); Track hosts Log/Food/Body (v339)
+var HIDEABLE_SECTIONS = ["home", "train", "trips", "track", "sports", "famlog", "plants"]; // lists and baby are always visible; notes lives inside Lists (v318); Track hosts Log/Food/Body (v339); Plants is opt-in (v377)
 
 var sectionVisible = (function() {
   var stored = storeGet("fl4_secVisible") || {};
-  // Default: all visible, EXCEPT Sports (v308), Train (v318) and Family Log
-  // (v338) which are opt-in bar icons. Train stays fully usable either way —
-  // the Home Training strip is its entry point; the Settings toggle just pins
-  // it back on the bar.
-  HIDEABLE_SECTIONS.forEach(function(s) { if (stored[s] === undefined) stored[s] = (s !== "sports" && s !== "train" && s !== "famlog"); });
+  // Default: all visible, EXCEPT Sports (v308), Train (v318), Family Log
+  // (v338) and Plants (v377), which are opt-in bar icons. Train stays fully
+  // usable either way — the Home Training strip is its entry point; the
+  // Settings toggle just pins it back on the bar.
+  HIDEABLE_SECTIONS.forEach(function(s) { if (stored[s] === undefined) stored[s] = (s !== "sports" && s !== "train" && s !== "famlog" && s !== "plants"); });
   return stored;
 })();
 
@@ -7768,7 +8271,7 @@ if (!storeGet("fl4_trainNavMigrated")) {
 }
 
 function applySectionVisibility() {
-  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", baby:"bnBaby", trips:"bnTrips", track:"bnTrack", sports:"bnSports", famlog:"bnFamlog" };
+  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", baby:"bnBaby", trips:"bnTrips", track:"bnTrack", sports:"bnSports", famlog:"bnFamlog", plants:"bnPlants" };
   HIDEABLE_SECTIONS.forEach(function(sec) {
     var btn = document.getElementById(navIds[sec]);
     if (btn) btn.style.display = sectionVisible[sec] ? "" : "none";
@@ -7915,7 +8418,9 @@ function buildExportPayload() {
   //  saved_meals, cal_goal, secVisible, syncPrefs, recipes (list import recipes),
   //  travel_tags (Travel tag pool; per-item tags live on the items themselves),
   //  recipebook (Recipes section), trips (Trips section, incl. nested bookings),
-  //  mealplan (week dinner planner, v317).
+  //  mealplan (week dinner planner, v317),
+  //  plants (Plants section, v377 — incl. the photo thumbnail and the
+  //   watering/feeding logs, which all ride inside the plant records).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*, fl4_last_backup, fl4_backup_snooze,
   //  fl4_last_cloudbackup, fl4_tomb_* (sync deletion tombstones),
@@ -7936,6 +8441,7 @@ function buildExportPayload() {
     recipebook:storeGet("fl4_recipebook")||[],
     mealplan:storeGet("fl4_mealplan")||[],
     trips:storeGet("fl4_trips")||[],
+    plants:storeGet("fl4_plants")||[],
     cal_goal:storeGet("fl4_cal_goal")||2000,
     secVisible:storeGet("fl4_secVisible")||{},
     syncPrefs:storeGet("fl4_syncPrefs")||{}
@@ -8178,6 +8684,21 @@ function importBackupData(data) {
       storeSet("fl4_recipebook", rb2.concat(newRb));
     }
     imported.recipes=newRb.length;
+  }
+  // Plants: additive only, same shape as the recipebook restore above — a
+  // plant whose id is already here is left exactly as it is (its watering log
+  // is more current than the snapshot's), and a restored plant is stamped
+  // updated=now with any matching tombstone cleared so the next sync pull
+  // doesn't quietly re-delete it.
+  if(Array.isArray(data.plants)){
+    var pl2=storeGet("fl4_plants")||[],plIds={};pl2.forEach(function(m){if(m)plIds[m.id]=true;});
+    var newPl=data.plants.filter(function(m){return m&&m.id!=null&&!plIds[m.id];});
+    if(newPl.length){
+      var plTombsR=getTombs("plants"), plChanged=false;
+      newPl.forEach(function(r){ r.updated=Date.now(); if(plTombsR[r.id]!==undefined){ delete plTombsR[r.id]; plChanged=true; } });
+      if(plChanged) storeSet("fl4_tomb_plants", plTombsR);
+      storeSet("fl4_plants", pl2.concat(newPl));
+    }
   }
   // Meal plan: same newest-wins-per-day merge as sync, so restoring an old
   // backup can never clobber a newer week plan.
@@ -8929,6 +9450,8 @@ var d = {};
   d.trips       = storeGet("fl4_trips") || [];
   d.trips_deleted    = purgeTombs(getTombs("trips"));
   d.bookings_deleted = purgeTombs(getTombs("bookings"));
+  d.plants      = storeGet("fl4_plants") || [];
+  d.plants_deleted   = purgeTombs(getTombs("plants"));
   fetchWithTimeout(authUrl(userUrl("/data")), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastPersonalPush = Date.now(); }).catch(function(){});
   }, 800);
 }
@@ -8950,6 +9473,7 @@ function flushSyncRenders(dirty) {
   }
   if (dirty.recipes && currentSection === "recipes" && !_recipeEditing) safeRender("recipes", renderRecipes);
   if (dirty.trips   && currentSection === "trips"   && !_tripEditing)   safeRender("trips",   renderTrips);
+  if (dirty.plants  && currentSection === "plants"  && !_plantEditing)  safeRender("plants",  renderPlants);
   if (dirty.baby    && currentSection === "baby")                       safeRender("baby",    renderBabyView);
   // Lists: unchanged except for the section guard. switchSection() re-renders
   // the list on entry, so skipping it while hidden can't leave a stale view.
@@ -9124,6 +9648,16 @@ function applyPersonal(d) {
     if (tpMergeP.push) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
   }
 
+  // ── Plants: whole-record newest-wins by `updated`, tombstone-filtered ────
+  if (Array.isArray(d.plants)) {
+    var plTombsP = mergeTombs(getTombs("plants"), (d.plants_deleted && typeof d.plants_deleted === "object") ? d.plants_deleted : {});
+    storeSet("fl4_tomb_plants", purgeTombs(plTombsP));
+    var plMergeP = mergePlantsData(storeGet("fl4_plants") || [], d.plants, plTombsP);
+    storeSet("fl4_plants", plMergeP.plants);
+    _rDirty.plants = true;
+    if (plMergeP.push) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
+  }
+
   // ── Baby: shared per-entry merge, v329 (see mergeBabyData) ───────────────
   if (d.med_deleted && typeof d.med_deleted === "object") {
     storeSet("fl4_tomb_med", purgeTombs(mergeTombs(getTombs("med"), d.med_deleted)));
@@ -9144,7 +9678,7 @@ function applyPersonal(d) {
   } catch (err) { console.warn("applyPersonal error (sync continues):", err); }
   finally { syncPaused = false; }
   flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby,
-                     list:true, home:true, train:true });
+                     plants:_rDirty.plants, list:true, home:true, train:true });
 }
 function fetchPersonal(cb) {
   if (!isLoggedIn()) { if(cb)cb(); return; }
@@ -9216,6 +9750,9 @@ var data = {};
   data["trips"] = storeGet("fl4_trips") || [];
   data["trips_deleted"]    = purgeTombs(getTombs("trips"));
   data["bookings_deleted"] = purgeTombs(getTombs("bookings"));
+  // Plants are shared household-wide too; whole-record merge-by-id (v377).
+  data["plants"] = storeGet("fl4_plants") || [];
+  data["plants_deleted"] = purgeTombs(getTombs("plants"));
   lastPushTs = Date.now();
   fetchWithTimeout(authUrl(houseUrl("/shared")), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastHouseholdPush = Date.now(); }).catch(function(){});
   }, 800);
@@ -9556,6 +10093,7 @@ function switchSection(section) {
   document.getElementById("trackSection").style.display = section === "track"  ? "block" : "none";
   document.getElementById("sportsSection").style.display = section === "sports" ? "block" : "none";
   document.getElementById("famlogSection").style.display = section === "famlog" ? "block" : "none";
+  document.getElementById("plantsSection").style.display = section === "plants" ? "block" : "none";
 
   document.getElementById("bnHome").className  = "bn-btn" + (section === "home"   ? " home-active"  : "");
   document.getElementById("bnLife").className  = "bn-btn" + (section === "lists"  ? " life-active"  : "");
@@ -9566,6 +10104,7 @@ function switchSection(section) {
   document.getElementById("bnTrack").className = "bn-btn" + (section === "track"  ? " track-active" : "");
   document.getElementById("bnSports").className = "bn-btn" + (section === "sports" ? " sports-active" : "");
   document.getElementById("bnFamlog").className = "bn-btn" + (section === "famlog" ? " famlog-active" : "");
+  document.getElementById("bnPlants").className = "bn-btn" + (section === "plants" ? " plants-active" : "");
   if (section === "sports" && typeof renderSports === "function") renderSports();
 
   document.body.classList.toggle("home-mode",  section === "home");
@@ -9619,6 +10158,11 @@ function switchSection(section) {
     document.getElementById("appTitle").innerHTML = "&#x1F4D6; Family Log";
     document.getElementById("hdrBadge").style.display = "none";
     renderFamlog();
+  } else if (section === "plants") {
+    document.getElementById("themeColor").setAttribute("content", "#2E7D4F");
+    document.getElementById("appTitle").innerHTML = "&#x1FAB4; Plants";
+    document.getElementById("hdrBadge").style.display = "none";
+    renderPlants();
   }
 }
 
@@ -9697,6 +10241,14 @@ function closeTopOverlay() {
   if (_tripEditing && _tripCancelFn) {
     var tcf = _tripCancelFn;
     confirmDialog("Discard changes?", function(){ tcf(); }, function(){});
+    return true;
+  }
+
+  // v377: the plant editor is an innerHTML swap of #plantsContent too, so it
+  // needs the same treatment as the trip editor above.
+  if (_plantEditing && _plantCancelFn) {
+    var pcf = _plantCancelFn;
+    confirmDialog("Discard changes?", function(){ pcf(); }, function(){});
     return true;
   }
 
@@ -10653,6 +11205,8 @@ document.getElementById("bnTrips").addEventListener("click", function(){ switchS
 document.getElementById("bnTrack").addEventListener("click", function(){ switchSection("track"); });
 document.getElementById("bnSports").addEventListener("click", function(){ switchSection("sports"); });
 document.getElementById("bnFamlog").addEventListener("click", function(){ switchSection("famlog"); });
+document.getElementById("bnPlants").addEventListener("click", function(){ _plantView = "list"; _plantOpenId = null; switchSection("plants"); });
+document.getElementById("plantNewBtn").addEventListener("click", function(){ openPlantEditor(null); window.scrollTo(0, 0); });
 
 // ============================================================
 // HOME SCREEN
@@ -10992,6 +11546,15 @@ function renderTodayCard() {
     var tripText = lab==="Now" ? ("On your " + esc(t0.name||"trip")) : (esc(t0.name||"Trip") + " " + lab.toLowerCase());
     rows.push({ ico:"&#x2708;&#xFE0F;", text: tripText, act:"trips", id: t0.id });
   }
+  // Plants (v377): only ever appears when something is actually due — a plant
+  // with no interval set, or one never logged, stays silent.
+  var pWater = plantsNeedingWater();
+  if (pWater.length) {
+    var pText = pWater.length === 1
+      ? (esc(pWater[0].name || "A plant") + " needs watering")
+      : (pWater.length + " plants need watering");
+    rows.push({ ico:"&#x1F4A7;", text: pText, act:"plants", id: pWater.length === 1 ? pWater[0].id : null });
+  }
   var sportCand = [];
   (getSportsTeams()||[]).forEach(function(t){
     var cached = sportsCache()[t.id], nx = cached && cached.next && cached.next[0];
@@ -11031,6 +11594,13 @@ function renderTodayCard() {
         else if (typeof renderTrips==="function") { _tripView="list"; _tripOpenId=null; renderTrips(); }
       }
       else if (act==="sports") { switchSection("sports"); }
+      else if (act==="plants") {
+        // Deep-link straight to the plant when only one is due; otherwise the
+        // list, which already leads with the "N need watering" banner.
+        if (row.dataset.id) { _plantOpenId = Number(row.dataset.id); _plantView = "detail"; }
+        else { _plantOpenId = null; _plantView = "list"; }
+        switchSection("plants");
+      }
     });
   });
 }
@@ -12742,12 +13312,22 @@ function applyHousehold(data) {
     _rDirty.trips = true;
     if (tpMerge.push) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
   }
+  // Plants — shared household-wide; whole-record newest-wins by `updated`,
+  // tombstone-filtered. A plant is one edit unit, so no nested merge is needed.
+  if (Array.isArray(data["plants"])) {
+    var plTombs = mergeTombs(getTombs("plants"), (data["plants_deleted"] && typeof data["plants_deleted"] === "object") ? data["plants_deleted"] : {});
+    storeSet("fl4_tomb_plants", purgeTombs(plTombs));
+    var plMerge = mergePlantsData(storeGet("fl4_plants") || [], data["plants"], plTombs);
+    storeSet("fl4_plants", plMerge.plants);
+    _rDirty.plants = true;
+    if (plMerge.push) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
+  }
   } catch (err) { console.warn("applyHousehold error (sync continues):", err); }
   finally { syncPaused = false; }
   // v375: one batched flush instead of renders scattered through the merge above.
   // No renderTrainView here — the Train view is fed by the personal channel only.
   flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby,
-                     list:true, dots:true, home:true });
+                     plants:_rDirty.plants, list:true, dots:true, home:true });
   // Gentle in-app toast if the partner added something while we're using the app
   var _totalNew = 0, _firstLt = null;
   Object.keys(_newFromOther).forEach(function(lt){ _totalNew += _newFromOther[lt]; if(!_firstLt) _firstLt = lt; });
