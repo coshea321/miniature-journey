@@ -854,7 +854,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v379 · 02/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v380 · 02/08/2026</div>
 
   </div>
 </div>
@@ -1023,8 +1023,9 @@ body.train-mode #toast{background:#3A3328}
 <div id="trackSection" style="display:none">
   <div class="train-subnav" id="trackSubNav" style="background:#A05A10">
     <button class="tsn-btn active" data-tview="log">&#x1F4CB; Log</button>
-    <button class="tsn-btn" data-tview="food">&#x1F35C; Food</button>
+    <button class="tsn-btn" data-tview="medicine">&#x1F48A; Medicine</button>
     <button class="tsn-btn" data-tview="body">&#x2696;&#xFE0F; Body</button>
+    <button class="tsn-btn" data-tview="food">&#x1F35C; Food</button>
   </div>
   <div id="notesLogView" class="content" style="padding-top:12px;padding-bottom:90px">
     <!-- Quick log input -->
@@ -1038,6 +1039,32 @@ body.train-mode #toast{background:#3A3328}
         style="width:100%;border:2px solid #E0D0B0;border-radius:9px;padding:9px 13px;font-family:inherit;font-size:13px;outline:none;background:#FDFAF3;color:#7A5A30;box-sizing:border-box">
     </div>
     <div id="logActionList"></div>
+  </div>
+
+  <!-- TRACK MEDICINE (v380) — factual family medicine log, separate from the
+       Baby section's weight-based dosing calculator. No dose math or interval
+       advisories here by design (that logic stays exclusively in Baby); this
+       is just "what, when, how much, notes", same shape as the Log tab. -->
+  <div id="notesMedicineView" class="content" style="padding-top:12px;display:none;padding-bottom:90px">
+    <div style="padding:0 12px;margin-bottom:12px">
+      <div class="trkmed-quick-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+        <button type="button" class="trkmed-chip" data-med="Nurofen" style="border:1.5px solid #A05A1030;background:#FDF0E0;color:#A05A10;border-radius:16px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation">Nurofen</button>
+        <button type="button" class="trkmed-chip" data-med="Panadol" style="border:1.5px solid #A05A1030;background:#FDF0E0;color:#A05A10;border-radius:16px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation">Panadol</button>
+        <button type="button" class="trkmed-chip" data-med="Amoxicillin" style="border:1.5px solid #A05A1030;background:#FDF0E0;color:#A05A10;border-radius:16px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation">Amoxicillin</button>
+      </div>
+      <input id="trkMedName" type="text" placeholder="Medicine name" autocomplete="off" autocorrect="off"
+        style="width:100%;border:2px solid #E0D0B0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:15px;outline:none;background:#FDFAF3;color:#2A2010;box-sizing:border-box;margin-bottom:6px">
+      <div style="display:flex;gap:8px;margin-bottom:6px">
+        <input id="trkMedDose" type="text" placeholder="Dose (optional)" autocomplete="off"
+          style="flex:1;border:2px solid #E0D0B0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:15px;outline:none;background:#FDFAF3;color:#2A2010">
+        <input id="trkMedDt" type="datetime-local"
+          style="flex:1;border:2px solid #E0D0B0;border-radius:9px;padding:9px 13px;font-family:inherit;font-size:13px;outline:none;background:#FDFAF3;color:#7A5A30;box-sizing:border-box">
+      </div>
+      <input id="trkMedNotes" type="text" placeholder="Notes (optional)" autocomplete="off"
+        style="width:100%;border:2px solid #E0D0B0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:15px;outline:none;background:#FDFAF3;color:#2A2010;box-sizing:border-box;margin-bottom:8px">
+      <button id="trkMedBtn" style="width:100%;padding:11px 16px;background:#A05A10;border:none;border-radius:9px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation">Log</button>
+    </div>
+    <div id="trkMedList"></div>
   </div>
 
   <!-- FOOD JOURNAL -->
@@ -8261,6 +8288,129 @@ function renderLogView() {
 }
 
 // ============================================================
+// TRACK MEDICINE (v380) — factual family medicine log. Deliberately no dose
+// math or interval advisories: that safety logic stays exclusively in the
+// Baby section's renderMedicine(), never duplicated here. Personal-only sync
+// (pushPersonal/applyPersonal), same as action_log/food_log — not pushed to
+// the household channel.
+// ============================================================
+function getTrackMed() { return storeGet("fl4_track_med") || []; }
+function saveTrackMed(entries) {
+  storeSet("fl4_track_med", entries);
+  pushPersonal();
+}
+
+document.getElementById("trkMedBtn").addEventListener("click", function() {
+  if (btnBusy(this)) return;
+  doLogTrackMed();
+});
+document.querySelectorAll(".trkmed-chip").forEach(function(chip) {
+  chip.addEventListener("click", function() {
+    document.getElementById("trkMedName").value = chip.dataset.med;
+    document.getElementById("trkMedDose").focus();
+  });
+});
+
+function doLogTrackMed() {
+  var name = document.getElementById("trkMedName").value.trim();
+  if (!name) { toast("Enter a medicine name"); return; }
+  var dose  = document.getElementById("trkMedDose").value.trim();
+  var notes = document.getElementById("trkMedNotes").value.trim();
+  var dtEl  = document.getElementById("trkMedDt");
+  var ts    = dtEl && dtEl.value ? new Date(dtEl.value).getTime() : Date.now();
+  if (isNaN(ts)) ts = Date.now();
+  var entries = getTrackMed();
+  entries.unshift({ id: Date.now(), name: name, dose: dose, notes: notes, ts: ts, updated: Date.now() });
+  entries.sort(function(a,b){ return b.ts - a.ts; });
+  saveTrackMed(entries);
+  document.getElementById("trkMedName").value = "";
+  document.getElementById("trkMedDose").value = "";
+  document.getElementById("trkMedNotes").value = "";
+  if (dtEl) dtEl.value = localDatetimeValue();
+  renderTrackMedicine();
+  toast("&#x1F48A; Logged: " + name);
+}
+
+function renderTrackMedicine() {
+  var dtEl = document.getElementById("trkMedDt");
+  if (dtEl && !dtEl._initialised) { dtEl.value = localDatetimeValue(); dtEl._initialised = true; }
+
+  var entries = getTrackMed();
+  var el = document.getElementById("trkMedList");
+  if (!entries.length) {
+    el.innerHTML = "<div style='text-align:center;padding:40px 24px;color:#B87A40'>" +
+      "<div style='font-size:36px;margin-bottom:8px'>&#x1F48A;</div>" +
+      "<div style='font-size:14px'>Log family medicine here<br><span style='opacity:.6'>Nurofen &#183; Panadol &#183; Amoxicillin</span></div></div>";
+    return;
+  }
+  var byDate = {}, dateOrder = [];
+  entries.forEach(function(e2) {
+    var d = new Date(e2.ts);
+    var dateKey = d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate();
+    var dateLabel = d.toLocaleDateString("en-IE", { weekday:"long", day:"numeric", month:"long" });
+    if (!byDate[dateKey]) { byDate[dateKey] = { label:dateLabel, items:[] }; dateOrder.push(dateKey); }
+    byDate[dateKey].items.push(e2);
+  });
+  var html = "";
+  dateOrder.forEach(function(dk) {
+    var group = byDate[dk];
+    html += "<div style='font-size:11px;font-weight:700;color:#8A6A40;text-transform:uppercase;letter-spacing:.5px;padding:6px 14px 4px'>" + group.label + "</div>";
+    group.items.forEach(function(e2) {
+      var t = new Date(e2.ts);
+      var timeStr = t.toLocaleTimeString("en-IE", { hour:"2-digit", minute:"2-digit" });
+      html += "<div style='display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;margin:0 12px 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>" +
+        "<span class='trkmed-time-btn' data-medid='" + e2.id + "' style='font-size:12px;font-weight:700;color:#B87A40;min-width:42px;flex-shrink:0;cursor:pointer;touch-action:manipulation;text-decoration:underline dotted'>" + timeStr + "</span>" +
+        "<div style='flex:1'><div style='font-size:14px;color:#2A2010'>" + esc(e2.name) + (e2.dose ? " &#8212; " + esc(e2.dose) : "") + "</div>" +
+        (e2.notes ? "<div style='font-size:12px;color:#8A6A40'>" + esc(e2.notes) + "</div>" : "") + "</div>" +
+        "<button data-medid='" + e2.id + "' class='trkmed-del-btn' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button>" +
+      "</div>";
+    });
+  });
+  el.innerHTML = html;
+
+  el.querySelectorAll(".trkmed-del-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      confirmDialog("Delete this medicine entry?", function(){
+        var id = +btn.dataset.medid;
+        addTomb("track_med", id);
+        saveTrackMed(getTrackMed().filter(function(e2){ return e2.id !== id; }));
+        renderTrackMedicine();
+      });
+    });
+  });
+
+  el.querySelectorAll(".trkmed-time-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var id = +btn.dataset.medid;
+      var entries2 = getTrackMed();
+      var entry = entries2.find(function(e2){ return e2.id === id; });
+      if (!entry) return;
+      var existing = btn.parentElement.querySelector(".trkmed-dt-edit");
+      if (existing) { existing.remove(); return; }
+      var picker = document.createElement("div");
+      picker.className = "trkmed-dt-edit";
+      picker.style.cssText = "display:flex;gap:6px;align-items:center;padding:6px 14px;background:#FFF8F0;border-top:1px solid #E0D0B0;width:100%;box-sizing:border-box;margin-top:4px";
+      picker.innerHTML = "<input type='datetime-local' value='" + localDatetimeValue(entry.ts) + "' style='flex:1;border:1.5px solid #E0D0B0;border-radius:7px;padding:7px 9px;font-family:inherit;font-size:13px;outline:none;background:#FDFAF3;color:#2A2010'>" +
+        "<button style='padding:7px 12px;background:#A05A10;border:none;border-radius:7px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation'>Save</button>" +
+        "<button style='padding:7px 10px;background:#F0EDE8;border:none;border-radius:7px;color:#7A5A30;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation'>&#x2715;</button>";
+      btn.parentElement.after(picker);
+      picker.querySelector("button").addEventListener("click", function() {
+        var val = picker.querySelector("input").value;
+        var newTs = val ? new Date(val).getTime() : entry.ts;
+        if (!isNaN(newTs)) {
+          entry.ts = newTs;
+          entry.updated = Date.now();
+          entries2.sort(function(a,b){ return b.ts - a.ts; });
+          saveTrackMed(entries2);
+        }
+        renderTrackMedicine();
+      });
+      picker.querySelectorAll("button")[1].addEventListener("click", function(){ picker.remove(); });
+    });
+  });
+}
+
+// ============================================================
 // FOOD JOURNAL
 // ============================================================
 
@@ -8674,9 +8824,10 @@ function openSavedMealsManager() {
 // ============================================================
 var currentTrackView = "log";
 var TRACK_VIEWS = {
-  log:  { div: "notesLogView",  render: function(){ renderLogView();  } },
-  food: { div: "notesFoodView", render: function(){ renderFoodView(); } },
-  body: { div: "trainBodyView", render: function(){ renderBodyView(); } }
+  log:      { div: "notesLogView",      render: function(){ renderLogView();      } },
+  medicine: { div: "notesMedicineView", render: function(){ renderTrackMedicine(); } },
+  food:     { div: "notesFoodView",     render: function(){ renderFoodView();     } },
+  body:     { div: "trainBodyView",     render: function(){ renderBodyView();     } }
 };
 
 function renderTrackView() {
@@ -8862,7 +9013,9 @@ function buildExportPayload() {
   // EXPORT COVERAGE (check on each release that new data types are included):
   //  lists (items+hist), notes, customCats — per list
   //  workouts (incl. bodyweight + bp), baby (incl. growth, medicine, milestones,
-  //  teeth, bags, babySex), action_log (incl. cardio), food_log, food_notes,
+  //  teeth, bags, babySex), action_log (incl. cardio), track_med (Track section's
+  //  family medicine log, v380 — factual only, personal-only sync, distinct
+  //  from Baby's dosing medicine), food_log, food_notes,
   //  saved_meals, cal_goal, secVisible, syncPrefs, recipes (list import recipes),
   //  travel_tags (Travel tag pool; per-item tags live on the items themselves),
   //  recipebook (Recipes section), trips (Trips section, incl. nested bookings),
@@ -8881,7 +9034,7 @@ function buildExportPayload() {
     version:5, exportedAt:localIso,
     lists:{}, notes:{}, customCats:{},
     workouts:getWD(), baby:getBD(),
-    action_log:getActionLog(), food_log:getFoodLog(),
+    action_log:getActionLog(), track_med:getTrackMed(), food_log:getFoodLog(),
     food_notes:storeGet("fl4_food_notes")||{},
     saved_meals:storeGet("fl4_saved_meals")||[],
     recipes:storeGet("fl4_recipes")||[],
@@ -9117,6 +9270,7 @@ function importBackupData(data) {
     saveBD(bd);
   }
   if(Array.isArray(data.action_log)){var al=getActionLog(),alIds={};al.forEach(function(x){alIds[x.id]=true;});var newAl=data.action_log.filter(function(x){return x&&!alIds[x.id];});if(newAl.length)storeSet("fl4_action_log",newAl.concat(al));}
+  if(Array.isArray(data.track_med)){var tm=getTrackMed(),tmIds={};tm.forEach(function(x){tmIds[x.id]=true;});var newTm=data.track_med.filter(function(x){return x&&!tmIds[x.id];});if(newTm.length)storeSet("fl4_track_med",newTm.concat(tm));}
   if(Array.isArray(data.food_log)){var fl=getFoodLog(),flIds={};fl.forEach(function(x){flIds[x.id]=true;});var newFl=data.food_log.filter(function(x){return x&&!flIds[x.id];});if(newFl.length)storeSet("fl4_food_log",newFl.concat(fl));}
   if(data.food_notes){var fn=storeGet("fl4_food_notes")||{};Object.keys(data.food_notes).forEach(function(k){if(!fn[k])fn[k]=data.food_notes[k];});storeSet("fl4_food_notes",fn);}
   if(Array.isArray(data.saved_meals)){var sm=storeGet("fl4_saved_meals")||[],smIds={};sm.forEach(function(m){smIds[m.id]=true;});storeSet("fl4_saved_meals",sm.concat(data.saved_meals.filter(function(m){return m&&!smIds[m.id];})));}
@@ -9883,6 +10037,8 @@ var d = {};
   });
   d.action_log   = getActionLog();
   d.action_log_deleted = purgeTombs(getTombs("action_log"));
+  d.track_med    = getTrackMed();
+  d.track_med_deleted  = purgeTombs(getTombs("track_med"));
   d.food_log     = getFoodLog();
   d.food_log_deleted   = purgeTombs(getTombs("food_log"));
   d.food_notes   = storeGet("fl4_food_notes")  || {};
@@ -10024,6 +10180,17 @@ function applyPersonal(d) {
     d.action_log.filter(Boolean).forEach(function(e){ logIndex[e.id]=e; });
     var alOut = Object.values(logIndex).filter(function(e){ return e && _alTombs[e.id] == null; });
     storeSet("fl4_action_log", alOut.sort(function(a,b){return b.ts-a.ts;}));
+  }
+
+  // ── Track medicine: merge by entry ID + deletion tombstones ──────────────
+  var _tmTombs = mergeTombs(getTombs("track_med"), (d.track_med_deleted && typeof d.track_med_deleted === "object") ? d.track_med_deleted : {});
+  storeSet("fl4_tomb_track_med", purgeTombs(_tmTombs));
+  if (Array.isArray(d.track_med)) {
+    var localTm = getTrackMed(), tmIndex = {};
+    localTm.forEach(function(e){ if(e) tmIndex[e.id]=e; });
+    d.track_med.filter(Boolean).forEach(function(e){ tmIndex[e.id]=e; });
+    var tmOut = Object.values(tmIndex).filter(function(e){ return e && _tmTombs[e.id] == null; });
+    storeSet("fl4_track_med", tmOut.sort(function(a,b){return b.ts-a.ts;}));
   }
 
   // ── Food log: merge by entry ID + deletion tombstones ────────────────────
