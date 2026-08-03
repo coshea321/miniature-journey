@@ -866,7 +866,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v386 · 03/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v387 · 03/08/2026</div>
 
   </div>
 </div>
@@ -5350,6 +5350,7 @@ var _recipeSelected = {};       // id -> true while selected
 
 var _recipeFilter = "fav"; // "all" | "fav" | category name — opens on Favourites by default (falls back to "all" in renderRecipes if none are favourited)
 var _recipeSearchQuery = "";
+var _recipeSearchPreset = false; // v387: set by openRecord right before switchSection("recipes") so its v386 arrival-reset leaves a deliberate global-search hand-off alone
 var _recipeScrollPos = 0;
 // Everything a recipe search should look at, lowercased once (v383). Kept
 // top-level because renderRecipes() calls it — a locally scoped helper is the
@@ -10847,11 +10848,19 @@ function switchSection(section) {
     // Not inside renderRecipes() itself: that also runs on a chip tap and
     // on a sync-triggered redraw while already on this screen, neither of
     // which should wipe an in-progress search.
-    _recipeSearchQuery = "";
-    var _rsiArrive = document.getElementById("rcpSearchInput");
-    var _rsrArrive = document.getElementById("rcpSearchRow");
-    if (_rsiArrive) _rsiArrive.value = "";
-    if (_rsrArrive) _rsrArrive.style.display = "none";
+    // v387: EXCEPT when openRecord just deliberately preset the search as
+    // part of a global-search hand-off — _recipeSearchPreset is a one-shot
+    // flag it sets immediately before calling switchSection, so this reset
+    // doesn't immediately wipe out what it just set.
+    if (_recipeSearchPreset) {
+      _recipeSearchPreset = false;
+    } else {
+      _recipeSearchQuery = "";
+      var _rsiArrive = document.getElementById("rcpSearchInput");
+      var _rsrArrive = document.getElementById("rcpSearchRow");
+      if (_rsiArrive) _rsiArrive.value = "";
+      if (_rsrArrive) _rsrArrive.style.display = "none";
+    }
     renderRecipes();
   } else if (section === "baby") {
     document.getElementById("themeColor").setAttribute("content", "#7E22CE");
@@ -10891,9 +10900,9 @@ function switchSection(section) {
 // view state) paints the right thing first time, with no extra render call
 // needed afterwards.
 // type: a LIST_CONFIG key ("grocery"/"todo"/"personal"/"travel"), "notes",
-//       "trip" or "plant". id: the record id where a deep link exists
-//       (trip, plant) — there is no id-level deep link into a single list
-//       item or note yet, so id is unused for those types.
+//       "trip", "plant" or "recipes" (v387). id: the record id where a deep
+//       link exists (trip, plant) — there is no id-level deep link into a
+//       single list item, note or recipe yet, so id is unused for those types.
 // opts.query: for list types, pre-fills and applies that list's own search
 //             (resetting its other filters) instead of landing on a stale
 //             or unrelated filter — the exact v381 bug class.
@@ -10924,6 +10933,20 @@ function openRecord(type, id, opts) {
     _plantImporting = false; _plantImportParsed = null; // a deep-link wins over a half-finished import
     _plantArea = "";                                     // and over an area filter
     switchSection("plants");
+  } else if (type === "recipes") {
+    // v387 (global search phase 2). Reset the category filter — never
+    // silently AND a hand-off with a stale chip, the v381/v386 bug class —
+    // and mark the arrival as a deliberate preset so switchSection's own
+    // v386 stale-search reset leaves this alone.
+    _recipeView = "list";
+    _recipeFilter = "all";
+    _recipeSearchQuery = opts.query || "";
+    _recipeSearchPreset = true;
+    switchSection("recipes");
+    var rcpRow = document.getElementById("rcpSearchRow");
+    var rcpInput = document.getElementById("rcpSearchInput");
+    if (rcpRow) rcpRow.style.display = _recipeSearchQuery ? "block" : "none";
+    if (rcpInput) rcpInput.value = _recipeSearchQuery;
   }
 }
 
@@ -12277,11 +12300,13 @@ function openWeatherSheet() {
 }
 
 // ── Global search (v384) ─────────────────────────────────────────
-// A FINDER, not a filter: scans Lists (grocery/general/personal/travel) and
-// Notes (personal + work) and hands off to the section that owns a match —
-// it never renders records itself. No new store, no sync changes, nothing
-// added to export/backup, nothing scheduled. Full design record + the
-// reasoning behind every rule below: HEARTH-global-search.md.
+// A FINDER, not a filter: scans Lists (grocery/general/personal/travel),
+// Notes (personal + work) and, since v387, Recipes — and hands off to the
+// section that owns a match — it never renders records itself. No new
+// store, no sync changes, nothing added to export/backup, nothing
+// scheduled. Full design record + the reasoning behind every rule below:
+// HEARTH-global-search.md (Recipes was explicitly deferred there as
+// "phase 2, his call" — v387 is that call being made).
 //
 // Substring match is PRIMARY; fuzzyMatch runs ONLY as a fallback, and only
 // when substring found nothing in EVERY group (never mixed group-by-group,
@@ -12294,11 +12319,12 @@ function openWeatherSheet() {
 var GLOBAL_SEARCH_MIN = 2;
 var GLOBAL_SEARCH_CAP = 5;
 var GLOBAL_SEARCH_GROUPS = [
-  { key:"grocery",  label:"&#x1F6D2; Grocery"  },
-  { key:"todo",     label:"&#x2705; General"   },
-  { key:"personal", label:"&#x1F464; Personal" },
-  { key:"travel",   label:"&#x2708; Travel"    },
-  { key:"notes",    label:"&#x1F4DD; Notes"    }
+  { key:"grocery",  label:"&#x1F6D2; Grocery",  color:"#2D6B35" },
+  { key:"todo",     label:"&#x2705; General",   color:"#5A3AA0" },
+  { key:"personal", label:"&#x1F464; Personal", color:"#A0205A" },
+  { key:"travel",   label:"&#x2708; Travel",    color:"#1A5A8A" },
+  { key:"notes",    label:"&#x1F4DD; Notes",    color:"#A05A10" },
+  { key:"recipes",  label:"&#x1F37D; Recipes",  color:"#B5651D" } // phase 2 (v387) — HEARTH-global-search.md §9. Colour matches the Recipes section's own theme colour (switchSection).
 ];
 // Notes aren't in LIST_CONFIG/listData (v318) — they live in their own two
 // stores (personal + work, NOTES_CONTEXTS). Reshaped to {id,name,notes} so
@@ -12320,33 +12346,41 @@ function globalSearchNotesPool() {
   return out;
 }
 function globalSearchPool(key) {
-  return key === "notes" ? globalSearchNotesPool() : (loadListData(key).items || []);
+  if (key === "notes") return globalSearchNotesPool();
+  if (key === "recipes") return getRecipeBook(); // already null-guarded at the source (v385)
+  return (loadListData(key).items || []);
+}
+// Recipes need the wider v383 haystack (ingredients/method/category, not
+// just name+notes) — everything else still uses the plain list/notes text.
+function globalSearchText(key, item) {
+  return key === "recipes" ? recipeSearchText(item) : listSearchText(item);
 }
 function globalSearch(query) {
   var q = (query || "").trim();
   if (q.length < GLOBAL_SEARCH_MIN) return { query:q, fuzzy:false, groups:[] };
   var qLow = q.toLowerCase();
   var groups = GLOBAL_SEARCH_GROUPS.map(function(g){
-    var items = globalSearchPool(g.key).filter(function(it){ return it && listSearchText(it).indexOf(qLow) !== -1; });
-    return { key:g.key, label:g.label, items:items };
+    var items = globalSearchPool(g.key).filter(function(it){ return it && globalSearchText(g.key, it).indexOf(qLow) !== -1; });
+    return { key:g.key, label:g.label, color:g.color, items:items };
   });
   var fuzzy = false;
   if (!groups.some(function(g){ return g.items.length; })) {
     fuzzy = true;
     groups = GLOBAL_SEARCH_GROUPS.map(function(g){
-      var items = globalSearchPool(g.key).filter(function(it){ return it && fuzzyMatch(q, listSearchText(it)); });
-      return { key:g.key, label:g.label, items:items };
+      var items = globalSearchPool(g.key).filter(function(it){ return it && fuzzyMatch(q, globalSearchText(g.key, it)); });
+      return { key:g.key, label:g.label, color:g.color, items:items };
     });
   }
   return { query:q, fuzzy:fuzzy, groups: groups.filter(function(g){ return g.items.length; }) };
 }
 // Grouped results + hand-off. Tapping any result (a row or "+N more") jumps
 // to the record's list/section — there is no id-level deep link into a
-// single list item or note yet (HEARTH-global-search.md §4), so the best a
-// tap can do is land on the right place with the query still applied. List
-// groups hand off to that list's own search (openRecord resets its other
-// filters — never silently AND with a stale one, the v381 bug class); a
-// Notes tap lands on the matched note's context (personal/work).
+// single list item, note or recipe yet (HEARTH-global-search.md §4), so the
+// best a tap can do is land on the right place with the query still
+// applied. List groups and Recipes (v387) hand off to that section's own
+// search (openRecord resets its other filters — never silently AND with a
+// stale one, the v381/v386 bug class); a Notes tap lands on the matched
+// note's context (personal/work).
 var _gSearchQuery = "";
 function renderGlobalSearchResults() {
   var box = document.getElementById("homeSearchResults");
@@ -12380,7 +12414,7 @@ function renderGlobalSearchResults() {
       "</div>";
     });
     if (more > 0) {
-      html += "<div class='gs-more' data-key='" + g.key + "' style='text-align:center;padding:8px 0 2px;font-size:12.5px;font-weight:700;color:" + LIST_TYPES[g.key].color + ";cursor:pointer;touch-action:manipulation'>+" + more + " more &#8594;</div>";
+      html += "<div class='gs-more' data-key='" + g.key + "' style='text-align:center;padding:8px 0 2px;font-size:12.5px;font-weight:700;color:" + g.color + ";cursor:pointer;touch-action:manipulation'>+" + more + " more &#8594;</div>";
     }
     html += "</div>";
   });

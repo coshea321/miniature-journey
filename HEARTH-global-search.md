@@ -1,6 +1,6 @@
 # Hearth — Global search: design record & build brief
 
-**Status: DESIGN CONFIRMED 02/08/2026. Build NOT started.**
+**Status: v1 shipped v384 (03/08/2026). Phase 2 (Recipes) shipped v387 (03/08/2026) — Cathal made the "his call" decision this file flagged in §9, see that section's update below.**
 Design session: Opus. Cathal's four decisions were made via AskUserQuestion and are **binding** — a build session should not re-litigate them or widen the scope.
 
 This file exists so a fresh session can build the feature from the notes alone. It is referenced from the "Global search" entry in `HEARTH-notes.md` § Pending. If the two ever disagree, **this file is the detail and the notes entry is the summary** — fix the notes to match.
@@ -28,9 +28,9 @@ If a proposed addition breaks one of those four, it is out of scope for v1.
 
 All four list types — **Grocery, General, Personal, Travel** — **plus Notes**. Item names **and** their notes text.
 
-**Explicitly out of v1:** Recipes, Trips, Plants, Baby, Medicine, Track logs.
+**Explicitly out of v1:** Recipes (added as phase 2 in v387 — see §9), Trips, Plants, Baby, Medicine, Track logs.
 
-> Flagged to Cathal at design time and accepted by him: Lists-only means global search **will not find a recipe**, which is arguably the most common "where did I put that" case. **Recipes is the obvious phase 2.** It is not in scope now — do not add it without asking.
+> Flagged to Cathal at design time and accepted by him: Lists-only means global search **will not find a recipe**, which is arguably the most common "where did I put that" case. **Recipes is the obvious phase 2.** ~~It is not in scope now — do not add it without asking.~~ Cathal asked 03/08/2026; shipped v387.
 
 Deliberately excluded on judgement, worth re-raising only if Cathal asks: Baby health and Medicine logs. They are time-ordered records you browse by date, not things you search by name, and surfacing a dose next to a grocery item is a jarring category mix.
 
@@ -155,13 +155,13 @@ The **design** is done and is in this file. The **build** is mechanical: one sea
 That is a **plain-Sonnet job** from this document. It does not touch sync, dosing, trip import/export or the service worker, so the standing model-check rule does not fire.
 
 Two things that would need a stronger model or a fresh design call with Cathal:
-- adding **Recipes** (phase 2) — a scope decision, his call, not a build decision
+- ~~adding **Recipes** (phase 2) — a scope decision, his call, not a build decision~~ — decided and shipped v387: turned out to be build-ready for plain Sonnet once the call was made, since `openRecord`'s recipes mechanics and `recipeSearchText` already existed from v383/v384.
 - **id-level deep links to individual list items** — genuinely new design (§4)
 
 ---
 
 ## 9. Open questions for Cathal (none blocking the v1 build)
 
-1. **Phase 2 — add Recipes?** Flagged and deferred at design time. His call.
-2. **Item-level jump?** v1 lands on the list; going to the exact item needs new deep-link design.
-3. **Does the Home search row stay visible, or collapse behind a 🔍 tap** like the existing per-section searches? Follow the existing pattern unless he says otherwise.
+1. ~~**Phase 2 — add Recipes?**~~ **Cathal's call made 03/08/2026 — shipped v387.** `GLOBAL_SEARCH_GROUPS` gained a `recipes` entry, matched via the wider v383 `recipeSearchText` (not the plain `listSearchText` every other group uses), and `openRecord` gained a `"recipes"` branch mirroring the existing Lists hand-off (resets `_recipeFilter` to `"all"`, pre-fills `_recipeSearchQuery`). See the v387 entry in `HEARTH-notes.md` for the full build detail, including the interaction with v386's stale-search reset (`_recipeSearchPreset` one-shot flag).
+2. **Item-level jump?** Still open — v1/phase 2 both land on the list; going to the exact item (or exact recipe) needs new deep-link design.
+3. **Does the Home search row stay visible, or collapse behind a 🔍 tap** like the existing per-section searches? Followed the existing (always-visible) pattern; unchanged by phase 2.
