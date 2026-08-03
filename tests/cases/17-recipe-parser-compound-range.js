@@ -10,6 +10,13 @@
 // scaling/grocery-push/editor-round-trip plumbing built on top.
 // Confirmed out of scope (do not re-litigate): alternatives ("or"), and
 // multi-unit brackets (already handled by v363's splitGroceryName).
+//
+// v395 addition: a real recipe pasted from an AI-translated chat carried a
+// U+200B before every ingredient line — invisible on screen, but sitting in
+// front of the leading digit, so amount recognition failed on every line and
+// the serving-size stepper had nothing to scale. parseIngredients() now
+// strips a small set of invisible zero-width/format characters from the
+// whole line, not just the front.
 
 module.exports = {
   name: '17-recipe-parser-compound-range',
@@ -21,6 +28,32 @@ module.exports = {
       // ── parseAmount: mixed integer + unicode fraction ─────────────
       ok('amount: "1 ¾" (spaced)', parseAmount('1 ¾') === 1.75, 'got: ' + parseAmount('1 ¾'));
       ok('amount: "1¾" (glued)', parseAmount('1¾') === 1.75, 'got: ' + parseAmount('1¾'));
+
+      // ── invisible/zero-width characters: stripped before amount parsing ─
+      // (written as \\u escapes, never literal invisible bytes, so the test
+      // source itself stays unambiguous to read and to diff)
+      var ZWSP = '\\u200b', ZWNJ = '\\u200c', BOM = '\\ufeff';
+      var zwLead = parseIngredients(ZWSP + '50 g olive oil', false)[0];
+      ok('invisible: a leading U+200B no longer blocks amount recognition',
+        zwLead.amount === 50 && zwLead.unit === 'g' && zwLead.name === 'olive oil',
+        'got: ' + JSON.stringify(zwLead));
+      var zwMid = parseIngredients('2' + ZWSP + ' tbsp' + ZWNJ + ' garlic, sliced', false)[0];
+      ok('invisible: a zero-width char BETWEEN the number and its unit is also stripped',
+        zwMid.amount === 2 && zwMid.unit === 'tbsp' && zwMid.name === 'garlic, sliced',
+        'got: ' + JSON.stringify(zwMid));
+      var zwMulti = parseIngredients(ZWSP + BOM + '1 liter water', false)[0];
+      ok('invisible: multiple stacked invisible chars (ZWSP + BOM) are all stripped',
+        zwMulti.amount === 1 && zwMulti.unit === 'l' && zwMulti.name === 'water',
+        'got: ' + JSON.stringify(zwMulti));
+      var zwNoAmount = parseIngredients(ZWSP + 'Salt, to taste', false)[0];
+      ok('invisible: a non-quantified line (no leading number even once stripped) still correctly gets no amount',
+        zwNoAmount.amount === undefined && zwNoAmount.name === 'Salt, to taste',
+        'got: ' + JSON.stringify(zwNoAmount));
+      var zwWholeRecipe = parseIngredients(
+        ZWSP + '50 g olive oil\\n' + ZWSP + '200 g rice\\n' + ZWSP + 'Salt, to taste', false);
+      ok('invisible: a whole pasted block (every line prefixed) parses every quantified line correctly',
+        zwWholeRecipe.length === 3 && zwWholeRecipe[0].amount === 50 && zwWholeRecipe[1].amount === 200 && zwWholeRecipe[2].amount === undefined,
+        'got: ' + JSON.stringify(zwWholeRecipe));
 
       // ── compound: sums into ONE normalized amount+unit ────────────
       var yogA = parseIngredients('1 3/4 cup + 2 tbsp Greek yogurt', false)[0];
