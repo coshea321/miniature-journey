@@ -867,7 +867,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v392 · 03/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v393 · 03/08/2026</div>
 
   </div>
 </div>
@@ -6926,6 +6926,7 @@ function renderRecipeDetail() {
     "<ul style='margin:0 0 18px;padding:0'>" + ingHtml + "</ul>" +
     (r.method ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Method</div><div style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + formatMethod(r.method) + "</div>" : "") +
     (r.notes ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Notes</div><div style='font-size:14px;color:#6A5A40;line-height:1.6;margin-bottom:18px'>" + esc(r.notes) + "</div>" : "") +
+    (r.url ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Source</div><a href='" + esc(r.url) + "' target='_blank' rel='noopener noreferrer' style='display:inline-block;font-size:14px;color:#B5651D;font-weight:600;word-break:break-all;margin-bottom:18px'>&#x1F517; " + esc(r.url) + "</a>" : "") +
     "<button id='recipeToGroceryBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#2D6B35;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F6D2; Add to grocery list&hellip;</button>" +
     "<div style='display:flex;gap:8px;margin-top:8px'>" +
       "<button id='recipeEditBtn' style='flex:1;padding:11px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Edit</button>" +
@@ -7179,6 +7180,8 @@ function openRecipeEditor(id) {
     "<textarea id='reMethod' rows='5' placeholder='Step-by-step method...' style='" + recipeInputCss() + "margin-bottom:12px;resize:vertical;line-height:1.6'>" + (r&&r.method?esc(r.method):"") + "</textarea>" +
     fieldLabel("Notes (optional)") +
     "<textarea id='reNotes' rows='2' placeholder='Any notes...' style='" + recipeInputCss() + "margin-bottom:16px;resize:vertical;line-height:1.6'>" + (r&&r.notes?esc(r.notes):"") + "</textarea>" +
+    fieldLabel("Recipe URL (optional)") +
+    "<input id='reUrl' type='url' value='" + (r&&r.url?esc(r.url).replace(/'/g,"&#39;"):"") + "' placeholder='https://example.com/recipe' style='" + recipeInputCss() + "margin-bottom:16px'>" +
     "<button id='reSave' style='width:100%;padding:13px;border:none;background:#B5651D;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save recipe</button>";
 
   document.getElementById("recipeCancelEdit").addEventListener("click", function(){
@@ -7216,17 +7219,18 @@ function openRecipeEditor(id) {
     var ingredients = parseIngredients(document.getElementById("reIng").value);
     var method = document.getElementById("reMethod").value.trim();
     var notes  = document.getElementById("reNotes").value.trim();
+    var url = normalizeRecipeUrl(document.getElementById("reUrl").value);
     var inRotation = document.getElementById("reInRotation").checked;
     var rb = getRecipeBook();
     if (isNew) {
       var nid = Date.now() + Math.floor(Math.random()*100000);
-      rb.unshift({ id:nid, name:name, servings:servings, category:category, ingredients:ingredients, method:method, notes:notes, fav:false, inRotation:inRotation, updated:Date.now(), addedBy:hearthUser });
+      rb.unshift({ id:nid, name:name, servings:servings, category:category, ingredients:ingredients, method:method, notes:notes, url:url, fav:false, inRotation:inRotation, updated:Date.now(), addedBy:hearthUser });
       _recipeOpenId = nid;
     } else {
       var ex = rb.find(function(x){ return x.id === id; });
       // The textarea only carries "amount unit name", so re-parsing it would
       // drop the v368 shopping preferences — carry them onto the new lines.
-      if (ex) { ex.name=name; ex.servings=servings; ex.category=category; ex.ingredients=carryGroceryPrefs(ingredients, ex.ingredients); ex.method=method; ex.notes=notes; ex.inRotation=inRotation; ex.updated=Date.now(); }
+      if (ex) { ex.name=name; ex.servings=servings; ex.category=category; ex.ingredients=carryGroceryPrefs(ingredients, ex.ingredients); ex.method=method; ex.notes=notes; ex.url=url; ex.inRotation=inRotation; ex.updated=Date.now(); }
     }
     saveRecipeBook(rb);
     _recipeEditing = false;
@@ -7306,6 +7310,14 @@ function recipeCategoryChips() {
     "</div>";
 }
 function fieldLabel(t){ return "<div style='font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px'>" + t + "</div>"; }
+// Force http(s) so a stray "javascript:" (or a bare "example.com") never
+// lands in an <a href> unescaped — trusted scheme in, trusted scheme out.
+function normalizeRecipeUrl(u) {
+  u = (u||"").trim();
+  if (!u) return "";
+  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+  return u;
+}
 function recipeInputCss(){ return "width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;outline:none;"; }
 
 // Same-dimension unit families for summing a compound amount ("1 3/4 cup +
