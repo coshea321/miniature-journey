@@ -752,6 +752,18 @@ body.train-mode #toast{background:#3A3328}
       <div class="home-clock-ie" id="homeClockIE" style="display:none"></div>
     </div>
 
+    <!-- Global search (v384) — finder, not a filter; hands off to the
+         section that owns a match rather than rendering records itself.
+         See HEARTH-global-search.md for the full design record. -->
+    <div style="position:relative;margin:0 0 14px">
+      <div style="display:flex;align-items:center;gap:8px;background:#fff;border-radius:12px;padding:10px 14px;box-shadow:0 1px 4px rgba(20,50,20,.07)">
+        <span style="font-size:16px">&#x1F50D;</span>
+        <input id="homeSearchInput" type="text" placeholder="Search lists &amp; notes..." autocomplete="off" style="flex:1;min-width:0;border:none;outline:none;font-family:inherit;font-size:14px;background:transparent">
+        <span id="homeSearchClear" style="display:none;color:#B8AA90;font-size:15px;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#x2715;</span>
+      </div>
+      <div id="homeSearchResults" style="display:none;margin-top:8px"></div>
+    </div>
+
     <!-- Weather (Carrigaline, hardcoded coords; device-local, no sync) -->
     <div class="home-weather" id="homeWeather">
       <div class="hw-icon" id="hwIcon">&#x1F324;</div>
@@ -854,7 +866,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v383 · 02/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v384 · 03/08/2026</div>
 
   </div>
 </div>
@@ -2505,6 +2517,14 @@ function fuzzyMatch(query, text) {
     if (t[ti] === q[qi]) qi++;
   }
   return qi === q.length;
+}
+// Item text for search — name + notes, lowercased once. Top-level and
+// !item-guarded, mirroring recipeSearchText (v383); global search (v384)
+// and any future list search should call this rather than reading
+// item.name/item.notes directly, so both stay in sync.
+function listSearchText(item) {
+  if (!item) return "";
+  return ((item.name || "") + " " + (item.notes || "")).toLowerCase();
 }
 
 // ============================================================
@@ -10717,8 +10737,7 @@ function renderFamlog() {
     row.addEventListener("click", function(){
       var act = row.dataset.act;
       if (act==="trips") {
-        switchSection("trips");
-        if (row.dataset.id && typeof renderTripDetail==="function") { _tripOpenId=Number(row.dataset.id); _tripView="detail"; renderTripDetail(); }
+        openRecord("trip", row.dataset.id || null);
       } else {
         switchSection(act); // "baby" / "train" / "notes" (notes maps to the Lists sub-tab)
       }
@@ -10784,6 +10803,14 @@ function switchSection(section) {
     document.getElementById("themeColor").setAttribute("content", "#111820");
     document.getElementById("appTitle").innerHTML = "&#x1F525; Hearth";
     document.getElementById("hdrBadge").style.display = "none";
+    // Global search (v384) has no search history (design doc §7) — clear it
+    // on every fresh arrival at Home, but not on a background re-render
+    // while already here (would wipe an in-progress search on an
+    // unrelated sync event), so this lives here and not in renderHomeScreen.
+    _gSearchQuery = "";
+    var _gsi = document.getElementById("homeSearchInput");
+    if (_gsi) _gsi.value = "";
+    if (typeof renderGlobalSearchResults === "function") renderGlobalSearchResults();
     renderHomeScreen();
     startHomeClock();
   } else if (section === "lists") {
@@ -10825,6 +10852,52 @@ function switchSection(section) {
     document.getElementById("appTitle").innerHTML = "&#x1FAB4; Plants";
     document.getElementById("hdrBadge").style.display = "none";
     renderPlants();
+  }
+}
+
+// ── openRecord(type, id) (v384) ─────────────────────────────────
+// Single deep-link entry point, replacing three hand-rolled copies of the
+// same "set state + switchSection() + render" sequence that used to live
+// separately in the Today card, the Family Log card and the trips card
+// (each drifting slightly — see HEARTH-global-search.md §4). State is set
+// BEFORE switchSection() runs so its own render call (renderList()/
+// renderTrips()/renderPlants(), each of which already dispatches on the
+// view state) paints the right thing first time, with no extra render call
+// needed afterwards.
+// type: a LIST_CONFIG key ("grocery"/"todo"/"personal"/"travel"), "notes",
+//       "trip" or "plant". id: the record id where a deep link exists
+//       (trip, plant) — there is no id-level deep link into a single list
+//       item or note yet, so id is unused for those types.
+// opts.query: for list types, pre-fills and applies that list's own search
+//             (resetting its other filters) instead of landing on a stale
+//             or unrelated filter — the exact v381 bug class.
+// opts.ctx: for notes, which context ("personal"/"work") to land on.
+function openRecord(type, id, opts) {
+  opts = opts || {};
+  if (LIST_CONFIG[type]) {
+    currentList = type;
+    resetInput();
+    _travelFilter = []; _todayFilter = false; _recentFilter = false;
+    _listSearchQuery = opts.query || "";
+    switchTab("list");
+    switchSection("lists");
+    var searchRow = document.getElementById("searchRow");
+    var searchInput = document.getElementById("listSearchInput");
+    if (searchRow) searchRow.style.display = _listSearchQuery ? "block" : "none";
+    if (searchInput) searchInput.value = _listSearchQuery;
+  } else if (type === "notes") {
+    if (opts.ctx) currentNotesView = opts.ctx;
+    switchSection("notes");
+  } else if (type === "trip") {
+    if (id != null) { _tripOpenId = Number(id); _tripView = "detail"; }
+    else { _tripOpenId = null; _tripView = "list"; }
+    switchSection("trips");
+  } else if (type === "plant") {
+    if (id != null) { _plantOpenId = Number(id); _plantView = "detail"; }
+    else { _plantOpenId = null; _plantView = "list"; }
+    _plantImporting = false; _plantImportParsed = null; // a deep-link wins over a half-finished import
+    _plantArea = "";                                     // and over an area filter
+    switchSection("plants");
   }
 }
 
@@ -12177,6 +12250,147 @@ function openWeatherSheet() {
   fetchWeather(true); // ensure fresh 3-day data; re-renders sheet on arrival
 }
 
+// ── Global search (v384) ─────────────────────────────────────────
+// A FINDER, not a filter: scans Lists (grocery/general/personal/travel) and
+// Notes (personal + work) and hands off to the section that owns a match —
+// it never renders records itself. No new store, no sync changes, nothing
+// added to export/backup, nothing scheduled. Full design record + the
+// reasoning behind every rule below: HEARTH-global-search.md.
+//
+// Substring match is PRIMARY; fuzzyMatch runs ONLY as a fallback, and only
+// when substring found nothing in EVERY group (never mixed group-by-group,
+// or a result set could silently combine exact hits in one group with
+// near-misses in another with no way to tell them apart). This is the v383
+// lesson, not a style preference: fuzzyMatch is a subsequence matcher, so
+// as the PRIMARY matcher "curry" matches any text containing c..u..r..r..y
+// in order — at app scale that returns most of the data and reads to the
+// user as "search did nothing" (measured: 7/12 recipes for "curry" pre-v383).
+var GLOBAL_SEARCH_MIN = 2;
+var GLOBAL_SEARCH_CAP = 5;
+var GLOBAL_SEARCH_GROUPS = [
+  { key:"grocery",  label:"&#x1F6D2; Grocery"  },
+  { key:"todo",     label:"&#x2705; General"   },
+  { key:"personal", label:"&#x1F464; Personal" },
+  { key:"travel",   label:"&#x2708; Travel"    },
+  { key:"notes",    label:"&#x1F4DD; Notes"    }
+];
+// Notes aren't in LIST_CONFIG/listData (v318) — they live in their own two
+// stores (personal + work, NOTES_CONTEXTS). Reshaped to {id,name,notes} so
+// listSearchText() can read them the same way as a list item, and tagged
+// with which context they came from (_nctx) so a tapped result can land on
+// the right Notes sub-tab via openRecord's opts.ctx.
+function globalSearchNotesPool() {
+  var out = [];
+  Object.keys(NOTES_CONTEXTS).forEach(function(ctx){
+    // normaliseNotes() itself has no null guard (it reads n.body/n.title
+    // straight off each entry) — filter raw nulls out BEFORE handing the
+    // array to it, or a bad sync-merged record throws here instead of
+    // degrading, same class of bug as the known fl4_recipebook one (§6).
+    var raw = (storeGet(NOTES_CONTEXTS[ctx].key) || []).filter(function(n){ return n && typeof n === "object"; });
+    normaliseNotes(raw).forEach(function(n){
+      if (n) out.push({ id:n.id, name:n.title, notes:n.body, _nctx:ctx });
+    });
+  });
+  return out;
+}
+function globalSearchPool(key) {
+  return key === "notes" ? globalSearchNotesPool() : (loadListData(key).items || []);
+}
+function globalSearch(query) {
+  var q = (query || "").trim();
+  if (q.length < GLOBAL_SEARCH_MIN) return { query:q, fuzzy:false, groups:[] };
+  var qLow = q.toLowerCase();
+  var groups = GLOBAL_SEARCH_GROUPS.map(function(g){
+    var items = globalSearchPool(g.key).filter(function(it){ return it && listSearchText(it).indexOf(qLow) !== -1; });
+    return { key:g.key, label:g.label, items:items };
+  });
+  var fuzzy = false;
+  if (!groups.some(function(g){ return g.items.length; })) {
+    fuzzy = true;
+    groups = GLOBAL_SEARCH_GROUPS.map(function(g){
+      var items = globalSearchPool(g.key).filter(function(it){ return it && fuzzyMatch(q, listSearchText(it)); });
+      return { key:g.key, label:g.label, items:items };
+    });
+  }
+  return { query:q, fuzzy:fuzzy, groups: groups.filter(function(g){ return g.items.length; }) };
+}
+// Grouped results + hand-off. Tapping any result (a row or "+N more") jumps
+// to the record's list/section — there is no id-level deep link into a
+// single list item or note yet (HEARTH-global-search.md §4), so the best a
+// tap can do is land on the right place with the query still applied. List
+// groups hand off to that list's own search (openRecord resets its other
+// filters — never silently AND with a stale one, the v381 bug class); a
+// Notes tap lands on the matched note's context (personal/work).
+var _gSearchQuery = "";
+function renderGlobalSearchResults() {
+  var box = document.getElementById("homeSearchResults");
+  var clearBtn = document.getElementById("homeSearchClear");
+  if (!box) return;
+  if (clearBtn) clearBtn.style.display = _gSearchQuery ? "inline" : "none";
+  if (!_gSearchQuery) { box.style.display = "none"; box.innerHTML = ""; return; }
+  box.style.display = "block";
+  if (_gSearchQuery.length < GLOBAL_SEARCH_MIN) {
+    box.innerHTML = "<div style='text-align:center;color:#B8AA90;font-size:12.5px;padding:10px 0'>Keep typing&#8230;</div>";
+    return;
+  }
+  var res = globalSearch(_gSearchQuery);
+  if (!res.groups.length) {
+    box.innerHTML = "<div style='background:#fff;border-radius:12px;padding:16px 14px;text-align:center;font-size:13.5px;color:#8A8A6A'>No matches for &#8220;" + esc(_gSearchQuery) + "&#8221;</div>";
+    return;
+  }
+  var html = "";
+  if (res.fuzzy) {
+    html += "<div style='text-align:center;color:#9A7A4A;font-size:12px;padding:2px 0 8px'>No exact matches &#x2014; showing similar.</div>";
+  }
+  res.groups.forEach(function(g){
+    var shown = g.items.slice(0, GLOBAL_SEARCH_CAP);
+    var more = g.items.length - shown.length;
+    html += "<div style='background:#fff;border-radius:12px;padding:10px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(20,50,20,.07)'>" +
+      "<div style='font-size:12.5px;font-weight:700;color:#8A8A6A;margin-bottom:2px'>" + g.label + "</div>";
+    shown.forEach(function(it){
+      html += "<div class='gs-row' data-key='" + g.key + "'" + (it._nctx ? " data-ctx='" + it._nctx + "'" : "") + " style='display:flex;align-items:center;gap:9px;padding:8px 0;cursor:pointer;touch-action:manipulation;border-top:1px solid #F0EDE6'>" +
+        "<span style='flex:1;font-size:13.5px;font-weight:600;color:#2A2A1E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + esc(it.name || "(untitled)") + "</span>" +
+        "<span style='color:#C8BEA8;font-size:16px'>&#x203A;</span>" +
+      "</div>";
+    });
+    if (more > 0) {
+      html += "<div class='gs-more' data-key='" + g.key + "' style='text-align:center;padding:8px 0 2px;font-size:12.5px;font-weight:700;color:" + LIST_TYPES[g.key].color + ";cursor:pointer;touch-action:manipulation'>+" + more + " more &#8594;</div>";
+    }
+    html += "</div>";
+  });
+  box.innerHTML = html;
+  var q = _gSearchQuery;
+  box.querySelectorAll(".gs-row, .gs-more").forEach(function(row){
+    row.addEventListener("click", function(){
+      var key = row.dataset.key;
+      if (key === "notes") { openRecord("notes", null, { ctx: row.dataset.ctx || null }); }
+      else { openRecord(key, null, { query:q }); }
+    });
+  });
+}
+// ~120ms debounce (design brief §7) — the only search input in the app that
+// scans multiple stores per keystroke, so it's the one that needs it; the
+// per-list and per-recipe search boxes re-render synchronously and that's
+// fine at their (single-store) scale.
+var _gSearchDebounce = null;
+(function(){
+  var input = document.getElementById("homeSearchInput");
+  var clearBtn = document.getElementById("homeSearchClear");
+  if (!input) return;
+  input.addEventListener("input", function(){
+    var val = input.value;
+    clearTimeout(_gSearchDebounce);
+    _gSearchDebounce = setTimeout(function(){
+      _gSearchQuery = val.trim();
+      renderGlobalSearchResults();
+    }, 120);
+  });
+  if (clearBtn) clearBtn.addEventListener("click", function(){
+    input.value = ""; _gSearchQuery = "";
+    renderGlobalSearchResults();
+  });
+})();
+
 // ── Today summary card (v302) ──────────────────────────────
 // One tappable line per domain, each self-suppressing when it has nothing to
 // say. Shows what needs attention (groceries, starred tasks, upcoming trip)
@@ -12253,23 +12467,17 @@ function renderTodayCard() {
   el.querySelectorAll(".today-row").forEach(function(row){
     row.addEventListener("click", function(){
       var act = row.dataset.act;
-      if (act==="grocery" || act==="todo") { switchSection("lists"); currentList = act; applyListTheme(); switchTab("list"); renderList(); }
+      if (act==="grocery" || act==="todo") { openRecord(act, null); }
       else if (act==="train") { switchSection("train"); }
       else if (act==="baby")  { switchSection("baby"); }
       else if (act==="trips") {
-        switchSection("trips");
-        if (row.dataset.id && typeof renderTripDetail==="function") { _tripOpenId=Number(row.dataset.id); _tripView="detail"; renderTripDetail(); }
-        else if (typeof renderTrips==="function") { _tripView="list"; _tripOpenId=null; renderTrips(); }
+        openRecord("trip", row.dataset.id || null);
       }
       else if (act==="sports") { switchSection("sports"); }
       else if (act==="plants") {
         // Deep-link straight to the plant when only one is due; otherwise the
         // list, which already leads with the "N need watering" banner.
-        if (row.dataset.id) { _plantOpenId = Number(row.dataset.id); _plantView = "detail"; }
-        else { _plantOpenId = null; _plantView = "list"; }
-        _plantImporting = false; _plantImportParsed = null;   // a deep-link wins over a half-finished import
-        _plantArea = "";                                      // and over an area filter — the row counted every plant
-        switchSection("plants");
+        openRecord("plant", row.dataset.id || null);
       }
     });
   });
