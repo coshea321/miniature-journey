@@ -1,5 +1,5 @@
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v388 · 03/08/2026';
+const VERSION = 'v389 · 03/08/2026';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
@@ -12,9 +12,15 @@ const ASSETS = [
 ];
 
 // Install: cache all assets, skip waiting immediately
+// cache: "reload" forces these fetches past the normal HTTP cache (v389).
+// GitHub Pages serves index.html with a short max-age, so without this a
+// new SW installing inside that window could populate the freshly-named
+// hearth-vNNN cache with the PREVIOUS build's index.html — cache name says
+// vNNN, contents are vNNN-1. It self-heals on a later open via the fetch
+// handler's background refresh, but costs another open or two first.
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS))
+    caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))
   );
   self.skipWaiting();
 });
