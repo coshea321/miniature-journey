@@ -167,6 +167,84 @@ module.exports = {
     );
     check('search survives recipes with missing fields', survived === 'ok', survived);
 
+    // ── v386: two recipe-search state dead ends left by v381 ──────────────
+    // v381 fixed search silently AND-ing with a stale Favourites filter when
+    // search was OPENED. It missed two other doors to the same symptom
+    // (a real match hidden by a leftover filter, reading as "search does
+    // nothing"): a category chip tapped while search is active, and leaving
+    // Recipes mid-search then coming back.
+
+    // Reset to a clean, unfiltered, non-searching state before each probe.
+    async function freshRecipesArrival() {
+      await page.evaluate(
+        '(function(){ storeSet("fl4_recipebook", ' + JSON.stringify(BOOK) + ');' +
+        '_recipeView = "list"; _recipeFilter = "all"; _recipeSearchQuery = "";' +
+        'switchSection("home"); switchSection("recipes"); return true; })()'
+      );
+    }
+
+    // (a) Tapping a category chip while a search is active used to silently
+    // re-AND the two — a recipe visible under the chip alone could vanish
+    // because it didn't also match the leftover query.
+    await freshRecipesArrival();
+    const chipResult = await page.evaluate(
+      '(function(){ _recipeSearchQuery = "zzzzqqq";' + // guaranteed zero matches
+      'var row = document.getElementById("rcpSearchRow"); if (row) row.style.display = "block";' +
+      'var input = document.getElementById("rcpSearchInput"); if (input) input.value = "zzzzqqq";' +
+      'renderRecipes();' +
+      'var chip = Array.prototype.find.call(document.querySelectorAll(".rcp-filter"), function(b){ return b.dataset.key === "Dinner"; });' +
+      'chip.click();' +
+      'return {' +
+      '  query: _recipeSearchQuery,' +
+      '  rowHidden: !row || row.style.display === "none",' +
+      '  inputCleared: !input || input.value === "",' +
+      '  text: document.getElementById("recipesContent").innerText' +
+      '}; })()'
+    );
+    check(
+      'tapping a category chip while searching clears the stale search query',
+      chipResult.query === '',
+      'query was still ' + JSON.stringify(chipResult.query)
+    );
+    check('tapping a chip while searching hides the search row', chipResult.rowHidden, 'row still shown');
+    check('tapping a chip while searching clears the search input', chipResult.inputCleared, 'input still held a value');
+    check(
+      'the chip tap actually shows Dinner recipes (was hidden by the stale search)',
+      chipResult.text.indexOf('Chicken Curry') !== -1 && chipResult.text.indexOf('Banana Bread') === -1,
+      'unexpected content: ' + JSON.stringify(chipResult.text.trim().slice(0, 120))
+    );
+
+    // (b) Leaving Recipes mid-search and coming back used to leave the query
+    // armed and the search row open, so the list looked mysteriously
+    // filtered on return with no visible cause.
+    await freshRecipesArrival();
+    const returnResult = await page.evaluate(
+      '(function(){ _recipeSearchQuery = "curry";' +
+      'var row = document.getElementById("rcpSearchRow"); if (row) row.style.display = "block";' +
+      'var input = document.getElementById("rcpSearchInput"); if (input) input.value = "curry";' +
+      'renderRecipes();' +
+      'switchSection("home");' +
+      'switchSection("recipes");' +
+      'return {' +
+      '  query: _recipeSearchQuery,' +
+      '  rowHidden: !row || row.style.display === "none",' +
+      '  inputCleared: !input || input.value === "",' +
+      '  n: document.getElementById("recipesContent").querySelectorAll(".recipe-fav").length' +
+      '}; })()'
+    );
+    check(
+      'returning to Recipes after leaving mid-search clears the query',
+      returnResult.query === '',
+      'query was still ' + JSON.stringify(returnResult.query)
+    );
+    check('returning to Recipes after leaving mid-search hides the search row', returnResult.rowHidden, 'row still shown');
+    check('returning to Recipes after leaving mid-search clears the input', returnResult.inputCleared, 'input still held a value');
+    check(
+      'returning to Recipes after leaving mid-search shows the whole book, not a filtered remnant',
+      returnResult.n === BOOK.length,
+      'showed ' + returnResult.n + ' of ' + BOOK.length
+    );
+
     return { pass, fail };
   },
 };

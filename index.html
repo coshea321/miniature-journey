@@ -866,7 +866,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v385 · 03/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v386 · 03/08/2026</div>
 
   </div>
 </div>
@@ -5477,7 +5477,21 @@ function renderRecipes() {
   el.innerHTML = html;
 
   el.querySelectorAll(".rcp-filter").forEach(function(b){
-    b.addEventListener("click", function(){ _recipeFilter = b.dataset.key; renderRecipes(); });
+    b.addEventListener("click", function(){
+      _recipeFilter = b.dataset.key;
+      // v386: a chip tap while a search was active used to silently re-AND
+      // the two, so a real match could read as "Nothing here yet." with no
+      // clue why. v381 already resets the filter when search is OPENED;
+      // this closes the other direction — a chip tap resets an active search.
+      if (_recipeSearchQuery) {
+        _recipeSearchQuery = "";
+        var _rsi = document.getElementById("rcpSearchInput");
+        var _rsr = document.getElementById("rcpSearchRow");
+        if (_rsi) _rsi.value = "";
+        if (_rsr) _rsr.style.display = "none";
+      }
+      renderRecipes();
+    });
   });
   el.querySelectorAll(".recipe-fav").forEach(function(star){
     star.addEventListener("click", function(e){
@@ -10826,6 +10840,18 @@ function switchSection(section) {
     document.getElementById("themeColor").setAttribute("content", "#B5651D");
     document.getElementById("appTitle").innerHTML = "&#x1F37D; Recipes";
     document.getElementById("hdrBadge").style.display = "none";
+    // v386: a search left armed from a previous visit used to survive a
+    // section switch (query set, search row still open) and silently
+    // filter the list with no visible cause on return. Reset on every
+    // fresh arrival here, mirroring the v384 Home-search-clear pattern.
+    // Not inside renderRecipes() itself: that also runs on a chip tap and
+    // on a sync-triggered redraw while already on this screen, neither of
+    // which should wipe an in-progress search.
+    _recipeSearchQuery = "";
+    var _rsiArrive = document.getElementById("rcpSearchInput");
+    var _rsrArrive = document.getElementById("rcpSearchRow");
+    if (_rsiArrive) _rsiArrive.value = "";
+    if (_rsrArrive) _rsrArrive.style.display = "none";
     renderRecipes();
   } else if (section === "baby") {
     document.getElementById("themeColor").setAttribute("content", "#7E22CE");
