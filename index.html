@@ -867,7 +867,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v393 · 03/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v394 · 03/08/2026</div>
 
   </div>
 </div>
@@ -6805,19 +6805,89 @@ function openBulkCategoryPicker(ids){
   ov.addEventListener("click", function(e){ if (e.target === ov) close(); });
 }
 
-// Render a recipe method readably without changing stored text: honour existing
-// line breaks (blank line → paragraph, single → line break) and split run-together
-// numbered steps ("…cool. 2. Whisk…") onto their own line. Conservative: only a
-// 1–2 digit number + ". " (so temps like "350." and decimals like "1.5" are safe).
+// ── Method → numbered steps (v394) ────────────────────────────────────────
+// The stored method text is NEVER rewritten — this is display only, so an
+// edit still shows Cathal exactly what he typed or pasted.
+//
+// A leading step marker on a line ("1.", "2)", "Step 3:"). Deliberately narrow:
+// 1–2 digits only and a "." or ")" or ":" separator that must be followed by a
+// space, so "350. degrees", "1.5 tsp", "1/2 cup" and "2 - 3 mins" are all safe.
+var METHOD_STEP_MARK = /^\s*(?:step\s*)?\d{1,2}\s*[.):]\s+/i;
+// A leading bullet glyph, from a pasted list.
+var METHOD_BULLET_MARK = /^\s*[•·▪◦*–—-]\s+/;
+
+// Split a method into the pieces the detail view numbers. Returns a list of
+// {type:"step"|"head", text}. Two splitting modes, because a pasted method is
+// either explicitly numbered or it isn't:
+//   - explicitly numbered (2+ marked lines): a marked line starts a step and
+//     every unmarked line after it is a continuation. Hard-wrapped pastes
+//     therefore stay in one step instead of exploding into fake ones.
+//   - unnumbered: one line = one step, unless the line reads as a wrap
+//     (starts lower-case AND the previous step didn't end a sentence).
+function methodSteps(text){
+  var t = String(text||"").replace(/\r\n?/g, "\n");
+  if (!t.trim()) return [];
+  t = t.replace(/([^\n])\s+(\d{1,2}[.)]\s)/g, "$1\n$2");          // break before "N. "
+  t = t.replace(/([^\n])\s+(Step\s+\d+\b[:.]?\s*)/gi, "$1\n$2");  // break before "Step N"
+  var lines = t.split("\n");
+  var marked = 0;
+  lines.forEach(function(l){ if (METHOD_STEP_MARK.test(l)) marked++; });
+  var trustMarks = marked >= 2;
+
+  var out = [], afterBlank = true;
+  lines.forEach(function(raw){
+    var line = raw.trim();
+    if (!line) { afterBlank = true; return; }
+    var bare = line.replace(/<\/?[^>]+>/g, "").trim();
+    var mark = METHOD_STEP_MARK.test(line);
+    // A short line ending in ":" is a sub-heading ("For the sauce:"), not a
+    // step — numbering it would offset every step under it.
+    if (!mark && /:$/.test(bare) && bare.split(/\s+/).length <= 6 && !/^(step\b|\d)/i.test(bare)) {
+      out.push({ type: "head", text: bare.replace(/:\s*$/, "").trim() });
+      afterBlank = false;
+      return;
+    }
+    var body = mark ? line.replace(METHOD_STEP_MARK, "").trim()
+                    : line.replace(METHOD_BULLET_MARK, "").trim();
+    if (!body) return;
+    var last = out.length ? out[out.length - 1] : null;
+    var cont = false;
+    if (last && last.type === "step" && !afterBlank) {
+      cont = trustMarks ? !mark
+                        : (/^[a-z(]/.test(body) && !/[.!?:;]$/.test(last.text));
+    }
+    if (cont) last.text += " " + body;
+    else out.push({ type: "step", text: body });
+    afterBlank = false;
+  });
+  return out;
+}
+
+// Render the method as an auto-numbered <ol>. Numbers come from the list, not
+// from the text, so "1." typed into a step never doubles up as "1. 1.".
 function formatMethod(text){
-  var t = String(text||"");
-  if (!t.trim()) return "";
-  t = t.replace(/([^\n])\s+(\d{1,2}\.\s)/g, "$1\n$2");          // break before "N. "
-  t = t.replace(/([^\n])\s+(Step\s+\d+\b[:.]?\s*)/gi, "$1\n$2"); // break before "Step N"
-  t = t.replace(/\n{3,}/g, "\n\n").replace(/[ \t]+\n/g, "\n").replace(/\n[ \t]+/g, "\n").trim();
-  return t.split(/\n{2,}/).map(function(p){
-    return "<p style='margin:0 0 10px'>" + esc(p).replace(/\n/g, "<br>") + "</p>";
-  }).join("");
+  var steps = methodSteps(text);
+  if (!steps.length) return "";
+  // A single unbroken block of prose isn't a step list — a lone "1." in front
+  // of it is just noise, so it stays a paragraph.
+  if (steps.length === 1 && steps[0].type === "step") {
+    return "<p style='margin:0'>" + esc(steps[0].text) + "</p>";
+  }
+  var html = "", n = 0, open = false;
+  steps.forEach(function(s){
+    if (s.type === "head") {
+      if (open) { html += "</ol>"; open = false; }
+      html += "<div style='font-size:12px;font-weight:800;color:#B5651D;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px'>" + esc(s.text) + "</div>";
+      return;
+    }
+    // Each run of steps reopens the list with `start`, so a sub-heading in the
+    // middle doesn't restart the numbering at 1.
+    if (!open) { html += "<ol start='" + (n + 1) + "' style='margin:0;padding:0 0 0 22px'>"; open = true; }
+    n++;
+    html += "<li style='margin:0 0 10px;padding-left:3px;color:#B5651D'><span style='color:#2A2010'>" + esc(s.text) + "</span></li>";
+  });
+  if (open) html += "</ol>";
+  return html;
 }
 
 // Rescue-at-render (recipe-parser second pass, v365): an ingredient stored
@@ -6895,7 +6965,9 @@ function renderRecipeDetail() {
   var ingHtml = "";
   (r.ingredients||[]).forEach(function(ing){
     if (isHeaderIng(ing)) {
-      ingHtml += "<li style='padding:11px 0 3px;list-style:none;font-size:12px;font-weight:800;color:#B5651D;text-transform:uppercase;letter-spacing:.5px'>" + esc(headerLabel(ing)) + "</li>";
+      // Headers sit outside the bullet column (negative margin cancels the
+      // <ul>'s indent) so a section title stays flush with the rest of the page.
+      ingHtml += "<li style='padding:11px 0 3px;margin-left:-20px;list-style:none;font-size:12px;font-weight:800;color:#B5651D;text-transform:uppercase;letter-spacing:.5px'>" + esc(headerLabel(ing)) + "</li>";
       return;
     }
     var eff = rescueIngredientMeasure(ing);
@@ -6906,7 +6978,9 @@ function renderRecipeDetail() {
     var pref = "";
     if (eff.noBuy) pref = "<span style='font-size:11px;color:#9A8A6A'> &middot; not added to the shopping list</span>";
     else if (eff.groceryName) pref = "<span style='font-size:11px;color:#9A8A6A'> &middot; bought as &ldquo;" + esc(eff.groceryName) + "&rdquo;</span>";
-    ingHtml += "<li style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#2A2010;list-style:none'>" + amtStr + esc(eff.name) + pref + "</li>";
+    // The li carries the accent colour so the bullet marker is warm; the span
+    // puts the text back to the reading colour.
+    ingHtml += "<li style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#B5651D;list-style:disc'><span style='color:#2A2010'>" + amtStr + esc(eff.name) + pref + "</span></li>";
   });
 
   el.innerHTML =
@@ -6923,7 +6997,7 @@ function renderRecipeDetail() {
       "<button id='servPlus' style='width:34px;height:34px;border:1.5px solid #D8C8A8;background:#fff;border-radius:8px;font-size:20px;color:#7A5A30;cursor:pointer;line-height:1'>+</button>" +
     "</div>" +
     "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Ingredients</div>" +
-    "<ul style='margin:0 0 18px;padding:0'>" + ingHtml + "</ul>" +
+    "<ul style='margin:0 0 18px;padding:0 0 0 20px'>" + ingHtml + "</ul>" +
     (r.method ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Method</div><div style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + formatMethod(r.method) + "</div>" : "") +
     (r.notes ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Notes</div><div style='font-size:14px;color:#6A5A40;line-height:1.6;margin-bottom:18px'>" + esc(r.notes) + "</div>" : "") +
     (r.url ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Source</div><a href='" + esc(r.url) + "' target='_blank' rel='noopener noreferrer' style='display:inline-block;font-size:14px;color:#B5651D;font-weight:600;word-break:break-all;margin-bottom:18px'>&#x1F517; " + esc(r.url) + "</a>" : "") +
