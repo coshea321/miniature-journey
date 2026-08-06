@@ -239,9 +239,153 @@ module.exports = {
       return {pass:pass, fail:fail};
     })()`);
 
+    // ── v398: batching, and the second-pass dead end ──────────────────────
+    // Both of these are fixes for real failures on Cathal's 118-recipe book:
+    // a whole-book copy came back with prep for only ~19 recipes (the reply
+    // stops, not the copy), and a re-run left every row unticked with Apply
+    // disabled and nothing saying why.
+    const batched = await page.evaluate(`(function(){
+      var pass = [], fail = [];
+      function ok(name, cond, detail){ if (cond) pass.push(name); else fail.push({name:name, detail:detail || 'assertion failed'}); }
+      var TAG = RECIPE_PREP_FILE_TAG;
+
+      // The revised prompt (Cathal's wording, 06/08/2026).
+      storeSet('fl4_recipebook', [{ id: 6001, name: 'One', servings: 2, updated: 1, method: 'Cook.', ingredients: parseIngredients('1 Onion') }]);
+      var oneText = prepExportText(0);
+      ok('the prompt carries the grouping rule',
+        /GROUP BY WHAT GOES IN TOGETHER/.test(oneText), oneText.slice(0, 200));
+      ok('the prompt asks for spices and garnish to be included',
+        /Include the spices and the garnish/.test(oneText), 'spice rule missing');
+      ok('the prompt forbids an explanatory note around the JSON',
+        /no explanation, no note, no apology/.test(oneText), 'no-preamble rule missing');
+      ok('a single-batch book gets no batch header',
+        /MY RECIPES \\(1\\)/.test(oneText) && !/BATCH/.test(oneText), 'unexpected batch header');
+      ok('one batch is reported for a small book', prepBatchCount(1) === 1, prepBatchCount(1));
+
+      // A book too big for one round trip.
+      var big = [];
+      for (var i = 0; i < 118; i++) {
+        big.push({ id: 7000 + i, name: 'Recipe ' + i, servings: 2, updated: 1,
+                   method: 'Cook it.', ingredients: parseIngredients('1 Onion') });
+      }
+      storeSet('fl4_recipebook', big);
+
+      ok('a 118-recipe book is split into batches of ' + PREP_BATCH_SIZE,
+        prepBatchCount(118) === 6, prepBatchCount(118));
+
+      var b0 = prepExportText(0), b5 = prepExportText(5);
+      ok('batch 1 holds only its own slice',
+        /id 7000\\b/.test(b0) && !/id 7020\\b/.test(b0), 'batch 1 slice wrong');
+      ok('the last batch holds the tail of the book',
+        /id 7117\\b/.test(b5) && !/id 7000\\b/.test(b5), 'last batch slice wrong');
+      ok('a batch says which batch it is',
+        /BATCH 1 OF 6/.test(b0) && /BATCH 6 OF 6/.test(b5), 'batch header missing');
+      ok('an out-of-range batch clamps instead of returning nothing',
+        /id 7117\\b/.test(prepExportText(99)) && /id 7000\\b/.test(prepExportText(-5)),
+        'clamp failed');
+      ok('a batch is a fraction of the whole-book payload',
+        b0.length < 12000 && b0.length > 500, 'batch chars: ' + b0.length);
+
+      // The copy screen offers the batches.
+      switchSection('recipes');
+      _prepHelperState = null; _recipeView = 'prephelper'; renderRecipes();
+      ok('batch chips are offered when the book needs more than one',
+        document.querySelectorAll('.prep-batch').length === 6,
+        document.querySelectorAll('.prep-batch').length + ' chips');
+      ok('the copy button names the batch',
+        /Copy batch 1 of 6/.test(document.getElementById('prepCopyBtn').textContent),
+        document.getElementById('prepCopyBtn').textContent);
+      document.querySelectorAll('.prep-batch')[2].click();
+      ok('tapping a chip switches batch',
+        _prepHelperState.batch === 2 && /Copy batch 3 of 6/.test(document.getElementById('prepCopyBtn').textContent),
+        'batch=' + _prepHelperState.batch);
+
+      // Applying a batch stays in the helper and moves to the next one.
+      document.getElementById('prepImportBox').value =
+        '{"hearth":"' + TAG + '","recipes":[{"id":7040,"prep":"Chop the onion"}]}';
+      document.getElementById('prepReviewBtn').click();
+      applyPrepImport();
+      ok('applying a batch keeps you in the helper',
+        _recipeView === 'prephelper' && _prepHelperState !== null, _recipeView);
+      ok('applying a batch moves on to the next one',
+        _prepHelperState.batch === 3 && _prepHelperState.step === 'copy',
+        'batch=' + _prepHelperState.batch + ' step=' + _prepHelperState.step);
+      ok('the applied prep landed',
+        getRecipeBook().find(function(r){ return r.id === 7040; }).prep === 'Chop the onion',
+        'prep not written');
+
+      return {pass:pass, fail:fail};
+    })()`);
+
+    // ── the second-pass dead end, specifically ────────────────────────────
+    const secondPass = await page.evaluate(`(function(){
+      var pass = [], fail = [];
+      function ok(name, cond, detail){ if (cond) pass.push(name); else fail.push({name:name, detail:detail || 'assertion failed'}); }
+      var TAG = RECIPE_PREP_FILE_TAG;
+
+      // Every recipe already has prep — the exact state a re-run lands in.
+      storeSet('fl4_recipebook', [
+        { id: 8001, name: 'First', servings: 2, updated: 1, prep: 'Old prep', method: 'Cook.', ingredients: parseIngredients('1 Onion') },
+        { id: 8002, name: 'Second', servings: 2, updated: 1, prep: 'Old prep too', method: 'Cook.', ingredients: parseIngredients('1 Leek') }
+      ]);
+      switchSection('recipes');
+      _prepHelperState = null; _recipeView = 'prephelper'; renderRecipes();
+      document.getElementById('prepImportBox').value =
+        '{"hearth":"' + TAG + '","recipes":[{"id":8001,"prep":"New grouped prep"},{"id":8002,"prep":"Also new"}]}';
+      document.getElementById('prepReviewBtn').click();
+
+      // The pre-tick rule still holds — nothing of his is replaced by default.
+      ok('a re-run still pre-ticks nothing',
+        !_prepHelperState.accept[8001] && !_prepHelperState.accept[8002],
+        JSON.stringify(_prepHelperState.accept));
+      // ...but it no longer reads as a broken screen.
+      ok('the disabled Apply button says what to do rather than "Apply to 0"',
+        /Tick the ones you want/.test(document.getElementById('prepApply').textContent) &&
+        !/Apply to 0/.test(document.getElementById('prepApply').textContent),
+        document.getElementById('prepApply').textContent);
+      ok('the screen explains why the rows start unticked',
+        /already have prep written, so they start unticked/.test(document.getElementById('recipesContent').textContent),
+        'no explanation shown');
+
+      var tickAll = document.getElementById('prepTickAll');
+      ok('a tick-all control is offered when rows would replace something', !!tickAll, 'no #prepTickAll');
+      tickAll.click();
+      ok('tick-all enables Apply for every row',
+        /Apply to 2 recipes/.test(document.getElementById('prepApply').textContent) &&
+        !document.getElementById('prepApply').disabled,
+        document.getElementById('prepApply').textContent);
+
+      document.getElementById('prepTickNone').click();
+      ok('untick-all clears them again',
+        document.getElementById('prepApply').disabled, 'still enabled');
+
+      document.getElementById('prepTickAll').click();
+      applyPrepImport();
+      ok('the second pass actually replaces the old prep',
+        getRecipeBook().find(function(r){ return r.id === 8001; }).prep === 'New grouped prep' &&
+        getRecipeBook().find(function(r){ return r.id === 8002; }).prep === 'Also new',
+        JSON.stringify(getRecipeBook().map(function(r){ return r.prep; })));
+
+      // A book with nothing to replace shouldn't grow the control.
+      storeSet('fl4_recipebook', [
+        { id: 8003, name: 'Fresh', servings: 2, updated: 1, method: 'Cook.', ingredients: parseIngredients('1 Onion') }
+      ]);
+      _prepHelperState = null; _recipeView = 'prephelper'; renderRecipes();
+      document.getElementById('prepImportBox').value =
+        '{"hearth":"' + TAG + '","recipes":[{"id":8003,"prep":"Chop"}]}';
+      document.getElementById('prepReviewBtn').click();
+      ok('no tick-all control when nothing would be replaced',
+        !document.getElementById('prepTickAll'), 'control offered needlessly');
+      ok('a first run still pre-ticks and is ready to apply',
+        /Apply to 1 recipe/.test(document.getElementById('prepApply').textContent),
+        document.getElementById('prepApply').textContent);
+
+      return {pass:pass, fail:fail};
+    })()`);
+
     return {
-      pass: [].concat(out.pass, parse.pass, apply.pass, edge.pass),
-      fail: [].concat(out.fail, parse.fail, apply.fail, edge.fail),
+      pass: [].concat(out.pass, parse.pass, apply.pass, edge.pass, batched.pass, secondPass.pass),
+      fail: [].concat(out.fail, parse.fail, apply.fail, edge.fail, batched.fail, secondPass.fail),
     };
   },
 };

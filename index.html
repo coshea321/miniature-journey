@@ -867,7 +867,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v397 · 06/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v398 · 06/08/2026</div>
 
   </div>
 </div>
@@ -7007,10 +7007,27 @@ function prepExportRecipeBlock(r) {
   return out.join("\n");
 }
 
-// The whole clipboard payload: the instructions AND the recipes, so there is
-// one thing to paste rather than two.
-function prepExportText() {
-  var rb = getRecipeBook();
+// How many recipes go into one copy. A 118-recipe book is only ~44k
+// characters going OUT, which any chat accepts happily — the limit that
+// actually bites is what comes BACK. A prep entry per recipe is a few hundred
+// characters, so a whole book asks for something like 8-10k tokens of reply
+// and the answer simply stops partway: Cathal's first run returned 19 of 118.
+// Twenty keeps each reply comfortably inside that, at the cost of running the
+// round trip a few times.
+var PREP_BATCH_SIZE = 20;
+
+function prepBatchCount(total) {
+  return Math.max(1, Math.ceil((total || 0) / PREP_BATCH_SIZE));
+}
+
+// The clipboard payload for one batch: the instructions AND those recipes, so
+// there is one thing to paste rather than two. `batch` is 0-based.
+function prepExportText(batch) {
+  var rb = getRecipeBook().filter(Boolean);
+  var count = prepBatchCount(rb.length);
+  var b = Math.min(Math.max(parseInt(batch, 10) || 0, 0), count - 1);
+  var from = b * PREP_BATCH_SIZE;
+  var slice = rb.slice(from, from + PREP_BATCH_SIZE);
   var L = [];
   L.push("I keep my recipes in an app called Hearth. My whole recipe book is below.");
   L.push("");
@@ -7019,18 +7036,24 @@ function prepExportText() {
   L.push("Rules:");
   L.push("- Prep only — chopping, slicing, measuring out, preheating the oven, bringing something to room temperature, soaking, marinating, lining a tin, boiling a kettle. NOT the cooking itself; that is already in the method.");
   L.push("- One step per line. Plain text, no numbering and no bullet characters — the app numbers them.");
+  L.push("- GROUP BY WHAT GOES IN TOGETHER. A step is one moment in the method, not one ingredient. Read the method and see which ingredients hit the pan at the same time, then make those a single line — \"Mince the garlic and set it out with the chili powder, cumin, chipotle and salt\", \"Rinse the black beans and set them out with the tomatoes and lime juice\". Ingredients that go in alone, or need different work (peeling, dicing, soaking), stay on their own line.");
+  L.push("- Include the spices and the garnish. Measuring the dry spices into one dish, and chopping the herbs that get stirred in at the end, are both prep.");
   L.push("- Keep it short: at most 6 lines per recipe, usually fewer.");
   L.push("- Work only from what the recipe already says. Do not invent ingredients, quantities or techniques that are not there.");
   L.push("- If a recipe genuinely needs no prep, give it \"\".");
-  L.push("- Where prep is already written, repeat it back unless you can genuinely improve it.");
+  L.push("- Where prep is already written, repeat it back unless you can genuinely improve it — regrouping loose one-ingredient lines into the steps above counts as an improvement.");
   L.push("");
-  L.push("Reply with ONLY this JSON, nothing before or after it:");
+  L.push("Reply with ONLY this JSON, nothing before or after it — no explanation, no note, no apology, even if something in the recipes is unclear or missing:");
   L.push('{"hearth":"' + RECIPE_PREP_FILE_TAG + '","recipes":[{"id":123,"name":"Example","prep":"Finely chop the onion\\nPreheat the oven to 200C"}]}');
   L.push("");
   L.push("Keep each id exactly as given — the app matches on it.");
   L.push("");
-  L.push("--- MY RECIPES (" + rb.length + ") ---");
-  rb.forEach(function(r){ if (r) { L.push(""); L.push(prepExportRecipeBlock(r)); } });
+  // The batch line is for the reader as much as the model: pasting batch 4
+  // into a fresh chat should be obviously batch 4, not a mystery half-book.
+  L.push(count > 1
+    ? "--- MY RECIPES — BATCH " + (b + 1) + " OF " + count + " (" + slice.length + " of " + rb.length + " recipes) ---"
+    : "--- MY RECIPES (" + rb.length + ") ---");
+  slice.forEach(function(r){ L.push(""); L.push(prepExportRecipeBlock(r)); });
   return L.join("\n");
 }
 
@@ -7144,6 +7167,19 @@ function applyPrepImport() {
   });
   saveRecipeBook(rb);
   toast(n ? ("Prep added to " + n + " recipe" + (n !== 1 ? "s" : "")) : "Nothing applied");
+  // A batched book is worked through one batch at a time, so landing back on
+  // the recipe list after each one would mean re-opening the helper and
+  // re-finding your place six times over. Go back to the copy step with the
+  // next batch already selected instead; the chips are still there if you
+  // want to redo one.
+  var count = prepBatchCount(getRecipeBook().filter(Boolean).length);
+  if (count > 1) {
+    st.step = "copy";
+    st.batch = Math.min((st.batch || 0) + 1, count - 1);
+    st.rows = []; st.accept = {}; st.edits = {}; st.unmatched = []; st.error = "";
+    renderPrepHelper();
+    return;
+  }
   prepHelperExit();
 }
 
@@ -7151,7 +7187,7 @@ function renderPrepHelper() {
   // Same guard the editor and the tidy screen use: this screen holds unsaved
   // input, so a sync landing mid-review must not redraw it out from under him.
   _recipeEditing = true;
-  if (!_prepHelperState) _prepHelperState = { step: "copy", rows: [], accept: {}, edits: {}, unmatched: [], error: "" };
+  if (!_prepHelperState) _prepHelperState = { step: "copy", batch: 0, rows: [], accept: {}, edits: {}, unmatched: [], error: "" };
   var st = _prepHelperState;
   var el = document.getElementById("recipesContent");
   var head =
@@ -7160,14 +7196,39 @@ function renderPrepHelper() {
 
   if (st.step === "review") { renderPrepHelperReview(el, st, head); return; }
 
-  var rb = getRecipeBook();
-  var text = prepExportText();
+  var rb = getRecipeBook().filter(Boolean);
+  var count = prepBatchCount(rb.length);
+  if (st.batch == null || st.batch < 0 || st.batch >= count) st.batch = 0;
+  var text = prepExportText(st.batch);
+  var from = st.batch * PREP_BATCH_SIZE;
+  var inBatch = Math.max(0, Math.min(rb.length - from, PREP_BATCH_SIZE));
+
+  // Batch chips only when there is more than one — a small book shouldn't grow
+  // a control that only ever says "1 of 1".
+  var batchHtml = "";
+  if (count > 1) {
+    var chips = "";
+    for (var bi = 0; bi < count; bi++) {
+      var on = bi === st.batch;
+      chips += "<button class='prep-batch' data-b='" + bi + "' style='padding:6px 12px;border:1.5px solid " + (on ? "#B5651D" : "#D8C0A0") + ";background:" + (on ? "#B5651D" : "#FBF4E8") + ";color:" + (on ? "#fff" : "#8A5A1A") + ";border-radius:14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>" + (bi + 1) + "</button>";
+    }
+    batchHtml =
+      "<div style='background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:12px'>" +
+        "<div style='font-size:12px;color:#8A5A1A;line-height:1.5;margin-bottom:8px'>" +
+          "Your book is too big to do in one go — a chat reply stops before it gets through them all. " +
+          "Do it in " + count + " batches of " + PREP_BATCH_SIZE + ", applying each one before moving to the next." +
+        "</div>" +
+        "<div style='display:flex;flex-wrap:wrap;gap:6px'>" + chips + "</div>" +
+      "</div>";
+  }
+
   el.innerHTML = head +
     "<div style='font-size:13px;color:#8A7A5A;line-height:1.6;margin-bottom:14px'>" +
-      "Copy your " + rb.length + " recipe" + (rb.length !== 1 ? "s" : "") + " below, paste them into a chat, then paste the reply back here. " +
+      "Copy the recipes below, paste them into a chat, then paste the reply back here. " +
       "Nothing is written to a recipe until you review it and tap Apply." +
     "</div>" +
-    "<button id='prepCopyBtn' style='width:100%;box-sizing:border-box;padding:13px;border:none;background:#B5651D;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px'>&#x1F4CB; Copy my recipes</button>" +
+    batchHtml +
+    "<button id='prepCopyBtn' style='width:100%;box-sizing:border-box;padding:13px;border:none;background:#B5651D;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px'>&#x1F4CB; Copy " + (count > 1 ? ("batch " + (st.batch + 1) + " of " + count + " (" + inBatch + " recipes)") : ("my " + rb.length + " recipe" + (rb.length !== 1 ? "s" : ""))) + "</button>" +
     "<textarea id='prepExportBox' readonly rows='5' style='" + recipeInputCss() + "margin-bottom:20px;resize:vertical;line-height:1.5;font-size:12px;color:#7A6A50'>" + esc(text) + "</textarea>" +
     "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Paste the reply</div>" +
     (st.error ? "<div style='font-size:13px;color:#B03030;font-weight:600;margin-bottom:8px'>" + esc(st.error) + "</div>" : "") +
@@ -7176,6 +7237,12 @@ function renderPrepHelper() {
 
   document.getElementById("prepBackBtn").addEventListener("click", prepHelperExit);
   document.getElementById("prepCopyBtn").addEventListener("click", function(){ prepCopyToClipboard(text); });
+  Array.prototype.forEach.call(el.querySelectorAll(".prep-batch"), function(b){
+    b.addEventListener("click", function(){
+      st.batch = parseInt(b.getAttribute("data-b"), 10) || 0;
+      renderPrepHelper();
+    });
+  });
   document.getElementById("prepReviewBtn").addEventListener("click", function(){
     var res = parsePrepReply(document.getElementById("prepImportBox").value);
     if (res.error) { st.error = res.error; renderPrepHelper(); return; }
@@ -7199,11 +7266,31 @@ function renderPrepHelperReview(el, st, head) {
   var replacing = 0;
   st.rows.forEach(function(row){ if (st.accept[row.id] && row.existing) replacing++; });
 
+  var withExisting = 0;
+  st.rows.forEach(function(row){ if (row.existing) withExisting++; });
+
   var html = head +
     "<div style='font-size:13px;color:#8A7A5A;line-height:1.6;margin-bottom:14px'>" +
       st.rows.length + " recipe" + (st.rows.length !== 1 ? "s" : "") + " came back. Tick what you want, edit anything, then Apply. " +
       "Only the prep is written — nothing else on the recipe is touched." +
     "</div>";
+
+  // The second-pass dead end: on a re-run every recipe already has prep, so
+  // nothing is pre-ticked and Apply sits disabled reading "Apply to 0" with
+  // no clue why. Say why, and give one tap that fixes it.
+  if (withExisting) {
+    html +=
+      "<div style='background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:12px'>" +
+        "<div style='font-size:12px;color:#8A5A1A;line-height:1.5;margin-bottom:8px'>" +
+          withExisting + " of these already have prep written, so they start unticked — " +
+          "nothing you wrote gets replaced unless you say so." +
+        "</div>" +
+        "<div style='display:flex;gap:6px;flex-wrap:wrap'>" +
+          "<button id='prepTickAll' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Tick all " + st.rows.length + "</button>" +
+          "<button id='prepTickNone' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Untick all</button>" +
+        "</div>" +
+      "</div>";
+  }
 
   if (st.unmatched.length) {
     html += "<div style='background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#8A5A1A;line-height:1.5'>" +
@@ -7230,7 +7317,9 @@ function renderPrepHelperReview(el, st, head) {
   });
 
   html +=
-    "<button id='prepApply'" + (accepted ? "" : " disabled") + " style='width:100%;box-sizing:border-box;padding:13px;margin-top:6px;border:none;background:" + (accepted ? "#2D6B35" : "#D8CEBC") + ";color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:" + (accepted ? "pointer" : "default") + "'>Apply to " + accepted + " recipe" + (accepted !== 1 ? "s" : "") + "</button>" +
+    "<button id='prepApply'" + (accepted ? "" : " disabled") + " style='width:100%;box-sizing:border-box;padding:13px;margin-top:6px;border:none;background:" + (accepted ? "#2D6B35" : "#D8CEBC") + ";color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:" + (accepted ? "pointer" : "default") + "'>" +
+      (accepted ? ("Apply to " + accepted + " recipe" + (accepted !== 1 ? "s" : "")) : "Tick the ones you want") +
+    "</button>" +
     "<button id='prepBackToCopy' style='width:100%;box-sizing:border-box;padding:11px;margin-top:8px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>&larr; Paste a different reply</button>";
 
   el.innerHTML = html;
@@ -7238,6 +7327,16 @@ function renderPrepHelperReview(el, st, head) {
   document.getElementById("prepBackBtn").addEventListener("click", prepHelperExit);
   document.getElementById("prepBackToCopy").addEventListener("click", function(){
     st.step = "copy"; st.rows = []; st.accept = {}; st.edits = {}; st.unmatched = [];
+    renderPrepHelper();
+  });
+  var _tickAll = document.getElementById("prepTickAll");
+  if (_tickAll) _tickAll.addEventListener("click", function(){
+    st.rows.forEach(function(row){ st.accept[row.id] = true; });
+    renderPrepHelper();
+  });
+  var _tickNone = document.getElementById("prepTickNone");
+  if (_tickNone) _tickNone.addEventListener("click", function(){
+    st.rows.forEach(function(row){ st.accept[row.id] = false; });
     renderPrepHelper();
   });
   // Inline edits are kept in state, not read at apply time: the review
