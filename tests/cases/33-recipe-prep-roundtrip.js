@@ -260,45 +260,90 @@ module.exports = {
         /no explanation, no note, no apology/.test(oneText), 'no-preamble rule missing');
       ok('a single-batch book gets no batch header',
         /MY RECIPES \\(1\\)/.test(oneText) && !/BATCH/.test(oneText), 'unexpected batch header');
-      ok('one batch is reported for a small book', prepBatchCount(1) === 1, prepBatchCount(1));
+      ok('one batch is reported for a small book',
+        prepBatchCount(getRecipeBook()) === 1, prepBatchCount(getRecipeBook()));
 
-      // A book too big for one round trip.
-      var big = [];
-      for (var i = 0; i < 118; i++) {
-        big.push({ id: 7000 + i, name: 'Recipe ' + i, servings: 2, updated: 1,
-                   method: 'Cook it.', ingredients: parseIngredients('1 Onion') });
+      // v399: batches are sized by CHARACTERS, not by recipe count. Cathal's
+      // real book has a three-line recipe sitting beside one with a 4,000-
+      // character method, so a fixed count produced wildly different paste
+      // sizes — some small, some cut off in transit. Build a book with the
+      // same lopsidedness and check the packing copes.
+      // Deliberately lopsided rather than merely varied: the first ten
+      // recipes carry very long methods and the rest are one-liners. A
+      // count-based split would put the same number in every batch regardless;
+      // a length-based one has to put far fewer in the early batches. (An
+      // evenly-alternating fixture is no test at all — a repeating pattern
+      // divides into the budget and comes out even by arithmetic.)
+      var mixed = [];
+      for (var i = 0; i < 60; i++) {
+        mixed.push({ id: 7000 + i, name: 'Recipe ' + i, servings: 2, updated: 1,
+                     method: i < 10 ? new Array(80).fill('Simmer gently and stir until it thickens.').join(' ') : 'Cook it.',
+                     ingredients: parseIngredients('1 Onion') });
       }
-      storeSet('fl4_recipebook', big);
+      storeSet('fl4_recipebook', mixed);
 
-      ok('a 118-recipe book is split into batches of ' + PREP_BATCH_SIZE,
-        prepBatchCount(118) === 6, prepBatchCount(118));
+      var ranges = prepBatchRanges(getRecipeBook());
+      ok('a mixed-size book is split into more than one batch', ranges.length > 1, ranges.length + ' batches');
+      ok('every batch is inside the character budget',
+        ranges.every(function(r){
+          return r.blocks.join('').length <= PREP_BATCH_CHARS || r.blocks.length === 1;
+        }),
+        JSON.stringify(ranges.map(function(r){ return r.blocks.join('').length; })));
+      ok('batches hold different numbers of recipes, because sizes differ',
+        new Set(ranges.map(function(r){ return r.blocks.length; })).size > 1,
+        JSON.stringify(ranges.map(function(r){ return r.blocks.length; })));
+      ok('every recipe lands in exactly one batch',
+        ranges.reduce(function(n, r){ return n + r.blocks.length; }, 0) === 60,
+        'total blocks: ' + ranges.reduce(function(n, r){ return n + r.blocks.length; }, 0));
+      ok('batches are contiguous and in order',
+        ranges.every(function(r, i){ return i === 0 || r.from === ranges[i-1].to + 1; }),
+        JSON.stringify(ranges.map(function(r){ return r.from + '-' + r.to; })));
 
-      var b0 = prepExportText(0), b5 = prepExportText(5);
+      var count = ranges.length;
+      var b0 = prepExportText(0), bLast = prepExportText(count - 1);
       ok('batch 1 holds only its own slice',
-        /id 7000\\b/.test(b0) && !/id 7020\\b/.test(b0), 'batch 1 slice wrong');
+        /id 7000\\b/.test(b0) && !new RegExp('id ' + (7000 + ranges[0].to + 1) + '\\\\b').test(b0),
+        'batch 1 slice wrong');
       ok('the last batch holds the tail of the book',
-        /id 7117\\b/.test(b5) && !/id 7000\\b/.test(b5), 'last batch slice wrong');
-      ok('a batch says which batch it is',
-        /BATCH 1 OF 6/.test(b0) && /BATCH 6 OF 6/.test(b5), 'batch header missing');
+        /id 7059\\b/.test(bLast) && !/id 7000\\b/.test(bLast), 'last batch slice wrong');
+      ok('a batch says which batch it is and which recipes it holds',
+        new RegExp('BATCH 1 OF ' + count).test(b0) && /recipes 1-/.test(b0), 'batch header missing');
       ok('an out-of-range batch clamps instead of returning nothing',
-        /id 7117\\b/.test(prepExportText(99)) && /id 7000\\b/.test(prepExportText(-5)),
+        /id 7059\\b/.test(prepExportText(99)) && /id 7000\\b/.test(prepExportText(-5)),
         'clamp failed');
-      ok('a batch is a fraction of the whole-book payload',
-        b0.length < 12000 && b0.length > 500, 'batch chars: ' + b0.length);
+
+      // A single recipe bigger than the whole budget must still be copyable.
+      storeSet('fl4_recipebook', [
+        { id: 7500, name: 'Monster', servings: 2, updated: 1,
+          method: new Array(400).fill('Simmer gently and stir until it thickens.').join(' '),
+          ingredients: parseIngredients('1 Onion') },
+        { id: 7501, name: 'Small', servings: 2, updated: 1, method: 'Cook.', ingredients: parseIngredients('1 Leek') }
+      ]);
+      var mono = prepBatchRanges(getRecipeBook());
+      ok('a recipe longer than the whole budget gets its own batch rather than being dropped',
+        mono.length === 2 && mono[0].blocks.length === 1 && /id 7500/.test(prepExportText(0)),
+        JSON.stringify(mono.map(function(r){ return r.blocks.length; })));
+      ok('the recipe after an oversized one is still exported',
+        /id 7501/.test(prepExportText(1)), 'trailing recipe lost');
 
       // The copy screen offers the batches.
+      storeSet('fl4_recipebook', mixed);
       switchSection('recipes');
       _prepHelperState = null; _recipeView = 'prephelper'; renderRecipes();
       ok('batch chips are offered when the book needs more than one',
-        document.querySelectorAll('.prep-batch').length === 6,
-        document.querySelectorAll('.prep-batch').length + ' chips');
-      ok('the copy button names the batch',
-        /Copy batch 1 of 6/.test(document.getElementById('prepCopyBtn').textContent),
+        document.querySelectorAll('.prep-batch').length === count,
+        document.querySelectorAll('.prep-batch').length + ' chips vs ' + count + ' batches');
+      ok('the copy button names the batch and how many recipes are in it',
+        new RegExp('Copy batch 1 of ' + count).test(document.getElementById('prepCopyBtn').textContent) &&
+        new RegExp('\\\\(' + ranges[0].blocks.length + ' recipes\\\\)').test(document.getElementById('prepCopyBtn').textContent),
         document.getElementById('prepCopyBtn').textContent);
-      document.querySelectorAll('.prep-batch')[2].click();
+      document.querySelectorAll('.prep-batch')[1].click();
       ok('tapping a chip switches batch',
-        _prepHelperState.batch === 2 && /Copy batch 3 of 6/.test(document.getElementById('prepCopyBtn').textContent),
+        _prepHelperState.batch === 1 && new RegExp('Copy batch 2 of ' + count).test(document.getElementById('prepCopyBtn').textContent),
         'batch=' + _prepHelperState.batch);
+      // Back to the first batch: applying the LAST batch has nowhere to
+      // advance to, so the advance check has to start somewhere else.
+      document.querySelectorAll('.prep-batch')[0].click();
 
       // Applying a batch stays in the helper and moves to the next one.
       document.getElementById('prepImportBox').value =
@@ -308,7 +353,7 @@ module.exports = {
       ok('applying a batch keeps you in the helper',
         _recipeView === 'prephelper' && _prepHelperState !== null, _recipeView);
       ok('applying a batch moves on to the next one',
-        _prepHelperState.batch === 3 && _prepHelperState.step === 'copy',
+        _prepHelperState.batch === 1 && _prepHelperState.step === 'copy',
         'batch=' + _prepHelperState.batch + ' step=' + _prepHelperState.step);
       ok('the applied prep landed',
         getRecipeBook().find(function(r){ return r.id === 7040; }).prep === 'Chop the onion',

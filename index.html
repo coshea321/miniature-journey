@@ -867,7 +867,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v398 · 06/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v399 · 06/08/2026</div>
 
   </div>
 </div>
@@ -7007,27 +7007,45 @@ function prepExportRecipeBlock(r) {
   return out.join("\n");
 }
 
-// How many recipes go into one copy. A 118-recipe book is only ~44k
-// characters going OUT, which any chat accepts happily — the limit that
-// actually bites is what comes BACK. A prep entry per recipe is a few hundred
-// characters, so a whole book asks for something like 8-10k tokens of reply
-// and the answer simply stops partway: Cathal's first run returned 19 of 118.
-// Twenty keeps each reply comfortably inside that, at the cost of running the
-// round trip a few times.
-var PREP_BATCH_SIZE = 20;
+// How much goes into one copy. v398 batched by COUNT (20 recipes) and that
+// was the wrong unit: real recipes vary enormously. Cathal's book has a
+// three-line "Chicken Soya" sitting beside a bread recipe with a 4,000-
+// character method and a drink whose "method" is an entire scraped article.
+// Twenty of the short ones is a small paste; twenty of the long ones is a
+// paste that gets cut off in transit and a reply that stops partway. Budget
+// characters instead and let the recipe count fall out of it.
+var PREP_BATCH_CHARS = 12000;
 
-function prepBatchCount(total) {
-  return Math.max(1, Math.ceil((total || 0) / PREP_BATCH_SIZE));
+// [{from, to, blocks}] over the book, packed so no batch exceeds the budget.
+// The one exception is a single recipe longer than the whole budget on its
+// own — it gets a batch to itself rather than being dropped, because a
+// recipe you can't copy at all is worse than one long paste.
+function prepBatchRanges(rb) {
+  var out = [], cur = null, used = 0;
+  (rb || []).filter(Boolean).forEach(function(r, i){
+    var block = prepExportRecipeBlock(r);
+    var len = block.length + 2;                  // the blank line between blocks
+    if (cur && used + len > PREP_BATCH_CHARS) cur = null;
+    if (!cur) { cur = { from: i, to: i, blocks: [] }; out.push(cur); used = 0; }
+    cur.to = i;
+    cur.blocks.push(block);
+    used += len;
+  });
+  return out;
+}
+
+function prepBatchCount(rb) {
+  return Math.max(1, prepBatchRanges(rb).length);
 }
 
 // The clipboard payload for one batch: the instructions AND those recipes, so
 // there is one thing to paste rather than two. `batch` is 0-based.
 function prepExportText(batch) {
   var rb = getRecipeBook().filter(Boolean);
-  var count = prepBatchCount(rb.length);
+  var ranges = prepBatchRanges(rb);
+  var count = Math.max(1, ranges.length);
   var b = Math.min(Math.max(parseInt(batch, 10) || 0, 0), count - 1);
-  var from = b * PREP_BATCH_SIZE;
-  var slice = rb.slice(from, from + PREP_BATCH_SIZE);
+  var range = ranges[b] || { from: 0, to: -1, blocks: [] };
   var L = [];
   L.push("I keep my recipes in an app called Hearth. My whole recipe book is below.");
   L.push("");
@@ -7051,9 +7069,9 @@ function prepExportText(batch) {
   // The batch line is for the reader as much as the model: pasting batch 4
   // into a fresh chat should be obviously batch 4, not a mystery half-book.
   L.push(count > 1
-    ? "--- MY RECIPES — BATCH " + (b + 1) + " OF " + count + " (" + slice.length + " of " + rb.length + " recipes) ---"
+    ? "--- MY RECIPES — BATCH " + (b + 1) + " OF " + count + " (recipes " + (range.from + 1) + "-" + (range.to + 1) + " of " + rb.length + ") ---"
     : "--- MY RECIPES (" + rb.length + ") ---");
-  slice.forEach(function(r){ L.push(""); L.push(prepExportRecipeBlock(r)); });
+  range.blocks.forEach(function(block){ L.push(""); L.push(block); });
   return L.join("\n");
 }
 
@@ -7172,7 +7190,7 @@ function applyPrepImport() {
   // re-finding your place six times over. Go back to the copy step with the
   // next batch already selected instead; the chips are still there if you
   // want to redo one.
-  var count = prepBatchCount(getRecipeBook().filter(Boolean).length);
+  var count = prepBatchCount(getRecipeBook().filter(Boolean));
   if (count > 1) {
     st.step = "copy";
     st.batch = Math.min((st.batch || 0) + 1, count - 1);
@@ -7197,11 +7215,12 @@ function renderPrepHelper() {
   if (st.step === "review") { renderPrepHelperReview(el, st, head); return; }
 
   var rb = getRecipeBook().filter(Boolean);
-  var count = prepBatchCount(rb.length);
+  var ranges = prepBatchRanges(rb);
+  var count = Math.max(1, ranges.length);
   if (st.batch == null || st.batch < 0 || st.batch >= count) st.batch = 0;
   var text = prepExportText(st.batch);
-  var from = st.batch * PREP_BATCH_SIZE;
-  var inBatch = Math.max(0, Math.min(rb.length - from, PREP_BATCH_SIZE));
+  var curRange = ranges[st.batch] || { from: 0, to: -1, blocks: [] };
+  var inBatch = curRange.blocks.length;
 
   // Batch chips only when there is more than one — a small book shouldn't grow
   // a control that only ever says "1 of 1".
@@ -7215,8 +7234,9 @@ function renderPrepHelper() {
     batchHtml =
       "<div style='background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:12px'>" +
         "<div style='font-size:12px;color:#8A5A1A;line-height:1.5;margin-bottom:8px'>" +
-          "Your book is too big to do in one go — a chat reply stops before it gets through them all. " +
-          "Do it in " + count + " batches of " + PREP_BATCH_SIZE + ", applying each one before moving to the next." +
+          "Your book is too big to do in one go — a long paste gets cut off and the reply stops before it gets through them all. " +
+          "Do it in " + count + " batches, applying each one before moving to the next. " +
+          "Batches are sized by length, not by count, so a batch of long recipes holds fewer of them." +
         "</div>" +
         "<div style='display:flex;flex-wrap:wrap;gap:6px'>" + chips + "</div>" +
       "</div>";
