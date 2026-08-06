@@ -867,7 +867,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v395 · 03/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v396 · 06/08/2026</div>
 
   </div>
 </div>
@@ -5885,7 +5885,7 @@ function recipeSearchText(r) {
     return i ? ((i.name || "") + " " + (i.groceryName || "")) : "";
   }).join(" ");
   return ((r.name || "") + " " + (r.notes || "") + " " + (r.category || "") + " " +
-          (r.method || "") + " " + ings).toLowerCase();
+          (r.prep || "") + " " + (r.method || "") + " " + ings).toLowerCase();
 }
 function renderRecipes() {
   _recipeEditing = false; // reaching the list/detail dispatcher means the editor isn't open
@@ -6890,6 +6890,84 @@ function formatMethod(text){
   return html;
 }
 
+// ── Prep (v396) ───────────────────────────────────────────────────────────
+// A recipe carries an optional `prep` field: the work done before the cooking
+// starts. Every recipe written before v396 has no such field, and asking
+// Cathal to retro-fill the whole book by hand was the actual cost of this
+// feature — so when nothing is typed the detail view DERIVES a prep list from
+// the ingredient lines, which already carry most of it ("Garlic (minced)",
+// "Onion, finely chopped"). That fallback is display-only: nothing is written
+// to a recipe unless the editor's "use the prep from my ingredients" button is
+// tapped, exactly like the v365 rescue-at-render below.
+//
+// A wider word list than GROCERY_PREP_WORDS, deliberately kept SEPARATE from
+// it. That list drives what gets stripped out of a shopping name, so adding
+// display-only wording to it would quietly change what lands on the grocery
+// list — a much bigger blast radius than this feature deserves.
+var RECIPE_PREP_WORDS = GROCERY_PREP_WORDS.concat([
+  "cut","soaked","marinated","thawed","defrosted","toasted","sifted","mashed",
+  "whisked","whipped","strained","pitted","cored","stemmed","deveined","scored",
+  "boiled","cooked","room temperature","patted dry","brought to room temperature"
+]);
+var RECIPE_PREP_RE = new RegExp("(^|[^a-z])(" +
+  RECIPE_PREP_WORDS.map(function(w){ return w.replace(/[-\s]/g, "[-\\s]"); }).join("|") +
+  ")([^a-z]|$)", "i");
+
+// Does a fragment read as an instruction rather than a measure? It has to
+// contain a known prep word, so "425 g", "or 2 tbsp" and "15-ounce" are never
+// listed as prep — the conservative direction, since a missed prep note costs
+// nothing (the ingredient still shows it) while a wrong one is visible noise.
+function isPrepPhrase(txt) {
+  var s = String(txt || "").trim();
+  if (!s) return false;
+  return RECIPE_PREP_RE.test(s);
+}
+
+// Read a prep list off the ingredients. Returns [{name, prep}] — one entry per
+// ingredient that actually says something, in recipe order.
+function derivedPrepSteps(r) {
+  var out = [];
+  if (!r) return out;
+  (r.ingredients || []).forEach(function(ing){
+    if (!ing || isHeaderIng(ing) || !ing.name) return;
+    var raw = String(ing.name);
+    var bits = [];
+    // Brackets first. The canonical v366 ingredient shape puts prep wording in
+    // the bracket, and splitGroceryName deliberately never looks inside one.
+    (raw.match(/\(([^)]*)\)/g) || []).forEach(function(b){
+      b.slice(1, -1).split(",").forEach(function(p){ bits.push(p); });
+    });
+    // Then everything the grocery splitter already peels off a name: a " - "
+    // clause, a comma clause, a trailing prep word.
+    var sp = splitGroceryName(raw, ing.amount != null);
+    if (sp.prep) sp.prep.split(",").forEach(function(p){ bits.push(p); });
+    var prep = [];
+    bits.forEach(function(p){
+      p = String(p).trim().replace(/^(?:and|then)\s+/i, "").trim();
+      if (p && isPrepPhrase(p) && prep.indexOf(p) === -1) prep.push(p);
+    });
+    if (!prep.length) return;
+    out.push({ name: sp.name || cleanGroceryName(raw) || raw, prep: prep.join(", ") });
+  });
+  return out;
+}
+
+// One derived step as a line of text — the same wording the editor's button
+// writes into the textarea, so what you see is what you'd get.
+function prepStepLine(s){ return s.name + " — " + s.prep; }
+
+// The derived list, rendered in the same shape formatMethod uses so a derived
+// prep block and a typed one look identical apart from the footnote.
+function derivedPrepHtml(steps) {
+  if (!steps || !steps.length) return "";
+  var html = "<ol style='margin:0;padding:0 0 0 22px'>";
+  steps.forEach(function(s){
+    html += "<li style='margin:0 0 10px;padding-left:3px;color:#B5651D'><span style='color:#2A2010'>" +
+            esc(s.name) + " &mdash; " + esc(s.prep) + "</span></li>";
+  });
+  return html + "</ol><div style='font-size:11px;color:#9A8A6A;margin-top:8px'>Read from your ingredient list. Edit the recipe to write your own.</div>";
+}
+
 // Rescue-at-render (recipe-parser second pass, v365): an ingredient stored
 // before compound/range parsing existed may still carry a stranded "+ 2
 // tbsp"/"to 3 tbsp" leftover in its name — the old parser only ever peeled a
@@ -6983,6 +7061,13 @@ function renderRecipeDetail() {
     ingHtml += "<li style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#B5651D;list-style:disc'><span style='color:#2A2010'>" + amtStr + esc(eff.name) + pref + "</span></li>";
   });
 
+  // Prep: what was typed if anything was, otherwise what the ingredients
+  // already say. Never both — a derived list under a typed one would just
+  // repeat the same wording back in a second place.
+  var prepHtml = "";
+  if (r.prep && String(r.prep).trim()) prepHtml = formatMethod(r.prep);
+  else prepHtml = derivedPrepHtml(derivedPrepSteps(r));
+
   el.innerHTML =
     "<button id='recipeBackBtn' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; All recipes</button>" +
     "<div style='display:flex;align-items:flex-start;gap:10px;margin-bottom:6px'>" +
@@ -6998,6 +7083,7 @@ function renderRecipeDetail() {
     "</div>" +
     "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Ingredients</div>" +
     "<ul style='margin:0 0 18px;padding:0 0 0 20px'>" + ingHtml + "</ul>" +
+    (prepHtml ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Prep</div><div style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + prepHtml + "</div>" : "") +
     (r.method ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Method</div><div style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + formatMethod(r.method) + "</div>" : "") +
     (r.notes ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Notes</div><div style='font-size:14px;color:#6A5A40;line-height:1.6;margin-bottom:18px'>" + esc(r.notes) + "</div>" : "") +
     (r.url ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Source</div><a href='" + esc(r.url) + "' target='_blank' rel='noopener noreferrer' style='display:inline-block;font-size:14px;color:#B5651D;font-weight:600;word-break:break-all;margin-bottom:18px'>&#x1F517; " + esc(r.url) + "</a>" : "") +
@@ -7235,6 +7321,10 @@ function openRecipeEditor(id) {
   var isNew = !r;
   // Build an ingredient text representation: "amount unit name" per line
   var ingText = r ? (r.ingredients||[]).map(ingredientToLine).join("\n") : "";
+  // Offered as a button, never pre-filled: the derived prep is a display
+  // fallback everywhere else, and silently seeding the textarea would write it
+  // into the recipe for real the next time Cathal saved anything at all.
+  var derivedPrep = r ? derivedPrepSteps(r) : [];
   var el = document.getElementById("recipesContent");
   el.innerHTML =
     "<button id='recipeCancelEdit' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; Cancel</button>" +
@@ -7250,6 +7340,9 @@ function openRecipeEditor(id) {
     "<label style='display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:14px;color:#2A2010;cursor:pointer'><input id='reInRotation' type='checkbox'" + (r&&r.inRotation?" checked":"") + " style='width:18px;height:18px'> &#x1F501; In rotation (eligible for the weekly auto-fill)</label>" +
     fieldLabel("Ingredients (one per line: amount unit name)") +
     "<textarea id='reIng' rows='7' placeholder='2 tsp instant coffee&#10;150 ml milk&#10;~8 cube ice cubes' style='" + recipeInputCss() + "margin-bottom:12px;resize:vertical;line-height:1.6'>" + (ingText?esc(ingText):"") + "</textarea>" +
+    fieldLabel("Prep (optional) — done before the cooking starts") +
+    "<textarea id='rePrep' rows='3' placeholder='Finely chop the onion&#10;Preheat the oven to 200C' style='" + recipeInputCss() + "margin-bottom:" + (derivedPrep.length ? "6px" : "12px") + ";resize:vertical;line-height:1.6'>" + (r&&r.prep?esc(r.prep):"") + "</textarea>" +
+    (derivedPrep.length ? "<button id='rePrepFromIng' type='button' style='border:1.5px solid #D8C0A0;background:#FBF4E8;color:#8A5A1A;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:12px'>&#x2193; Use the prep from my ingredients (" + derivedPrep.length + ")</button>" : "") +
     fieldLabel("Method") +
     "<textarea id='reMethod' rows='5' placeholder='Step-by-step method...' style='" + recipeInputCss() + "margin-bottom:12px;resize:vertical;line-height:1.6'>" + (r&&r.method?esc(r.method):"") + "</textarea>" +
     fieldLabel("Notes (optional)") +
@@ -7285,12 +7378,25 @@ function openRecipeEditor(id) {
     document.getElementById("reCategory").addEventListener("input", _hiReChip);
     _hiReChip(); // reflect current value when the editor opens
   }
+  var _rePrepBtn = document.getElementById("rePrepFromIng");
+  if (_rePrepBtn) {
+    _rePrepBtn.addEventListener("click", function(){
+      var ta = document.getElementById("rePrep");
+      var lines = derivedPrep.map(prepStepLine).join("\n");
+      // Appended, never overwritten — anything already typed is his, and a
+      // button that eats it would be the wrong kind of surprise.
+      ta.value = ta.value.trim() ? (ta.value.replace(/\s+$/, "") + "\n" + lines) : lines;
+      ta.focus();
+      toast("Prep added — edit it as you like");
+    });
+  }
   document.getElementById("reSave").addEventListener("click", function(){
     var name = document.getElementById("reName").value.trim();
     if (!name) { toast("Name can't be empty"); return; }
     var servings = parseInt(document.getElementById("reServings").value, 10) || 1;
     var category = document.getElementById("reCategory").value.trim();
     var ingredients = parseIngredients(document.getElementById("reIng").value);
+    var prep   = document.getElementById("rePrep").value.trim();
     var method = document.getElementById("reMethod").value.trim();
     var notes  = document.getElementById("reNotes").value.trim();
     var url = normalizeRecipeUrl(document.getElementById("reUrl").value);
@@ -7298,13 +7404,13 @@ function openRecipeEditor(id) {
     var rb = getRecipeBook();
     if (isNew) {
       var nid = Date.now() + Math.floor(Math.random()*100000);
-      rb.unshift({ id:nid, name:name, servings:servings, category:category, ingredients:ingredients, method:method, notes:notes, url:url, fav:false, inRotation:inRotation, updated:Date.now(), addedBy:hearthUser });
+      rb.unshift({ id:nid, name:name, servings:servings, category:category, ingredients:ingredients, prep:prep, method:method, notes:notes, url:url, fav:false, inRotation:inRotation, updated:Date.now(), addedBy:hearthUser });
       _recipeOpenId = nid;
     } else {
       var ex = rb.find(function(x){ return x.id === id; });
       // The textarea only carries "amount unit name", so re-parsing it would
       // drop the v368 shopping preferences — carry them onto the new lines.
-      if (ex) { ex.name=name; ex.servings=servings; ex.category=category; ex.ingredients=carryGroceryPrefs(ingredients, ex.ingredients); ex.method=method; ex.notes=notes; ex.url=url; ex.inRotation=inRotation; ex.updated=Date.now(); }
+      if (ex) { ex.name=name; ex.servings=servings; ex.category=category; ex.ingredients=carryGroceryPrefs(ingredients, ex.ingredients); ex.prep=prep; ex.method=method; ex.notes=notes; ex.url=url; ex.inRotation=inRotation; ex.updated=Date.now(); }
     }
     saveRecipeBook(rb);
     _recipeEditing = false;
