@@ -867,7 +867,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v396 · 06/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v397 · 06/08/2026</div>
 
   </div>
 </div>
@@ -5893,6 +5893,7 @@ function renderRecipes() {
   if (_recipeView === "detail" && _recipeOpenId != null) { renderRecipeDetail(); return; }
   if (_recipeView === "plan") { renderMealPlanner(); return; }
   if (_recipeView === "tidy") { renderRecipeTidy(); return; }
+  if (_recipeView === "prephelper") { renderPrepHelper(); return; }
   if (_recipeView === "grocerypick") { renderGroceryPick(); return; }
   var el = document.getElementById("recipesContent");
   var rb = getRecipeBook();
@@ -5959,6 +5960,7 @@ function renderRecipes() {
     selectHdr = "<div style='display:flex;flex-wrap:wrap;gap:6px;justify-content:space-between;margin-bottom:10px'>" +
       "<button id='rcpPlanBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F4C5; Week plan</button>" +
       "<button id='rcpTidyBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F9F9; Tidy</button>" +
+      "<button id='rcpPrepBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F4DD; Prep helper</button>" +
       "<button id='rcpSelStart' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x2713; Select</button>" +
     "</div>";
   }
@@ -6054,6 +6056,13 @@ function renderRecipes() {
     _recipeScrollPos = window.scrollY || document.documentElement.scrollTop;
     _tidyState = null;            // always recompute against what's stored now
     _recipeView = "tidy";
+    renderRecipes();
+  });
+  var _rcpPrepBtn = document.getElementById("rcpPrepBtn");
+  if (_rcpPrepBtn) _rcpPrepBtn.addEventListener("click", function(){
+    _recipeScrollPos = window.scrollY || document.documentElement.scrollTop;
+    _prepHelperState = null;      // always rebuild the export against what's stored now
+    _recipeView = "prephelper";
     renderRecipes();
   });
   var _selStart = document.getElementById("rcpSelStart");
@@ -6966,6 +6975,291 @@ function derivedPrepHtml(steps) {
             esc(s.name) + " &mdash; " + esc(s.prep) + "</span></li>";
   });
   return html + "</ol><div style='font-size:11px;color:#9A8A6A;margin-top:8px'>Read from your ingredient list. Edit the recipe to write your own.</div>";
+}
+
+// ── Prep helper: copy out → write the prep elsewhere → paste back (v397) ──
+// The derived reader above can only surface prep that is already attached to
+// an ingredient. "Preheat the oven", "take the butter out an hour ahead" and
+// "soak the beans overnight" live in the method or nowhere, so this is the
+// route for filling those in across the whole book at once: copy the recipes,
+// have something write the prep, paste the reply back, review it, apply.
+//
+// DELIBERATELY PREP-ONLY. Recipes have no JSON export today, and a full
+// recipe file would put every field an import could damage — grocery
+// preferences, favourites, lastCooked, inRotation — inside the blast radius
+// of a paste. This round trip reads a lot and writes exactly one field.
+var RECIPE_PREP_FILE_TAG = "recipe-prep-v1";
+// null | { step:"copy"|"review", rows:[], accept:{}, edits:{}, unmatched:[], error:"" }
+var _prepHelperState = null;
+
+// One recipe as whatever writes the prep needs to see it: what it is, what
+// goes in, what you do. Nothing else is any of its business.
+function prepExportRecipeBlock(r) {
+  var out = ["id " + r.id + " — " + (r.name || "Untitled") + " (serves " + (r.servings || 1) + ")"];
+  var ings = (r.ingredients || []).map(function(ing){
+    if (!ing || !ing.name) return "";
+    if (isHeaderIng(ing)) return "  " + headerLabel(ing) + ":";
+    return "  - " + ingredientToLine(ing);
+  }).filter(Boolean);
+  if (ings.length) out.push("Ingredients:", ings.join("\n"));
+  if (r.method) out.push("Method:", "  " + String(r.method).replace(/\n/g, "\n  "));
+  if (r.prep) out.push("Prep already written:", "  " + String(r.prep).replace(/\n/g, "\n  "));
+  return out.join("\n");
+}
+
+// The whole clipboard payload: the instructions AND the recipes, so there is
+// one thing to paste rather than two.
+function prepExportText() {
+  var rb = getRecipeBook();
+  var L = [];
+  L.push("I keep my recipes in an app called Hearth. My whole recipe book is below.");
+  L.push("");
+  L.push("For each recipe, write a PREP section: the work done BEFORE the cooking starts.");
+  L.push("");
+  L.push("Rules:");
+  L.push("- Prep only — chopping, slicing, measuring out, preheating the oven, bringing something to room temperature, soaking, marinating, lining a tin, boiling a kettle. NOT the cooking itself; that is already in the method.");
+  L.push("- One step per line. Plain text, no numbering and no bullet characters — the app numbers them.");
+  L.push("- Keep it short: at most 6 lines per recipe, usually fewer.");
+  L.push("- Work only from what the recipe already says. Do not invent ingredients, quantities or techniques that are not there.");
+  L.push("- If a recipe genuinely needs no prep, give it \"\".");
+  L.push("- Where prep is already written, repeat it back unless you can genuinely improve it.");
+  L.push("");
+  L.push("Reply with ONLY this JSON, nothing before or after it:");
+  L.push('{"hearth":"' + RECIPE_PREP_FILE_TAG + '","recipes":[{"id":123,"name":"Example","prep":"Finely chop the onion\\nPreheat the oven to 200C"}]}');
+  L.push("");
+  L.push("Keep each id exactly as given — the app matches on it.");
+  L.push("");
+  L.push("--- MY RECIPES (" + rb.length + ") ---");
+  rb.forEach(function(r){ if (r) { L.push(""); L.push(prepExportRecipeBlock(r)); } });
+  return L.join("\n");
+}
+
+// Clipboard with an execCommand fallback — writeText needs a user gesture and
+// a secure context, and neither is guaranteed on every browser this opens in.
+// Kept separate from plantCopyPrompt rather than refactoring it: that one
+// works, and widening a Plants function inside a Recipes version buys nothing.
+function prepCopyToClipboard(text) {
+  function fallback() {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      var ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      toast(ok ? "&#x1F4CB; Recipes copied" : "Couldn't copy — select the text below by hand");
+    } catch (e) { toast("Couldn't copy — select the text below by hand"); }
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function(){ toast("&#x1F4CB; Recipes copied"); }, fallback);
+  } else { fallback(); }
+}
+
+// Text pasted back out of a chat is a known source of invisible characters —
+// v395 lost a whole recipe's amounts to a U+200B in front of every line, and
+// one inside a JSON string would break the parse outright.
+function prepStripInvisible(s) {
+  return String(s == null ? "" : s)
+    .replace(/[\u200b\u200c\u200d\u2060\ufeff\xad\u200e\u200f]/g, "");
+}
+
+// Returns {rows, unmatched} or {error}. Rows are matched against the book
+// here, not at apply time, so the review screen can only ever offer real
+// recipes.
+function parsePrepReply(raw) {
+  var s = prepStripInvisible(raw).trim();
+  if (!s) return { error: "Paste the reply into the box first." };
+  // A chat reply arrives wrapped in a ``` fence about as often as not, and
+  // sometimes with a sentence either side of it. Take the outermost {...}
+  // rather than demanding a surgically clean paste.
+  s = s.replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/, "").trim();
+  var a = s.indexOf("{"), b = s.lastIndexOf("}");
+  if (a !== -1 && b > a) s = s.slice(a, b + 1);
+  var obj;
+  try { obj = JSON.parse(s); }
+  catch (e) { return { error: "Couldn't read that as JSON. Paste the whole reply, including the { and the }." }; }
+  if (!obj || obj.hearth !== RECIPE_PREP_FILE_TAG) {
+    return { error: "That doesn't look like a Hearth prep reply — it needs \"hearth\":\"" + RECIPE_PREP_FILE_TAG + "\"." };
+  }
+  var list = Array.isArray(obj.recipes) ? obj.recipes : [obj];
+  var rb = getRecipeBook();
+  var rows = [], unmatched = [], seen = {};
+  list.forEach(function(src){
+    if (!src || typeof src !== "object" || Array.isArray(src)) return;
+    var prep = prepStripInvisible(src.prep).replace(/\r\n?/g, "\n").trim();
+    if (!prep) return;                                   // "" means nothing offered
+    var rec = null;
+    if (src.id != null) {
+      rec = rb.find(function(x){ return x && String(x.id) === String(src.id); });
+    }
+    if (!rec && src.name) {                              // id mangled in the round trip
+      var n = String(src.name).trim().toLowerCase();
+      rec = rb.find(function(x){ return x && String(x.name || "").trim().toLowerCase() === n; });
+    }
+    if (!rec) { unmatched.push(String(src.name || src.id || "?")); return; }
+    if (seen[rec.id]) return;                            // one row per recipe, first wins
+    seen[rec.id] = true;
+    rows.push({ id: rec.id, name: rec.name || "", prep: prep, existing: String(rec.prep || "") });
+  });
+  if (!rows.length) {
+    return { error: unmatched.length
+      ? "None of those recipes are in your book any more."
+      : "No prep found in that reply." };
+  }
+  return { rows: rows, unmatched: unmatched };
+}
+
+// The text a row would actually write — an inline edit wins over what came back.
+function prepRowValue(row) {
+  var e = _prepHelperState && _prepHelperState.edits[row.id];
+  return String(e != null ? e : row.prep).trim();
+}
+
+function prepHelperExit() {
+  _prepHelperState = null;
+  _recipeView = "list";
+  renderRecipes();
+}
+
+// Writes ONLY `prep`, and only on ticked rows. Every other field on the
+// record is left exactly as it was — that narrowness is the whole safety
+// argument for this feature, so don't widen it without a fresh design call.
+function applyPrepImport() {
+  var st = _prepHelperState;
+  if (!st) return;
+  var rb = getRecipeBook();
+  var n = 0;
+  st.rows.forEach(function(row){
+    if (!st.accept[row.id]) return;
+    var i = rb.findIndex(function(x){ return x && x.id === row.id; });
+    if (i < 0) return;                       // deleted on another device mid-review — guard the -1
+    var v = prepRowValue(row);
+    if (!v) return;                          // emptied inline = "leave this one alone"
+    rb[i].prep = v;
+    rb[i].updated = Date.now();              // unstamped mutations lose the merge (v353)
+    n++;
+  });
+  saveRecipeBook(rb);
+  toast(n ? ("Prep added to " + n + " recipe" + (n !== 1 ? "s" : "")) : "Nothing applied");
+  prepHelperExit();
+}
+
+function renderPrepHelper() {
+  // Same guard the editor and the tidy screen use: this screen holds unsaved
+  // input, so a sync landing mid-review must not redraw it out from under him.
+  _recipeEditing = true;
+  if (!_prepHelperState) _prepHelperState = { step: "copy", rows: [], accept: {}, edits: {}, unmatched: [], error: "" };
+  var st = _prepHelperState;
+  var el = document.getElementById("recipesContent");
+  var head =
+    "<button id='prepBackBtn' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; All recipes</button>" +
+    "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:6px'>Prep helper</div>";
+
+  if (st.step === "review") { renderPrepHelperReview(el, st, head); return; }
+
+  var rb = getRecipeBook();
+  var text = prepExportText();
+  el.innerHTML = head +
+    "<div style='font-size:13px;color:#8A7A5A;line-height:1.6;margin-bottom:14px'>" +
+      "Copy your " + rb.length + " recipe" + (rb.length !== 1 ? "s" : "") + " below, paste them into a chat, then paste the reply back here. " +
+      "Nothing is written to a recipe until you review it and tap Apply." +
+    "</div>" +
+    "<button id='prepCopyBtn' style='width:100%;box-sizing:border-box;padding:13px;border:none;background:#B5651D;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px'>&#x1F4CB; Copy my recipes</button>" +
+    "<textarea id='prepExportBox' readonly rows='5' style='" + recipeInputCss() + "margin-bottom:20px;resize:vertical;line-height:1.5;font-size:12px;color:#7A6A50'>" + esc(text) + "</textarea>" +
+    "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Paste the reply</div>" +
+    (st.error ? "<div style='font-size:13px;color:#B03030;font-weight:600;margin-bottom:8px'>" + esc(st.error) + "</div>" : "") +
+    "<textarea id='prepImportBox' rows='6' placeholder='Paste the whole reply here' style='" + recipeInputCss() + "margin-bottom:10px;resize:vertical;line-height:1.5;font-size:13px'></textarea>" +
+    "<button id='prepReviewBtn' style='width:100%;box-sizing:border-box;padding:13px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Review what came back</button>";
+
+  document.getElementById("prepBackBtn").addEventListener("click", prepHelperExit);
+  document.getElementById("prepCopyBtn").addEventListener("click", function(){ prepCopyToClipboard(text); });
+  document.getElementById("prepReviewBtn").addEventListener("click", function(){
+    var res = parsePrepReply(document.getElementById("prepImportBox").value);
+    if (res.error) { st.error = res.error; renderPrepHelper(); return; }
+    st.error = "";
+    st.rows = res.rows;
+    st.unmatched = res.unmatched || [];
+    st.edits = {};
+    // Pre-ticked only where there is nothing of his to lose. A recipe he has
+    // already written prep for stays unticked, so replacing it is always a
+    // deliberate tap rather than a default he has to notice and undo.
+    st.accept = {};
+    st.rows.forEach(function(row){ st.accept[row.id] = !row.existing; });
+    st.step = "review";
+    renderPrepHelper();
+  });
+}
+
+function renderPrepHelperReview(el, st, head) {
+  var accepted = 0;
+  st.rows.forEach(function(row){ if (st.accept[row.id]) accepted++; });
+  var replacing = 0;
+  st.rows.forEach(function(row){ if (st.accept[row.id] && row.existing) replacing++; });
+
+  var html = head +
+    "<div style='font-size:13px;color:#8A7A5A;line-height:1.6;margin-bottom:14px'>" +
+      st.rows.length + " recipe" + (st.rows.length !== 1 ? "s" : "") + " came back. Tick what you want, edit anything, then Apply. " +
+      "Only the prep is written — nothing else on the recipe is touched." +
+    "</div>";
+
+  if (st.unmatched.length) {
+    html += "<div style='background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#8A5A1A;line-height:1.5'>" +
+            "Skipped, no matching recipe: " + esc(st.unmatched.slice(0, 8).join(", ")) +
+            (st.unmatched.length > 8 ? " and " + (st.unmatched.length - 8) + " more" : "") + "</div>";
+  }
+
+  st.rows.forEach(function(row){
+    var on = !!st.accept[row.id];
+    html +=
+      "<div style='border:1.5px solid " + (on ? "#D8C0A0" : "#ECE4D6") + ";background:" + (on ? "#FDFAF3" : "#fff") + ";border-radius:12px;padding:12px;margin-bottom:10px'>" +
+        "<div class='prep-chkwrap' data-id='" + row.id + "' style='display:flex;align-items:center;gap:10px;cursor:pointer;padding:2px 0 8px'>" +
+          "<input type='checkbox' class='prep-chk'" + (on ? " checked" : "") + " style='width:20px;height:20px;flex:none'>" +
+          "<span style='font-size:15px;font-weight:700;color:#2A2010'>" + esc(row.name) + "</span>" +
+          (row.existing ? "<span style='font-size:11px;color:#B03030;font-weight:700'>replaces what you wrote</span>" : "") +
+        "</div>" +
+        (row.existing
+          ? "<div style='font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px'>Yours now</div>" +
+            "<div style='font-size:13px;color:#7A6A50;line-height:1.5;white-space:pre-wrap;margin-bottom:8px'>" + esc(row.existing) + "</div>" +
+            "<div style='font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px'>Proposed</div>"
+          : "") +
+        "<textarea class='prep-edit' data-id='" + row.id + "' rows='3' style='" + recipeInputCss() + "resize:vertical;line-height:1.5;font-size:13px'>" + esc(prepRowValue(row)) + "</textarea>" +
+      "</div>";
+  });
+
+  html +=
+    "<button id='prepApply'" + (accepted ? "" : " disabled") + " style='width:100%;box-sizing:border-box;padding:13px;margin-top:6px;border:none;background:" + (accepted ? "#2D6B35" : "#D8CEBC") + ";color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:" + (accepted ? "pointer" : "default") + "'>Apply to " + accepted + " recipe" + (accepted !== 1 ? "s" : "") + "</button>" +
+    "<button id='prepBackToCopy' style='width:100%;box-sizing:border-box;padding:11px;margin-top:8px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>&larr; Paste a different reply</button>";
+
+  el.innerHTML = html;
+
+  document.getElementById("prepBackBtn").addEventListener("click", prepHelperExit);
+  document.getElementById("prepBackToCopy").addEventListener("click", function(){
+    st.step = "copy"; st.rows = []; st.accept = {}; st.edits = {}; st.unmatched = [];
+    renderPrepHelper();
+  });
+  // Inline edits are kept in state, not read at apply time: the review
+  // re-renders on every tick, which would otherwise throw away typing.
+  Array.prototype.forEach.call(el.querySelectorAll(".prep-edit"), function(t){
+    t.addEventListener("input", function(){ st.edits[t.getAttribute("data-id")] = t.value; });
+  });
+  Array.prototype.forEach.call(el.querySelectorAll(".prep-chkwrap"), function(w){
+    w.addEventListener("click", function(e){
+      var c = w.querySelector(".prep-chk");
+      if (!c) return;
+      if (e.target !== c) c.checked = !c.checked;   // tapped the padding, not the box
+      st.accept[w.getAttribute("data-id")] = c.checked;
+      renderPrepHelper();
+    });
+  });
+  document.getElementById("prepApply").addEventListener("click", function(){
+    if (!accepted) return;
+    var msg = "Add prep to " + accepted + " recipe" + (accepted !== 1 ? "s" : "") + "?";
+    if (replacing) msg += " " + replacing + " of them already had prep written, which will be replaced.";
+    confirmDialog(msg, applyPrepImport);
+  });
 }
 
 // Rescue-at-render (recipe-parser second pass, v365): an ingredient stored
