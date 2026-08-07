@@ -867,7 +867,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v399 · 06/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v400 · 07/08/2026</div>
 
   </div>
 </div>
@@ -2546,6 +2546,36 @@ function listSearchText(item) {
 // ============================================================
 // RECIPES SECTION
 // ============================================================
+// ── Recipe ids must be unique, and the old generator wasn't (v400) ────────
+// `Date.now() + rowIndex + random(0..999)` looks random enough until you
+// notice Date.now() is CONSTANT across an import loop — so N recipes were
+// drawn from a span of about 1,100 values. At 118 recipes that collides with
+// 99.9% probability, ~6.4 colliding records expected (simulated), which is
+// exactly what Cathal's book turned out to contain.
+//
+// Two records sharing an id is not cosmetic. Every reader in the app uses
+// find()/findIndex() on the id, so only the FIRST is reachable: the twin
+// cannot be opened, favourited, deleted, or given prep. And neither sync path
+// dedupes by id, so once it exists it propagates to the other phone forever.
+//
+// This generator is monotonic within a page session AND checks the ids
+// already in use, so a bulk import cannot collide with itself or with the
+// existing book. Values stay in the normal ms-timestamp range, so nothing
+// that sorts or compares ids changes behaviour.
+var _lastRecipeId = 0;
+function recipeIdMap(rb) {
+  var taken = {};
+  (rb || []).forEach(function(r){ if (r && r.id != null) taken[r.id] = true; });
+  return taken;
+}
+function nextRecipeId(taken) {
+  var id = Date.now();
+  if (id <= _lastRecipeId) id = _lastRecipeId + 1;
+  while (taken && taken[id]) id++;
+  _lastRecipeId = id;
+  if (taken) taken[id] = true;          // reserve it for the rest of the batch
+  return id;
+}
 function getRecipeBook() { return (storeGet("fl4_recipebook") || []).filter(function(r){ return !!r; }); } // guard: a null entry (sync merge / CSV import) must degrade, never crash the section (every reader gets clean data from one place)
 function saveRecipeBook(r) { storeSet("fl4_recipebook", r); if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold(); }
 // One-off migration (v289): recipes created before v242 carry no `updated`
@@ -7816,7 +7846,7 @@ function openRecipeEditor(id) {
     var inRotation = document.getElementById("reInRotation").checked;
     var rb = getRecipeBook();
     if (isNew) {
-      var nid = Date.now() + Math.floor(Math.random()*100000);
+      var nid = nextRecipeId(recipeIdMap(rb));
       rb.unshift({ id:nid, name:name, servings:servings, category:category, ingredients:ingredients, prep:prep, method:method, notes:notes, url:url, fav:false, inRotation:inRotation, updated:Date.now(), addedBy:hearthUser });
       _recipeOpenId = nid;
     } else {
@@ -7836,6 +7866,10 @@ function openRecipeEditor(id) {
 function recipesFromCSV(text) {
   var rows = parseCSV(text);
   if (!rows.length) return { recipes: [], skipped: 0, tidied: 0 };
+  // Built once and threaded through the loop: nextRecipeId reserves each id
+  // it hands out, so a 118-row import can't collide with itself or with a
+  // recipe already in the book (v400).
+  var takenIds = recipeIdMap(getRecipeBook());
   var header = rows[0].map(function(h){ return (h||"").trim().toLowerCase(); });
   function col(name){ return header.indexOf(name); }
   var iTitle = col("title"), iIng = col("ingredients"), iInstr = col("instructions"),
@@ -7872,7 +7906,7 @@ function recipesFromCSV(text) {
       notes = (notes ? notes + "\n\n" : "") + "Source: " + source;
     }
     recipes.push({
-      id: Date.now() + r + Math.floor(Math.random()*1000),
+      id: nextRecipeId(takenIds),
       name: title, servings: servings, ingredients: ingredients,
       method: method, notes: notes, updated: Date.now() + r, addedBy: hearthUser
     });

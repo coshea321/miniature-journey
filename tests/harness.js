@@ -54,9 +54,16 @@ async function launch(opts) {
     throw new Error('Failed to spawn Chrome (' + chrome + '): ' + e.message);
   });
 
+  // 10s was enough locally but not on a cold GitHub runner: three of four CI
+  // runs on PR #157 failed here with every mechanical check already green,
+  // i.e. the suite never ran at all. A slow start is not a test failure, so
+  // wait long enough to tell the two apart — a real "Chrome won't launch"
+  // still fails, just 60s later instead of 10.
+  const LAUNCH_TIMEOUT_MS = 60000;
+  const POLL_MS = 250;
   let target;
-  for (let i = 0; i < 40; i++) {
-    await sleep(250);
+  for (let i = 0; i < LAUNCH_TIMEOUT_MS / POLL_MS; i++) {
+    await sleep(POLL_MS);
     try {
       const res = await fetch('http://127.0.0.1:' + port + '/json');
       const list = await res.json();
@@ -68,7 +75,9 @@ async function launch(opts) {
   }
   if (!target) {
     proc.kill();
-    throw new Error('Chrome did not expose a page target within 10s');
+    throw new Error(
+      'Chrome did not expose a page target within ' + LAUNCH_TIMEOUT_MS / 1000 + 's (binary: ' + chrome + ')'
+    );
   }
 
   const ws = new WebSocket(target.webSocketDebuggerUrl);
