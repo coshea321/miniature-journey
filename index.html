@@ -655,6 +655,19 @@ body.train-mode #toast{background:#3A3328}
 .ses-done-sub{font-size:14px;color:#8A7A5A;margin-bottom:28px;line-height:1.5}
 .ses-done-btn{padding:14px 36px;border:none;background:#3B6FE0;color:#fff;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .ses-done-link{background:none;border:none;color:#A89A80;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+
+/* Recipe cook-along ticks (v405) — tap an ingredient or a step while cooking
+   and it greys out. State is in memory only (see _recipeDone) and is cleared
+   on re-entry, so nothing here is ever written to a recipe or synced.
+   The detail view styles every line inline, so the done look needs
+   !important to beat the inline colour on both the <li> and its inner span. */
+.rcp-tick{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;transition:opacity .12s}
+.rcp-tick:active{opacity:.6}
+.rcp-done,.rcp-done *{color:#B3A791 !important}
+.rcp-done{opacity:.8}
+/* Ingredients are short label-like lines, so they read well struck through;
+   method steps are prose and a struck-through sentence is hard to re-read. */
+li.rcp-done.rcp-ing{text-decoration:line-through}
 </style>
   <!-- DOMPurify 3.0.8, vendored locally (v289) — was a jsdelivr CDN load; the exact npm-published minified build -->
   <script src="purify.min.js"></script>
@@ -867,7 +880,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v404 · 07/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v405 · 07/08/2026</div>
 
   </div>
 </div>
@@ -5901,6 +5914,24 @@ var _recipeServings = 1;
 var _recipeSelectMode = false;  // bulk-categorise selection mode
 var _recipeSelected = {};       // id -> true while selected
 
+// ── Cook-along ticks (v405) ────────────────────────────────────────────────
+// Tapping an ingredient line or a Prep/Method step in the detail view greys it
+// out, so a phone propped on the counter shows where you are. Deliberately
+// NOT stored on the recipe and NOT synced: this is "where am I in tonight's
+// cook", not a property of the recipe, and a partner opening the same recipe
+// should not see half of it struck through. Keys are positional
+// ("i3", "p0", "m2") so a re-render — a servings change, a favourite toggle,
+// an incoming sync push — repaints the same ticks instead of losing them.
+var _recipeDone = {};           // key -> true, for the recipe in _recipeDoneId
+var _recipeDoneId = null;       // which recipe the ticks above belong to
+var _recipeTickWired = false;   // #recipesContent is permanent — wire its delegated click listener once
+
+// Called on every deliberate open of a recipe, which is what "everything
+// resets when you re-enter" means. Leaving the Recipes tab and coming back
+// does NOT pass through here, so a glance at the calendar mid-cook keeps your
+// place; renderRecipeDetail's id check catches every other way in.
+function resetRecipeTicks(id) { _recipeDone = {}; _recipeDoneId = (id == null ? null : id); }
+
 var _recipeFilter = "fav"; // "all" | "fav" | category name — opens on Favourites by default (falls back to "all" in renderRecipes if none are favourited)
 var _recipeSearchQuery = "";
 var _recipeSearchPreset = false; // v387: set by openRecord right before switchSection("recipes") so its v386 arrival-reset leaves a deliberate global-search hand-off alone
@@ -6089,6 +6120,7 @@ function renderRecipes() {
       _recipeScrollPos = window.scrollY;
       var r = getRecipeBook().find(function(x){ return x.id === _recipeOpenId; });
       _recipeServings = (r && r.servings) || 1;
+      resetRecipeTicks(id);
       _recipeView = "detail";
       renderRecipeDetail();
       window.scrollTo(0, 0);
@@ -6314,6 +6346,7 @@ function openMealPlanDaySheet(day) {
       close();
       _recipeOpenId = recipe.id;
       _recipeServings = entry.servings || recipe.servings || 1;
+      resetRecipeTicks(recipe.id);
       _recipeView = "detail";
       renderRecipes();
     });
@@ -7822,15 +7855,37 @@ function rescueIngredientMeasure(ing) {
   if (ing.noBuy) reparsed.noBuy = true;
   return reparsed;
 }
+// Make the lines inside a Prep/Method block tappable (v405). Called after the
+// detail view's innerHTML is set, because formatMethod and derivedPrepHtml are
+// shared string builders and marking them up in place would leak cook-along
+// classes into anything else that ever renders a method. `prefix` keys the
+// block ("p" / "m") so a prep step and a method step never collide.
+// Selector note: the block's direct children are <ol>s, sub-heading <div>s and
+// (for a single unbroken paragraph of prose) one <p>. Only the steps and the
+// prose paragraph are things you "do", so headings and the derived-prep
+// footnote are deliberately left out.
+function wireRecipeTicks(root, prefix) {
+  if (!root) return;
+  var items = root.querySelectorAll("ol > li, p");
+  for (var i = 0; i < items.length; i++) {
+    var key = prefix + i;
+    items[i].setAttribute("data-tk", key);
+    items[i].className = "rcp-tick" + (_recipeDone[key] ? " rcp-done" : "");
+  }
+}
 function renderRecipeDetail() {
   var el = document.getElementById("recipesContent");
   var r = getRecipeBook().find(function(x){ return x.id === _recipeOpenId; });
   if (!r) { _recipeView = "list"; renderRecipes(); return; }
+  // Any route into a different recipe starts with a clean slate, even the ones
+  // that don't go through a card tap (global search, "open recipe" from the
+  // meal plan sheet, coming back out of the editor onto a different recipe).
+  if (_recipeDoneId !== r.id) resetRecipeTicks(r.id);
   var base = r.servings || 1;
   var mult = _recipeServings / base;
 
   var ingHtml = "";
-  (r.ingredients||[]).forEach(function(ing){
+  (r.ingredients||[]).forEach(function(ing, ingIdx){
     if (isHeaderIng(ing)) {
       // Headers sit outside the bullet column (negative margin cancels the
       // <ul>'s indent) so a section title stays flush with the rest of the page.
@@ -7847,7 +7902,10 @@ function renderRecipeDetail() {
     else if (eff.groceryName) pref = "<span style='font-size:11px;color:#9A8A6A'> &middot; bought as &ldquo;" + esc(eff.groceryName) + "&rdquo;</span>";
     // The li carries the accent colour so the bullet marker is warm; the span
     // puts the text back to the reading colour.
-    ingHtml += "<li style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#B5651D;list-style:disc'><span style='color:#2A2010'>" + amtStr + esc(eff.name) + pref + "</span></li>";
+    // rcp-tick/data-tk make it a cook-along line (v405); the key is the
+    // ingredient's index in r.ingredients, so it survives a re-render.
+    var ingKey = "i" + ingIdx;
+    ingHtml += "<li class='rcp-tick rcp-ing" + (_recipeDone[ingKey] ? " rcp-done" : "") + "' data-tk='" + ingKey + "' style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#B5651D;list-style:disc'><span style='color:#2A2010'>" + amtStr + esc(eff.name) + pref + "</span></li>";
   });
 
   // Prep: what was typed if anything was, otherwise what the ingredients
@@ -7870,10 +7928,11 @@ function renderRecipeDetail() {
       "<span id='servCount' style='font-size:20px;font-weight:700;color:#2A2010;min-width:24px;text-align:center'>" + _recipeServings + "</span>" +
       "<button id='servPlus' style='width:34px;height:34px;border:1.5px solid #D8C8A8;background:#fff;border-radius:8px;font-size:20px;color:#7A5A30;cursor:pointer;line-height:1'>+</button>" +
     "</div>" +
+    "<div style='font-size:11px;color:#9A8A6A;margin:-8px 0 14px'>Tap a line as you go and it greys out. Reopening the recipe clears them.</div>" +
     "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Ingredients</div>" +
     "<ul style='margin:0 0 18px;padding:0 0 0 20px'>" + ingHtml + "</ul>" +
-    (prepHtml ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Prep</div><div style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + prepHtml + "</div>" : "") +
-    (r.method ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Method</div><div style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + formatMethod(r.method) + "</div>" : "") +
+    (prepHtml ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Prep</div><div id='rcpPrepBody' style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + prepHtml + "</div>" : "") +
+    (r.method ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Method</div><div id='rcpMethodBody' style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + formatMethod(r.method) + "</div>" : "") +
     (r.notes ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Notes</div><div style='font-size:14px;color:#6A5A40;line-height:1.6;margin-bottom:18px'>" + esc(r.notes) + "</div>" : "") +
     (r.url ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Source</div><a href='" + esc(r.url) + "' target='_blank' rel='noopener noreferrer' style='display:inline-block;font-size:14px;color:#B5651D;font-weight:600;word-break:break-all;margin-bottom:18px'>&#x1F517; " + esc(r.url) + "</a>" : "") +
     "<button id='recipeToGroceryBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#2D6B35;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F6D2; Add to grocery list&hellip;</button>" +
@@ -7882,9 +7941,31 @@ function renderRecipeDetail() {
       "<button id='recipeDeleteBtn' style='padding:11px 16px;border:1.5px solid #E0C0C0;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Delete</button>" +
     "</div>";
 
+  // Cook-along ticks (v405). The ingredient <li>s were marked up above; the
+  // Prep/Method blocks get marked up here, after their HTML is in the DOM.
+  wireRecipeTicks(document.getElementById("rcpPrepBody"), "p");
+  wireRecipeTicks(document.getElementById("rcpMethodBody"), "m");
+  // One delegated listener for all three blocks. The class is toggled in place
+  // rather than re-rendering, so a tap never moves the page under your hands
+  // — which matters when the phone is propped up and covered in flour.
+  // Wired ONCE, like the tidy and grocery-picker listeners above and below:
+  // #recipesContent is permanent and only its innerHTML is replaced, so
+  // attaching per render would stack a listener on every servings tap. Other
+  // screens render into the same element, but nothing else emits data-tk.
+  if (!_recipeTickWired) {
+    _recipeTickWired = true;
+    el.addEventListener("click", function(ev){
+      var t = ev.target && ev.target.closest ? ev.target.closest("[data-tk]") : null;
+      if (!t || !el.contains(t)) return;
+      var key = t.getAttribute("data-tk");
+      if (_recipeDone[key]) { delete _recipeDone[key]; t.classList.remove("rcp-done"); }
+      else { _recipeDone[key] = true; t.classList.add("rcp-done"); }
+    });
+  }
+
   document.getElementById("recipeBackBtn").addEventListener("click", function(){
     var savedPos = _recipeScrollPos;
-    _recipeView="list"; _recipeOpenId=null; renderRecipes();
+    _recipeView="list"; _recipeOpenId=null; resetRecipeTicks(null); renderRecipes();
     requestAnimationFrame(function(){ window.scrollTo(0, savedPos); });
   });
   document.getElementById("recipeFavBtn").addEventListener("click", function(){
