@@ -867,7 +867,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v400 · 07/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v401 · 07/08/2026</div>
 
   </div>
 </div>
@@ -5924,6 +5924,7 @@ function renderRecipes() {
   if (_recipeView === "plan") { renderMealPlanner(); return; }
   if (_recipeView === "tidy") { renderRecipeTidy(); return; }
   if (_recipeView === "prephelper") { renderPrepHelper(); return; }
+  if (_recipeView === "duplicates") { renderDupRepair(); return; }
   if (_recipeView === "grocerypick") { renderGroceryPick(); return; }
   var el = document.getElementById("recipesContent");
   var rb = getRecipeBook();
@@ -5994,7 +5995,25 @@ function renderRecipes() {
       "<button id='rcpSelStart' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x2713; Select</button>" +
     "</div>";
   }
-  var html = selectHdr + bar;
+  // A banner rather than a fifth toolbar button: duplicates are a one-off
+  // repair, not a tool you reach for, and this disappears the moment the book
+  // is clean. Same shape as the v362 "New week — plan dinners?" prompt.
+  var dupBanner = "";
+  if (!_recipeSelectMode) {
+    var dupGroups = findDuplicateRecipes(rb);
+    if (dupGroups.length) {
+      var dupExtra = 0;
+      dupGroups.forEach(function(g){ dupExtra += g.recipes.length - 1; });
+      dupBanner =
+        "<div style='display:flex;align-items:center;gap:10px;background:#FBF4E8;border:1px solid #E0C8A0;border-radius:12px;padding:11px 13px;margin-bottom:12px'>" +
+          "<div style='flex:1;font-size:13px;color:#8A5A1A;line-height:1.45'>" +
+            "<b>" + dupExtra + " duplicate recipe" + (dupExtra !== 1 ? "s" : "") + "</b> in your book." +
+          "</div>" +
+          "<button id='rcpDupBtn' style='flex:none;padding:7px 12px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Review</button>" +
+        "</div>";
+    }
+  }
+  var html = selectHdr + dupBanner + bar;
   if (_rcpFuzzy) {
     html += "<div style='text-align:center;color:#9A7A4A;font-size:12px;padding:2px 10px 10px'>No exact matches &#x2014; showing similar.</div>";
   }
@@ -6086,6 +6105,13 @@ function renderRecipes() {
     _recipeScrollPos = window.scrollY || document.documentElement.scrollTop;
     _tidyState = null;            // always recompute against what's stored now
     _recipeView = "tidy";
+    renderRecipes();
+  });
+  var _rcpDupBtn = document.getElementById("rcpDupBtn");
+  if (_rcpDupBtn) _rcpDupBtn.addEventListener("click", function(){
+    _recipeScrollPos = window.scrollY || document.documentElement.scrollTop;
+    _dupState = null;             // always recompute against what's stored now
+    _recipeView = "duplicates";
     renderRecipes();
   });
   var _rcpPrepBtn = document.getElementById("rcpPrepBtn");
@@ -7187,6 +7213,247 @@ function parsePrepReply(raw) {
 function prepRowValue(row) {
   var e = _prepHelperState && _prepHelperState.edits[row.id];
   return String(e != null ? e : row.prep).trim();
+}
+
+// ── Duplicate recipes: find and repair (v401) ─────────────────────────────
+// v400 fixed the CAUSE (a colliding id generator). This clears up what the
+// old one already created. Two kinds of group, deliberately kept separate on
+// screen because they are different problems:
+//   "id"   — records SHARING an id. The importer bug. Only the first is
+//            reachable by find()/findIndex(), so the others are invisible to
+//            opening, favouriting, deleting and the prep helper.
+//   "name" — records with the same name but DIFFERENT ids. Two real records;
+//            both work, but you almost certainly only want one.
+//
+// Nothing is written until Apply. Removals go through addTomb() exactly as
+// the Delete button does, so a sync from the other phone cannot resurrect
+// them — a local-only delete would come straight back.
+var _dupState = null;   // null | { groups:[], keep:{}, expanded:{} }
+
+// How much a record actually carries. Used only to SUGGEST a keeper — the
+// fullest copy is usually the one that's been worked on (tidied ingredients,
+// prep written, notes, a URL). Never applied without a tap.
+function recipeRichness(r) {
+  if (!r) return -1;
+  var n = 0;
+  n += (r.ingredients || []).length * 10;
+  n += String(r.prep || "").length;
+  n += String(r.method || "").length / 10;
+  n += String(r.notes || "").length / 10;
+  if (r.url) n += 25;
+  if (r.category) n += 15;
+  if (r.fav) n += 15;
+  if (r.inRotation) n += 10;
+  // A tidied ingredient list is the marker of the copy that has had work done
+  // on it: v366's canonical shape puts detail in brackets.
+  (r.ingredients || []).forEach(function(ing){
+    if (ing && /\(/.test(String(ing.name || ""))) n += 5;
+    if (ing && (ing.groceryName || ing.noBuy)) n += 20;   // v368 prefs are hand-set
+  });
+  return n;
+}
+
+// [{kind:"id"|"name", key, recipes:[...]}] — id groups first, then name
+// groups, each in book order. A record can only appear in ONE group: if it is
+// already in an id group it is not also offered as a name duplicate, or
+// resolving one group would silently change another.
+function findDuplicateRecipes(rb) {
+  var book = (rb || []).filter(function(r){ return r && r.id != null; });
+  var byId = {}, groups = [], claimed = {};
+  book.forEach(function(r){ (byId[r.id] = byId[r.id] || []).push(r); });
+  Object.keys(byId).forEach(function(k){
+    if (byId[k].length < 2) return;
+    byId[k].forEach(function(r){ claimed[book.indexOf(r)] = true; });
+    groups.push({ kind: "id", key: k, recipes: byId[k] });
+  });
+  var byName = {};
+  book.forEach(function(r, i){
+    if (claimed[i]) return;
+    var n = String(r.name || "").trim().toLowerCase();
+    if (!n) return;
+    (byName[n] = byName[n] || []).push(r);
+  });
+  Object.keys(byName).forEach(function(n){
+    if (byName[n].length < 2) return;
+    groups.push({ kind: "name", key: byName[n][0].name || n, recipes: byName[n] });
+  });
+  return groups;
+}
+
+// A stable per-record handle. Index in the book, because id is exactly the
+// thing that isn't unique here.
+function dupRowKey(rb, r) { return rb.indexOf(r); }
+
+function buildDupState() {
+  var rb = getRecipeBook();
+  var groups = findDuplicateRecipes(rb);
+  var keep = {};
+  groups.forEach(function(g, gi){
+    var best = g.recipes[0], bestScore = recipeRichness(best);
+    g.recipes.forEach(function(r){
+      var s = recipeRichness(r);
+      if (s > bestScore) { best = r; bestScore = s; }
+    });
+    keep[gi] = dupRowKey(rb, best);
+  });
+  _dupState = { groups: groups, keep: keep, expanded: {}, book: rb };
+}
+
+function dupExit() {
+  _dupState = null;
+  _recipeView = "list";
+  renderRecipes();
+}
+
+// Deletes every copy in every group except the chosen keeper. Tombstoned, so
+// the other phone's next sync doesn't bring them back.
+function applyDupRepair() {
+  var st = _dupState;
+  if (!st) return;
+  // Work against st.book — the exact snapshot the choices were made on.
+  // getRecipeBook() re-parses from storage on every call, so it returns fresh
+  // objects each time and identity comparisons against the reviewed records
+  // would all miss. The choices are indices into that snapshot, so if the
+  // stored book changed underneath (a sync landing mid-review) those indices
+  // no longer mean the same records — refuse rather than delete the wrong one.
+  if (getRecipeBook().length !== st.book.length) {
+    toast("Your recipes changed — reopen the duplicates screen");
+    dupExit();
+    return;
+  }
+  var dropIdx = {}, removed = 0;
+  st.groups.forEach(function(g, gi){
+    var keepIdx = st.keep[gi];
+    g.recipes.forEach(function(r){
+      var i = st.book.indexOf(r);
+      if (i < 0 || i === keepIdx) return;      // guard the -1
+      dropIdx[i] = r;
+    });
+  });
+  var next = st.book.filter(function(r, i){ return !dropIdx[i]; });
+  Object.keys(dropIdx).forEach(function(i){
+    var r = dropIdx[i];
+    // Only tombstone an id that is genuinely leaving the book. In an id group
+    // the keeper SHARES the id with the copies being dropped, so a tombstone
+    // would delete the keeper too on the next sync.
+    var stillThere = next.some(function(x){ return x && x.id === r.id; });
+    if (!stillThere) addTomb("recipes", r.id);
+    removed++;
+  });
+  saveRecipeBook(next);
+  toast(removed ? ("Removed " + removed + " duplicate" + (removed !== 1 ? "s" : "")) : "Nothing removed");
+  dupExit();
+}
+
+function renderDupRepair() {
+  // Holds unsaved choices — same guard the editor and tidy screen use.
+  _recipeEditing = true;
+  if (!_dupState) buildDupState();
+  var st = _dupState;
+  var rb = st.book;
+  var el = document.getElementById("recipesContent");
+  var head =
+    "<button id='dupBackBtn' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; All recipes</button>" +
+    "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:6px'>Duplicate recipes</div>";
+
+  if (!st.groups.length) {
+    el.innerHTML = head +
+      "<div style='text-align:center;color:#8A7A5A;padding:30px 10px'><div style='font-size:34px;margin-bottom:8px'>&#x2728;</div>" +
+      "<div style='font-size:15px;font-weight:600'>No duplicates found</div>" +
+      "<div style='font-size:13px;margin-top:4px'>Every recipe in your book is unique.</div></div>";
+    document.getElementById("dupBackBtn").addEventListener("click", dupExit);
+    return;
+  }
+
+  var idGroups = st.groups.filter(function(g){ return g.kind === "id"; }).length;
+  var toRemove = 0;
+  st.groups.forEach(function(g){ toRemove += g.recipes.length - 1; });
+
+  var html = head +
+    "<div style='font-size:13px;color:#8A7A5A;line-height:1.6;margin-bottom:14px'>" +
+      st.groups.length + " group" + (st.groups.length !== 1 ? "s" : "") + " found. " +
+      "Pick the copy to keep in each — the fullest one is suggested. " +
+      "Nothing is deleted until you tap Apply." +
+    "</div>";
+
+  if (idGroups) {
+    html += "<div style='background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#8A5A1A;line-height:1.5'>" +
+      "<b>" + idGroups + " group" + (idGroups !== 1 ? "s share" : " shares") + " an id.</b> These came from an import bug (fixed in v400): " +
+      "only the first copy of each was reachable, so the others couldn't be opened, favourited or given prep." +
+    "</div>";
+  }
+
+  st.groups.forEach(function(g, gi){
+    var open = !!st.expanded[gi];
+    html +=
+      "<div style='border:1.5px solid #ECE4D6;border-radius:12px;padding:12px;margin-bottom:10px'>" +
+        "<div style='display:flex;align-items:center;gap:8px;margin-bottom:8px'>" +
+          "<span style='font-size:15px;font-weight:700;color:#2A2010;flex:1'>" + esc(g.recipes[0].name || "Untitled") + "</span>" +
+          "<span style='font-size:11px;font-weight:700;color:#8A5A1A;background:#FBF4E8;border-radius:10px;padding:3px 8px'>" +
+            (g.kind === "id" ? "same id" : "same name") + " &middot; " + g.recipes.length +
+          "</span>" +
+        "</div>";
+    g.recipes.forEach(function(r){
+      var idx = dupRowKey(rb, r);
+      var chosen = st.keep[gi] === idx;
+      var ings = (r.ingredients || []).length;
+      html +=
+        "<div class='dup-pick' data-g='" + gi + "' data-i='" + idx + "' style='display:flex;gap:10px;align-items:flex-start;padding:8px;margin-bottom:6px;border:1.5px solid " + (chosen ? "#2D6B35" : "#ECE4D6") + ";background:" + (chosen ? "#F3F8F3" : "#fff") + ";border-radius:10px;cursor:pointer'>" +
+          "<div style='width:18px;height:18px;flex:none;margin-top:2px;border-radius:50%;border:2px solid " + (chosen ? "#2D6B35" : "#C8BEA8") + ";background:" + (chosen ? "#2D6B35" : "#fff") + "'></div>" +
+          "<div style='flex:1;min-width:0'>" +
+            "<div style='font-size:13px;font-weight:700;color:" + (chosen ? "#2D6B35" : "#6A5A40") + "'>" +
+              (chosen ? "Keep this one" : "Remove") +
+            "</div>" +
+            "<div style='font-size:12px;color:#8A7A5A;margin-top:2px'>" +
+              ings + " ingredient" + (ings !== 1 ? "s" : "") +
+              (r.prep ? " &middot; has prep" : "") +
+              (r.notes ? " &middot; notes" : "") +
+              (r.url ? " &middot; link" : "") +
+              (r.fav ? " &middot; ★" : "") +
+            "</div>" +
+            (open
+              ? "<div style='font-size:11px;color:#9A8A6A;margin-top:6px;line-height:1.5;white-space:pre-wrap;word-break:break-word'>" +
+                  esc((r.ingredients || []).slice(0, 6).map(ingredientToLine).join("\n") || "(no ingredients)") +
+                ((r.ingredients || []).length > 6 ? "\n…" : "") +
+                "</div>"
+              : "") +
+          "</div>" +
+        "</div>";
+    });
+    html +=
+        "<button class='dup-toggle' data-g='" + gi + "' style='border:none;background:none;color:#B5651D;font-size:12px;font-weight:700;cursor:pointer;padding:2px 0'>" +
+          (open ? "Hide ingredients" : "Compare ingredients") +
+        "</button>" +
+      "</div>";
+  });
+
+  html +=
+    "<button id='dupApply' style='width:100%;box-sizing:border-box;padding:13px;margin-top:6px;border:none;background:#B03030;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>" +
+      "Remove " + toRemove + " duplicate" + (toRemove !== 1 ? "s" : "") +
+    "</button>";
+
+  el.innerHTML = html;
+
+  document.getElementById("dupBackBtn").addEventListener("click", dupExit);
+  Array.prototype.forEach.call(el.querySelectorAll(".dup-pick"), function(row){
+    row.addEventListener("click", function(){
+      st.keep[row.getAttribute("data-g")] = parseInt(row.getAttribute("data-i"), 10);
+      renderDupRepair();
+    });
+  });
+  Array.prototype.forEach.call(el.querySelectorAll(".dup-toggle"), function(b){
+    b.addEventListener("click", function(){
+      var gi = b.getAttribute("data-g");
+      st.expanded[gi] = !st.expanded[gi];
+      renderDupRepair();
+    });
+  });
+  document.getElementById("dupApply").addEventListener("click", function(){
+    confirmDialog(
+      "Remove " + toRemove + " duplicate" + (toRemove !== 1 ? "s" : "") + "? The copy you picked in each group is kept.",
+      applyDupRepair
+    );
+  });
 }
 
 function prepHelperExit() {
