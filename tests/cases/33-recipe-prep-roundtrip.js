@@ -27,8 +27,11 @@ module.exports = {
       ]);
 
       var text = prepExportText();
-      ok('the export carries the reply format tag',
-        text.indexOf(RECIPE_PREP_FILE_TAG) !== -1, text.slice(0, 120));
+      // v402: the prompt asks for the "=== <id>" block format, not JSON, so it
+      // no longer carries the JSON tag. (The tag still exists and still gates
+      // the JSON fallback path — see the v402 block below.)
+      ok('the export shows the reply format it wants',
+        /^=== 123$/m.test(text), text.slice(0, 120));
       ok('every recipe is in the export',
         /Chorizo Pasta/.test(text) && /Flapjacks/.test(text), 'a recipe is missing');
       ok('each recipe carries its id so matching is exact',
@@ -428,9 +431,98 @@ module.exports = {
       return {pass:pass, fail:fail};
     })()`);
 
+    // ── v402: the quote-free block format ─────────────────────────────────
+    // JSON kept failing on real recipe text. Cathal's reply contained
+    //   "prep":"...slice thinly into ⅛" slices on a mandolin\n..."
+    // and the inch mark closes the JSON string, so the whole paste was
+    // rejected. Inches, 9x5" tins and quoted names are ordinary in recipes,
+    // so the format changed rather than the escaping rules.
+    const blocks = await page.evaluate(`(function(){
+      var pass = [], fail = [];
+      function ok(name, cond, detail){ if (cond) pass.push(name); else fail.push({name:name, detail:detail || 'assertion failed'}); }
+      var TAG = RECIPE_PREP_FILE_TAG;
+
+      storeSet('fl4_recipebook', [
+        { id: 8801, name: 'Air Fryer Potato Chips', servings: 2, updated: 1, method: 'Fry.', ingredients: parseIngredients('2 Potatoes') },
+        { id: 8802, name: 'Banana Coffee', servings: 1, updated: 1, method: 'Blend.', ingredients: parseIngredients('2 Bananas') }
+      ]);
+
+      // The exact shape that broke JSON — an unescaped inch mark — now parses.
+      var reply =
+        '=== 8801\\n' +
+        'Scrub the potatoes and slice thinly into 1/8" slices on a mandolin\\n' +
+        'Soak the slices in cold water for 15-30 minutes\\n' +
+        '\\n' +
+        '=== 8802\\n' +
+        'Freeze 2 ripe bananas until solid\\n' +
+        'Chill a cup of coffee\\n';
+      var res = parsePrepReply(reply);
+      ok('a block reply parses', !res.error && res.rows.length === 2, JSON.stringify(res.error || res.rows.length));
+      ok('an unescaped inch mark survives, which is what broke JSON',
+        !res.error && /1\\/8" slices/.test(res.rows[0].prep), JSON.stringify(res.rows && res.rows[0].prep));
+      ok('multiple steps become separate lines',
+        !res.error && res.rows[0].prep.split('\\n').length === 2, JSON.stringify(res.rows && res.rows[0].prep));
+      ok('blocks are matched to the right recipes',
+        !res.error && res.rows[1].name === 'Banana Coffee', JSON.stringify(res.rows && res.rows[1].name));
+
+      // Characters that need escaping in JSON are all just text here.
+      var nasty = parsePrepReply('=== 8801\\nUse a 9x5" tin, then add the chef\\'s "special" mix \\\\ backslash and it is fine\\n');
+      // indexOf rather than a regex here, deliberately: escaping a literal
+      // backslash through two layers of source is exactly the class of
+      // mistake this whole change exists to stop making.
+      ok('quotes, apostrophes and backslashes all survive untouched',
+        !nasty.error &&
+        nasty.rows[0].prep.indexOf('9x5" tin') !== -1 &&
+        nasty.rows[0].prep.indexOf('"special"') !== -1 &&
+        nasty.rows[0].prep.indexOf("chef's") !== -1 &&
+        nasty.rows[0].prep.indexOf('\\\\ backslash') !== -1,
+        JSON.stringify(nasty.error || nasty.rows[0].prep));
+
+      // The real robustness win: a reply cut off part-way still imports every
+      // complete block before the cut, instead of failing outright.
+      var truncated = parsePrepReply('=== 8801\\nScrub the potatoes\\n\\n=== 8802\\nFreeze the bana');
+      ok('a truncated reply still imports the complete blocks',
+        !truncated.error && truncated.rows.length === 2 &&
+        truncated.rows[0].prep === 'Scrub the potatoes',
+        JSON.stringify(truncated.error || truncated.rows.map(function(r){ return r.prep; })));
+
+      // Tolerances.
+      ok('prose before the first block is ignored',
+        !parsePrepReply('Sure, here you go!\\n\\n=== 8801\\nScrub the potatoes').error, 'preamble rejected');
+      ok('a stray code fence is ignored',
+        !parsePrepReply('\\u0060\\u0060\\u0060\\n=== 8801\\nScrub the potatoes\\n\\u0060\\u0060\\u0060').error, 'fence rejected');
+      ok('bullet characters are stripped from steps',
+        parsePrepReply('=== 8801\\n- Scrub the potatoes\\n• Soak them').rows[0].prep === 'Scrub the potatoes\\nSoak them',
+        JSON.stringify(parsePrepReply('=== 8801\\n- Scrub the potatoes\\n• Soak them').rows[0].prep));
+      ok('a block with no steps is skipped, not written as empty prep',
+        parsePrepReply('=== 8801\\n\\n=== 8802\\nChill a cup of coffee').rows.length === 1,
+        JSON.stringify(parsePrepReply('=== 8801\\n\\n=== 8802\\nChill a cup of coffee').rows));
+      ok('an unknown id in a block is reported, not applied',
+        parsePrepReply('=== 8801\\nScrub\\n\\n=== 99999\\nGhost').unmatched.length === 1,
+        JSON.stringify(parsePrepReply('=== 8801\\nScrub\\n\\n=== 99999\\nGhost').unmatched));
+
+      // JSON still works, so a reply already in flight is not stranded.
+      var json = parsePrepReply('{"hearth":"' + TAG + '","recipes":[{"id":8801,"prep":"Scrub the potatoes"}]}');
+      ok('the old JSON format is still accepted',
+        !json.error && json.rows.length === 1 && json.rows[0].prep === 'Scrub the potatoes',
+        JSON.stringify(json.error || json.rows));
+      ok('a reply with block markers is not second-guessed by the JSON path',
+        !parsePrepReply('=== 8801\\nScrub {"not":"json"} at all').error, 'block reply rejected');
+
+      // The prompt asks for the new format and warns off the old escaping.
+      var text = prepExportText(0);
+      ok('the prompt shows the block format', /=== 123/.test(text), 'block example missing');
+      ok('the prompt tells it not to use JSON or quoting',
+        /Do NOT use JSON/.test(text) && /inch marks/.test(text), 'format rules missing');
+      ok('the prompt no longer asks for a JSON object',
+        !/"hearth"/.test(text), 'still asking for JSON');
+
+      return {pass:pass, fail:fail};
+    })()`);
+
     return {
-      pass: [].concat(out.pass, parse.pass, apply.pass, edge.pass, batched.pass, secondPass.pass),
-      fail: [].concat(out.fail, parse.fail, apply.fail, edge.fail, batched.fail, secondPass.fail),
+      pass: [].concat(out.pass, parse.pass, apply.pass, edge.pass, batched.pass, secondPass.pass, blocks.pass),
+      fail: [].concat(out.fail, parse.fail, apply.fail, edge.fail, batched.fail, secondPass.fail, blocks.fail),
     };
   },
 };
