@@ -867,7 +867,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v402 · 07/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v403 · 07/08/2026</div>
 
   </div>
 </div>
@@ -7117,7 +7117,13 @@ function prepExportText(batch) {
   L.push("- If a recipe genuinely needs no prep, give it \"\".");
   L.push("- Where prep is already written, repeat it back unless you can genuinely improve it — regrouping loose one-ingredient lines into the steps above counts as an improvement.");
   L.push("");
-  L.push("Reply in EXACTLY this format, and nothing else — no explanation, no note, no apology, no code fence, even if something in the recipes is unclear or missing:");
+  // The fence is not cosmetic: a fenced block renders in a chat with a
+  // one-tap Copy button, and loose prose does not — it has to be hand-selected,
+  // which is miserable on a phone. v402 asked for NO fence and made copying
+  // worse than the JSON it replaced (JSON at least usually arrived fenced).
+  L.push("Put your WHOLE reply inside a single code block (three backticks before and after), so it can be copied in one tap on a phone.");
+  L.push("");
+  L.push("Inside that code block, reply in EXACTLY this format and nothing else — no explanation, no note, no apology, even if something in the recipes is unclear or missing:");
   L.push("");
   L.push("=== 123");
   L.push("Finely chop the onion");
@@ -7132,6 +7138,7 @@ function prepExportText(batch) {
   L.push("- Plain text only. Do NOT use JSON, quotes around anything, backslashes, or escape sequences — write inch marks, apostrophes and accents literally and they will be fine.");
   L.push("- A recipe that needs no prep: give the === line and no steps under it.");
   L.push("- Keep each id exactly as given — the app matches on it.");
+  L.push("- The code block is the whole reply. Do not write anything above or below it, and do not split it into several code blocks.");
   L.push("");
   // The batch line is for the reader as much as the model: pasting batch 4
   // into a fresh chat should be obviously batch 4, not a mystery half-book.

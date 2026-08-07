@@ -489,8 +489,22 @@ module.exports = {
       // Tolerances.
       ok('prose before the first block is ignored',
         !parsePrepReply('Sure, here you go!\\n\\n=== 8801\\nScrub the potatoes').error, 'preamble rejected');
-      ok('a stray code fence is ignored',
-        !parsePrepReply('\\u0060\\u0060\\u0060\\n=== 8801\\nScrub the potatoes\\n\\u0060\\u0060\\u0060').error, 'fence rejected');
+      // v403: the WHOLE reply now arrives inside a code fence, because a
+      // fenced block is what gives a chat its one-tap Copy button on a phone.
+      // Loose prose has to be hand-selected, which is what made v402's replies
+      // "a wall of text" to copy.
+      var F = '\\u0060\\u0060\\u0060';
+      var fenced = parsePrepReply(F + '\\n=== 8801\\nScrub the potatoes\\nSoak them\\n\\n=== 8802\\nChill a cup of coffee\\n' + F);
+      ok('a fully fenced reply parses',
+        !fenced.error && fenced.rows.length === 2, JSON.stringify(fenced.error || fenced.rows.length));
+      ok('the fence markers do not leak into the prep text',
+        !fenced.error && fenced.rows[0].prep === 'Scrub the potatoes\\nSoak them',
+        JSON.stringify(fenced.error || fenced.rows[0].prep));
+      ok('a language-tagged fence also parses',
+        !parsePrepReply(F + 'text\\n=== 8801\\nScrub the potatoes\\n' + F).error, 'tagged fence rejected');
+      ok('a fenced reply with prose around it still parses',
+        !parsePrepReply('Here you go!\\n' + F + '\\n=== 8801\\nScrub\\n' + F + '\\nHope that helps.').error,
+        'fence + prose rejected');
       ok('bullet characters are stripped from steps',
         parsePrepReply('=== 8801\\n- Scrub the potatoes\\n• Soak them').rows[0].prep === 'Scrub the potatoes\\nSoak them',
         JSON.stringify(parsePrepReply('=== 8801\\n- Scrub the potatoes\\n• Soak them').rows[0].prep));
@@ -516,6 +530,15 @@ module.exports = {
         /Do NOT use JSON/.test(text) && /inch marks/.test(text), 'format rules missing');
       ok('the prompt no longer asks for a JSON object',
         !/"hearth"/.test(text), 'still asking for JSON');
+      // v403: asking for the fence back is the whole point — without it the
+      // reply is loose prose with no Copy button.
+      ok('the prompt asks for the reply inside a code block',
+        /inside a single code block/.test(text) && /three backticks/.test(text),
+        'code-block instruction missing');
+      ok('the prompt no longer forbids a code fence',
+        !/no code fence/.test(text), 'still telling it not to fence');
+      ok('the prompt says the code block is the whole reply',
+        /do not split it into several code blocks/i.test(text), 'single-block rule missing');
 
       return {pass:pass, fail:fail};
     })()`);
