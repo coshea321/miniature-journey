@@ -867,7 +867,7 @@ body.train-mode #toast{background:#3A3328}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v403 · 07/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v404 · 07/08/2026</div>
 
   </div>
 </div>
@@ -7192,21 +7192,40 @@ function prepStripInvisible(s) {
 // to get wrong; it is far easier to select than one enormous JSON line; and
 // because each block stands alone, a reply that gets cut off part-way still
 // imports every complete block before the cut instead of failing entirely.
+// Deliberately forgiving (v404). Cathal's first real paste began
+// `.=== 1782917881957` — one stray character before the marker, and under the
+// original strict `^\s*={2,}\s*(\d+)\s*$` that whole line failed to match, so
+// the block AND its four prep lines were swallowed as preamble and the recipe
+// vanished with no message. Silently losing a recipe is far worse than
+// refusing the paste, so the marker now tolerates anything non-alphanumeric
+// around it: a stray dot, a list dash, markdown bold or a heading hash. A prep
+// step would have to begin with punctuation and then "==" to false-positive,
+// which doesn't happen in recipe text.
+var PREP_BLOCK_MARK = /^[^A-Za-z0-9]*={2,}[^0-9\n]*(\d+)/;
+// Anything that mentions === near a number is *meant* to be a marker. Used
+// only to catch a line the marker itself somehow still missed, so the parser
+// can say so instead of dropping a recipe.
+var PREP_BLOCK_HINT = /={2,}[^0-9\n]*\d/;
+
 function parsePrepBlocks(s) {
   var lines = String(s).replace(/\r\n?/g, "\n").split("\n");
-  var out = [], cur = null;
+  var out = [], cur = null, missed = [];
   lines.forEach(function(line){
-    var m = line.match(/^\s*={2,}\s*(\d+)\s*$/);
+    var m = line.match(PREP_BLOCK_MARK);
     if (m) { cur = { id: m[1], steps: [] }; out.push(cur); return; }
+    if (PREP_BLOCK_HINT.test(line)) missed.push(line.trim());  // looked like a marker, wasn't
     if (!cur) return;                                   // preamble before the first block
     var t = line.trim();
     if (!t) return;
     if (/^```/.test(t)) return;                         // a stray fence, if one slipped in
     cur.steps.push(t.replace(METHOD_BULLET_MARK, "").trim());
   });
-  return out.map(function(b){
-    return { id: b.id, prep: b.steps.filter(Boolean).join("\n") };
-  });
+  return {
+    entries: out.map(function(b){
+      return { id: b.id, prep: b.steps.filter(Boolean).join("\n") };
+    }),
+    missed: missed
+  };
 }
 
 function parsePrepReply(raw) {
@@ -7214,7 +7233,15 @@ function parsePrepReply(raw) {
   if (!s) return { error: "Paste the reply into the box first." };
   // Block format takes precedence: its marker is unambiguous, and a reply
   // carrying it should never be second-guessed by the JSON path.
-  if (/^\s*={2,}\s*\d+\s*$/m.test(s)) return matchPrepEntries(parsePrepBlocks(s));
+  if (PREP_BLOCK_HINT.test(s)) {
+    var parsed = parsePrepBlocks(s);
+    // A line that reads like a marker but produced no block must never be
+    // dropped in silence — that is exactly how a whole recipe went missing.
+    if (parsed.missed.length) {
+      return { error: "Couldn't read this line: “" + parsed.missed[0].slice(0, 60) + "”. Every recipe should start with === and its number." };
+    }
+    return matchPrepEntries(parsed.entries);
+  }
   // A chat reply arrives wrapped in a ``` fence about as often as not, and
   // sometimes with a sentence either side of it. Take the outermost {...}
   // rather than demanding a surgically clean paste.

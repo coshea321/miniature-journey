@@ -523,6 +523,42 @@ module.exports = {
       ok('a reply with block markers is not second-guessed by the JSON path',
         !parsePrepReply('=== 8801\\nScrub {"not":"json"} at all').error, 'block reply rejected');
 
+      // v404: a stray character before the marker used to swallow the block
+      // AND its prep lines as preamble — Cathal's first real paste began
+      // ".=== 1782917881957" and that whole recipe vanished with no message.
+      // Losing a recipe silently is worse than refusing the paste.
+      var dotted = parsePrepReply('.=== 8801\\nScrub the potatoes\\nSoak them\\n\\n=== 8802\\nChill a cup of coffee');
+      ok('a stray character before the marker no longer drops the recipe',
+        !dotted.error && dotted.rows.length === 2, JSON.stringify(dotted.error || dotted.rows.length));
+      ok('the recipe behind the stray character keeps all its steps',
+        !dotted.error && dotted.rows[0].prep === 'Scrub the potatoes\\nSoak them',
+        JSON.stringify(dotted.error || dotted.rows[0].prep));
+
+      ok('a markdown-bolded marker parses',
+        (parsePrepReply('**=== 8801**\\nScrub the potatoes').rows || []).length === 1, 'bold marker missed');
+      ok('a list-dashed marker parses',
+        (parsePrepReply('- === 8801\\nScrub the potatoes').rows || []).length === 1, 'dashed marker missed');
+      ok('a heading-style marker parses',
+        (parsePrepReply('### === 8801\\nScrub the potatoes').rows || []).length === 1, 'heading marker missed');
+      ok('a marker with the recipe name after it parses',
+        (parsePrepReply('=== 8801 Air Fryer Potato Chips\\nScrub the potatoes').rows || []).length === 1, 'named marker missed');
+      ok('a marker with no space before the id parses',
+        (parsePrepReply('===8801\\nScrub the potatoes').rows || []).length === 1, 'tight marker missed');
+
+      // Prep text must never be mistaken for a marker.
+      var stepsSafe = parsePrepReply('=== 8801\\nPreheat the oven to 200C\\nCut into 1 cm cubes\\nSimmer 20-30 minutes');
+      ok('ordinary prep steps are not mistaken for markers',
+        !stepsSafe.error && stepsSafe.rows.length === 1 && stepsSafe.rows[0].prep.split('\\n').length === 3,
+        JSON.stringify(stepsSafe.error || stepsSafe.rows[0].prep));
+
+      // The belt and braces: a line that reads like a marker but isn't one
+      // must be reported, never quietly skipped.
+      var missed = parsePrepReply('Recipe === 8801\\nScrub the potatoes');
+      ok('a marker-ish line that cannot be read is reported, not ignored',
+        !!missed.error && /Couldn't read this line/.test(missed.error), JSON.stringify(missed));
+      ok('the error quotes the offending line so it can be found',
+        !!missed.error && /Recipe === 8801/.test(missed.error), JSON.stringify(missed.error));
+
       // The prompt asks for the new format and warns off the old escaping.
       var text = prepExportText(0);
       ok('the prompt shows the block format', /=== 123/.test(text), 'block example missing');
