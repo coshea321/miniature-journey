@@ -880,7 +880,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v405 · 07/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v406 · 09/08/2026</div>
 
   </div>
 </div>
@@ -2501,6 +2501,16 @@ function histRecordDate(entry) {
     entry.dates.push(todayS);
     if (entry.dates.length > 8) entry.dates = entry.dates.slice(-8);
   }
+}
+// v406: every way of bringing an item back from Done is a re-add and must feed
+// history (count/lastUsed/dates), the same as typing the name again (v342) — but
+// ticking something by mistake and immediately unticking it is a correction, not
+// a re-purchase. Items stamp `updated` when they're ticked done, so a flip inside
+// the grace window is skipped. MUST be called BEFORE `updated` is re-stamped.
+// Only the count is at stake: histRecordDate() already dedupes dates per day.
+var REVIVE_HIST_GRACE_MS = 60000;
+function reviveWasMisclick(it) {
+  return !!(it && it.updated && (Date.now() - it.updated) < REVIVE_HIST_GRACE_MS);
 }
 function addToHist(name, catId) {
   clearHistTomb(currentList, name); // re-adding revives a deleted history entry (v323)
@@ -5683,7 +5693,8 @@ function addRecipeToGroceries(recipe, mult, quiet) {
       }
       existing.recipe = tag;
       existing._recipeAdded = false;        // pre-existed: restore on clear, don't delete
-      if (existing.done) { existing.done = false; existing.added = Date.now(); } // revived = recently added (v325)
+      var _recRevived = false;
+      if (existing.done) { _recRevived = !reviveWasMisclick(existing); existing.done = false; existing.added = Date.now(); } // revived = recently added (v325)
       // The snapshot is taken before the first change, so an empty amount in
       // it means the recipe owns this field — a re-add refreshes it (servings
       // may have changed) and the note still leaves the amount out. Without
@@ -5694,6 +5705,10 @@ function addRecipeToGroceries(recipe, mult, quiet) {
       setRecipeNote(existing, tag, amtDetail(ing, amt, sp, filledAmt));
       existing.updated = Date.now();
       existing.catId = gcat(clean);
+      // v406: reviving a done item off a recipe is a re-add, same as the new-item
+      // branch below. Uses the item's own name (grocery matching is fuzzy, so
+      // `clean` can differ) and runs after catId settles.
+      if (_recRevived) addToHistFor("grocery", existing.name, existing.catId);
       tagged++;
     } else {
       var catId = gcat(clean);
@@ -9121,6 +9136,9 @@ function nextRepeatDue(repeat, fromDate, today) {
 function toggleItem(id) {
   var items=getItems();
   for (var i=0;i<items.length;i++) { if (items[i].id===id) {
+    // v406: unticking in the Done section revives the item — feed history like a
+    // typed re-add. Both reads happen before `updated` is re-stamped below.
+    var _wasRevived = !!items[i].done, _reviveMisclick = _wasRevived && reviveWasMisclick(items[i]);
     items[i].done=!items[i].done; if (items[i].done) items[i].today=false; items[i].updated=Date.now();
     // v357: opt-in Track auto-logging — append only on the user's own done-tick, never from merge/render paths
     if (items[i].done && items[i].trackLog) {
@@ -9141,6 +9159,9 @@ function toggleItem(id) {
         toast("Done ✓ — next due " + _ndD.toLocaleDateString("en-IE", { weekday:"short", day:"numeric", month:"short" }));
       }
     }
+    // v406: runs last so a repeating task's reschedule above (done→false on a
+    // TICK, not a revive) can't be mistaken for one — _wasRevived was read first.
+    if (_wasRevived && !_reviveMisclick) addToHist(items[i].name, items[i].catId);
     break; } }
   saveCurrentList(); renderList();
 }
@@ -13240,13 +13261,17 @@ window.addEventListener("DOMContentLoaded", function() {
         }
         existing.recipe = tag || existing.recipe; // new tag replaces old
         existing._recipeAdded = false;            // pre-existed: restore, don't delete
-        if (existing.done) { existing.done = false; existing.added = Date.now(); } // revived = recently added (v325)
+        var _impRevived = false;
+        if (existing.done) { _impRevived = !reviveWasMisclick(existing); existing.done = false; existing.added = Date.now(); } // revived = recently added (v325)
         // A pasted list carries no amounts, so any note a previous recipe left
         // on this item is now stale — drop it rather than leave it attached to
         // a different recipe's chip (v364).
         if (tag && existing._recipeNote) setRecipeNote(existing, tag, "");
         existing.updated = Date.now();
         if (tag) existing.catId = detectCat(clean); // recipe's category wins
+        // v406: reviving a done item off a pasted list is a re-add, same as the
+        // new-item branch below. Item's own name — grocery matching is fuzzy.
+        if (_impRevived) addToHist(existing.name, existing.catId);
         tagged++;
       } else {
         var catId = detectCat(clean);
@@ -14471,7 +14496,10 @@ function doHqpAdd() {
     for (var di = 0; di < items.length; di++) {
       if (items[di] && items[di].name.toLowerCase() === name.toLowerCase()) {
         if (!items[di].done) { toast("Already in your list!"); closeHqp(); return; }
+        var _hqpMisclick = reviveWasMisclick(items[di]); // read before `updated` is re-stamped
         items[di].done = false; clearPersonChecks(items[di]); items[di].updated = Date.now(); items[di].added = Date.now(); // revived = recently added (v325)
+        // v406: a quick-pick revive is a re-add, same as the new-item branch below
+        if (!_hqpMisclick) addToHistFor(lt, items[di].name, items[di].catId);
         storeSet(LIST_CONFIG[lt].key, listData[lt]);
         pushPersonal(); if (isHouseholdSet() && isSynced(lt)) pushHousehold();
         toast("Moved back to list: " + name); closeHqp(); renderHomeScreen(); return;
