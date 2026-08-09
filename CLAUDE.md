@@ -57,6 +57,8 @@ Test builds (any host that isn't `coshea321.github.io`, i.e. every raw.githack P
 
 Three functions in `index.html`, all behind `_isTestBuild`: the phase-1 wipe (right under `_isTestBuild`, before any module-level code reads storage), `buildTestSeed()` and `resetTestData()` (just above `var bootSection`). The seed is applied through **`importBackupData()`** — the same merge the real backup restore uses — so it is defined in the **export payload shape** (`buildExportPayload`).
 
+**`resetTestData()` wipes and RELOADS — it must never seed the live page (v408).** `loadListData` returns the in-memory `listData` whenever it is populated, and `importBackupData` is additive *by id*, so seeding in place silently keeps every edited copy already in memory and writes it back: deletions come back, ticks/renames/due dates don't. Wiping the `fl4_testseed` marker and reloading routes the reset through the same phase-1/phase-2 path as the auto-seed, where memory is genuinely empty. `tests/cases/39-test-build-reset.js` pins this with a deliberate regression tripwire — don't delete it if it fails, re-check the reset.
+
 **When you add a new section or store, add demo content for it to `buildTestSeed()` in the same change** — the payload key must match `buildExportPayload`/`importBackupData` or it lands as nothing at all, silently. Ids come off `_tsId()` (fixed base, counter reset per call) and dates off `_tsDay`/`_tsAt`/`_tsTs` (relative to today) — keep both, or a re-seed stops being idempotent and the demo goes stale. `tests/cases/38-test-build-seed.js` asserts every section by count and pins the not-a-test-build guard; extend it alongside.
 
 ## After significant work

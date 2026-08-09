@@ -880,7 +880,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v407 · 09/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v408 · 09/08/2026</div>
 
   </div>
 </div>
@@ -17434,21 +17434,34 @@ function buildTestSeed() {
   return seed;
 }
 
-// Wipes the fl4_* store and lays the demo household back down. Used by the
-// once-per-version auto-seed and by the banner's reset. Reloads afterwards
-// so every parse-time cache (sectionVisible, syncPrefs, listData…) is
-// rebuilt from the fresh store rather than patched in place.
+// The banner's reset. Wipes and RELOADS — it deliberately does NOT seed here.
+//
+// v408 fix (Cathal 09/08/2026: "resetting doesn't restore all data … the
+// status didn't change, newly done remained done"). v407 wiped storage and
+// then called importBackupData on the LIVE page, which quietly did almost
+// nothing: `loadListData` hands back the in-memory `listData` whenever it is
+// populated, so the merge ran against the copies the page was already holding
+// — and importBackupData is additive BY ID, so every seeded item whose id was
+// already in memory got filtered out as "already here" and the edited copy
+// survived, then got written straight back to storage. Deletions did come
+// back (a deleted id isn't in memory, so the seed's copy was genuinely new),
+// which is what made it look like a partial reset rather than a broken one.
+// Anything edited IN PLACE — a tick, a rename, a due date — did not.
+//
+// Wiping the marker along with everything else (it is `fl4_`-prefixed, so
+// wipeTestStore takes it) routes the reset through exactly the same phase-1 /
+// phase-2 path as the once-per-version auto-seed, where the wipe lands before
+// any module-level code reads storage and the seed lands in genuinely empty
+// memory. One code path, one behaviour, and "reset" means reset.
+// Do NOT "optimise" the reload away — pinned by tests/cases/39-test-build-reset.js.
 function resetTestData() {
   if (!_isTestBuild) return;                      // belt and braces — never on the real app
   try {
-    wipeTestStore();
-    storeSet("fl4_secVisible", { home:true, train:true, trips:true, track:true, sports:true, famlog:true, plants:true, watch:true });
-    importBackupData(buildTestSeed());
-    storeSet(TEST_SEED_KEY, testBuildVersion());
+    wipeTestStore();                              // clears fl4_*, INCLUDING the fl4_testseed marker
   } catch (e) {
     console.error("Demo data reset failed:", e);
   }
-  location.reload();
+  location.reload();                              // phase 1 finds no marker → wipes → phase 2 seeds fresh
 }
 
 if (_testSeedPending) {
