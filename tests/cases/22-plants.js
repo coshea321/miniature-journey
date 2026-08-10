@@ -83,16 +83,51 @@ module.exports = {
 
       plantLogCare(900001, 'feed');
       after = getPlants().find(function(x){ return x.id === 900001; });
-      ok('feed log is separate', after && after.feedLog.length === 1 && after.waterLog.length === 1,
+      ok('feeding also logs a watering at the same time', after && after.feedLog.length === 1 && after.waterLog.length === 2 && after.waterLog[0] === after.feedLog[0],
+        'got: w=' + JSON.stringify(after && after.waterLog) + ' f=' + JSON.stringify(after && after.feedLog));
+
+      plantLogCare(900001, 'water');
+      after = getPlants().find(function(x){ return x.id === 900001; });
+      ok('watering on its own does not also log a feed', after && after.waterLog.length === 3 && after.feedLog.length === 1,
         'got: w=' + JSON.stringify(after && after.waterLog) + ' f=' + JSON.stringify(after && after.feedLog));
 
       plantUndoCare(900001, 'water');
       after = getPlants().find(function(x){ return x.id === 900001; });
-      ok('undo removes only the newest water entry', after && after.waterLog.length === 0 && after.feedLog.length === 1,
+      ok('undo removes only the newest water entry', after && after.waterLog.length === 2 && after.feedLog.length === 1,
         'got: w=' + JSON.stringify(after && after.waterLog) + ' f=' + JSON.stringify(after && after.feedLog));
+
+      plantUndoCare(900001, 'feed');
+      after = getPlants().find(function(x){ return x.id === 900001; });
+      ok('undoing a feed also undoes the watering that was auto-logged with it',
+        after && after.feedLog.length === 0 && after.waterLog.length === 1,
+        'got: w=' + JSON.stringify(after && after.waterLog) + ' f=' + JSON.stringify(after && after.feedLog));
+
       plantUndoCare(900001, 'water');
       after = getPlants().find(function(x){ return x.id === 900001; });
       ok('undo on an empty log is a no-op, not a crash', after && after.waterLog.length === 0, 'got: ' + JSON.stringify(after && after.waterLog));
+      plantUndoCare(900001, 'water');
+      after = getPlants().find(function(x){ return x.id === 900001; });
+      ok('repeated undo on an empty log stays a no-op', after && after.waterLog.length === 0, 'got: ' + JSON.stringify(after && after.waterLog));
+
+      // Undoing a feed must not discard a manual watering logged after it —
+      // the auto-paired water entry is only removed while it's still the newest one.
+      // (A later manual watering is synthesised directly rather than via a second
+      // plantLogCare call, since a same-millisecond test run can't be trusted to
+      // produce a distinct Date.now() the way two real, separated button taps would.)
+      storeSet('fl4_plants', getPlants().concat([
+        { id:900003, name:'TestFern', waterDays:7, feedDays:21, waterLog:[], feedLog:[], updated: 1000 }
+      ]));
+      plantLogCare(900003, 'feed');
+      var pairedTs = getPlants().find(function(x){ return x.id === 900003; }).feedLog[0];
+      var withManualWater = getPlants();
+      var fi = withManualWater.findIndex(function(x){ return x.id === 900003; });
+      withManualWater[fi].waterLog.unshift(pairedTs + 1000);
+      storeSet('fl4_plants', withManualWater);
+      plantUndoCare(900003, 'feed');
+      after = getPlants().find(function(x){ return x.id === 900003; });
+      ok('undoing a feed leaves a later manual watering untouched',
+        after && after.feedLog.length === 0 && after.waterLog.length === 2 && after.waterLog.indexOf(pairedTs) !== -1,
+        'got: w=' + JSON.stringify(after && after.waterLog) + ' f=' + JSON.stringify(after && after.feedLog));
 
       // Log cap: the array must never grow without bound (it rides the sync payload).
       var capped = getPlants();

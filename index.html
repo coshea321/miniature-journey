@@ -880,7 +880,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v408 · 09/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v409 · 09/08/2026</div>
 
   </div>
 </div>
@@ -2999,11 +2999,19 @@ function plantLogCare(id, kind) {
   var plants = getPlants();
   var i = plants.findIndex(function(p){ return p && p.id === id; });
   if (i < 0) { toast("Plant not found"); return; }   // never write at an unguarded -1
+  var now = Date.now();
   var key = kind === "feed" ? "feedLog" : "waterLog";
   var log = Array.isArray(plants[i][key]) ? plants[i][key].slice() : [];
-  log.unshift(Date.now());
+  log.unshift(now);
   plants[i][key] = log.slice(0, PLANT_LOG_CAP);
-  plants[i].updated = Date.now();
+  // Feeding requires watering at the same time, so a feed log also counts as a water log.
+  // Watering alone does not imply feeding, so this only runs one way.
+  if (kind === "feed") {
+    var waterLog = Array.isArray(plants[i].waterLog) ? plants[i].waterLog.slice() : [];
+    waterLog.unshift(now);
+    plants[i].waterLog = waterLog.slice(0, PLANT_LOG_CAP);
+  }
+  plants[i].updated = now;
   savePlants(plants);
 }
 function plantUndoCare(id, kind) {
@@ -3013,8 +3021,18 @@ function plantUndoCare(id, kind) {
   var key = kind === "feed" ? "feedLog" : "waterLog";
   var log = Array.isArray(plants[i][key]) ? plants[i][key].slice() : [];
   if (!log.length) return;
-  log.shift();
+  var removed = log.shift();
   plants[i][key] = log;
+  // Undo the water log entry that was auto-added alongside this feed entry,
+  // but only if it's still the most recent one (same timestamp) — a manual
+  // watering logged since then must not be discarded.
+  if (kind === "feed") {
+    var waterLog = Array.isArray(plants[i].waterLog) ? plants[i].waterLog.slice() : [];
+    if (waterLog.length && waterLog[0] === removed) {
+      waterLog.shift();
+      plants[i].waterLog = waterLog;
+    }
+  }
   plants[i].updated = Date.now();
   savePlants(plants);
 }
