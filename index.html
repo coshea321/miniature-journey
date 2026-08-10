@@ -880,7 +880,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v410 · 10/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v411 · 10/08/2026</div>
 
   </div>
 </div>
@@ -11409,7 +11409,16 @@ var hearthSyncES  = null;
 var hearthHealthES = null;
 var syncPaused    = false;
 var lastPushTs    = 0;
-var _personalFetchOk = false; // becomes true after first successful remote fetch
+// Becomes true once we have successfully READ the remote personal node —
+// pushPersonal() refuses to push until then, so we can never overwrite remote
+// data we haven't seen. v411: set by BOTH read paths (fetchPersonal and a live
+// SSE "put"), not just the first fetch — see handlePersonalEvent.
+var _personalFetchOk = false;
+// Distinct sentinel for "the fetch came back 401/403" (v411). It used to be a
+// bare null, which a genuinely EMPTY remote node is indistinguishable from —
+// Firebase REST returns literal null for a path that doesn't exist yet, so a
+// brand-new account took the auth-failure branch and never set the flag above.
+var _FETCH_AUTH_FAIL = {};
 // Sync diagnostics (v299) — surfaced read-only in the Settings "Sync health"
 // panel; purely observational, nothing depends on these.
 var _syncStats = { lastPersonalPush: 0, lastHouseholdPush: 0, lastEvent: 0 };
@@ -12124,12 +12133,12 @@ function fetchPersonal(cb) {
         if (banner) banner.style.display = "block";
         toast("Sync needs re-login — please log out and back in");
         if (cb) cb();
-        return null;
+        return _FETCH_AUTH_FAIL;
       }
       return r.json();
     })
     .then(function(d) {
-      if (d === null) return;
+      if (d === _FETCH_AUTH_FAIL) return; // v411: was `d === null`, which also caught an empty remote
       _personalFetchOk = true;
       var sb = document.getElementById("staleDataBanner");
       if (sb) sb.style.display = "none";
@@ -12861,6 +12870,15 @@ function handlePersonalEvent(e) {
   try {
     _syncStats.lastEvent = Date.now();
     var p = JSON.parse(e.data);
+    // v411: a "put" IS a successful read of the remote node (Firebase sends the
+    // whole node as the first put on every connect), so it satisfies the same
+    // guard fetchPersonal() sets. Without this, a first fetch that failed on a
+    // network blip followed by a healthy stream left the device RECEIVE-ONLY
+    // for the rest of the session: pushPersonal() bails while _personalFetchOk
+    // is false, the stream never called fetchPersonal again (startSSEFallback
+    // only re-fetches when SSE is STALE), and nothing else set the flag.
+    // Set before the p.data guard below — an empty remote is still a real read.
+    if (e.type === "put") _personalFetchOk = true;
     if (e.type === "put" && p.data && typeof p.data === "object") {
       syncPaused = false;
       applyPersonal(p.data);
