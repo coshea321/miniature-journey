@@ -880,7 +880,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v412 · 10/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v413 · 10/08/2026</div>
 
   </div>
 </div>
@@ -9153,8 +9153,9 @@ function cardHTML(item, c) {
   var checkHTML;
   if (isPP) {
     checkHTML = "<div class='ppc-wrap'>" +
-      [["c","C"],["p","P"],["b","&#x1F476;"]].map(function(pp){
-        return "<div class='ppc" + (item.checks[pp[0]]?" on":"") + "' data-pp='" + pp[0] + "'>" + pp[1] + "</div>";
+      [["c","C","Cathal"],["p","P","Petra"],["b","&#x1F476;","the baby"]].map(function(pp){
+        var isOn = !!item.checks[pp[0]];
+        return "<div class='ppc" + (isOn?" on":"") + "' data-pp='" + pp[0] + "' role='button' aria-pressed='" + isOn + "' aria-label='Packed for " + pp[2] + "'>" + pp[1] + "</div>";
       }).join("") + "</div>";
   } else {
     checkHTML = "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>";
