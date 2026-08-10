@@ -880,7 +880,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v409 · 09/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v410 · 10/08/2026</div>
 
   </div>
 </div>
@@ -10916,13 +10916,18 @@ function maybeShowMealPlanBanner(){
 }
 (function(){
   var go = document.getElementById("mealPlanBannerGo");
+  // v410: used to chain straight into a confirmDialog offering to add the
+  // filled week to groceries — easy to tap through without registering what
+  // it was asking. Now lands on the Week Plan screen instead, so the filled
+  // days are visible and "Add week to groceries" is a fully deliberate tap
+  // on the existing green button (renderMealPlanner), not a stacked prompt.
   if (go) go.addEventListener("click", function(){
     markMealPlanPrompted();
     dismissMealPlanBanner();
-    var result = runMealPlanFill();
-    if (result && result.filledCount) {
-      confirmDialog("Add this week's planned dinners to your grocery list?", function(){ addWeekToGroceries(); });
-    }
+    runMealPlanFill();
+    _recipeScrollPos = window.scrollY || document.documentElement.scrollTop;
+    _recipeView = "plan";
+    switchSection("recipes");
   });
   var later = document.getElementById("mealPlanBannerLater");
   if (later) later.addEventListener("click", function(){ markMealPlanPrompted(); dismissMealPlanBanner(); });
