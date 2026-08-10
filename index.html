@@ -95,7 +95,10 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 .hist-count{font-size:11px;color:#5A6455}
 .hist-add{width:40px;height:40px;flex-shrink:0;border:none;background:#D6EDDA;color:#1A3D1E;font-size:28px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
 .hist-add.in-list{background:#E8E8E8;color:#999;font-size:18px}
-.hist-del{width:40px;height:40px;flex-shrink:0;border:none;background:none;border:1.5px solid #FDDEDD;color:#C03030;font-size:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+/* .hist-del stays 32px while .hist-add is 40px — deliberate (design confirmed 10/08/2026, shipped v415).
+   The frequent safe action gets comfortable; the unconfirmed delete, which writes a synced tombstone,
+   stays deliberate. Do NOT "tidy" these to match. */
+.hist-del{width:32px;height:32px;flex-shrink:0;border:none;background:none;border:1.5px solid #FDDEDD;color:#C03030;font-size:14px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
 .hist-check{width:26px;height:26px;flex-shrink:0;border-radius:50%;border:2px solid #B9CDBB;background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff}
 .hist-check.sel{background:#2D6B35;border-color:#2D6B35}
 .hist-bar{display:flex;align-items:center;gap:8px;margin:2px 0 8px}
@@ -9338,8 +9341,8 @@ function renderHistory() {
       "<span class='hist-count'>Added "+(h.count||1)+"x</span></div></div>" +
       (_histSelectMode
         ? "<span class='hist-check"+(sel?" sel":"")+"'>"+(sel?"&#10003;":"")+"</span>"
-        : "<button class='hist-add"+(inList?" in-list":"")+"'>"+(inList?"&#10003;":"+")+"</button>" +
-          "<button class='hist-del' title='Remove from history'>&#x2715;</button>") +
+        : "<button class='hist-add"+(inList?" in-list":"")+"' aria-label='"+(inList?esc(h.name)+" is already in your list":"Add "+esc(h.name)+" to your list")+"'>"+(inList?"&#10003;":"+")+"</button>" +
+          "<button class='hist-del' title='Remove from history' aria-label='Remove "+esc(h.name)+" from history'>&#x2715;</button>") +
       "</div>";
   }
   elHistoryC.innerHTML=html;
