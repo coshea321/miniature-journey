@@ -880,7 +880,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v411 · 10/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v412 · 10/08/2026</div>
 
   </div>
 </div>
@@ -13640,39 +13640,6 @@ function openPhysioSession(progIdx) {
   openSessionOverlay(PROGRAMMES_TRAIN[progIdx].name.replace(/&amp;/g,"&"));
   document.getElementById("sesProgFill").style.background = "#14b8a6";
   renderPhysioSession();
-}
-
-function insertBlock(tag) {
-  var sel = window.getSelection();
-  if (!sel.rangeCount) return;
-  var range = sel.getRangeAt(0);
-  var text = sel.toString() || "Heading";
-  var el = document.createElement(tag);
-  el.textContent = text;
-  range.deleteContents();
-  range.insertNode(el);
-  range.selectNodeContents(el);
-  sel.removeAllRanges();
-  sel.addRange(range);
-}
-
-function wrapCode() {
-  var sel = window.getSelection();
-  if (!sel.rangeCount) return;
-  var range = sel.getRangeAt(0);
-  var text = sel.toString() || "code";
-  var el = document.createElement("code");
-  el.textContent = text;
-  range.deleteContents();
-  range.insertNode(el);
-}
-
-function updateFmtButtons() {
-  ["bold","italic","underline","strikeThrough"].forEach(function(cmd) {
-    var key = cmd === "strikeThrough" ? "strikethrough" : cmd;
-    var btn = document.querySelector("[data-fmt='" + key + "']");
-    if (btn) btn.classList.toggle("active", document.queryCommandState(cmd));
-  });
 }
 
 function fmtDate(ts) {
