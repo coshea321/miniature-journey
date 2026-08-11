@@ -883,7 +883,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v418 · 11/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v419 · 11/08/2026</div>
 
   </div>
 </div>
@@ -10845,6 +10845,7 @@ document.getElementById("leaveHouseholdBtn").addEventListener("click", function(
     fetch(authUrl(houseUrl("/members/" + hearthUser)), { method:"DELETE" }).catch(function(){});
     fetch(authUrl(userUrl("/household")), { method:"DELETE" }).catch(function(){});
     hearthHouse = ""; storeSet("hearth_household","");
+    _householdFetchOk = false; // v419: the next household must be read before we push to it
     renderSyncModal(); updateSyncStatus(); toast("Left household");
   });
 });
@@ -10869,6 +10870,10 @@ document.getElementById("createHouseholdBtn").addEventListener("click", function
   hearthHouse = code; storeSet("hearth_household", code);
   fetch(authUrl(houseUrl("/members/"+hearthUser)), {method:"PUT",body:JSON.stringify(true),headers:{"Content-Type":"application/json"}}).catch(function(){});
   fetch(authUrl(userUrl("/household")), {method:"PUT",body:JSON.stringify(code),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  // v419: a household we just invented has nothing to read, so open the push
+  // guard explicitly — without this the creating device could never push and
+  // would sit silently receive-only in its own new household.
+  _householdFetchOk = true;
   pushHousehold(); startListening();
   var inp = document.getElementById("joinHouseholdInput"); if(inp) inp.value = code;
   renderSyncModal(); toast("Household created: " + code);
@@ -11528,6 +11533,12 @@ var lastPushTs    = 0;
 // data we haven't seen. v411: set by BOTH read paths (fetchPersonal and a live
 // SSE "put"), not just the first fetch — see handlePersonalEvent.
 var _personalFetchOk = false;
+// v419: the household twin of _personalFetchOk. pushHousehold() sends a
+// wholesale PUT to /shared, so a device that has never successfully READ the
+// household must not push: it would replace everyone's shared data with
+// whatever it happens to be holding. Set by any authorised read (fetch or a
+// live SSE put) and by creating a household (nothing to read — we authored it).
+var _householdFetchOk = false;
 // Distinct sentinel for "the fetch came back 401/403" (v411). It used to be a
 // bare null, which a genuinely EMPTY remote node is indistinguishable from —
 // Firebase REST returns literal null for a path that doesn't exist yet, so a
@@ -11929,6 +11940,7 @@ function logout(silent) {
   if (hearthSyncES)   { hearthSyncES.close();   hearthSyncES = null; }
   if (hearthHealthES) { hearthHealthES.close();  hearthHealthES = null; }
   hearthUser = ""; hearthToken = ""; hearthHouse = "";
+  _personalFetchOk = false; _householdFetchOk = false; // v419: a new session must read before it pushes
   storeSet("hearth_user",""); storeSet("hearth_token",""); storeSet("hearth_household","");
   if (!silent) showLoginOverlay();
   updateSyncStatus();
@@ -12269,6 +12281,7 @@ var _pushHouseholdTimer = null;
 function pushHousehold() {
   if (_isTestBuild) return;
   if (!isHouseholdSet() || syncPaused) return;
+  if (!_householdFetchOk) return; // never push until we've successfully pulled remote data
   lastPushTs = Date.now();
   clearTimeout(_pushHouseholdTimer);
   _pushHouseholdTimer = setTimeout(function() {
@@ -13030,6 +13043,10 @@ function handleHouseholdEvent(e) {
     _syncStats.lastEvent = Date.now();
     var p = JSON.parse(e.data);
     if (e.type === "put" && p.data && typeof p.data === "object") {
+      // v419: a live stream delivering household data is proof we can read it —
+      // open the push guard here too, or a device whose first fetch failed on a
+      // blip stays receive-only for the whole session (the v411 lesson, ①).
+      _householdFetchOk = true;
       applyHousehold(p.data);
     } else if (e.type === "patch") {
       fetchHousehold();
@@ -16013,8 +16030,20 @@ function saveBD(data) { storeSet("fl4_baby", data); pushPersonal(); if (isHouseh
 function fetchHousehold(cb) {
   if (!isHouseholdSet()) { if(cb)cb(); return; }
   fetchWithTimeout(authUrl(houseUrl("/shared")))
-    .then(function(r){ return r.json(); })
+    .then(function(r){
+      if (r.status === 401 || r.status === 403) {
+        // v419: auth failed — leave the push guard closed. Both callers of this
+        // function run pushHousehold() from the callback, and that push is a
+        // wholesale PUT: pushing over a household we were not allowed to read
+        // would replace it with whatever this device holds.
+        if (cb) cb();
+        return _FETCH_AUTH_FAIL;
+      }
+      return r.json();
+    })
     .then(function(data) {
+      if (data === _FETCH_AUTH_FAIL) return;
+      _householdFetchOk = true; // a literal null body here is a real EMPTY household, not a failure
       if (data && typeof data === "object") applyHousehold(data);
       if (cb) cb();
     })
