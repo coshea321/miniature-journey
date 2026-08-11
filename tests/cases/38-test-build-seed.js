@@ -28,6 +28,21 @@ module.exports = {
       // ever fails the guard has been loosened and the real app is one
       // hostname check away from being wiped.
       ok('a file:// page is not a test build', _isTestBuild === false, '_isTestBuild = ' + _isTestBuild);
+
+      // The production allowlist (v418). Pinned by exact contents, because the
+      // whole safety property is that it is an EXACT-match list: Cloudflare
+      // Pages serves branch/deployment previews at
+      // <branch|hash>.miniature-journey-b9p.pages.dev, and a suffix or
+      // wildcard check would silently promote every one of them to live
+      // Firebase access. If a host is added here on purpose, update this list.
+      ok('both production hosts are on the allowlist',
+        _prodHosts.length === 2 &&
+        _prodHosts.indexOf('coshea321.github.io') !== -1 &&
+        _prodHosts.indexOf('miniature-journey-b9p.pages.dev') !== -1,
+        '_prodHosts = ' + JSON.stringify(_prodHosts));
+      ok('a Pages branch preview host is NOT production',
+        _prodHosts.indexOf('some-branch.miniature-journey-b9p.pages.dev') === -1,
+        '_prodHosts = ' + JSON.stringify(_prodHosts));
       ok('the auto-seed did not fire outside a test build', _testSeedPending === false,
         '_testSeedPending = ' + _testSeedPending);
       storeSet('fl4_grocery', { items:[{id:1,name:'real data',catId:'other',done:false}], hist:[] });
