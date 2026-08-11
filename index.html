@@ -883,7 +883,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v417 · 11/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v418 · 11/08/2026</div>
 
   </div>
 </div>
@@ -1699,15 +1699,22 @@ var _isPreview = (function() {
 })();
 
 // ============================================================
-// TEST BUILD — the app served from anywhere that isn't the real
-// GitHub Pages site (e.g. the raw.githack.com "try this version"
-// link on a PR). Firebase sync, login and the cloud backup are
-// hard-blocked and the service worker is skipped, so nothing done
-// in a test build can ever reach real data on the phones or in
+// TEST BUILD — the app served from anywhere that isn't one of the
+// real production homes (e.g. the raw.githack.com "try this
+// version" link on a PR). Firebase sync, login and the cloud backup
+// are hard-blocked and the service worker is skipped, so nothing
+// done in a test build can ever reach real data on the phones or in
 // Firebase. The browser keeps its localStorage per-site, so test
 // data lives (and stays) on the test address only.
+//
+// _prodHosts is an EXACT-match allowlist, deliberately — not a
+// suffix/wildcard test. Cloudflare Pages also publishes every branch
+// and every past deployment at <branch|hash>.<project>.pages.dev, and
+// those must keep behaving as test builds; a "ends with .pages.dev"
+// check would hand them live Firebase access.
 // ============================================================
-var _isTestBuild = !_isPreview && (window.location.hostname || "") !== "coshea321.github.io";
+var _prodHosts = ["coshea321.github.io", "miniature-journey-b9p.pages.dev"];
+var _isTestBuild = !_isPreview && _prodHosts.indexOf(window.location.hostname || "") === -1;
 if (_isTestBuild) {
   var _tbBanner = document.getElementById("testBuildBanner");
   if (_tbBanner) _tbBanner.style.display = "block";
