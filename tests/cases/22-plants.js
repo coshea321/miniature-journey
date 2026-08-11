@@ -314,6 +314,38 @@ module.exports = {
 
       _plantView = savedView; _plantOpenId = savedOpen; _plantHistoryOpenId = null;
 
+      // ── plantNextDue ────────────────────────────────────────────────────
+      ok('plantNextDue takes the sooner of water/feed',
+        plantNextDue({ waterDays:7, waterLog:[daysAgo(7)], feedDays:21, feedLog:[daysAgo(3)] }) === 0,
+        'got: ' + plantNextDue({ waterDays:7, waterLog:[daysAgo(7)], feedDays:21, feedLog:[daysAgo(3)] }));
+      ok('plantNextDue takes feed when it is sooner than water',
+        plantNextDue({ waterDays:14, waterLog:[Date.now()], feedDays:21, feedLog:[daysAgo(21)] }) === 0,
+        'got: ' + plantNextDue({ waterDays:14, waterLog:[Date.now()], feedDays:21, feedLog:[daysAgo(21)] }));
+      ok('plantNextDue falls back to whichever of water/feed has a reminder',
+        plantNextDue({ waterDays:0, waterLog:[], feedDays:10, feedLog:[daysAgo(10)] }) === 0,
+        'got: ' + plantNextDue({ waterDays:0, waterLog:[], feedDays:10, feedLog:[daysAgo(10)] }));
+      ok('plantNextDue is null when neither water nor feed has a reminder',
+        plantNextDue({ waterDays:0, waterLog:[], feedDays:0, feedLog:[] }) === null,
+        'got: ' + plantNextDue({ waterDays:0, waterLog:[], feedDays:0, feedLog:[] }));
+
+      // ── plant list: sorted soonest-due-first, with both pills shown (v417) ─
+      var savedListArea = _plantArea, savedListView = _plantView;
+      _plantArea = ''; _plantView = 'list';
+      storeSet('fl4_plants', [
+        { id:900010, name:'Later',   waterDays:7,  waterLog:[Date.now()],       feedDays:0, feedLog:[], updated:Date.now() },
+        { id:900011, name:'Overdue', waterDays:7,  waterLog:[daysAgo(9)],       feedDays:0, feedLog:[], updated:Date.now() },
+        { id:900012, name:'NoDates', waterDays:0,  waterLog:[],                 feedDays:0, feedLog:[], updated:Date.now() },
+        { id:900013, name:'DueSoon', waterDays:30, waterLog:[Date.now()],       feedDays:10, feedLog:[daysAgo(9)], updated:Date.now() }
+      ]);
+      renderPlants();
+      var cardIds = Array.prototype.slice.call(document.querySelectorAll('.plant-card')).map(function(c){ return +c.dataset.pid; });
+      ok('list sorts soonest-due plant first and no-reminder plant last',
+        cardIds.join(',') === '900011,900013,900010,900012', 'got: ' + cardIds.join(','));
+      var soonCardText = document.querySelector('.plant-card[data-pid="900013"]').textContent;
+      ok('a plant due soon on feed (not water) still shows a feed pill',
+        soonCardText.indexOf('due tomorrow') > -1, 'got: ' + soonCardText);
+      _plantArea = savedListArea; _plantView = savedListView;
+
       // Cleanup
       if (saved === null || saved === undefined) localStorage.removeItem('fl4_plants'); else storeSet('fl4_plants', saved);
       if (savedTombs === null || savedTombs === undefined) localStorage.removeItem('fl4_tomb_plants'); else storeSet('fl4_tomb_plants', savedTombs);

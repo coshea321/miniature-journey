@@ -883,7 +883,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v416 · 11/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v417 · 11/08/2026</div>
 
   </div>
 </div>
@@ -2913,6 +2913,14 @@ function plantDueIn(p, kind) {
 }
 function plantOverdue(p) { var d = plantDueIn(p, "water"); return d !== null && d <= 0; }
 function plantsNeedingWater() { return getPlants().filter(plantOverdue); }
+// Soonest of water/feed due-in, for list sorting. null only when neither has
+// a reminder set (or logged) — those plants sort to the end, not the top.
+function plantNextDue(p) {
+  var w = plantDueIn(p, "water"), f = plantDueIn(p, "feed");
+  if (w === null) return f;
+  if (f === null) return w;
+  return Math.min(w, f);
+}
 
 // ── Areas (v379) ───────────────────────────────────────────────────────────
 // The existing `room` field IS the area — no new field, so every plant already
@@ -3330,12 +3338,13 @@ function plantThumbHTML(p, size) {
   return "<div style='flex-shrink:0;width:" + s + "px;height:" + s + "px;border-radius:10px;background:#EAF2E4;display:flex;align-items:center;justify-content:center;font-size:" + Math.round(s * 0.5) + "px'>" +
     ((p && p.emoji) ? esc(p.emoji) : "&#x1FAB4;") + "</div>";
 }
-function plantDuePill(p) {
-  var d = plantDueIn(p, "water");
+function plantDuePill(p, kind) {
+  var d = plantDueIn(p, kind);
   if (d === null) return "";
   var bg = d < 0 ? "#FBE4E4" : (d === 0 ? "#FDF0D8" : "#E6F2E6");
   var fg = d < 0 ? "#B03030" : (d === 0 ? "#8A6A10" : "#2E7D4F");
-  return "<div style='flex-shrink:0;background:" + bg + ";color:" + fg + ";font-size:12px;font-weight:700;border-radius:20px;padding:5px 11px;white-space:nowrap'>&#x1F4A7; " + esc(plantDueLabel(p, "water")) + "</div>";
+  var ico = kind === "feed" ? "&#x1F331;" : "&#x1F4A7;";
+  return "<div style='flex-shrink:0;background:" + bg + ";color:" + fg + ";font-size:12px;font-weight:700;border-radius:20px;padding:5px 11px;white-space:nowrap'>" + ico + " " + esc(plantDueLabel(p, kind)) + "</div>";
 }
 // Botanical name, then the area. The area is what the chips filter on, so it
 // earns its place on the card even when a filter is already narrowing the list.
@@ -3353,7 +3362,9 @@ function plantCardHTML(p) {
       "<div style='font-size:16px;font-weight:700;color:#1A2E1E;margin-bottom:2px'>" + esc(p.name || "Untitled plant") + "</div>" +
       "<div style='font-size:12px;color:#8A9A7A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + plantCardSubHTML(p) + "</div>" +
     "</div>" +
-    plantDuePill(p) +
+    "<div style='flex-shrink:0;display:flex;flex-direction:column;gap:5px;align-items:flex-end'>" +
+      plantDuePill(p, "water") + plantDuePill(p, "feed") +
+    "</div>" +
   "</div>";
 }
 
@@ -3367,7 +3378,14 @@ function renderPlants() {
   var el = document.getElementById("plantsContent");
   if (!el) return;
 
+  // Soonest next water/feed first (overdue sorts ahead of due-today ahead of
+  // due-later); plants with no reminder set at all fall to the end, then
+  // alphabetically within any tie so the order stays stable.
   var plants = getPlants().slice().sort(function(a, b){
+    var da = plantNextDue(a), db = plantNextDue(b);
+    if (da === null && db !== null) return 1;
+    if (db === null && da !== null) return -1;
+    if (da !== null && db !== null && da !== db) return da - db;
     return String((a && a.name) || "").localeCompare(String((b && b.name) || ""));
   });
   if (!plants.length) {
