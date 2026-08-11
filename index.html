@@ -883,7 +883,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v415 · 10/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v416 · 11/08/2026</div>
 
   </div>
 </div>
@@ -2998,6 +2998,7 @@ function plantDueLabel(p, kind) {
 // Newest first, capped — this is a "when did I last do it" habit tracker,
 // not a diary, and an uncapped array would ride the sync payload forever.
 var PLANT_LOG_CAP = 40;
+var PLANT_HISTORY_PREVIEW = 5;   // rows shown before "Show all" — the rest stay one tap away
 function plantLogCare(id, kind) {
   var plants = getPlants();
   var i = plants.findIndex(function(p){ return p && p.id === id; });
@@ -3038,6 +3039,55 @@ function plantUndoCare(id, kind) {
   }
   plants[i].updated = Date.now();
   savePlants(plants);
+}
+
+// ── Care history (v416) ───────────────────────────────────────────────────
+// ONE ROW PER LOCAL DAY, deliberately — not one row per stored timestamp.
+// Two reasons, both of which would otherwise render as what looks like a bug:
+//   ① a feed writes a watering at the SAME millisecond (plantLogCare, v409),
+//      so a per-timestamp list shows "Fed" and "Watered" as two rows for one
+//      action;
+//   ② two waterings on the same day would produce two rows carrying the
+//      identical "Mon 10 Aug · 3 days ago" label, indistinguishable on screen.
+// Everything else in Plants already counts in whole local days (plantDaysSince,
+// plantDueIn, plantAgoLabel), so the day is the section's natural grain.
+// Pure read — this never writes to a plant, and the stored logs keep their
+// full per-timestamp detail for anything that needs it later.
+function plantCareEvents(p) {
+  if (!p) return [];
+  var byDay = {};
+  function add(log, kind) {
+    if (!Array.isArray(log)) return;
+    log.forEach(function(ts){
+      if (!ts) return;
+      var d = new Date(ts);
+      if (isNaN(d.getTime())) return;                 // one corrupt entry must not kill the whole list
+      var key = d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();   // LOCAL day, as plantDaysSince counts
+      var row = byDay[key];
+      if (!row) row = byDay[key] = { ts: ts, water: false, feed: false };
+      else if (ts > row.ts) row.ts = ts;              // the newest moment of that day labels the row
+      row[kind] = true;
+    });
+  }
+  add(p.waterLog, "water");
+  add(p.feedLog,  "feed");
+  return Object.keys(byDay).map(function(k){ return byDay[k]; })
+                           .sort(function(a, b){ return b.ts - a.ts; });          // newest first, like the logs themselves
+}
+function plantCareEventWords(ev) {
+  if (!ev) return "";
+  if (ev.water && ev.feed) return "Watered + fed";
+  return ev.feed ? "Fed" : "Watered";
+}
+function plantCareEventIcons(ev) {
+  if (!ev) return "";
+  if (ev.water && ev.feed) return "&#x1F4A7;&#x1F331;";
+  return ev.feed ? "&#x1F331;" : "&#x1F4A7;";
+}
+function plantDateLabel(ts) {
+  var d = new Date(ts);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short" });
 }
 
 function deletePlant(id) {
@@ -3260,6 +3310,10 @@ function importPlantInto(id, src) {
 // ── Plants views ──────────────────────────────────────────────────────────
 var _plantView = "list";      // "list" | "detail" | "editor"
 var _plantOpenId = null;
+// Care-history expand state is keyed to the PLANT, not a bare boolean: opening a
+// different plant then collapses on its own, with no reset needed at any of the
+// dozen places that assign _plantOpenId.
+var _plantHistoryOpenId = null;
 var _plantEditing = false;
 var _plantCancelFn = null;    // back-button discard closure (v345 pattern), nulled on every exit path
 var _plantListScrollPos = 0;
@@ -3520,6 +3574,29 @@ function plantCareRowHTML(p, kind) {
     "<button class='plant-log' data-kind='" + kind + "' style='border:none;background:#2E7D4F;color:#fff;border-radius:9px;padding:10px 15px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;min-height:44px'>Log</button>" +
   "</div>";
 }
+// The care logs were written from v377 and read by nothing but plantLastTs
+// (log[0]) until v416 — this is the rest of them.
+function plantCareHistoryHTML(p) {
+  var evs = plantCareEvents(p);
+  if (!evs.length) return "";                    // never logged → no empty box on a brand-new plant
+  var open = _plantHistoryOpenId === p.id;
+  var shown = open ? evs : evs.slice(0, PLANT_HISTORY_PREVIEW);
+  var html = "<div style='background:#fff;border:1px solid #E4EADC;border-radius:12px;padding:14px;margin-bottom:14px'>" +
+    "<div style='font-size:12px;font-weight:700;color:#2E7D4F;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px'>&#x1F4C5; Recent care</div>";
+  shown.forEach(function(ev, i){
+    html += "<div class='plant-hist-row' style='display:flex;align-items:baseline;gap:8px;padding:7px 0" + (i ? ";border-top:1px solid #EDF0E8" : "") + "'>" +
+      "<span style='font-size:13px'>" + plantCareEventIcons(ev) + "</span>" +
+      "<div style='flex:1;min-width:0;font-size:13px;color:#3A4A32'>" +
+        esc(plantDateLabel(ev.ts) + " · " + plantCareEventWords(ev)) + "</div>" +
+      "<div style='font-size:12px;color:#9A9A7A;white-space:nowrap'>" + esc(plantAgoLabel(ev.ts)) + "</div>" +
+    "</div>";
+  });
+  if (evs.length > PLANT_HISTORY_PREVIEW) {
+    html += "<button id='plHistToggle' style='width:100%;border:none;background:none;color:#2E7D4F;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:11px 0 2px;touch-action:manipulation'>" +
+      (open ? "Show less" : "Show all (" + evs.length + ")") + "</button>";
+  }
+  return html + "</div>";
+}
 function plantSectionHTML(sec, text) {
   return "<div style='background:#fff;border:1px solid #E4EADC;border-radius:12px;padding:14px;margin-bottom:10px'>" +
     "<div style='font-size:12px;font-weight:700;color:#2E7D4F;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px'>" + sec.ico + " " + sec.label + "</div>" +
@@ -3547,6 +3624,9 @@ function renderPlantDetail() {
   // Care panel — the bit a note can't do: what you actually did, and when.
   html += "<div style='background:#fff;border:1px solid #E4EADC;border-radius:12px;padding:2px 14px;margin-bottom:14px'>" +
     plantCareRowHTML(p, "water") + plantCareRowHTML(p, "feed") + "</div>";
+
+  // …and what you did before that.
+  html += plantCareHistoryHTML(p);
 
   // Summary + watering/feeding first, then everything else under a divider.
   var lowerStarted = false;
@@ -3581,6 +3661,11 @@ function renderPlantDetail() {
   });
   el.querySelectorAll(".plant-undo").forEach(function(btn){
     btn.addEventListener("click", function(){ plantUndoCare(p.id, btn.dataset.kind); renderPlantDetail(); });
+  });
+  var histToggle = document.getElementById("plHistToggle");   // only present once there are more than PLANT_HISTORY_PREVIEW days
+  if (histToggle) histToggle.addEventListener("click", function(){
+    _plantHistoryOpenId = (_plantHistoryOpenId === p.id) ? null : p.id;
+    renderPlantDetail();
   });
   document.getElementById("plEdit").addEventListener("click", function(){ openPlantEditor(p.id); });
   document.getElementById("plDelete").addEventListener("click", function(){
@@ -17364,7 +17449,16 @@ function buildTestSeed() {
         repotting:"Every couple of years, or when it dries out too fast.",
         propagation:"Split the clump when repotting.",
         updated:_tsTs(-8, 12, 0),
-        waterLog:[_tsTs(-2, 9, 0), _tsTs(-7, 9, 0)], feedLog:[_tsTs(-20, 9, 0)] }
+        // Deliberately deeper than the Monstera's two entries: the v416 care-history
+        // card only shows its "Show all" toggle past PLANT_HISTORY_PREVIEW (5) days,
+        // and tapping Log always stamps TODAY — which collapses into one row — so
+        // without a plant carrying real history the toggle cannot be reviewed on a
+        // test link at all. The -22 feed shares its day with a watering, so that row
+        // reads "Watered + fed"; the Monstera's -30 feed has no paired watering, so
+        // between the two plants the demo shows both shapes.
+        waterLog:[_tsTs(-2, 9, 0), _tsTs(-7, 9, 0), _tsTs(-12, 9, 0), _tsTs(-17, 9, 0),
+                  _tsTs(-22, 9, 0), _tsTs(-27, 9, 0), _tsTs(-32, 9, 0), _tsTs(-37, 9, 0)],
+        feedLog:[_tsTs(-22, 9, 0)] }
     ],
 
     // ── Watchlist ────────────────────────────────────────
