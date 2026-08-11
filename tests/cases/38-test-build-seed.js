@@ -107,6 +107,16 @@ module.exports = {
       ok('plants land with their care sections and logs',
         getPlants().length === 2 && !!getPlants()[0].watering && getPlants()[0].waterLog.length === 2,
         'got: ' + getPlants().length + ' plants');
+      // v416: the second plant carries enough care history to push the detail
+      // view past PLANT_HISTORY_PREVIEW, which is the only way the "Show all"
+      // toggle is reviewable on a test link (tapping Log stamps today, and every
+      // tap collapses into that one day). Trim this and the toggle goes unseen.
+      ok('the second demo plant has care history deep enough to show the toggle',
+        plantCareEvents(getPlants()[1]).length > PLANT_HISTORY_PREVIEW,
+        'got: ' + plantCareEvents(getPlants()[1]).length + ' care days');
+      ok('one demo care day reads as watered AND fed',
+        plantCareEvents(getPlants()[1]).some(function(e){ return e.water && e.feed; }),
+        'no combined water+feed day in the demo plant');
       ok('the watchlist lands', getWatchlist().length === 3, 'got: ' + getWatchlist().length);
       ok('workouts, bodyweight and blood pressure land',
         getWD().workouts.length === 2 && getWD().bodyweight.length === 3 && getWD().bp.length === 2,

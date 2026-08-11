@@ -194,6 +194,126 @@ module.exports = {
         Array.isArray(payload.plants) && payload.plants.some(function(x){ return x.id === 900001; }),
         'got: ' + JSON.stringify(payload.plants));
 
+      // ── care history (v416) ───────────────────────────────────────────────
+      // The grouping is BY LOCAL DAY, not per stored timestamp — a feed writes a
+      // watering at the same millisecond (v409), so a per-timestamp list would
+      // show one action as two rows.
+      ok('plantCareEvents(null) is an empty array',
+        Array.isArray(plantCareEvents(null)) && plantCareEvents(null).length === 0,
+        'got: ' + JSON.stringify(plantCareEvents(null)));
+      ok('a plant with no logs has no care events',
+        plantCareEvents({ id:1 }).length === 0 && plantCareEvents({ id:1, waterLog:[], feedLog:[] }).length === 0,
+        'got: ' + JSON.stringify(plantCareEvents({ id:1, waterLog:[], feedLog:[] })));
+
+      var fedTs = daysAgo(3);
+      var evFeed = plantCareEvents({ waterLog:[fedTs], feedLog:[fedTs] });
+      ok('a feed and its paired watering collapse into ONE row',
+        evFeed.length === 1, 'got: ' + JSON.stringify(evFeed));
+      ok('that row is marked as both watered and fed',
+        evFeed[0].water === true && evFeed[0].feed === true, 'got: ' + JSON.stringify(evFeed[0]));
+      ok('a watering-only day is water-true, feed-false',
+        plantCareEvents({ waterLog:[daysAgo(2)] })[0].feed === false,
+        'got: ' + JSON.stringify(plantCareEvents({ waterLog:[daysAgo(2)] })[0]));
+
+      // Two separate waterings on one day: one row, not two identical-looking ones.
+      var sameDay = plantCareEvents({ waterLog:[daysAgo(2) + 3600000, daysAgo(2)] });
+      ok('two waterings on the same day collapse into one row',
+        sameDay.length === 1, 'got: ' + JSON.stringify(sameDay));
+      ok('the row carries the NEWEST moment of that day',
+        sameDay[0].ts === daysAgo(2) + 3600000, 'got: ' + sameDay[0].ts + ' want: ' + (daysAgo(2) + 3600000));
+
+      // Watered in the morning, fed in the evening — still one day, both true.
+      var mixed = plantCareEvents({ waterLog:[daysAgo(1) + 7200000, daysAgo(1)], feedLog:[daysAgo(1) + 7200000] });
+      ok('watering then feeding later the same day is one row marked both',
+        mixed.length === 1 && mixed[0].water === true && mixed[0].feed === true,
+        'got: ' + JSON.stringify(mixed));
+
+      // A feed with no paired watering (imported data, or pre-v409 logs).
+      var feedOnly = plantCareEvents({ waterLog:[], feedLog:[daysAgo(5)] });
+      ok('a feed with no paired watering still appears, as feed-only',
+        feedOnly.length === 1 && feedOnly[0].feed === true && feedOnly[0].water === false,
+        'got: ' + JSON.stringify(feedOnly));
+
+      var ordered = plantCareEvents({ waterLog:[daysAgo(1), daysAgo(9), daysAgo(4)] });
+      ok('events come back newest first',
+        ordered.length === 3 && ordered[0].ts > ordered[1].ts && ordered[1].ts > ordered[2].ts,
+        'got: ' + JSON.stringify(ordered.map(function(e){ return e.ts; })));
+
+      ok('a corrupt or zero log entry is skipped, not rendered as Invalid Date',
+        plantCareEvents({ waterLog:[0, NaN, 'nonsense', daysAgo(1)] }).length === 1,
+        'got: ' + JSON.stringify(plantCareEvents({ waterLog:[0, NaN, 'nonsense', daysAgo(1)] })));
+
+      // Pure read — rendering history must never write to the plant (v396 contract).
+      var pureP = { id:99, name:'Pure', waterLog:[daysAgo(1)], feedLog:[daysAgo(1)], updated: 12345 };
+      var pureBefore = JSON.stringify(pureP);
+      plantCareEvents(pureP); plantCareHistoryHTML(pureP);
+      ok('reading the care history does not mutate the plant',
+        JSON.stringify(pureP) === pureBefore, 'got: ' + JSON.stringify(pureP));
+
+      ok('wording matches what the row did',
+        plantCareEventWords({ water:true, feed:true }) === 'Watered + fed' &&
+        plantCareEventWords({ water:true, feed:false }) === 'Watered' &&
+        plantCareEventWords({ water:false, feed:true }) === 'Fed',
+        'got: ' + plantCareEventWords({ water:true, feed:true }));
+      ok('plantDateLabel renders a real date and nothing for a broken one',
+        plantDateLabel(daysAgo(1)).length > 0 && plantDateLabel('nonsense') === '',
+        'got: ' + plantDateLabel(daysAgo(1)) + ' / ' + plantDateLabel('nonsense'));
+
+      // ── care history in the rendered detail view ──────────────────────────
+      var histLog = [];
+      for (var hd = 1; hd <= 8; hd++) histLog.push(daysAgo(hd));
+      storeSet('fl4_plants', [{ id:900003, name:'History Fern', waterLog:histLog, feedLog:[daysAgo(3)], waterDays:7, updated:Date.now() }]);
+      var savedView = _plantView, savedOpen = _plantOpenId;
+      _plantHistoryOpenId = null;
+      _plantOpenId = 900003; _plantView = 'detail';
+      renderPlantDetail();
+      ok('the detail view shows a Recent care block',
+        document.getElementById('plantsContent').textContent.indexOf('Recent care') > -1,
+        'no "Recent care" heading found');
+      ok('only the newest 5 days are shown by default',
+        document.querySelectorAll('.plant-hist-row').length === 5,
+        'got: ' + document.querySelectorAll('.plant-hist-row').length);
+      ok('a Show all button appears with the full day count',
+        !!document.getElementById('plHistToggle') &&
+        document.getElementById('plHistToggle').textContent.indexOf('Show all (8)') > -1,
+        'got: ' + (document.getElementById('plHistToggle') || {}).textContent);
+      ok('the fed day reads "Watered + fed"',
+        document.getElementById('plantsContent').textContent.indexOf('Watered + fed') > -1,
+        'no combined row rendered');
+      document.getElementById('plHistToggle').click();
+      ok('Show all expands to every day',
+        document.querySelectorAll('.plant-hist-row').length === 8,
+        'got: ' + document.querySelectorAll('.plant-hist-row').length);
+      ok('the expanded button offers Show less',
+        document.getElementById('plHistToggle').textContent.indexOf('Show less') > -1,
+        'got: ' + document.getElementById('plHistToggle').textContent);
+      document.getElementById('plHistToggle').click();
+      ok('tapping again collapses back to 5',
+        document.querySelectorAll('.plant-hist-row').length === 5,
+        'got: ' + document.querySelectorAll('.plant-hist-row').length);
+
+      // Expand state is keyed to the plant, so a different plant opens collapsed.
+      _plantHistoryOpenId = 900003;
+      storeSet('fl4_plants', [{ id:900004, name:'Other Fern', waterLog:histLog, updated:Date.now() }]);
+      _plantOpenId = 900004;
+      renderPlantDetail();
+      ok('another plant does not inherit the expanded state',
+        document.querySelectorAll('.plant-hist-row').length === 5,
+        'got: ' + document.querySelectorAll('.plant-hist-row').length);
+
+      // No log at all → no empty box on a brand-new plant.
+      storeSet('fl4_plants', [{ id:900005, name:'Brand New', updated:Date.now() }]);
+      _plantOpenId = 900005;
+      renderPlantDetail();
+      ok('a plant with nothing logged shows no Recent care block',
+        document.getElementById('plantsContent').textContent.indexOf('Recent care') === -1 &&
+        document.querySelectorAll('.plant-hist-row').length === 0,
+        'an empty history block was rendered');
+
+      ok('PLANT_HISTORY_PREVIEW is 5', PLANT_HISTORY_PREVIEW === 5, 'got: ' + PLANT_HISTORY_PREVIEW);
+
+      _plantView = savedView; _plantOpenId = savedOpen; _plantHistoryOpenId = null;
+
       // Cleanup
       if (saved === null || saved === undefined) localStorage.removeItem('fl4_plants'); else storeSet('fl4_plants', saved);
       if (savedTombs === null || savedTombs === undefined) localStorage.removeItem('fl4_tomb_plants'); else storeSet('fl4_tomb_plants', savedTombs);
