@@ -675,9 +675,13 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
    every line dims except the current one, which gets a warm left bar and
    full opacity. rcp-now and rcp-done never land on the same line at once —
    jumping onto an already-ticked line clears its tick in the same tap — so
-   .rcp-now doesn't need to fight .rcp-done's !important colour rule. */
+   .rcp-now doesn't need to fight .rcp-done's !important colour rule. It DOES
+   need !important on padding-left, though: ingredient <li>s carry an inline
+   `padding:7px 0` and method/prep <li>s an inline `padding-left:3px` (see
+   ingHtml and formatMethod), both of which otherwise win over this rule and
+   collapse the gap between the bar and the text down to nothing. */
 .rcp-focusing .rcp-tick{opacity:.3}
-.rcp-focusing .rcp-now{opacity:1;box-shadow:inset 3px 0 0 #B5651D;padding-left:8px;margin-left:-8px}
+.rcp-focusing .rcp-now{opacity:1;box-shadow:inset 3px 0 0 #B5651D;padding-left:8px !important;margin-left:-8px}
 </style>
   <!-- DOMPurify 3.0.8, vendored locally (v289) — was a jsdelivr CDN load; the exact npm-published minified build -->
   <script src="purify.min.js"></script>
@@ -6160,13 +6164,20 @@ var _recipeTickWired = false;   // #recipesContent is permanent — wire its del
 // resets when you re-enter" means. Leaving the Recipes tab and coming back
 // does NOT pass through here, so a glance at the calendar mid-cook keeps your
 // place; renderRecipeDetail's id check catches every other way in.
-function resetRecipeTicks(id) { _recipeDone = {}; _recipeDoneId = (id == null ? null : id); _recipeFocusKey = undefined; }
+function resetRecipeTicks(id) { _recipeDone = {}; _recipeDoneId = (id == null ? null : id); _recipeFocusKey = undefined; _recipeDoneClassic = null; }
 
 // Recipe Focus mode (vNNN) — a display layer over the ticks above, confirmed
 // design 12/08/2026 (see HEARTH-notes.md). No new stored data on a recipe:
 // the on/off flag is device-local (fl4_cookfocus, never synced or exported)
 // and the cursor is memory-only, living and dying with _recipeDone above.
 var _recipeFocusOn = storeGet("fl4_cookfocus") === true;
+// Turning Focus ON stashes whatever classic ticks were on the recipe here and
+// starts _recipeDone fresh, so Focus always begins from nothing; turning it
+// OFF restores this stash. Cathal's ask (12/08/2026): entering Focus should
+// clear ticks visibly, but classic ticks must survive a round trip through
+// Focus and back. null while classic ticks are the live _recipeDone (i.e.
+// whenever Focus is off) — only holds a value while Focus is on.
+var _recipeDoneClassic = null;
 // undefined = not yet initialised for the current recipe entry (set fresh by
 // resetRecipeTicks); null = no line highlighted (finished, deliberately no
 // wrap); a string = the highlighted line's data-tk key.
@@ -8275,7 +8286,19 @@ function renderRecipeDetail() {
   document.getElementById("recipeFocusToggle").addEventListener("click", function(){
     _recipeFocusOn = !_recipeFocusOn;
     storeSet("fl4_cookfocus", _recipeFocusOn);
-    if (_recipeFocusOn) _recipeFocusKey = recipeFocusFirstUndone(recipeFocusNodes(), 0);
+    if (_recipeFocusOn) {
+      // Stash the classic ticks and start Focus with a clean slate — the
+      // undefined cursor makes renderRecipeDetail's own init logic below
+      // compute the fresh first-undone position, same as a brand-new entry.
+      _recipeDoneClassic = _recipeDone;
+      _recipeDone = {};
+      _recipeFocusKey = undefined;
+    } else {
+      // Bring the classic ticks back; whatever was ticked during the Focus
+      // session is deliberately dropped, not merged in.
+      _recipeDone = _recipeDoneClassic || {};
+      _recipeDoneClassic = null;
+    }
     renderRecipeDetail();
     recipeFocusScrollIntoViewIfNeeded();
   });

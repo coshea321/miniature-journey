@@ -142,6 +142,56 @@ module.exports = {
       document.getElementById('recipeFocusToggle').click();
       ok('turning Focus off again is also remembered', storeGet('fl4_cookfocus') === false, JSON.stringify(storeGet('fl4_cookfocus')));
 
+      // ── Focus keeps its own tick bucket, separate from classic ────────────
+      // Cathal's ask (12/08/2026): switching TO Focus should clear whatever is
+      // ticked, but classic's own ticks must come back untouched when you
+      // switch back off — Focus and classic each remember their own state.
+      storeSet('fl4_recipebook', getRecipeBook().concat([{
+        id: 4603, name: 'Bucketed', servings: 1, updated: 1,
+        method: '1. Boil water.\\n2. Add pasta.', ingredients: parseIngredients('200 g Pasta')
+      }]));
+      _recipeOpenId = 4603; _recipeView = 'detail'; renderRecipes();
+      ok('starting state for the bucket test is Focus off',
+        document.getElementById('recipeFocusToggle').getAttribute('aria-pressed') === 'false',
+        document.getElementById('recipeFocusToggle').getAttribute('aria-pressed'));
+
+      byKey('i0').click();
+      ok('classic mode: a line can be ticked as normal', byKey('i0').classList.contains('rcp-done'), '');
+
+      document.getElementById('recipeFocusToggle').click();
+      ok('entering Focus clears the visible ticks even though a classic tick exists underneath',
+        doneKeys().length === 0, JSON.stringify(doneKeys()));
+      ok('entering Focus starts the cursor at the first line again', nowKey() === 'i0', nowKey());
+
+      byKey('i0').click();
+      ok('a tick made during the Focus session shows up normally while Focus is on',
+        byKey('i0').classList.contains('rcp-done'), '');
+
+      document.getElementById('recipeFocusToggle').click();
+      ok('leaving Focus restores the classic tick that was there before',
+        byKey('i0').classList.contains('rcp-done'), JSON.stringify(doneKeys()));
+      ok('leaving Focus does not leak the Focus-session tick on top of classic',
+        doneKeys().length === 1 && doneKeys()[0] === 'i0', JSON.stringify(doneKeys()));
+
+      byKey('i0').click();
+      ok('classic mode is back to ordinary free-tap behaviour afterwards',
+        !byKey('i0').classList.contains('rcp-done'), '');
+
+      // ── the highlight bar leaves a real gap on bulleted AND numbered lines ─
+      // Ingredient <li>s carry an inline padding (padding: 7px 0 in ingHtml)
+      // and method <li>s an inline padding-left (3px, in formatMethod) — both
+      // silently win over a non-!important stylesheet rule, collapsing the
+      // gap between the accent bar and the text down to nothing.
+      document.getElementById('recipeFocusToggle').click(); // Focus back on, cursor -> i0
+      var ingPad = getComputedStyle(byKey('i0')).paddingLeft;
+      ok('a highlighted ingredient (bulleted) line keeps the 8px gap between the bar and the text',
+        ingPad === '8px', ingPad);
+      byKey('i0').click(); // ticks i0, cursor advances to m0 (recipe has no prep section)
+      ok('cursor moved on to the method step', nowKey() === 'm0', nowKey());
+      var mPad = getComputedStyle(byKey('m0')).paddingLeft;
+      ok('a highlighted method (numbered) line also keeps the 8px gap, unaffected by its own inline padding-left:3px',
+        mPad === '8px', mPad);
+
       return {pass:pass, fail:fail};
     })()`);
   },
