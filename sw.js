@@ -1,5 +1,5 @@
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v421 · 12/08/2026';
+const VERSION = 'v422 · 12/08/2026';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
@@ -57,6 +57,14 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.pathname.endsWith('/sw.js')) return;
   if (url.origin !== self.location.origin) return;
+  // /cdn-cgi/ is Cloudflare's reserved namespace — nothing of ours is ever
+  // served from it — and it is where Cloudflare Access runs its login
+  // redirect and its /cdn-cgi/access/authorized callback (v422). Those are
+  // same-origin NAVIGATIONS, so without this they take the shell branch
+  // below, miss the cache, and get answered with our cached index.html
+  // instead of Cloudflare's response: the login round-trip never completes
+  // and the Access cookie is never set. Let them go straight to the network.
+  if (url.pathname.startsWith('/cdn-cgi/')) return;
 
   const isShell = e.request.mode === 'navigate' ||
                   url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
