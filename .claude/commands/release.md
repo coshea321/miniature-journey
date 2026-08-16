@@ -17,11 +17,17 @@ continuing:
    twice — verify and continue.
 2. **Bump both files.** Edit the one-line `VERSION` constant in `sw.js` and
    the `appVersionLabel` div in `index.html` to the same new string.
-3. **Update `HEARTH-notes.md`.** Add the new version's changelog entry at
-   the top of "Recently completed" (keep that section to the newest ~10
-   entries — move the oldest surplus entry to `HEARTH-archive.md`), update
-   the "Current version" line, and sync the backlog if this change closed
-   or added anything.
+3. **Update the docs (three files).**
+   - `HEARTH-changelog.md` — new entry at the top, **capped at ~150 words**
+     plus a headline sentence and every "do NOT simplify this into X"
+     warning (those are exempt from the cap). The full reasoning goes in the
+     PR body, not here. Keep the newest ~10 entries; move the oldest surplus
+     to `HEARTH-archive.md`.
+   - `HEARTH-notes.md` — the "Current version" line, plus any
+     architecture/quirk/storage change. If the version didn't change how the
+     app works, this file may not need touching.
+   - `HEARTH-backlog.md` — strike through what this closed, add what it
+     opened.
 4. **Run `node tests/run.js`** (expect exit 0), then the **`hearth-verifier`
    subagent**, and wait for its verdict. If it says DO NOT COMMIT, stop and
    report — do not commit.

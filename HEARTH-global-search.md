@@ -3,7 +3,7 @@
 **Status: v1 shipped v384 (03/08/2026). Phase 2 (Recipes) shipped v387 (03/08/2026) — Cathal made the "his call" decision this file flagged in §9, see that section's update below.**
 Design session: Opus. Cathal's four decisions were made via AskUserQuestion and are **binding** — a build session should not re-litigate them or widen the scope.
 
-This file exists so a fresh session can build the feature from the notes alone. It is referenced from the "Global search" entry in `HEARTH-notes.md` § Pending. If the two ever disagree, **this file is the detail and the notes entry is the summary** — fix the notes to match.
+This file exists so a fresh session can build the feature from the notes alone. It is referenced from the "Global search" entry in `HEARTH-backlog.md` (in `HEARTH-notes.md` § Pending before the 16/08/2026 split). If the two ever disagree, **this file is the detail and the backlog entry is the summary** — fix the backlog to match.
 
 ---
 
@@ -115,7 +115,7 @@ Global search runs over far more records than one recipe section. Substring-prim
 
 Repro: `storeSet("fl4_recipebook", [goodRecipe, null])` → `TypeError: Cannot read properties of null (reading 'category')`.
 
-Not yet fixed; tracked in `HEARTH-notes.md` § Pending. It is the same unguarded-lookup class `CLAUDE.md` warns about. **Any global-search code that iterates a store must assume this class of data exists.** (`recipeSearchText()`, added in v383, is already `!r`-guarded — copy that posture.)
+Not yet fixed; tracked in `HEARTH-backlog.md`. It is the same unguarded-lookup class `CLAUDE.md` warns about. **Any global-search code that iterates a store must assume this class of data exists.** (`recipeSearchText()`, added in v383, is already `!r`-guarded — copy that posture.)
 
 ---
 
