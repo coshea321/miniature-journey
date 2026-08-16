@@ -3,7 +3,7 @@
 **Status: PLAN COMPLETE — A (v372), B (v373), C (v374), D (v375), E (v376) all shipped.**
 Verified on v371 by a Fable 5 session. Anchors below are v371 line numbers — **v372–v376 moved
 things; any later session must re-grep and read the exact lines before editing.** Per-release
-detail lives in the `HEARTH-notes.md` changelog entries.
+detail lives in the `HEARTH-changelog.md` entries (in `HEARTH-notes.md` before the 16/08/2026 split).
 
 **One correction worth carrying forward (found building Release E):** the "http://localhost server
 mode" this document proposes below **cannot work as written** — `_isPreview` treats `localhost` and

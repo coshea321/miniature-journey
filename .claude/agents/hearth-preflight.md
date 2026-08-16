@@ -47,9 +47,9 @@ attempt the rest, then report.
 - Read the `VERSION` constant in `sw.js` (single source of truth),
   e.g. `v308 · 03/07/2026`.
 - Confirm `index.html` contains the same version string.
-- Read the top of the changelog in `HEARTH-notes.md` and report the most
-  recent entry's version. Flag any mismatch between sw.js and the notes —
-  it means the last session didn't sync the notes, and the main session
+- Read the top entry of `HEARTH-changelog.md` and the "Current version" line
+  in `HEARTH-notes.md`, and report both. Flag any mismatch against sw.js —
+  it means the last session didn't sync the docs, and the main session
   should be told before starting.
 - State the NEXT version number (current NNN + 1) for this change.
 
@@ -80,8 +80,11 @@ terms — never after a single grep.
 
 ### 5. index.html baseline
 Report the byte length of `index.html` (`wc -c`) so the post-edit verifier
-has a same-session reference point. As of v308 it is ~665k and grows
-slowly; ~1.3MB would mean the v221-style doubling bug is already present.
+has a same-session reference point. **Report the number, don't judge it
+against a remembered figure** — the file grows every version, so any fixed
+threshold written here would go stale and start crying wolf. The real
+doubling tripwire is the verifier's and CI's ratio check against
+`origin/main`, which never needs updating.
 
 ## Output format
 
