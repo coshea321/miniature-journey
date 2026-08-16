@@ -28,9 +28,11 @@ continuing:
      app works, this file may not need touching.
    - `HEARTH-backlog.md` — strike through what this closed, add what it
      opened.
-4. **Run `node tests/run.js`** (expect exit 0), then the **`hearth-verifier`
-   subagent**, and wait for its verdict. If it says DO NOT COMMIT, stop and
-   report — do not commit.
+4. **Run `tests/checks.sh` and `node tests/run.js`** — expect exit 0 from
+   both — then grep-confirm the strings you edited actually landed. Any
+   failure means stop and report; do not commit. (`tests/checks.sh` is the
+   same script CI runs, so a green run here means a green run on the PR.
+   The `hearth-verifier` subagent does these three things and is optional.)
 5. **Commit** everything with message `vNNN: <summary>`.
 6. **Push** with `git push -u origin <current-branch>`; on network errors
    retry up to 4 times with backoff (2s/4s/8s/16s). Never push to `main`.
@@ -58,8 +60,9 @@ continuing:
      change is invisible in the UI (a sync-timing fix, a merge guard), say
      so in one line and point at what the tests cover instead of inventing
      a tap that proves nothing.
-   - **Checks** — the verifier's summary block, pasted verbatim. If
-     anything under `tests/` changed, say which file and why, here.
+   - **Checks** — the `tests/checks.sh` summary block and the
+     `node tests/run.js` result, pasted verbatim. If anything under `tests/`
+     changed, say which file and why, here.
    - **Rollback** — the backup branch name for this version.
 
 One PR per version: if this branch already has a merged PR, stop and tell
