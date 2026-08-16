@@ -34,9 +34,20 @@ demo data back.**
 
 ## Checks
 
-<!-- The hearth-verifier summary block, pasted verbatim. Plus, if anything
-     under tests/ changed: which file, and why. -->
+<!-- The mechanical-checks summary block (tests/checks.sh), pasted verbatim,
+     plus the node tests/run.js result. If anything under tests/ changed:
+     which file, and why. -->
 
 ## Rollback
 
 <!-- The backup branch for this version, e.g. backup-v406. -->
+
+<!-- ── Writing this PR body ──────────────────────────────────────────────
+     Keep it to what Cathal needs in order to review and merge. Cover the
+     substance — what changed, why, what to tap — and stop there: no filler
+     sections, no restating the same point in three registers, no recap of
+     work already visible in the diff. The "Before you merge" boxes are the
+     part he actually acts on, so they should not be buried under prose.
+     Long-form reasoning that a future session will need belongs in the
+     changelog entry or its own doc, not here.
+     ──────────────────────────────────────────────────────────────────── -->
