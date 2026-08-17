@@ -673,9 +673,9 @@ body.train-mode #toast{background:#3A3328}
 li.rcp-done.rcp-ing{text-decoration:line-through}
 /* Recipe Focus mode (vNNN) — a display layer over the ticks above. When on,
    every line dims except the current one, which gets a warm left bar and
-   full opacity. rcp-now and rcp-done never land on the same line at once —
-   jumping onto an already-ticked line clears its tick in the same tap — so
-   .rcp-now doesn't need to fight .rcp-done's !important colour rule. It DOES
+   full opacity. rcp-done never appears at all while focusing (v423: a Focus
+   tap only moves the highlight, it never crosses a line out), so .rcp-now
+   doesn't need to fight .rcp-done's !important colour rule. It DOES
    need !important on padding-left, though: ingredient <li>s carry an inline
    `padding:7px 0` and method/prep <li>s an inline `padding-left:3px` (see
    ingHtml and formatMethod), both of which otherwise win over this rule and
@@ -894,7 +894,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v422 · 12/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v423 · 17/08/2026</div>
 
   </div>
 </div>
@@ -6172,7 +6172,8 @@ function resetRecipeTicks(id) { _recipeDone = {}; _recipeDoneId = (id == null ? 
 // and the cursor is memory-only, living and dying with _recipeDone above.
 var _recipeFocusOn = storeGet("fl4_cookfocus") === true;
 // Turning Focus ON stashes whatever classic ticks were on the recipe here and
-// starts _recipeDone fresh, so Focus always begins from nothing; turning it
+// starts _recipeDone fresh, so Focus always begins from nothing — and since
+// v423 it stays at nothing, because no Focus tap ticks. Turning Focus
 // OFF restores this stash. Cathal's ask (12/08/2026): entering Focus should
 // clear ticks visibly, but classic ticks must survive a round trip through
 // Focus and back. null while classic ticks are the live _recipeDone (i.e.
@@ -6190,11 +6191,13 @@ function recipeFocusNodes() {
   var root = document.getElementById("recipesContent");
   return root ? Array.prototype.slice.call(root.querySelectorAll("[data-tk]")) : [];
 }
-function recipeFocusFirstUndone(nodes, fromIndex) {
-  for (var i = fromIndex || 0; i < nodes.length; i++) {
-    if (!_recipeDone[nodes[i].getAttribute("data-tk")]) return nodes[i].getAttribute("data-tk");
-  }
-  return null;
+// The cursor is pure page position (v423): a Focus tap never ticks anything,
+// so _recipeDone is empty for the whole session and there is no "skip the
+// already-done ones" search to do. null past the last node — deliberately no
+// wrap back to a line you jumped over.
+function recipeFocusKeyAt(nodes, index) {
+  var n = nodes[index || 0];
+  return n ? n.getAttribute("data-tk") : null;
 }
 // Re-stamps rcp-now on the current [data-tk] nodes rather than re-rendering,
 // same reason as the v405 tick listener: a tap must never move the page
@@ -8221,7 +8224,7 @@ function renderRecipeDetail() {
     "</div>" +
     "<div style='display:flex;align-items:center;gap:8px;margin:-8px 0 14px'>" +
       "<button id='recipeFocusToggle' type='button' aria-pressed='" + (_recipeFocusOn ? "true" : "false") + "' style='flex-shrink:0;border:1.5px solid " + (_recipeFocusOn ? "#B5651D" : "#E0D0B8") + ";background:" + (_recipeFocusOn ? "#B5651D" : "#fff") + ";color:" + (_recipeFocusOn ? "#fff" : "#7A5A30") + ";border-radius:14px;padding:5px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>&#x1F526; Focus</button>" +
-      "<div id='recipeFocusHint' style='font-size:11px;color:#9A8A6A'>" + (_recipeFocusOn ? "Only the next line is highlighted. Tap it when it&rsquo;s done; tap any other line to jump there." : "Tap a line as you go and it greys out. Reopening the recipe clears them.") + "</div>" +
+      "<div id='recipeFocusHint' style='font-size:11px;color:#9A8A6A'>" + (_recipeFocusOn ? "Only the next line is highlighted. Tap it when it&rsquo;s done to move on; tap any other line to jump there." : "Tap a line as you go and it greys out. Reopening the recipe clears them.") + "</div>" +
     "</div>" +
     "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Ingredients</div>" +
     "<ul style='margin:0 0 18px;padding:0 0 0 20px'>" + ingHtml + "</ul>" +
@@ -8244,7 +8247,7 @@ function renderRecipeDetail() {
   // a re-render from a servings tap or a sync push must not recompute it,
   // or a "no wrap" finish would jump the highlight back onto an earlier
   // skipped line on the very next unrelated render.
-  if (_recipeFocusKey === undefined) _recipeFocusKey = recipeFocusFirstUndone(recipeFocusNodes(), 0);
+  if (_recipeFocusKey === undefined) _recipeFocusKey = recipeFocusKeyAt(recipeFocusNodes(), 0);
   stampRecipeFocus();
   // One delegated listener for all three blocks. The class is toggled in place
   // rather than re-rendering, so a tap never moves the page under your hands
@@ -8264,18 +8267,18 @@ function renderRecipeDetail() {
         else { _recipeDone[key] = true; t.classList.add("rcp-done"); }
         return;
       }
-      // Focus mode: tapping the highlighted line ticks it and advances to the
-      // next undone line (no wrap — null once there isn't one). Tapping any
-      // OTHER line just moves the highlight there; if that line was already
-      // ticked, jumping onto it clears the tick too (you're doing it now, and
-      // a highlighted-but-struck-through line would look broken either way).
+      // Focus mode moves the highlight and NOTHING else (v423, Cathal's ask):
+      // no tap while Focus is on may cross a line out — greying/striking a
+      // line is the classic (Focus off) behaviour above, and only that.
+      // Tapping the highlighted line advances to the next line in page order
+      // (no wrap — null once there isn't one); tapping any OTHER line jumps
+      // the highlight there. Do NOT "helpfully" tick the line you're leaving:
+      // _recipeDone staying empty for the whole session is what keeps the
+      // cursor pure page position and the page free of strike-through.
       if (key === _recipeFocusKey) {
-        _recipeDone[key] = true;
-        t.classList.add("rcp-done");
         var nodes = recipeFocusNodes();
-        _recipeFocusKey = recipeFocusFirstUndone(nodes, nodes.indexOf(t) + 1);
+        _recipeFocusKey = recipeFocusKeyAt(nodes, nodes.indexOf(t) + 1);
       } else {
-        if (_recipeDone[key]) { delete _recipeDone[key]; t.classList.remove("rcp-done"); }
         _recipeFocusKey = key;
       }
       stampRecipeFocus();
@@ -8294,8 +8297,8 @@ function renderRecipeDetail() {
       _recipeDone = {};
       _recipeFocusKey = undefined;
     } else {
-      // Bring the classic ticks back; whatever was ticked during the Focus
-      // session is deliberately dropped, not merged in.
+      // Bring the classic ticks back exactly as they were. Since v423 a Focus
+      // session can't tick anything, so it has nothing of its own to merge.
       _recipeDone = _recipeDoneClassic || {};
       _recipeDoneClassic = null;
     }
