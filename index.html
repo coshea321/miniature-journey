@@ -305,6 +305,7 @@ body.home-mode .bn-btn.home-active{color:#C2691A}
 .bn-btn.track-active{color:#A05A10}
 .bn-btn.plants-active{color:#2E7D4F}
 .bn-btn.watch-active{color:#4A3F7A}
+.bn-btn.appliances-active{color:#3E5C6B}
 .notes-tab-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .notes-tab-btn.active{color:#fff;background:rgba(255,255,255,.2)}
 
@@ -894,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v423 · 17/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v424 · 18/08/2026</div>
 
   </div>
 </div>
@@ -1238,6 +1239,17 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     <button id="watchNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ Add</button>
   </div>
   <div id="watchContent" style="padding:14px 14px 100px"></div>
+</div>
+
+<!-- ============================================================
+     APPLIANCES SECTION (v424)
+     ============================================================ -->
+<div id="appliancesSection" style="display:none">
+  <div style="display:flex;gap:4px;padding:8px 10px;background:#3E5C6B;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
+    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F50C; Appliances</span>
+    <button id="applNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
+  </div>
+  <div id="appliancesContent" style="padding:14px 14px 100px"></div>
 </div>
 
 <!-- ============================================================
@@ -1602,6 +1614,10 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="watch" checked><span class="toggle-slider"></span></label>
       </div>
       <div class="sync-toggle-row">
+        <span class="sync-toggle-label">&#x1F50C; Appliances</span>
+        <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="appliances"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="sync-toggle-row">
         <span class="sync-toggle-label">&#x26BD; Sports</span>
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="sports"><span class="toggle-slider"></span></label>
       </div>
@@ -1665,6 +1681,9 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
   </button>
   <button class="bn-btn" id="bnWatch" aria-label="Watchlist">
     <span class="bn-ico">&#x1F37F;</span>Watch
+  </button>
+  <button class="bn-btn" id="bnAppliances" aria-label="Appliances" style="display:none">
+    <span class="bn-ico">&#x1F50C;</span>Appliances
   </button>
   <button class="bn-btn" id="bnSports" aria-label="Sports" style="display:none">
     <span class="bn-ico">&#x26BD;</span>Sports
@@ -4365,6 +4384,460 @@ function renderWatchEditor() {
   });
   var t = document.getElementById("wEdTitle");
   if (t && !rec) t.focus();
+}
+
+// ============================================================
+// APPLIANCES (v424) — the reference book for the machines around the
+// house: what model it is, when it was bought, whether it is still in
+// warranty, and where its manual lives. Deliberately a RECORDS section,
+// not a maintenance tracker: nothing here nags and nothing is alerted
+// on — the warranty date is shown when you open the record and that is
+// all it does (design confirmed 18/08/2026).
+// Storage contract is the Plants/Watchlist one: one appliance is one
+// edit unit, so whole-record newest-wins by `updated` with tombstone
+// filtering, and no nested merge.
+// ============================================================
+function getAppliances() {
+  var a = storeGet("fl4_appliances");
+  if (!Array.isArray(a)) return [];
+  // Null-guarded at the source (the v385 getRecipeBook / v388 normaliseNotes
+  // lesson): a null from a bad write or a sync merge must never reach a
+  // renderer, and fixing it here covers every caller at once.
+  return a.filter(function(x){ return x && typeof x === "object"; });
+}
+function saveAppliances(a) {
+  storeSet("fl4_appliances", a);
+  pushPersonal();
+  if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold();
+}
+
+// Whole-record newest-wins by `updated`, tombstone-filtered. Returns
+// {appliances, push} — push=true means our merged copy is fuller or newer
+// than what arrived, so the caller re-pushes to converge (the same contract
+// as mergePlantsData / mergeWatchData).
+function mergeApplianceData(localA, incomingA, tombs) {
+  tombs = tombs || {};
+  var push = false;
+  var incById = {};
+  (incomingA || []).forEach(function(a){ if (a && a.id != null) incById[a.id] = a; });
+  var localIds = {};
+  var merged = (localA || []).filter(function(a){ return a && a.id != null; }).map(function(a){
+    localIds[a.id] = true;
+    var inc = incById[a.id];
+    if (!inc) { push = true; return a; }                        // partner missing this → push
+    var winner, loser;
+    if ((inc.updated||0) > (a.updated||0)) { winner = inc; loser = a; }   // incoming newer → take it
+    else {
+      if ((a.updated||0) > (inc.updated||0)) push = true;       // local newer → push to converge
+      winner = a; loser = inc;
+    }
+    // v296 lesson (the babySex incident class): a copy written by an older
+    // build doesn't know about newer fields, so fill keys UNDEFINED on the
+    // winner from the loser rather than letting them vanish. A field the user
+    // deliberately cleared is "" (defined) and stays cleared.
+    Object.keys(loser).forEach(function(k){ if (winner[k] === undefined) winner[k] = loser[k]; });
+    return winner;
+  });
+  var fresh = (incomingA || []).filter(function(a){ return a && a.id != null && !localIds[a.id]; });
+  var full = fresh.concat(merged);
+  var pre = full.length;
+  full = full.filter(function(a){ return !(tombs[a.id] && tombs[a.id] >= (a.updated||0)); });
+  if (full.length < pre) push = true;
+  return { appliances: full, push: push };
+}
+
+// ── Areas ─────────────────────────────────────────────────────────────────
+// The same idea as the Plants area filter (v379), and deliberately the same
+// code: `plantAreaKey` is a plain string normaliser and `plantAreas` is a
+// pure list→labels helper that reads `.room`, so appliances map onto it
+// rather than growing a second copy of its commonest-spelling tie-break.
+// `PLANT_AREA_NONE` is reused as the "no area" sentinel for the same reason.
+function applianceAreas(list) {
+  return plantAreas((list || []).map(function(a){ return { room: a && a.area }; }));
+}
+function appliancesInArea(list, area) {
+  var all = (list || []).filter(function(a){ return !!a; });
+  if (!area) return all;
+  if (area === PLANT_AREA_NONE) return all.filter(function(a){ return !plantAreaKey(a.area); });
+  var k = plantAreaKey(area);
+  return all.filter(function(a){ return plantAreaKey(a.area) === k; });
+}
+
+// ── Dates + warranty ──────────────────────────────────────────────────────
+// Both dates are stored as the browser's own "YYYY-MM-DD" input value and
+// COMPARED AS STRINGS, never parsed into a Date: a date-only string parsed as
+// UTC and read back in local time is exactly how off-by-one-day bugs start,
+// and YYYY-MM-DD already sorts correctly as text.
+function applianceDateLabel(iso) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso == null ? "" : iso).trim());
+  return m ? (m[3] + "/" + m[2] + "/" + m[1]) : "";
+}
+function applianceTodayISO() {
+  var d = new Date(), p = function(x){ return x < 10 ? "0" + x : x; };
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+// {state, text}. state is "none" (no date set / unparseable), "in" or "out".
+// Shown on the detail view only — never a badge, never a Home line, never a
+// notification. An expiring warranty isn't something you can act on, so a
+// nudge would be noise (design confirmed 18/08/2026; do not add one without
+// a fresh request).
+function applianceWarranty(rec) {
+  var iso = String((rec && rec.warranty) || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return { state:"none", text:"" };
+  if (iso >= applianceTodayISO()) return { state:"in",  text:"In warranty until " + applianceDateLabel(iso) };
+  return { state:"out", text:"Warranty ended " + applianceDateLabel(iso) };
+}
+
+// Everything worth searching for, including the numbers you'd never remember
+// — the model and serial are the whole reason this section exists, so global
+// search has to reach them (not just name + notes like a list item).
+function applianceSearchText(a) {
+  if (!a) return "";
+  return [a.name, a.brand, a.model, a.serial, a.area, a.boughtFrom, a.notes]
+    .map(function(v){ return v == null ? "" : String(v); }).join(" ").toLowerCase();
+}
+
+// Clipboard with an execCommand fallback — writeText needs a user gesture and
+// a secure context, and neither is guaranteed on every browser he opens this
+// in. Same shape as plantCopyPrompt, but takes its text and message so it can
+// serve a one-field copy.
+function copyToClipboard(text, okMsg) {
+  text = String(text == null ? "" : text);
+  okMsg = okMsg || "&#x1F4CB; Copied";
+  function fallback() {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      var ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      toast(ok ? okMsg : "Couldn't copy &mdash; select it by hand");
+    } catch (e) { toast("Couldn't copy &mdash; select it by hand"); }
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function(){ toast(okMsg); }, fallback);
+  } else { fallback(); }
+}
+
+// The manual link is the one field that becomes a tappable href, so it gets
+// its own gate rather than trusting normalizeRecipeUrl alone: that helper
+// prefixes anything schemeless with https://, which turns "javascript:alert(1)"
+// into a harmless-but-silly "https://javascript:alert(1)" rather than refusing
+// it. Checked HERE as well as on save, because a record can arrive from sync or
+// a restored backup written by anything.
+function applianceManualUrl(rec) {
+  var raw = String((rec && rec.manual) || "").trim();
+  if (!raw) return "";
+  // Anything carrying its own scheme must be http(s). The (?!\d) is what keeps
+  // "example.com:8080/manual" out of that branch — a bare host:port is a valid
+  // link, and "example.com" is a syntactically valid scheme name, so the port
+  // digits are the only thing that tells the two apart.
+  if (/^[a-z][a-z0-9+.\-]*:(?!\d)/i.test(raw) && !/^https?:\/\//i.test(raw)) return "";
+  var u = normalizeRecipeUrl(raw);
+  return /^https?:\/\//i.test(u) ? u : "";
+}
+
+function applianceDelete(id) {
+  var all = getAppliances();
+  var i = all.findIndex(function(a){ return a && a.id === id; });
+  if (i < 0) return;                                   // -1 guard (CLAUDE.md)
+  var name = String(all[i].name || "this");
+  confirmDialog("Remove &ldquo;" + esc(name) + "&rdquo;?", function(){
+    var cur = getAppliances();
+    var j = cur.findIndex(function(a){ return a && a.id === id; });
+    if (j < 0) return;
+    cur.splice(j, 1);
+    addTomb("appliances", id);
+    saveAppliances(cur);
+    _applView = "list"; _applOpenId = null;
+    renderAppliances(); window.scrollTo(0, 0);
+    toast("Removed");
+  });
+}
+
+// ── Appliances UI ─────────────────────────────────────────────────────────
+var APPL_COLOR = "#3E5C6B";
+var _applView    = "list";   // "list" | "detail" | "editor"
+var _applOpenId  = null;
+var _applEditId  = null;
+var _applArea    = "";       // session-only area filter, never stored (the v379 rule)
+var _applEditing = false;
+var _applCancelFn = null;    // back-button discard closure (v345 pattern), nulled on every exit path
+
+function applianceCardHTML(a) {
+  var area = String(a.area || "").trim();
+  var bits = [];
+  if (area) bits.push(esc(area));
+  if (a.brand) bits.push(esc(String(a.brand)));
+  if (a.model) bits.push(esc(String(a.model)));
+  return "<div class='appl-card' data-aid='" + a.id + "' style='display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:13px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(20,40,50,.08);cursor:pointer;touch-action:manipulation'>" +
+    "<div style='flex:1;min-width:0'>" +
+      "<div style='font-size:15px;font-weight:700;color:#2A2010;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + esc(a.name || "(unnamed)") + "</div>" +
+      (bits.length ? "<div style='font-size:12.5px;color:#7A8A94;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + bits.join(" &middot; ") + "</div>" : "") +
+    "</div>" +
+    "<span style='color:#B8C4CC;font-size:18px'>&#x203A;</span>" +
+  "</div>";
+}
+
+function renderAppliances() {
+  _applEditing = false;
+  _applCancelFn = null;
+  if (_applView === "editor") { renderApplianceEditor(); return; }
+  if (_applView === "detail" && _applOpenId != null) { renderApplianceDetail(); return; }
+  _applView = "list";
+  var el = document.getElementById("appliancesContent");
+  if (!el) return;
+
+  var all = getAppliances().slice().sort(function(a, b){
+    return String((a && a.name) || "").localeCompare(String((b && b.name) || ""));
+  });
+  if (!all.length) {
+    el.innerHTML = "<div style='text-align:center;color:#7A8A94;padding:40px 20px'>" +
+      "<div style='font-size:40px;margin-bottom:10px'>&#x1F50C;</div>" +
+      "<div style='font-size:16px;font-weight:600;margin-bottom:4px;color:#2A2010'>Nothing saved yet</div>" +
+      "<div style='font-size:13px'>Tap &ldquo;+ New&rdquo; to save an appliance &mdash; its model and serial number, when you bought it, and a link to the manual.</div></div>";
+    return;
+  }
+
+  // Area filter, exactly the v379 Plants shape: the row only earns its space
+  // when there's a real choice to make, and a chosen area that has vanished
+  // (retagged, deleted, or dropped by a sync from the other phone) falls back
+  // to All rather than showing an empty list with no explanation.
+  var areas = applianceAreas(all);
+  var untagged = appliancesInArea(all, PLANT_AREA_NONE).length;
+  var showChips = (areas.length + ((untagged && areas.length) ? 1 : 0)) >= 2;
+  if (!showChips) _applArea = "";
+  if (_applArea && _applArea !== PLANT_AREA_NONE &&
+      !areas.some(function(a){ return plantAreaKey(a) === plantAreaKey(_applArea); })) _applArea = "";
+  if (_applArea === PLANT_AREA_NONE && !untagged) _applArea = "";
+  var shown = appliancesInArea(all, _applArea);
+
+  var html = "";
+  if (showChips) {
+    html += "<div style='display:flex;gap:7px;overflow-x:auto;padding:1px 1px 10px;-webkit-overflow-scrolling:touch'>";
+    var chips = [{ kind:"all", v:"", t:"All" }];
+    areas.forEach(function(a){ chips.push({ kind:"area", v:a, t:a }); });
+    if (untagged) chips.push({ kind:"none", v:"", t:"No area" });
+    chips.forEach(function(c){
+      var on = c.kind === "all"  ? !_applArea
+             : c.kind === "none" ? _applArea === PLANT_AREA_NONE
+             : plantAreaKey(c.v) === plantAreaKey(_applArea);
+      html += "<button class='appl-area-chip' data-kind='" + c.kind + "' data-area='" + esc(c.v) + "' " +
+        "style='flex-shrink:0;border-radius:20px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation;" +
+        (on ? "background:" + APPL_COLOR + ";color:#fff;border:1.5px solid " + APPL_COLOR
+            : "background:#fff;color:#5A6A74;border:1.5px solid #D8E0E4") + "'>" + esc(c.t) + "</button>";
+    });
+    html += "</div>";
+  }
+
+  if (!shown.length) {
+    html += "<div style='text-align:center;color:#7A8A94;padding:30px 20px;font-size:13px'>Nothing here under this filter.</div>";
+  }
+  shown.forEach(function(a){ html += applianceCardHTML(a); });
+  el.innerHTML = html;
+
+  el.querySelectorAll(".appl-card").forEach(function(card){
+    card.addEventListener("click", function(){
+      _applOpenId = +card.dataset.aid;
+      _applView = "detail";
+      renderApplianceDetail();
+      window.scrollTo(0, 0);
+    });
+  });
+  el.querySelectorAll(".appl-area-chip").forEach(function(chip){
+    chip.addEventListener("click", function(){
+      var k = chip.dataset.kind;
+      _applArea = k === "all" ? "" : (k === "none" ? PLANT_AREA_NONE : (chip.dataset.area || ""));
+      renderAppliances();
+    });
+  });
+}
+
+// One label/value row. `copy` makes the whole row a copy button — the moment
+// this section exists for is standing at the machine typing its model number
+// into a parts site or reading the serial down the phone, and re-typing a
+// 17-character code off a screen is exactly what we're trying to avoid.
+function applianceRowHTML(label, value, copy) {
+  var v = String(value == null ? "" : value).trim();
+  if (!v) return "";
+  return "<div class='appl-row" + (copy ? " appl-copy" : "") + "'" +
+    (copy ? " data-copy='" + esc(v) + "' data-label='" + esc(label) + "' role='button' tabindex='0' aria-label='Copy " + esc(label) + "'" : "") +
+    " style='background:#fff;border-radius:11px;padding:11px 13px;margin-bottom:7px;box-shadow:0 1px 4px rgba(20,40,50,.07)" + (copy ? ";cursor:pointer;touch-action:manipulation" : "") + "'>" +
+    "<div style='font-size:11px;font-weight:700;color:#8A98A2;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px'>" + esc(label) + "</div>" +
+    "<div style='display:flex;align-items:center;gap:10px'>" +
+      "<span style='flex:1;font-size:15px;color:#2A2010;word-break:break-word'>" + esc(v) + "</span>" +
+      (copy ? "<span style='font-size:12px;font-weight:700;color:" + APPL_COLOR + ";white-space:nowrap'>&#x1F4CB; Copy</span>" : "") +
+    "</div></div>";
+}
+
+function renderApplianceDetail() {
+  var el = document.getElementById("appliancesContent");
+  if (!el) return;
+  var all = getAppliances();
+  var i = all.findIndex(function(a){ return a && a.id === _applOpenId; });
+  // Deleted on the other phone while we were looking at it — fall back to the
+  // list rather than rendering a blank detail view.
+  if (i < 0) { _applView = "list"; _applOpenId = null; renderAppliances(); return; }
+  var rec = all[i];
+  var war = applianceWarranty(rec);
+  var manual = applianceManualUrl(rec);
+
+  var html = "<button id='applBack' style='border:none;background:none;color:" + APPL_COLOR + ";font-family:inherit;font-size:14px;font-weight:700;padding:0 0 10px;cursor:pointer;touch-action:manipulation'>&#x2039; All appliances</button>" +
+    "<div style='font-size:22px;font-weight:800;color:#2A2010;line-height:1.25'>" + esc(rec.name || "(unnamed)") + "</div>";
+  var area = String(rec.area || "").trim();
+  if (area) html += "<div style='font-size:13px;color:#7A8A94;margin-top:3px'>" + esc(area) + "</div>";
+  html += "<div style='height:14px'></div>";
+
+  html += applianceRowHTML("Brand", rec.brand, false);
+  html += applianceRowHTML("Model", rec.model, true);
+  html += applianceRowHTML("Serial number", rec.serial, true);
+  html += applianceRowHTML("Bought", applianceDateLabel(rec.bought), false);
+  html += applianceRowHTML("Bought from", rec.boughtFrom, false);
+  if (war.state !== "none") {
+    html += "<div style='background:" + (war.state === "in" ? "#E8F2E8" : "#F2EFE8") + ";color:" +
+      (war.state === "in" ? "#2E6B3F" : "#7A6A50") + ";border-radius:11px;padding:11px 13px;margin-bottom:7px;font-size:14px;font-weight:700'>" +
+      (war.state === "in" ? "&#x1F6E1;&#xFE0F; " : "") + esc(war.text) + "</div>";
+  }
+  if (manual) {
+    html += "<a href='" + esc(manual) + "' target='_blank' rel='noopener noreferrer' style='display:flex;align-items:center;gap:10px;background:#fff;border-radius:11px;padding:12px 13px;margin-bottom:7px;box-shadow:0 1px 4px rgba(20,40,50,.07);text-decoration:none;color:" + APPL_COLOR + ";font-size:14px;font-weight:700;touch-action:manipulation'>" +
+      "<span style='flex:1'>&#x1F4D6; Open the manual</span><span style='font-size:16px'>&#x2197;</span></a>";
+  }
+  if (String(rec.notes || "").trim()) {
+    html += "<div style='background:#fff;border-radius:11px;padding:11px 13px;margin-bottom:7px;box-shadow:0 1px 4px rgba(20,40,50,.07)'>" +
+      "<div style='font-size:11px;font-weight:700;color:#8A98A2;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px'>Notes</div>" +
+      "<div style='font-size:14.5px;color:#2A2010;line-height:1.55'>" + escNl(rec.notes) + "</div></div>";
+  }
+
+  html += "<div style='display:flex;gap:8px;margin-top:16px'>" +
+      "<button id='applEditBtn' style='flex:2;padding:13px;border:none;background:" + APPL_COLOR + ";color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Edit</button>" +
+      "<button id='applDelBtn' style='flex:1;padding:13px;border:1.5px solid #E4C8C8;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Delete</button>" +
+    "</div>";
+  el.innerHTML = html;
+
+  document.getElementById("applBack").addEventListener("click", function(){
+    _applView = "list"; _applOpenId = null; renderAppliances(); window.scrollTo(0, 0);
+  });
+  document.getElementById("applEditBtn").addEventListener("click", function(){ openApplianceEditor(rec.id); });
+  document.getElementById("applDelBtn").addEventListener("click", function(){ applianceDelete(rec.id); });
+  el.querySelectorAll(".appl-copy").forEach(function(row){
+    row.addEventListener("click", function(){
+      copyToClipboard(row.dataset.copy || "", "&#x1F4CB; " + esc(row.dataset.label || "Value") + " copied");
+    });
+  });
+}
+
+function openApplianceEditor(id) {
+  _applEditId = (id == null) ? null : id;
+  _applView = "editor";
+  renderApplianceEditor();
+  window.scrollTo(0, 0);
+}
+
+function renderApplianceEditor() {
+  var el = document.getElementById("appliancesContent");
+  if (!el) return;
+  var rec = null;
+  if (_applEditId != null) {
+    var all = getAppliances();
+    var i = all.findIndex(function(a){ return a && a.id === _applEditId; });
+    // Removed on the other phone while this editor was open — fall back to the
+    // list rather than silently saving a resurrected copy.
+    if (i < 0) { _applView = "list"; _applEditId = null; _applOpenId = null; renderAppliances(); return; }
+    rec = all[i];
+  }
+  _applEditing = true;
+
+  function leave() {
+    _applEditing = false; _applCancelFn = null;
+    _applView = (_applEditId != null) ? "detail" : "list";
+    _applOpenId = (_applEditId != null) ? _applEditId : null;
+    _applEditId = null;
+    renderAppliances(); window.scrollTo(0, 0);
+  }
+  _applCancelFn = leave;
+
+  var lbl = "font-size:11px;font-weight:700;color:#8A98A2;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px";
+  var inp = "width:100%;box-sizing:border-box;padding:11px;border:1.5px solid #D8E0E4;border-radius:9px;font-family:inherit;font-size:15px;background:#fff;color:#2A2010";
+  var opt = "<span style='text-transform:none;font-weight:600;color:#A8B2B8'>(optional)</span>";
+  // Areas already in use, offered as suggestions — the same trick the Plants
+  // editor uses, so "Kitchen" gets typed once and re-picked after that.
+  var areaOpts = applianceAreas(getAppliances()).map(function(a){ return "<option value='" + esc(a) + "'></option>"; }).join("");
+
+  el.innerHTML =
+    "<div style='" + lbl + "'>What is it</div>" +
+    "<input id='apEdName' type='text' placeholder='e.g. Dishwasher' style='" + inp + "' value='" + esc((rec && rec.name) || "") + "'>" +
+    "<div style='" + lbl + ";margin-top:14px'>Area " + opt + "</div>" +
+    "<input id='apEdArea' type='text' list='apEdAreaList' placeholder='e.g. Kitchen' style='" + inp + "' value='" + esc((rec && rec.area) || "") + "'>" +
+    "<datalist id='apEdAreaList'>" + areaOpts + "</datalist>" +
+    "<div style='" + lbl + ";margin-top:14px'>Brand " + opt + "</div>" +
+    "<input id='apEdBrand' type='text' placeholder='e.g. Bosch' style='" + inp + "' value='" + esc((rec && rec.brand) || "") + "'>" +
+    "<div style='" + lbl + ";margin-top:14px'>Model " + opt + "</div>" +
+    "<input id='apEdModel' type='text' placeholder='e.g. SMS4HVI33E' style='" + inp + "' value='" + esc((rec && rec.model) || "") + "'>" +
+    "<div style='" + lbl + ";margin-top:14px'>Serial number " + opt + "</div>" +
+    "<input id='apEdSerial' type='text' placeholder='Usually on a sticker inside the door' style='" + inp + "' value='" + esc((rec && rec.serial) || "") + "'>" +
+    "<div style='" + lbl + ";margin-top:14px'>Bought " + opt + "</div>" +
+    "<input id='apEdBought' type='date' style='" + inp + "' value='" + esc((rec && rec.bought) || "") + "'>" +
+    "<div style='" + lbl + ";margin-top:14px'>Warranty ends " + opt + "</div>" +
+    "<input id='apEdWarranty' type='date' style='" + inp + "' value='" + esc((rec && rec.warranty) || "") + "'>" +
+    "<div style='" + lbl + ";margin-top:14px'>Bought from " + opt + "</div>" +
+    "<input id='apEdFrom' type='text' placeholder='e.g. Harvey Norman, Cork' style='" + inp + "' value='" + esc((rec && rec.boughtFrom) || "") + "'>" +
+    "<div style='" + lbl + ";margin-top:14px'>Link to the manual " + opt + "</div>" +
+    "<input id='apEdManual' type='url' inputmode='url' placeholder='https://&hellip;' style='" + inp + "' value='" + esc((rec && rec.manual) || "") + "'>" +
+    "<div style='font-size:11px;color:#A8B2B8;margin-top:5px;line-height:1.5'>The manufacturer&rsquo;s manual page, so the PDF is one tap away instead of in a drawer.</div>" +
+    "<div style='" + lbl + ";margin-top:14px'>Notes " + opt + "</div>" +
+    "<textarea id='apEdNotes' rows='3' placeholder='Filter size, the service number, which fuse it&rsquo;s on&hellip;' style='" + inp + ";resize:vertical'>" + esc((rec && rec.notes) || "") + "</textarea>" +
+    "<div style='display:flex;gap:8px;margin-top:18px'>" +
+      "<button id='apEdCancel' style='flex:1;padding:13px;border:1.5px solid #D8E0E4;background:#fff;color:#5A6A74;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Cancel</button>" +
+      "<button id='apEdSave' style='flex:2;padding:13px;border:none;background:" + APPL_COLOR + ";color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Save</button>" +
+    "</div>";
+
+  document.getElementById("apEdCancel").addEventListener("click", leave);
+  document.getElementById("apEdSave").addEventListener("click", function(){
+    var name = document.getElementById("apEdName").value.trim();
+    if (!name) { toast("Give it a name first"); return; }
+    // Same normalisation as the recipe source link (v393): a bare domain gets
+    // https://, and anything that isn't a web address is refused rather than
+    // stored as a dead link.
+    // Same gate the detail view renders through, so what saves and what is
+    // offered as a link can never disagree.
+    var manualRaw = document.getElementById("apEdManual").value.trim();
+    var manual = manualRaw ? applianceManualUrl({ manual: manualRaw }) : "";
+    if (manualRaw && !manual) { toast("The manual link should be a web address"); return; }
+    var fields = {
+      name: name,
+      area: document.getElementById("apEdArea").value.trim(),
+      brand: document.getElementById("apEdBrand").value.trim(),
+      model: document.getElementById("apEdModel").value.trim(),
+      serial: document.getElementById("apEdSerial").value.trim(),
+      bought: document.getElementById("apEdBought").value.trim(),
+      warranty: document.getElementById("apEdWarranty").value.trim(),
+      boughtFrom: document.getElementById("apEdFrom").value.trim(),
+      manual: manual,
+      notes: document.getElementById("apEdNotes").value.trim()
+    };
+    var cur = getAppliances();
+    var savedId = _applEditId;
+    if (_applEditId != null) {
+      var j = cur.findIndex(function(a){ return a && a.id === _applEditId; });
+      if (j < 0) { toast("That appliance is no longer here"); leave(); return; }
+      Object.keys(fields).forEach(function(k){ cur[j][k] = fields[k]; });
+      cur[j].updated = Date.now();
+    } else {
+      savedId = Date.now() + Math.floor(Math.random() * 1000);
+      cur.unshift(Object.assign({ id: savedId, addedBy: hearthUser, added: Date.now(), updated: Date.now() }, fields));
+    }
+    saveAppliances(cur);
+    _applEditing = false; _applCancelFn = null;
+    _applEditId = null; _applOpenId = savedId; _applView = "detail";
+    renderAppliances(); window.scrollTo(0, 0);
+    toast("Saved");
+  });
+  var n = document.getElementById("apEdName");
+  if (n && !rec) n.focus();
 }
 
 // ============================================================
@@ -10877,7 +11350,7 @@ document.getElementById("trackSubNav").addEventListener("click", function(e) {
   renderTrackView();
 });
 
-var HIDEABLE_SECTIONS = ["home", "train", "trips", "track", "sports", "famlog", "plants", "watch"]; // lists and baby are always visible; notes lives inside Lists (v318); Track hosts Log/Food/Body (v339); Plants is opt-in (v377)
+var HIDEABLE_SECTIONS = ["home", "train", "trips", "track", "sports", "famlog", "plants", "watch", "appliances"]; // lists and baby are always visible; notes lives inside Lists (v318); Track hosts Log/Food/Body (v339); Plants is opt-in (v377)
 
 var sectionVisible = (function() {
   var stored = storeGet("fl4_secVisible") || {};
@@ -10888,7 +11361,10 @@ var sectionVisible = (function() {
   // v391: "watch" is deliberately NOT in the default-off list — it's a brand-new
   // feature Cathal asked for, and a section he has to go and switch on isn't
   // delivered. One tap in Settings turns it off if the 7-icon bar is too busy.
-  HIDEABLE_SECTIONS.forEach(function(s) { if (stored[s] === undefined) stored[s] = (s !== "sports" && s !== "train" && s !== "famlog" && s !== "plants"); });
+  // v424: "appliances" joins the default-off list — it is a reference section
+  // you open a few times a year, so it does not earn a permanent slot on a bar
+  // that already carries seven icons. Global search reaches it either way.
+  HIDEABLE_SECTIONS.forEach(function(s) { if (stored[s] === undefined) stored[s] = (s !== "sports" && s !== "train" && s !== "famlog" && s !== "plants" && s !== "appliances"); });
   return stored;
 })();
 
@@ -10903,7 +11379,7 @@ if (!storeGet("fl4_trainNavMigrated")) {
 }
 
 function applySectionVisibility() {
-  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", baby:"bnBaby", trips:"bnTrips", track:"bnTrack", sports:"bnSports", famlog:"bnFamlog", plants:"bnPlants", watch:"bnWatch" };
+  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", baby:"bnBaby", trips:"bnTrips", track:"bnTrack", sports:"bnSports", famlog:"bnFamlog", plants:"bnPlants", watch:"bnWatch", appliances:"bnAppliances" };
   HIDEABLE_SECTIONS.forEach(function(sec) {
     var btn = document.getElementById(navIds[sec]);
     if (btn) btn.style.display = sectionVisible[sec] ? "" : "none";
@@ -11085,6 +11561,7 @@ function buildExportPayload() {
     trips:storeGet("fl4_trips")||[],
     plants:storeGet("fl4_plants")||[],
     watchlist:storeGet("fl4_watchlist")||[],
+    appliances:storeGet("fl4_appliances")||[],
     cal_goal:storeGet("fl4_cal_goal")||2000,
     secVisible:storeGet("fl4_secVisible")||{},
     syncPrefs:storeGet("fl4_syncPrefs")||{}
@@ -11362,6 +11839,20 @@ function importBackupData(data) {
       newWl.forEach(function(r){ r.updated=Date.now(); if(wlTombsR[r.id]!==undefined){ delete wlTombsR[r.id]; wlChanged=true; } });
       if(wlChanged) storeSet("fl4_tomb_watchlist", wlTombsR);
       storeSet("fl4_watchlist", wl2.concat(newWl));
+    }
+  }
+  // Appliances: additive only, same shape as the two restores above — a
+  // record whose id is already here is left exactly as it is, and a restored
+  // one is stamped updated=now with any matching tombstone cleared so the next
+  // sync pull doesn't quietly re-delete it.
+  if(Array.isArray(data.appliances)){
+    var ap2=storeGet("fl4_appliances")||[],apIds={};ap2.forEach(function(m){if(m)apIds[m.id]=true;});
+    var newAp=data.appliances.filter(function(m){return m&&m.id!=null&&!apIds[m.id];});
+    if(newAp.length){
+      var apTombsR=getTombs("appliances"), apChanged=false;
+      newAp.forEach(function(r){ r.updated=Date.now(); if(apTombsR[r.id]!==undefined){ delete apTombsR[r.id]; apChanged=true; } });
+      if(apChanged) storeSet("fl4_tomb_appliances", apTombsR);
+      storeSet("fl4_appliances", ap2.concat(newAp));
     }
   }
   // Meal plan: same newest-wins-per-day merge as sync, so restoring an old
@@ -12137,6 +12628,8 @@ var d = {};
   d.plants_deleted   = purgeTombs(getTombs("plants"));
   d.watchlist   = storeGet("fl4_watchlist") || [];
   d.watchlist_deleted = purgeTombs(getTombs("watchlist"));
+  d.appliances  = storeGet("fl4_appliances") || [];
+  d.appliances_deleted = purgeTombs(getTombs("appliances"));
   fetchWithTimeout(authUrl(userUrl("/data")), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastPersonalPush = Date.now(); }).catch(function(){});
   }, 800);
 }
@@ -12163,6 +12656,9 @@ function flushSyncRenders(dirty) {
   if (dirty.plants  && currentSection === "plants"  && !_plantEditing && !_plantImporting) safeRender("plants",  renderPlants);
   // Same guard shape: an incoming sync must not redraw a half-typed entry away.
   if (dirty.watchlist && currentSection === "watch" && !_watchEditing)   safeRender("watch",   renderWatchlist);
+  // Same guard shape again: an incoming sync must not redraw a half-typed
+  // appliance away.
+  if (dirty.appliances && currentSection === "appliances" && !_applEditing) safeRender("appliances", renderAppliances);
   if (dirty.baby    && currentSection === "baby")                       safeRender("baby",    renderBabyView);
   // Lists: unchanged except for the section guard. switchSection() re-renders
   // the list on entry, so skipping it while hidden can't leave a stale view.
@@ -12369,6 +12865,16 @@ function applyPersonal(d) {
     if (wlMergeP.push) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
   }
 
+  // ── Appliances: whole-record newest-wins by `updated`, tombstone-filtered ─
+  if (Array.isArray(d.appliances)) {
+    var apTombsP = mergeTombs(getTombs("appliances"), (d.appliances_deleted && typeof d.appliances_deleted === "object") ? d.appliances_deleted : {});
+    storeSet("fl4_tomb_appliances", purgeTombs(apTombsP));
+    var apMergeP = mergeApplianceData(storeGet("fl4_appliances") || [], d.appliances, apTombsP);
+    storeSet("fl4_appliances", apMergeP.appliances);
+    _rDirty.appliances = true;
+    if (apMergeP.push) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
+  }
+
   // ── Baby: shared per-entry merge, v329 (see mergeBabyData) ───────────────
   if (d.med_deleted && typeof d.med_deleted === "object") {
     storeSet("fl4_tomb_med", purgeTombs(mergeTombs(getTombs("med"), d.med_deleted)));
@@ -12388,7 +12894,7 @@ function applyPersonal(d) {
   // merge block left syncPaused stuck true and skipped every render below.
   } catch (err) { console.warn("applyPersonal error (sync continues):", err); }
   finally { syncPaused = false; }
-  flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby,
+  flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby, appliances:_rDirty.appliances,
                      plants:_rDirty.plants, list:true, home:true, train:true });
 }
 function fetchPersonal(cb) {
@@ -12469,6 +12975,9 @@ var data = {};
   // The watchlist is household coordination data (v391) — shared like recipes.
   data["watchlist"] = storeGet("fl4_watchlist") || [];
   data["watchlist_deleted"] = purgeTombs(getTombs("watchlist"));
+  // Appliances are household reference data (v424) — shared like plants.
+  data["appliances"] = storeGet("fl4_appliances") || [];
+  data["appliances_deleted"] = purgeTombs(getTombs("appliances"));
   lastPushTs = Date.now();
   fetchWithTimeout(authUrl(houseUrl("/shared")), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastHouseholdPush = Date.now(); }).catch(function(){});
   }, 800);
@@ -12810,6 +13319,7 @@ function switchSection(section) {
   document.getElementById("famlogSection").style.display = section === "famlog" ? "block" : "none";
   document.getElementById("plantsSection").style.display = section === "plants" ? "block" : "none";
   document.getElementById("watchSection").style.display = section === "watch" ? "block" : "none";
+  document.getElementById("appliancesSection").style.display = section === "appliances" ? "block" : "none";
 
   document.getElementById("bnHome").className  = "bn-btn" + (section === "home"   ? " home-active"  : "");
   document.getElementById("bnLife").className  = "bn-btn" + (section === "lists"  ? " life-active"  : "");
@@ -12822,6 +13332,7 @@ function switchSection(section) {
   document.getElementById("bnFamlog").className = "bn-btn" + (section === "famlog" ? " famlog-active" : "");
   document.getElementById("bnPlants").className = "bn-btn" + (section === "plants" ? " plants-active" : "");
   document.getElementById("bnWatch").className = "bn-btn" + (section === "watch" ? " watch-active" : "");
+  document.getElementById("bnAppliances").className = "bn-btn" + (section === "appliances" ? " appliances-active" : "");
   if (section === "sports" && typeof renderSports === "function") renderSports();
 
   document.body.classList.toggle("home-mode",  section === "home");
@@ -12913,6 +13424,11 @@ function switchSection(section) {
     document.getElementById("appTitle").innerHTML = "&#x1F37F; Watchlist";
     document.getElementById("hdrBadge").style.display = "none";
     renderWatchlist();
+  } else if (section === "appliances") {
+    document.getElementById("themeColor").setAttribute("content", "#3E5C6B");
+    document.getElementById("appTitle").innerHTML = "&#x1F50C; Appliances";
+    document.getElementById("hdrBadge").style.display = "none";
+    renderAppliances();
   }
 }
 
@@ -12973,6 +13489,17 @@ function openRecord(type, id, opts) {
     var rcpInput = document.getElementById("rcpSearchInput");
     if (rcpRow) rcpRow.style.display = _recipeSearchQuery ? "block" : "none";
     if (rcpInput) rcpInput.value = _recipeSearchQuery;
+  } else if (type === "appliances") {
+    // v424. The one id-level deep link in global search — landing on the
+    // record itself is the whole point here (you searched a model number
+    // because you want the model number), whereas the list groups can only
+    // hand off to their own search. HEARTH-global-search.md §9 stays open
+    // for everything else.
+    _applEditId = null;
+    _applArea = "";                                    // a deep-link wins over an area filter
+    if (id != null) { _applOpenId = Number(id); _applView = "detail"; }
+    else { _applOpenId = null; _applView = "list"; }
+    switchSection("appliances");
   }
 }
 
@@ -13066,6 +13593,13 @@ function closeTopOverlay() {
   if (_watchEditing && _watchCancelFn) {
     var wcf = _watchCancelFn;
     confirmDialog("Discard changes?", function(){ wcf(); }, function(){});
+    return true;
+  }
+
+  // v424: the appliance editor, same innerHTML-swap shape again.
+  if (_applEditing && _applCancelFn) {
+    var acf = _applCancelFn;
+    confirmDialog("Discard changes?", function(){ acf(); }, function(){});
     return true;
   }
 
@@ -14009,6 +14543,8 @@ document.getElementById("bnSports").addEventListener("click", function(){ switch
 document.getElementById("bnFamlog").addEventListener("click", function(){ switchSection("famlog"); });
 document.getElementById("bnPlants").addEventListener("click", function(){ _plantView = "list"; _plantOpenId = null; _plantImporting = false; _plantImportParsed = null; switchSection("plants"); });
 document.getElementById("bnWatch").addEventListener("click", function(){ _watchView = "list"; _watchEditId = null; _watchOpenId = null; switchSection("watch"); });
+document.getElementById("bnAppliances").addEventListener("click", function(){ _applView = "list"; _applEditId = null; _applOpenId = null; switchSection("appliances"); });
+document.getElementById("applNewBtn").addEventListener("click", function(){ openApplianceEditor(null); });
 document.getElementById("watchNewBtn").addEventListener("click", function(){ openWatchEditor(null); });
 document.getElementById("plantNewBtn").addEventListener("click", function(){ openPlantEditor(null); window.scrollTo(0, 0); });
 document.getElementById("plantImportBtn").addEventListener("click", function(){
@@ -14343,7 +14879,8 @@ var GLOBAL_SEARCH_GROUPS = [
   { key:"personal", label:"&#x1F464; Personal", color:"#A0205A" },
   { key:"travel",   label:"&#x2708; Travel",    color:"#1A5A8A" },
   { key:"notes",    label:"&#x1F4DD; Notes",    color:"#A05A10" },
-  { key:"recipes",  label:"&#x1F37D; Recipes",  color:"#B5651D" } // phase 2 (v387) — HEARTH-global-search.md §9. Colour matches the Recipes section's own theme colour (switchSection).
+  { key:"recipes",  label:"&#x1F37D; Recipes",  color:"#B5651D" }, // phase 2 (v387) — HEARTH-global-search.md §9. Colour matches the Recipes section's own theme colour (switchSection).
+  { key:"appliances", label:"&#x1F50C; Appliances", color:"#3E5C6B" } // v424 — the section has no nav icon by default, so search is its main door in.
 ];
 // Notes aren't in LIST_CONFIG/listData (v318) — they live in their own two
 // stores (personal + work, NOTES_CONTEXTS). Reshaped to {id,name,notes} so
@@ -14364,12 +14901,18 @@ function globalSearchNotesPool() {
 function globalSearchPool(key) {
   if (key === "notes") return globalSearchNotesPool();
   if (key === "recipes") return getRecipeBook(); // already null-guarded at the source (v385)
+  if (key === "appliances") return getAppliances(); // null-guarded at the source too (v424)
   return (loadListData(key).items || []);
 }
 // Recipes need the wider v383 haystack (ingredients/method/category, not
 // just name+notes) — everything else still uses the plain list/notes text.
+// Appliances need their own haystack for the same reason recipes do: the
+// numbers you came looking for (model, serial) live in fields a list item
+// doesn't have, and name+notes alone would miss every one of them.
 function globalSearchText(key, item) {
-  return key === "recipes" ? recipeSearchText(item) : listSearchText(item);
+  if (key === "recipes") return recipeSearchText(item);
+  if (key === "appliances") return applianceSearchText(item);
+  return listSearchText(item);
 }
 function globalSearch(query) {
   var q = (query || "").trim();
@@ -14424,7 +14967,10 @@ function renderGlobalSearchResults() {
     html += "<div style='background:#fff;border-radius:12px;padding:10px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(20,50,20,.07)'>" +
       "<div style='font-size:12.5px;font-weight:700;color:#8A8A6A;margin-bottom:2px'>" + g.label + "</div>";
     shown.forEach(function(it){
-      html += "<div class='gs-row' data-key='" + g.key + "'" + (it._nctx ? " data-ctx='" + it._nctx + "'" : "") + " style='display:flex;align-items:center;gap:9px;padding:8px 0;cursor:pointer;touch-action:manipulation;border-top:1px solid #F0EDE6'>" +
+      html += "<div class='gs-row' data-key='" + g.key + "'" + (it._nctx ? " data-ctx='" + it._nctx + "'" : "") +
+        // Only appliances carry an id: they're the one group whose tap opens
+        // the record itself rather than handing off to a section search.
+        (g.key === "appliances" && it.id != null ? " data-id='" + esc(String(it.id)) + "'" : "") + " style='display:flex;align-items:center;gap:9px;padding:8px 0;cursor:pointer;touch-action:manipulation;border-top:1px solid #F0EDE6'>" +
         "<span style='flex:1;font-size:13.5px;font-weight:600;color:#2A2A1E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + esc(it.name || "(untitled)") + "</span>" +
         "<span style='color:#C8BEA8;font-size:16px'>&#x203A;</span>" +
       "</div>";
@@ -14440,6 +14986,9 @@ function renderGlobalSearchResults() {
     row.addEventListener("click", function(){
       var key = row.dataset.key;
       if (key === "notes") { openRecord("notes", null, { ctx: row.dataset.ctx || null }); }
+      // A "+N more" tap has no id even in the appliances group — it means
+      // "show me the rest", so it lands on the list, not on one record.
+      else if (key === "appliances") { openRecord("appliances", row.dataset.id != null ? row.dataset.id : null); }
       else { openRecord(key, null, { query:q }); }
     });
   });
@@ -16360,11 +16909,21 @@ function applyHousehold(data) {
     _rDirty.watchlist = true;
     if (wlMerge.push) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
   }
+  // Appliances — shared household-wide; whole-record newest-wins by `updated`,
+  // tombstone-filtered. One appliance is one edit unit, so no nested merge.
+  if (Array.isArray(data["appliances"])) {
+    var apTombs = mergeTombs(getTombs("appliances"), (data["appliances_deleted"] && typeof data["appliances_deleted"] === "object") ? data["appliances_deleted"] : {});
+    storeSet("fl4_tomb_appliances", purgeTombs(apTombs));
+    var apMerge = mergeApplianceData(storeGet("fl4_appliances") || [], data["appliances"], apTombs);
+    storeSet("fl4_appliances", apMerge.appliances);
+    _rDirty.appliances = true;
+    if (apMerge.push) setTimeout(function(){ if (isHouseholdSet()) pushHousehold(); }, 0);
+  }
   } catch (err) { console.warn("applyHousehold error (sync continues):", err); }
   finally { syncPaused = false; }
   // v375: one batched flush instead of renders scattered through the merge above.
   // No renderTrainView here — the Train view is fed by the personal channel only.
-  flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby,
+  flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby, appliances:_rDirty.appliances,
                      plants:_rDirty.plants, list:true, dots:true, home:true });
   // Gentle in-app toast if the partner added something while we're using the app
   var _totalNew = 0, _firstLt = null;
@@ -17670,6 +18229,27 @@ function buildTestSeed() {
         watching:true, watched:false, watchedAt:0, rating:0, addedBy:"Petra", added:_tsTs(-6, 20, 0), updated:_tsTs(-6, 20, 0) },
       { id:_tsId(), title:"Demo Film Three", kind:"film", note:"Watched on the plane.", link:"", season:"",
         watching:false, watched:true, watchedAt:_tsTs(-2, 21, 0), rating:4, addedBy:"Cathal", added:_tsTs(-25, 20, 0), updated:_tsTs(-2, 21, 0) }
+    ],
+
+    // ── Appliances (v424) ────────────────────────────────
+    // Three areas so the chip row shows (two named + one untagged), one still
+    // in warranty and one out of it so both states of the warranty line are
+    // reviewable, and a manual link so the detail view's outbound row renders.
+    appliances:[
+      { id:_tsId(), name:"Demo Dishwasher", area:"Kitchen", brand:"Bosch", model:"SMS4HVI33E",
+        serial:"FD-DEMO-9920014", bought:_tsDay(-400), warranty:_tsDay(330),
+        boughtFrom:"Demo Electrical, Cork", manual:"https://www.bosch-home.ie/",
+        notes:"Salt goes in the cap under the bottom basket. Rinse aid every few months.",
+        addedBy:"Cathal", added:_tsTs(-40, 12, 0), updated:_tsTs(-40, 12, 0) },
+      { id:_tsId(), name:"Demo Washing Machine", area:"Utility", brand:"Whirlpool", model:"FFB9458BVEE",
+        serial:"WM-DEMO-4471", bought:_tsDay(-1500), warranty:_tsDay(-770),
+        boughtFrom:"Demo Electrical, Cork", manual:"",
+        notes:"Filter behind the bottom flap - clean it twice a year.",
+        addedBy:"Petra", added:_tsTs(-30, 12, 0), updated:_tsTs(-30, 12, 0) },
+      { id:_tsId(), name:"Demo Lawnmower", area:"", brand:"Flymo", model:"EasiMow 300R",
+        serial:"", bought:"", warranty:"", boughtFrom:"", manual:"",
+        notes:"Spare blade in the shed.",
+        addedBy:"Cathal", added:_tsTs(-18, 12, 0), updated:_tsTs(-18, 12, 0) }
     ],
 
     // ── Train / Track ────────────────────────────────────
