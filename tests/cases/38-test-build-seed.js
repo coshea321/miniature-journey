@@ -64,6 +64,7 @@ module.exports = {
       function collect(arr){ (arr||[]).forEach(function(x){ if (x && x.id != null) ids.push(x.id); }); }
       ['grocery','todo','travel','personal'].forEach(function(lt){ collect(seed.lists[lt].items); });
       collect(seed.recipebook); collect(seed.plants); collect(seed.watchlist); collect(seed.trips);
+      collect(seed.appliances);
       collect(seed.baby.medicine); collect(seed.baby.milestones);
       collect(seed.action_log); collect(seed.track_med); collect(seed.food_log);
       (seed.trips || []).forEach(function(t){ collect(t.bookings); });
@@ -83,7 +84,7 @@ module.exports = {
 
       // ── Through the real import path ─────────────────────────────────────
       var savedKeys = ['fl4_grocery','fl4_todo','fl4_travel','fl4_personal','fl4_recipebook','fl4_mealplan',
-                       'fl4_trips','fl4_plants','fl4_watchlist','fl4_baby','fl4_workouts','fl4_action_log',
+                       'fl4_trips','fl4_plants','fl4_watchlist','fl4_appliances','fl4_baby','fl4_workouts','fl4_action_log',
                        'fl4_track_med','fl4_food_log','fl4_saved_meals','fl4_recipes','fl4_travel_tags',
                        'fl4_notes_global','fl4_notes_global_work','fl4_cal_goal'];
       var savedState = {};
@@ -133,6 +134,19 @@ module.exports = {
         plantCareEvents(getPlants()[1]).some(function(e){ return e.water && e.feed; }),
         'no combined water+feed day in the demo plant');
       ok('the watchlist lands', getWatchlist().length === 3, 'got: ' + getWatchlist().length);
+      // v424: three appliances, and deliberately not three interchangeable ones —
+      // two named areas plus one untagged is what makes the area chip row appear on
+      // a test link, and one in-warranty plus one expired is the only way both
+      // states of the warranty line get reviewed. Keep that shape if you edit them.
+      ok('appliances land', getAppliances().length === 3, 'got: ' + getAppliances().length);
+      ok('the demo appliances cover two areas plus one untagged',
+        applianceAreas(getAppliances()).length === 2 &&
+        appliancesInArea(getAppliances(), PLANT_AREA_NONE).length === 1,
+        'areas: ' + JSON.stringify(applianceAreas(getAppliances())));
+      ok('one demo appliance is in warranty and one is out of it',
+        getAppliances().some(function(a){ return applianceWarranty(a).state === 'in'; }) &&
+        getAppliances().some(function(a){ return applianceWarranty(a).state === 'out'; }),
+        'got: ' + getAppliances().map(function(a){ return applianceWarranty(a).state; }).join(','));
       ok('workouts, bodyweight and blood pressure land',
         getWD().workouts.length === 2 && getWD().bodyweight.length === 3 && getWD().bp.length === 2,
         'got: ' + [getWD().workouts.length, getWD().bodyweight.length, (getWD().bp||[]).length].join('/'));
@@ -162,7 +176,7 @@ module.exports = {
       savedKeys.forEach(function(k){
         if (savedState[k] == null) localStorage.removeItem(k); else storeSet(k, savedState[k]);
       });
-      ['fl4_notes_grocery','fl4_notes_travel','fl4_tomb_recipes','fl4_tomb_plants','fl4_tomb_watchlist',
+      ['fl4_notes_grocery','fl4_notes_travel','fl4_tomb_recipes','fl4_tomb_plants','fl4_tomb_watchlist','fl4_tomb_appliances',
        'fl4_tomb_trips','fl4_tomb_bookings','fl4_food_notes'].forEach(function(k){ localStorage.removeItem(k); });
       listData = savedListData;
 
