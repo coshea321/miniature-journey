@@ -91,10 +91,11 @@ module.exports = {
       ok('no filter returns everything', appliancesInArea(areaSet, '').length === 4, 'got: ' + appliancesInArea(areaSet, '').length);
 
       // ── Search haystack: the numbers are the whole point ─────────────────
-      var rec = { id:1, name:'Dishwasher', brand:'Bosch', model:'SMS4HVI33E', serial:'FD9920014',
+      var rec = { id:1, name:'Dishwasher', brand:'Bosch', model:'SMS4HVI33E', serial:'FD9920014', fd:'0603',
                   area:'Kitchen', boughtFrom:'Harvey Norman', notes:'Salt cap under the basket' };
       ok('the model number is searchable', applianceSearchText(rec).indexOf('sms4hvi33e') > -1, 'got: ' + applianceSearchText(rec));
       ok('the serial number is searchable', applianceSearchText(rec).indexOf('fd9920014') > -1, 'got: ' + applianceSearchText(rec));
+      ok('the FD number is searchable', applianceSearchText(rec).indexOf('0603') > -1, 'got: ' + applianceSearchText(rec));
       ok('brand, area, retailer and notes are all searchable',
         ['bosch','kitchen','harvey norman','salt cap'].every(function(t){ return applianceSearchText(rec).indexOf(t) > -1; }),
         'got: ' + applianceSearchText(rec));
@@ -200,21 +201,22 @@ module.exports = {
 
       // ── Render: detail ───────────────────────────────────────────────────
       storeSet('fl4_appliances', [
-        { id:900502, name:'Dishwasher', area:'Kitchen', brand:'Bosch', model:'SMS4HVI33E', serial:'FD9920014',
+        { id:900502, name:'Dishwasher', area:'Kitchen', brand:'Bosch', model:'SMS4HVI33E', serial:'FD9920014', fd:'0603',
           bought:'2024-01-10', warranty:'2099-01-01', boughtFrom:'Demo Electrical', manual:'https://example.com/manual',
           notes:'Salt cap under the basket', updated:1 }
       ]);
       _applOpenId = 900502; _applView = 'detail';
       renderAppliances();
-      ok('the detail view shows the model and serial', el.textContent.indexOf('SMS4HVI33E') > -1 && el.textContent.indexOf('FD9920014') > -1,
+      ok('the detail view shows the model, serial and FD number',
+        el.textContent.indexOf('SMS4HVI33E') > -1 && el.textContent.indexOf('FD9920014') > -1 && el.textContent.indexOf('0603') > -1,
         'got: ' + el.textContent.slice(0, 400));
       ok('the bought date renders as DD/MM/YYYY', el.textContent.indexOf('10/01/2024') > -1, 'got: ' + el.textContent.slice(0, 400));
       ok('the warranty line is shown on the record itself', el.textContent.indexOf('In warranty until 01/01/2099') > -1,
         'got: ' + el.textContent.slice(0, 500));
-      ok('only the model and serial rows are copyable — the rest are not buttons',
-        el.querySelectorAll('.appl-copy').length === 2, 'got: ' + el.querySelectorAll('.appl-copy').length);
+      ok('the model, serial and FD rows are copyable — the rest are not buttons',
+        el.querySelectorAll('.appl-copy').length === 3, 'got: ' + el.querySelectorAll('.appl-copy').length);
       ok('the copy rows carry the exact value to copy',
-        Array.prototype.map.call(el.querySelectorAll('.appl-copy'), function(r){ return r.dataset.copy; }).join('|') === 'SMS4HVI33E|FD9920014',
+        Array.prototype.map.call(el.querySelectorAll('.appl-copy'), function(r){ return r.dataset.copy; }).join('|') === 'SMS4HVI33E|FD9920014|0603',
         'got: ' + Array.prototype.map.call(el.querySelectorAll('.appl-copy'), function(r){ return r.dataset.copy; }).join('|'));
       ok('the copy rows are announced to a screen reader as buttons',
         Array.prototype.every.call(el.querySelectorAll('.appl-copy'), function(r){ return r.getAttribute('role') === 'button' && !!r.getAttribute('aria-label'); }),
@@ -274,10 +276,11 @@ module.exports = {
         _applEditing === true && typeof _applCancelFn === 'function', 'editing: ' + _applEditing);
 
       document.getElementById('apEdSerial').value = ' L-99-2001 ';
+      document.getElementById('apEdFD').value = ' 0206 ';
       document.getElementById('apEdManual').value = 'liebherr.com/manual';
       document.getElementById('apEdSave').click();
       var savedRec = getAppliances().find(function(a){ return a.id === 900801; });
-      ok('saving trims what was typed', savedRec.serial === 'L-99-2001', 'got: ' + JSON.stringify(savedRec.serial));
+      ok('saving trims what was typed', savedRec.serial === 'L-99-2001' && savedRec.fd === '0206', 'got: ' + JSON.stringify(savedRec));
       ok('a bare domain in the manual field gets https:// (the v393 rule)',
         savedRec.manual === 'https://liebherr.com/manual', 'got: ' + savedRec.manual);
       ok('an edit bumps updated so newest-wins can see it', savedRec.updated > 1, 'got: ' + savedRec.updated);

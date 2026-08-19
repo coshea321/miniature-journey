@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v427 · 19/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v428 · 19/08/2026</div>
 
   </div>
 </div>
@@ -4495,7 +4495,7 @@ function applianceWarranty(rec) {
 // search has to reach them (not just name + notes like a list item).
 function applianceSearchText(a) {
   if (!a) return "";
-  return [a.name, a.brand, a.model, a.serial, a.area, a.boughtFrom, a.notes]
+  return [a.name, a.brand, a.model, a.serial, a.fd, a.area, a.boughtFrom, a.notes]
     .map(function(v){ return v == null ? "" : String(v); }).join(" ").toLowerCase();
 }
 
@@ -4697,6 +4697,7 @@ function renderApplianceDetail() {
   html += applianceRowHTML("Brand", rec.brand, false);
   html += applianceRowHTML("Model", rec.model, true);
   html += applianceRowHTML("Serial number", rec.serial, true);
+  html += applianceRowHTML("FD number", rec.fd, true);
   html += applianceRowHTML("Bought", applianceDateLabel(rec.bought), false);
   html += applianceRowHTML("Bought from", rec.boughtFrom, false);
   if (war.state !== "none") {
@@ -4781,6 +4782,8 @@ function renderApplianceEditor() {
     "<input id='apEdModel' type='text' placeholder='e.g. SMS4HVI33E' style='" + inp + "' value='" + esc((rec && rec.model) || "") + "'>" +
     "<div style='" + lbl + ";margin-top:14px'>Serial number " + opt + "</div>" +
     "<input id='apEdSerial' type='text' placeholder='Usually on a sticker inside the door' style='" + inp + "' value='" + esc((rec && rec.serial) || "") + "'>" +
+    "<div style='" + lbl + ";margin-top:14px'>FD number " + opt + "</div>" +
+    "<input id='apEdFD' type='text' placeholder='e.g. 0603 &mdash; the FD code on Bosch/Siemens rating plates' style='" + inp + "' value='" + esc((rec && rec.fd) || "") + "'>" +
     "<div style='" + lbl + ";margin-top:14px'>Bought " + opt + "</div>" +
     "<input id='apEdBought' type='date' style='" + inp + "' value='" + esc((rec && rec.bought) || "") + "'>" +
     "<div style='" + lbl + ";margin-top:14px'>Warranty ends " + opt + "</div>" +
@@ -4815,6 +4818,7 @@ function renderApplianceEditor() {
       brand: document.getElementById("apEdBrand").value.trim(),
       model: document.getElementById("apEdModel").value.trim(),
       serial: document.getElementById("apEdSerial").value.trim(),
+      fd: document.getElementById("apEdFD").value.trim(),
       bought: document.getElementById("apEdBought").value.trim(),
       warranty: document.getElementById("apEdWarranty").value.trim(),
       boughtFrom: document.getElementById("apEdFrom").value.trim(),
@@ -18241,7 +18245,7 @@ function buildTestSeed() {
     // reviewable, and a manual link so the detail view's outbound row renders.
     appliances:[
       { id:_tsId(), name:"Demo Dishwasher", area:"Kitchen", brand:"Bosch", model:"SMS4HVI33E",
-        serial:"FD-DEMO-9920014", bought:_tsDay(-400), warranty:_tsDay(330),
+        serial:"FD-DEMO-9920014", fd:"0603", bought:_tsDay(-400), warranty:_tsDay(330),
         boughtFrom:"Demo Electrical, Cork", manual:"https://www.bosch-home.ie/",
         notes:"Salt goes in the cap under the bottom basket. Rinse aid every few months.",
         addedBy:"Cathal", added:_tsTs(-40, 12, 0), updated:_tsTs(-40, 12, 0) },
