@@ -1,5 +1,5 @@
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v425 · 18/08/2026';
+const VERSION = 'v426 · 19/08/2026';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
@@ -18,9 +18,19 @@ const ASSETS = [
 // hearth-vNNN cache with the PREVIOUS build's index.html — cache name says
 // vNNN, contents are vNNN-1. It self-heals on a later open via the fetch
 // handler's background refresh, but costs another open or two first.
+// v426: BEST-EFFORT, not all-or-nothing. c.addAll rejects the entire install
+// if any ONE asset fails to fetch — a blip, a 404, a redirect to a login page.
+// A rejected install means the new worker never activates and the OLD one keeps
+// serving indefinitely, with no way out from inside the app: that is exactly
+// the "stuck on an old version until you unregister it in devtools" bug.
+// A worker that activates with an incomplete cache is strictly better — the
+// fetch handler falls back to the network for anything missing, and the next
+// open refills it. Never put addAll back here.
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))
+    caches.open(CACHE).then(c => Promise.all(
+      ASSETS.map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {}))
+    ))
   );
   self.skipWaiting();
 });

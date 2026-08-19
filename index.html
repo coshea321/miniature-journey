@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v425 · 18/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v426 · 19/08/2026</div>
 
   </div>
 </div>
@@ -1633,6 +1633,8 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     <div id="lastCloudBackupInfo" style="font-size:12px;color:#8A7A5A;margin:0 2px 10px;text-align:center">Last cloud backup: never</div>
     <button class="sync-btn outline" id="cloudBackupsBtn" style="margin-bottom:6px">&#x2601;&#xFE0F; Cloud backups</button>
     <button class="sync-btn outline" id="syncHealthBtn" style="margin-bottom:6px">&#x1F4E1; Sync health</button>
+    <button class="sync-btn outline" id="forceUpdateBtn" style="margin-bottom:2px">&#x1F504; Force app update</button>
+    <div id="swVersionInfo" style="font-size:12px;color:#8A7A5A;margin:0 2px 8px;text-align:center"></div>
     <label class="sync-btn outline" id="importLabel" style="text-align:center;cursor:pointer;display:block;margin-bottom:6px">
       &#x2B06;&#xFE0F; Import data
       <input type="file" id="importFile" accept=".json" style="display:none">
@@ -12065,6 +12067,8 @@ function openSyncHealthSheet(){
 (function(){
   var shBtn = document.getElementById("syncHealthBtn");
   if (shBtn) shBtn.addEventListener("click", openSyncHealthSheet);
+  var fuBtn = document.getElementById("forceUpdateBtn");
+  if (fuBtn) fuBtn.addEventListener("click", forceAppUpdate);
 })();
 
 document.getElementById("clearAllBtn").addEventListener("click", function() {
@@ -18512,7 +18516,70 @@ function showUpdateBanner() {
   if (banner) banner.style.display = "flex";
 }
 
+// ── Stuck-worker visibility + escape hatch (v426) ─────────────────────
+// The WORKER and the PAGE can be on different versions: the worker updates on
+// its own schedule, and a worker whose install failed never updates at all.
+// The label deliberately shows the WORKER's version when it is same-or-older
+// (v382's "sw.js is the single source of truth" — pinned by
+// tests/sw-cases/02-sw-update-banner.js, do NOT change it here), which means a
+// page genuinely running vNEW can display a stuck worker's vOLD. That is what
+// it looked like on the Cloudflare install (page v425, label v421).
+// So rather than change the label, SAY SO: swVersionsAgree() drives an
+// explicit line under the Force app update button naming both versions.
+var _swReportedVersion = "";
+function swVersionsAgree(swVersion) {
+  return _verNum(swVersion) === _verNum(PAGE_VERSION);
+}
+
+// Clears this device's cached copy of the app: every service-worker
+// registration and every cache. Deliberately does NOT touch localStorage —
+// data, login and household code all survive, so this is safe to offer as a
+// button. Returns a promise that always resolves (never rejects): a failure
+// to clear must still let the caller reload.
+function clearAppInstall() {
+  var jobs = [];
+  try {
+    if ("serviceWorker" in navigator && navigator.serviceWorker.getRegistrations) {
+      jobs.push(navigator.serviceWorker.getRegistrations()
+        .then(function(regs){ return Promise.all(regs.map(function(r){ return r.unregister(); })); })
+        .catch(function(){}));
+    }
+  } catch (e) {}
+  try {
+    if (window.caches && caches.keys) {
+      jobs.push(caches.keys()
+        .then(function(keys){ return Promise.all(keys.map(function(k){ return caches.delete(k); })); })
+        .catch(function(){}));
+    }
+  } catch (e) {}
+  return Promise.all(jobs).then(function(){ return true; }, function(){ return true; });
+}
+
+function renderSwVersionInfo() {
+  var el = document.getElementById("swVersionInfo");
+  if (!el) return;
+  if (!("serviceWorker" in navigator) || _isPreview || _isTestBuild) { el.textContent = ""; return; }
+  if (_swReportedVersion && !swVersionsAgree(_swReportedVersion)) {
+    el.textContent = "Running " + PAGE_VERSION + " · installer stuck on " + _swReportedVersion;
+  } else {
+    el.textContent = "Running " + PAGE_VERSION;
+  }
+}
+
+function forceAppUpdate() {
+  confirmDialog(
+    "Force an app update? This clears this device's saved copy of Hearth and reloads it fresh. Your data, login and household code are NOT touched.",
+    function() {
+      var reloaded = false;
+      function go() { if (reloaded) return; reloaded = true; location.reload(); }
+      clearAppInstall().then(go);
+      setTimeout(go, 4000);   // never leave him staring at a button that did nothing
+    }
+  );
+}
+
 if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
+  renderSwVersionInfo();   // paint "Running vNNN" before any worker reports in
   navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).then(function(reg) {
     reg.update(); // background check; a new build announces itself via SW_UPDATED
     if (navigator.serviceWorker.controller) {
@@ -18543,7 +18610,9 @@ if ("serviceWorker" in navigator && !_isPreview && !_isTestBuild) {
       // Same-or-older still writes through, which is the original intent
       // (the label is sourced from sw.js, the single source of truth).
       var el = document.getElementById("appVersionLabel");
+      _swReportedVersion = e.data.version;
       if (el && _verNum(e.data.version) <= _verNum(PAGE_VERSION)) el.textContent = e.data.version;
+      renderSwVersionInfo();
     }
     if (e.data.type === "SW_UPDATED" || e.data.type === "SW_VERSION") {
       // A strictly NEWER build is active (numeric compare, v312 lesson:
