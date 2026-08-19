@@ -359,7 +359,221 @@ module.exports = {
       ok('a "+N more" tap (no id) lands on the list instead',
         _applView === 'list' && _applOpenId === null, 'view: ' + _applView + ' open: ' + _applOpenId);
 
+      // ══ v428 — the home-inventory widening ════════════════════════════════
+      // Value, receipt, photos link, the totals card, and the inventory-v1 file.
+
+      // ── Value parsing: absent, zero and junk are three different things ───
+      ok('an unvalued record reads as null, not 0',
+        applianceValueNum({}) === null && applianceValueNum({ value:'' }) === null && applianceValueNum({ value:null }) === null,
+        'got: ' + JSON.stringify([applianceValueNum({}), applianceValueNum({ value:'' })]));
+      ok('a deliberate zero is kept as zero', applianceValueNum({ value:0 }) === 0, 'got: ' + applianceValueNum({ value:0 }));
+      ok('a stored string value still reads as a number', applianceValueNum({ value:'1250' }) === 1250, 'got: ' + applianceValueNum({ value:'1250' }));
+      ok('junk and negatives read as unvalued rather than as a wrong number',
+        applianceValueNum({ value:'abc' }) === null && applianceValueNum({ value:-5 }) === null,
+        'got: ' + JSON.stringify([applianceValueNum({ value:'abc' }), applianceValueNum({ value:-5 })]));
+
+      ok('an empty box parses as null (field cleared)', applianceParseValue('') === null && applianceParseValue('   ') === null,
+        'got: ' + JSON.stringify(applianceParseValue('')));
+      ok('typed separators and a euro sign are accepted',
+        applianceParseValue('1,250') === 1250 && applianceParseValue('\u20AC650') === 650 && applianceParseValue('99.50') === 99.5,
+        'got: ' + JSON.stringify([applianceParseValue('1,250'), applianceParseValue('\u20AC650'), applianceParseValue('99.50')]));
+      // false, not 0 — the editor refuses rather than storing a wrong figure.
+      ok('text that is not a number is refused, never rounded to 0',
+        applianceParseValue('about six hundred') === false && applianceParseValue('12.345') === false && applianceParseValue('-5') === false,
+        'got: ' + JSON.stringify([applianceParseValue('about six hundred'), applianceParseValue('12.345'), applianceParseValue('-5')]));
+
+      ok('money reads as euro with thousands separators and no fake cents',
+        applianceMoney(1250) === '\u20AC1,250' && applianceMoney(1250.5) === '\u20AC1,250.50' && applianceMoney(0) === '\u20AC0',
+        'got: ' + [applianceMoney(1250), applianceMoney(1250.5), applianceMoney(0)].join(' / '));
+      ok('an unvalued record formats as nothing at all, not "\u20AC0"',
+        applianceMoney(null) === '' && applianceMoney(applianceValueNum({})) === '', 'got: ' + JSON.stringify(applianceMoney(null)));
+
+      // ── The total, and the honesty of it ─────────────────────────────────
+      var vs = applianceValueSummary([{ value:1000 }, { value:250.5 }, {}, { value:'' }, { value:0 }]);
+      ok('the summary totals only the valued records',
+        vs.total === 1250.5 && vs.valued === 3 && vs.missing === 2, 'got: ' + JSON.stringify(vs));
+      ok('an all-unvalued list totals nothing and says so',
+        (function(){ var z = applianceValueSummary([{}, {}]); return z.total === 0 && z.valued === 0 && z.missing === 2; })(),
+        'got: ' + JSON.stringify(applianceValueSummary([{}, {}])));
+
+      // ── The photos link goes through the SAME gate as the manual ─────────
+      ok('appliancePhotosUrl drops a javascript: link',
+        appliancePhotosUrl({ photos:'javascript:alert(1)' }) === '', 'got: ' + appliancePhotosUrl({ photos:'javascript:alert(1)' }));
+      ok('appliancePhotosUrl keeps a real OneDrive-shaped link and fixes a bare domain',
+        appliancePhotosUrl({ photos:'https://1drv.ms/f/abc' }) === 'https://1drv.ms/f/abc' &&
+        appliancePhotosUrl({ photos:'1drv.ms/f/abc' }) === 'https://1drv.ms/f/abc',
+        'got: ' + appliancePhotosUrl({ photos:'1drv.ms/f/abc' }));
+      ok('the manual gate still behaves identically after the v428 split',
+        applianceManualUrl({ manual:'javascript:alert(1)' }) === '' &&
+        applianceManualUrl({ manual:'example.com/m' }) === 'https://example.com/m',
+        'got: ' + applianceManualUrl({ manual:'example.com/m' }));
+
+      // ── The editor saves the three new fields ────────────────────────────
+      storeSet('fl4_appliances', []);
+      openApplianceEditor(null);
+      document.getElementById('apEdName').value = 'Sofa';
+      document.getElementById('apEdArea').value = 'Sitting room';
+      document.getElementById('apEdValue').value = '1,400';
+      document.getElementById('apEdReceipt').value = 'Gmail, order 88214';
+      document.getElementById('apEdPhotos').value = '1drv.ms/f/sofa';
+      document.getElementById('apEdSave').click();
+      var sofa = getAppliances()[0];
+      ok('a typed value with a separator is stored as a number',
+        !!sofa && sofa.value === 1400, 'got: ' + JSON.stringify(sofa && sofa.value));
+      ok('the receipt note and the photos link are stored, the link normalised',
+        !!sofa && sofa.receipt === 'Gmail, order 88214' && sofa.photos === 'https://1drv.ms/f/sofa',
+        'got: ' + JSON.stringify(sofa && [sofa.receipt, sofa.photos]));
+      ok('a non-appliance record is just a record — nothing insists on a model',
+        !!sofa && !sofa.model && !sofa.serial, 'got: ' + JSON.stringify(sofa));
+
+      // A junk value must be refused rather than saved as 0.
+      openApplianceEditor(sofa.id);
+      document.getElementById('apEdValue').value = 'about six hundred';
+      document.getElementById('apEdSave').click();
+      ok('a junk value refuses the save instead of storing a wrong figure',
+        _applView === 'editor' && getAppliances()[0].value === 1400,
+        'view: ' + _applView + ' value: ' + JSON.stringify(getAppliances()[0].value));
+
+      // Clearing must store "" — an UNDEFINED field is refilled from the other
+      // device by mergeApplianceData's v296 fill, so a cleared value would come
+      // back on the next sync. This is the whole reason the field is "" and not
+      // a dropped key; do not "tidy" it into a delete.
+      document.getElementById('apEdValue').value = '';
+      document.getElementById('apEdSave').click();
+      var cleared = getAppliances()[0];
+      ok('clearing the value stores "" rather than dropping the field',
+        cleared.value === '' && ('value' in cleared), 'got: ' + JSON.stringify(cleared.value));
+      ok('a cleared value survives a merge against an older copy that still has one',
+        (function(){
+          var m = mergeApplianceData([{ id:1, name:'X', value:'', updated:200 }], [{ id:1, name:'X', value:900, updated:100 }], {});
+          return m.appliances[0].value === '';
+        })(), 'merge refilled a deliberately cleared value');
+
+      // ── Search reaches the receipt ───────────────────────────────────────
+      ok('the receipt note is searchable',
+        applianceSearchText({ receipt:'Currys order 41007' }).indexOf('41007') !== -1,
+        'got: ' + applianceSearchText({ receipt:'Currys order 41007' }));
+
+      // ── The totals card on the list ──────────────────────────────────────
+      storeSet('fl4_appliances', [
+        { id:901001, name:'Dishwasher', area:'Kitchen', value:520, updated:1 },
+        { id:901002, name:'Sofa',       area:'Sitting room', value:1400, updated:1 },
+        { id:901003, name:'Lawnmower',  area:'', value:'', updated:1 }
+      ]);
+      _applView = 'list'; _applOpenId = null; _applArea = '';
+      renderAppliances();
+      var listHtml = document.getElementById('appliancesContent').innerHTML;
+      ok('the list totals what is on screen', listHtml.indexOf('\u20AC1,920') !== -1, 'no grand total in: ' + listHtml.slice(0, 400));
+      ok('the total says how many records are not in it',
+        /1 not valued yet/.test(listHtml), 'no unvalued count in: ' + listHtml.slice(0, 400));
+      _applArea = 'Kitchen';
+      renderAppliances();
+      var kitchenHtml = document.getElementById('appliancesContent').innerHTML;
+      ok('picking an area totals that area only, which is how a claim is made',
+        kitchenHtml.indexOf('\u20AC520') !== -1 && kitchenHtml.indexOf('\u20AC1,920') === -1,
+        'got: ' + kitchenHtml.slice(0, 400));
+      _applArea = '';
+      // With nothing valued at all the card turns into the prompt, never a "\u20AC0".
+      storeSet('fl4_appliances', [{ id:901004, name:'Kettle', updated:1 }]);
+      renderAppliances();
+      var noValHtml = document.getElementById('appliancesContent').innerHTML;
+      ok('a section with no values shows the prompt, not a \u20AC0 total',
+        noValHtml.indexOf('\u20AC0') === -1 && /cost to replace/.test(noValHtml), 'got: ' + noValHtml.slice(0, 400));
+
+      // ── The inventory-v1 file ────────────────────────────────────────────
+      var expSrc = { id:99, name:'Bike', area:'Garage', brand:'Giant', model:'Escape 3', serial:'BK-1',
+                     bought:'2024-01-02', warranty:'', boughtFrom:'Demo Cycles', value:600,
+                     receipt:'Email', manual:'https://example.com/m', photos:'https://1drv.ms/f/b',
+                     notes:'n', addedBy:'Cathal', added:1, updated:2 };
+      var exp = inventoryExportObj(expSrc);
+      ok('the file carries the fields a claim needs',
+        exp.name === 'Bike' && exp.value === 600 && exp.receipt === 'Email' && exp.photos === 'https://1drv.ms/f/b' &&
+        exp.serial === 'BK-1' && exp.bought === '2024-01-02',
+        'got: ' + JSON.stringify(exp));
+      ok('the file deliberately carries no id, no updated and no author',
+        !('id' in exp) && !('updated' in exp) && !('addedBy' in exp) && !('added' in exp),
+        'got keys: ' + Object.keys(exp).join(','));
+      ok('an unvalued record exports as null, not 0',
+        inventoryExportObj({ name:'X' }).value === null, 'got: ' + JSON.stringify(inventoryExportObj({ name:'X' }).value));
+
+      ok('a tagged file parses', (function(){
+          var r = parseInventoryFile(JSON.stringify({ hearth:'inventory-v1', items:[{ name:'A' }, { name:'B' }] }));
+          return !r.error && r.items.length === 2;
+        })(), 'got: ' + JSON.stringify(parseInventoryFile(JSON.stringify({ hearth:'inventory-v1', items:[{ name:'A' }] }))));
+      ok('a bare array and a single object parse too',
+        !parseInventoryFile('[{"name":"A"}]').error && !parseInventoryFile('{"name":"A"}').error,
+        'got: ' + JSON.stringify(parseInventoryFile('[{"name":"A"}]')));
+      ok('another Hearth file type is refused rather than half-imported',
+        !!parseInventoryFile(JSON.stringify({ hearth:'plant-v1', items:[{ name:'A' }] })).error,
+        'it parsed a plant file as inventory');
+      ok('a nameless entry is refused', !!parseInventoryFile('[{"value":10}]').error, 'a nameless entry parsed');
+      ok('junk is refused with a readable message',
+        !!parseInventoryFile('not json at all').error, 'junk parsed');
+
+      // Import is ADD-ONLY: new ids, nothing existing touched.
+      storeSet('fl4_appliances', [{ id:901101, name:'Already here', value:100, updated:5 }]);
+      var addedN = importInventoryAsNew([
+        { name:'Imported Sofa', area:'Sitting room', value:'1,400', receipt:'Folder', photos:'1drv.ms/f/s', bought:'2023-05-01' },
+        { name:'Imported Bike', value:'\u20AC600', manual:'javascript:alert(1)', warranty:'nonsense' }
+      ]);
+      var after = getAppliances();
+      ok('every file entry lands as a new record', addedN === 2 && after.length === 3, 'got: ' + after.length);
+      ok('the record already here is untouched',
+        after.some(function(a){ return a.id === 901101 && a.name === 'Already here' && a.value === 100; }),
+        'got: ' + JSON.stringify(after));
+      ok('imported records get fresh ids rather than the ids in the file',
+        after.filter(function(a){ return a.id === 901101; }).length === 1 &&
+        after.every(function(a){ return a.id != null; }), 'got ids: ' + after.map(function(a){ return a.id; }).join(','));
+      var impSofa = after.filter(function(a){ return a.name === 'Imported Sofa'; })[0];
+      ok('an imported value written by hand as "1,400" reads as 1400',
+        !!impSofa && impSofa.value === 1400, 'got: ' + JSON.stringify(impSofa && impSofa.value));
+      ok('an imported photos link is normalised the same way the editor does',
+        !!impSofa && impSofa.photos === 'https://1drv.ms/f/s', 'got: ' + JSON.stringify(impSofa && impSofa.photos));
+      var impBike = after.filter(function(a){ return a.name === 'Imported Bike'; })[0];
+      ok('a javascript: link in a FILE is dropped, not stored',
+        !!impBike && impBike.manual === '', 'got: ' + JSON.stringify(impBike && impBike.manual));
+      ok('a junk date in a file is dropped rather than stored as a fake date',
+        !!impBike && impBike.warranty === '' && applianceWarranty(impBike).state === 'none',
+        'got: ' + JSON.stringify(impBike && impBike.warranty));
+      ok('an unvalued imported record stores "" rather than dropping the field',
+        !!impSofa && ('value' in impBike) && impBike.value === 600, 'got: ' + JSON.stringify(impBike && impBike.value));
+
+      // A file round-trips: export what we have, re-read it, same values.
+      var roundTrip = parseInventoryFile(JSON.stringify({ hearth:'inventory-v1', items: getAppliances().map(inventoryExportObj) }));
+      ok('an exported file reads straight back in',
+        !roundTrip.error && roundTrip.items.length === 3 &&
+        applianceValueSummary(roundTrip.items.map(function(x){ return { value: applianceParseValue(x.value) }; })).total === 2100,
+        'got: ' + JSON.stringify(roundTrip).slice(0, 300));
+
+      // ── The import screen ────────────────────────────────────────────────
+      _applImportParsed = null; _applView = 'import';
+      renderAppliances();
+      ok('the import screen opens on the paste step',
+        !!document.getElementById('invImpJson') && !!document.getElementById('invImpGo'), 'no paste box');
+      // The fence is built from char codes, not typed: this whole test body
+      // lives inside a template literal, so a literal backtick here ends it.
+      var _fence = String.fromCharCode(96, 96, 96);
+      document.getElementById('invImpJson').value = _fence + 'json\\n' + JSON.stringify({ hearth:'inventory-v1', items:[{ name:'Fenced Lamp', value:40 }] }) + '\\n' + _fence;
+      document.getElementById('invImpGo').click();
+      ok('a paste wrapped in a code fence still parses',
+        !!_applImportParsed && _applImportParsed.length === 1, 'got: ' + JSON.stringify(_applImportParsed));
+      var beforeAdd = getAppliances().length;
+      document.getElementById('invImpAdd').click();
+      ok('confirming adds the items and returns to the list',
+        getAppliances().length === beforeAdd + 1 && _applView === 'list' && _applImportParsed === null,
+        'view: ' + _applView + ' count: ' + getAppliances().length);
+      ok('the export button is on the list once there is something to export',
+        !!document.getElementById('invExport') && !!document.getElementById('invImport'), 'no file buttons on the list');
+      // The empty state offers import but not export — a phone that lost
+      // everything is exactly the one with a file to restore.
+      storeSet('fl4_appliances', []);
+      renderAppliances();
+      ok('the empty state offers import and not export',
+        !document.getElementById('invExport') && !!document.getElementById('invImport'),
+        'export shown on an empty section');
+
       // Cleanup
+      _applImportParsed = null;
       _applView = 'list'; _applOpenId = null; _applEditId = null; _applArea = ''; _applEditing = false; _applCancelFn = null;
       if (saved === null || saved === undefined) localStorage.removeItem('fl4_appliances'); else storeSet('fl4_appliances', saved);
       if (savedTombs === null || savedTombs === undefined) localStorage.removeItem('fl4_tomb_appliances'); else storeSet('fl4_tomb_appliances', savedTombs);
