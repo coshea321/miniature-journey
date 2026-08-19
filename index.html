@@ -787,7 +787,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     <div style="position:relative;margin:0 0 14px">
       <div style="display:flex;align-items:center;gap:8px;background:#fff;border-radius:12px;padding:10px 14px;box-shadow:0 1px 4px rgba(20,50,20,.07)">
         <span style="font-size:16px">&#x1F50D;</span>
-        <input id="homeSearchInput" type="text" placeholder="Search grocery, tasks, notes, recipes, appliances..." autocomplete="off" style="flex:1;min-width:0;border:none;outline:none;font-family:inherit;font-size:14px;background:transparent">
+        <input id="homeSearchInput" type="text" placeholder="Search grocery, tasks, notes, recipes, inventory..." autocomplete="off" style="flex:1;min-width:0;border:none;outline:none;font-family:inherit;font-size:14px;background:transparent">
         <span id="homeSearchClear" style="display:none;color:#B8AA90;font-size:15px;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#x2715;</span>
       </div>
       <div id="homeSearchResults" style="display:none;margin-top:8px"></div>
@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v427 · 19/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v428 · 19/08/2026</div>
 
   </div>
 </div>
@@ -1242,11 +1242,11 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
 </div>
 
 <!-- ============================================================
-     APPLIANCES SECTION (v424)
+     HOME INVENTORY SECTION (v424 as Appliances, widened v428)
      ============================================================ -->
 <div id="appliancesSection" style="display:none">
   <div style="display:flex;gap:4px;padding:8px 10px;background:#3E5C6B;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
-    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F50C; Appliances</span>
+    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F4E6; Home inventory</span>
     <button id="applNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
   </div>
   <div id="appliancesContent" style="padding:14px 14px 100px"></div>
@@ -1614,7 +1614,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="watch" checked><span class="toggle-slider"></span></label>
       </div>
       <div class="sync-toggle-row">
-        <span class="sync-toggle-label">&#x1F50C; Appliances</span>
+        <span class="sync-toggle-label">&#x1F4E6; Home inventory</span>
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="appliances"><span class="toggle-slider"></span></label>
       </div>
       <div class="sync-toggle-row">
@@ -1684,8 +1684,8 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
   <button class="bn-btn" id="bnWatch" aria-label="Watchlist">
     <span class="bn-ico">&#x1F37F;</span>Watch
   </button>
-  <button class="bn-btn" id="bnAppliances" aria-label="Appliances" style="display:none">
-    <span class="bn-ico">&#x1F50C;</span>Appliances
+  <button class="bn-btn" id="bnAppliances" aria-label="Home inventory" style="display:none">
+    <span class="bn-ico">&#x1F4E6;</span>Inventory
   </button>
   <button class="bn-btn" id="bnSports" aria-label="Sports" style="display:none">
     <span class="bn-ico">&#x26BD;</span>Sports
@@ -4389,13 +4389,30 @@ function renderWatchEditor() {
 }
 
 // ============================================================
-// APPLIANCES (v424) — the reference book for the machines around the
-// house: what model it is, when it was bought, whether it is still in
-// warranty, and where its manual lives. Deliberately a RECORDS section,
-// not a maintenance tracker: nothing here nags and nothing is alerted
-// on — the warranty date is shown when you open the record and that is
-// all it does (design confirmed 18/08/2026).
-// Storage contract is the Plants/Watchlist one: one appliance is one
+// HOME INVENTORY (v424 as Appliances, widened v428) — the reference book
+// for the things in the house: what model it is, when it was bought,
+// whether it is still in warranty, where its manual lives, and — since
+// v428 — what it would cost to replace, where the receipt is, and a link
+// to the photos. Deliberately a RECORDS section, not a maintenance
+// tracker: nothing here nags and nothing is alerted on — the warranty
+// date is shown when you open the record and that is all it does (design
+// confirmed 18/08/2026).
+//
+// v428 widened the SCOPE, not the storage: the store is still
+// `fl4_appliances` and every internal name is still `appliance*`. That is
+// deliberate — the key is wired through sync, tombstones, the backup
+// payload and the search registry, and renaming it would be a migration
+// risk for a label change. Only what Cathal reads says "inventory".
+//
+// The insurance job (design confirmed 19/08/2026) is: a room-by-room list
+// with replacement values, totalled, that can leave the phone as a file.
+// The AREA chips already are the room-by-room axis a loss adjuster asks
+// for, so a bike and a sofa just get an area — there is deliberately no
+// second category field. Photos are a LINK (OneDrive), never bytes:
+// photos are the one thing in Hearth that threatens the localStorage
+// budget, and a claim wants full-resolution ones anyway.
+//
+// Storage contract is the Plants/Watchlist one: one record is one
 // edit unit, so whole-record newest-wins by `updated` with tombstone
 // filtering, and no nested merge.
 // ============================================================
@@ -4490,12 +4507,69 @@ function applianceWarranty(rec) {
   return { state:"out", text:"Warranty ended " + applianceDateLabel(iso) };
 }
 
+// ── Replacement value (v428) ──────────────────────────────────────────────
+// Stored as a NUMBER of euro, or absent when it was never filled in — the one
+// field an insurance list needs that a reference book doesn't. Absent and 0
+// are deliberately different states: 0 is a thing he decided is worth nothing,
+// absent is a thing he hasn't valued yet, and only the absent ones are worth
+// chasing. `applianceValueNum` returns null for absent so a total can tell
+// them apart; every caller that wants a number treats null as "skip".
+function applianceValueNum(rec) {
+  var v = rec && rec.value;
+  if (v === undefined || v === null || v === "") return null;
+  var n = typeof v === "number" ? v : parseFloat(String(v).replace(/[^0-9.\-]/g, ""));
+  if (!isFinite(n) || n < 0) return null;
+  return Math.round(n * 100) / 100;
+}
+// Parses what he TYPED, so "1,250", "€1250" and "1250.00" all land as 1250.
+// Returns null when the box is empty (field cleared) and false when there is
+// text in it that isn't a number (so the editor can refuse rather than store
+// a silent 0 — a wrong value on an insurance list is worse than a blank one).
+function applianceParseValue(raw) {
+  var t = String(raw == null ? "" : raw).trim();
+  if (!t) return null;
+  if (!/^[€\s]*[0-9][0-9,\s]*(\.[0-9]{1,2})?$/.test(t)) return false;
+  var n = parseFloat(t.replace(/[^0-9.]/g, ""));
+  if (!isFinite(n) || n < 0) return false;
+  return Math.round(n * 100) / 100;
+}
+// Euro, thousands-separated, and whole euro unless the cents are real — a
+// claim list reads as "€1,250", not "€1,250.00".
+function applianceMoney(n) {
+  if (n == null || !isFinite(n)) return "";
+  var neg = n < 0; n = Math.abs(n);
+  var cents = Math.round(n * 100) % 100;
+  var whole = Math.floor(Math.round(n * 100) / 100);
+  var w = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return (neg ? "-" : "") + "\u20AC" + w + (cents ? "." + (cents < 10 ? "0" : "") + cents : "");
+}
+// What the editor box shows: the stored number, plain, with no euro sign or
+// separators so it reads straight back through applianceParseValue. An
+// unvalued record opens with an empty box, never "0".
+function applianceValueEditText(rec) {
+  var n = applianceValueNum(rec);
+  return n == null ? "" : String(n);
+}
+// {total, valued, missing} over a list. `missing` is what makes the summary
+// honest: a total is meaningless without knowing how many records aren't in it.
+function applianceValueSummary(list) {
+  var total = 0, valued = 0, missing = 0;
+  (list || []).forEach(function(a){
+    var n = applianceValueNum(a);
+    if (n == null) { missing++; return; }
+    total += n; valued++;
+  });
+  return { total: Math.round(total * 100) / 100, valued: valued, missing: missing };
+}
+
 // Everything worth searching for, including the numbers you'd never remember
 // — the model and serial are the whole reason this section exists, so global
-// search has to reach them (not just name + notes like a list item).
+// search has to reach them (not just name + notes like a list item). `receipt`
+// joined in v428: "Currys order 88214" is exactly the kind of thing you search
+// for and never remember which machine it belongs to.
 function applianceSearchText(a) {
   if (!a) return "";
-  return [a.name, a.brand, a.model, a.serial, a.area, a.boughtFrom, a.notes]
+  return [a.name, a.brand, a.model, a.serial, a.area, a.boughtFrom, a.receipt, a.notes]
     .map(function(v){ return v == null ? "" : String(v); }).join(" ").toLowerCase();
 }
 
@@ -4525,14 +4599,16 @@ function copyToClipboard(text, okMsg) {
   } else { fallback(); }
 }
 
-// The manual link is the one field that becomes a tappable href, so it gets
-// its own gate rather than trusting normalizeRecipeUrl alone: that helper
+// The two link fields are the only ones that become a tappable href, so they
+// get their own gate rather than trusting normalizeRecipeUrl alone: that helper
 // prefixes anything schemeless with https://, which turns "javascript:alert(1)"
 // into a harmless-but-silly "https://javascript:alert(1)" rather than refusing
 // it. Checked HERE as well as on save, because a record can arrive from sync or
-// a restored backup written by anything.
-function applianceManualUrl(rec) {
-  var raw = String((rec && rec.manual) || "").trim();
+// a restored backup written by anything. v428 split the gate out of
+// applianceManualUrl so the photos link goes through exactly the same one —
+// two copies of a security check is how one of them drifts.
+function applianceLinkUrl(raw) {
+  raw = String(raw == null ? "" : raw).trim();
   if (!raw) return "";
   // Anything carrying its own scheme must be http(s). The (?!\d) is what keeps
   // "example.com:8080/manual" out of that branch — a bare host:port is a valid
@@ -4541,6 +4617,124 @@ function applianceManualUrl(rec) {
   if (/^[a-z][a-z0-9+.\-]*:(?!\d)/i.test(raw) && !/^https?:\/\//i.test(raw)) return "";
   var u = normalizeRecipeUrl(raw);
   return /^https?:\/\//i.test(u) ? u : "";
+}
+function applianceManualUrl(rec) { return applianceLinkUrl(rec && rec.manual); }
+// v428: the photos live in OneDrive, not in localStorage — this is a link to a
+// shared folder, and the app deliberately never holds the images themselves.
+function appliancePhotosUrl(rec) { return applianceLinkUrl(rec && rec.photos); }
+
+// ── The inventory file (v428, `inventory-v1`) ─────────────────────────────
+// The insurance argument for this section is only as good as the data's
+// ability to LEAVE the phone: a list that only exists on the device that
+// burned/was stolen is not evidence. The whole-app backup already carries
+// these records, but it is a whole-app blob — this is the one file you can
+// email to yourself, drop in OneDrive beside the photos, or hand to a broker.
+//
+// Shaped on the Plants `plant-v1` file (v378) and it reuses that file's
+// download helper rather than growing a second copy of the same six lines.
+// Deliberately NOT in the file: `id` (regenerated on import, so a file can
+// never overwrite the wrong record), `updated` (set to now), `addedBy`/`added`
+// (whose phone typed it is not inventory information).
+//
+// IMPORT IS ADD-ONLY, BY DESIGN. Every entry lands as a NEW record and
+// nothing already in the section is touched or replaced. That is the whole
+// safety story: the worst a bad paste can do here is give you duplicates you
+// can delete, never a silently overwritten valuation. Do NOT "improve" this
+// into a match-by-name update without a fresh design call.
+var INVENTORY_FILE_TAG = "inventory-v1";
+var INVENTORY_TEXT_MAX = 2000;   // per field; a runaway paste must not eat localStorage
+
+function inventoryCleanText(v, max) {
+  if (typeof v === "number") v = String(v);
+  if (typeof v !== "string") return "";
+  return v.trim().slice(0, max || INVENTORY_TEXT_MAX);
+}
+// A date is only carried when it is the exact YYYY-MM-DD the date inputs
+// produce — anything else is dropped rather than stored as a string the
+// warranty read would silently treat as "no date".
+function inventoryCleanDate(v) {
+  var t = inventoryCleanText(v, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : "";
+}
+
+function inventoryExportObj(a) {
+  var val = applianceValueNum(a);
+  return {
+    name:       a.name       || "",
+    area:       a.area       || "",
+    brand:      a.brand      || "",
+    model:      a.model      || "",
+    serial:     a.serial     || "",
+    bought:     a.bought     || "",
+    warranty:   a.warranty   || "",
+    boughtFrom: a.boughtFrom || "",
+    value:      val,                    // null = never valued, and stays null
+    receipt:    a.receipt    || "",
+    manual:     a.manual     || "",
+    photos:     a.photos     || "",
+    notes:      a.notes      || ""
+  };
+}
+
+// {items} or {error}. Same tolerance as parsePlantFile: a bare array, a single
+// object, or the tagged wrapper all parse, because a file that round-trips
+// through a chat or a text editor loses its wrapper often enough to matter.
+function parseInventoryFile(raw) {
+  var obj;
+  try { obj = JSON.parse(raw); } catch (e) { return { error: "Couldn't read that as JSON \u2014 check the paste and try again." }; }
+  if (!obj || typeof obj !== "object") return { error: "That isn't a Hearth inventory file." };
+  var list;
+  if (Array.isArray(obj)) list = obj;
+  else if (Array.isArray(obj.items)) list = obj.items;
+  else if (obj.name) list = [obj];
+  else return { error: "No items found \u2014 the file needs an \"items\" list." };
+  if (obj.hearth && obj.hearth !== INVENTORY_FILE_TAG) return { error: "That's a Hearth " + esc(String(obj.hearth)) + " file, not an inventory one." };
+  list = list.filter(function(x){ return x && typeof x === "object"; });
+  if (!list.length) return { error: "No items found in that file." };
+  if (list.some(function(x){ return !inventoryCleanText(x.name, 80); })) return { error: "Every item needs a \"name\"." };
+  return { items: list };
+}
+
+// One file entry -> one brand-new record. Value comes through
+// applianceParseValue so a file written by hand with "1,250" or "\u20AC1250" is
+// read the same way the editor reads it, and junk lands as unvalued rather
+// than as a wrong number.
+function inventoryRecordFrom(src, id) {
+  var v = applianceParseValue(src.value);
+  var rec = {
+    id: id,
+    name:       inventoryCleanText(src.name, 80),
+    area:       inventoryCleanText(src.area, 120),
+    brand:      inventoryCleanText(src.brand, 120),
+    model:      inventoryCleanText(src.model, 120),
+    serial:     inventoryCleanText(src.serial, 120),
+    bought:     inventoryCleanDate(src.bought),
+    warranty:   inventoryCleanDate(src.warranty),
+    boughtFrom: inventoryCleanText(src.boughtFrom, 200),
+    receipt:    inventoryCleanText(src.receipt, 300),
+    manual:     applianceLinkUrl(src.manual),
+    photos:     applianceLinkUrl(src.photos),
+    notes:      inventoryCleanText(src.notes),
+    addedBy:    hearthUser,
+    added:      Date.now(),
+    updated:    Date.now()
+  };
+  // "" not a missing key: an absent field is refilled from the other side by
+  // mergeApplianceData's v296 fill, so an unvalued record has to be DEFINED.
+  rec.value = (v === null || v === false) ? "" : v;
+  return rec;
+}
+// Returns the number added; 0 for an empty list.
+function importInventoryAsNew(list) {
+  var all = getAppliances();
+  var now = Date.now(), added = 0;
+  (list || []).forEach(function(src, i){
+    all.unshift(inventoryRecordFrom(src, now + i * 1000 + Math.floor(Math.random() * 1000)));
+    added++;
+  });
+  if (!added) return 0;
+  saveAppliances(all);
+  return added;
 }
 
 function applianceDelete(id) {
@@ -4569,6 +4763,7 @@ var _applEditId  = null;
 var _applArea    = "";       // session-only area filter, never stored (the v379 rule)
 var _applEditing = false;
 var _applCancelFn = null;    // back-button discard closure (v345 pattern), nulled on every exit path
+var _applImportParsed = null;// v428: parsed inventory-file entries; null = still on the paste step
 
 function applianceCardHTML(a) {
   var area = String(a.area || "").trim();
@@ -4576,19 +4771,147 @@ function applianceCardHTML(a) {
   if (area) bits.push(esc(area));
   if (a.brand) bits.push(esc(String(a.brand)));
   if (a.model) bits.push(esc(String(a.model)));
+  // v428: the value sits in its own column rather than joining the grey line —
+  // a list you are totting up for a claim wants the figures aligned down the
+  // right, and an unvalued record shows nothing rather than a misleading 0.
+  var val = applianceValueNum(a);
   return "<div class='appl-card' data-aid='" + a.id + "' style='display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:13px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(20,40,50,.08);cursor:pointer;touch-action:manipulation'>" +
     "<div style='flex:1;min-width:0'>" +
       "<div style='font-size:15px;font-weight:700;color:#2A2010;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + esc(a.name || "(unnamed)") + "</div>" +
       (bits.length ? "<div style='font-size:12.5px;color:#7A8A94;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + bits.join(" &middot; ") + "</div>" : "") +
     "</div>" +
+    (val == null ? "" : "<span style='flex-shrink:0;font-size:13.5px;font-weight:700;color:" + APPL_COLOR + "'>" + esc(applianceMoney(val)) + "</span>") +
     "<span style='color:#B8C4CC;font-size:18px'>&#x203A;</span>" +
   "</div>";
+}
+
+// ── The totals card (v428) ────────────────────────────────────────────────
+// The number an insurer asks for and nobody has. It totals WHAT IS ON SCREEN,
+// so picking an area chip gives you that room's total — which is the shape a
+// room-by-room claim is actually made in. It always says how many records are
+// NOT in the total: a sum that quietly ignores half the house is worse than no
+// sum at all, because it looks authoritative.
+function inventorySummaryHTML(shown, area) {
+  if (!shown || !shown.length) return "";
+  var sum = applianceValueSummary(shown);
+  var where = !area ? "Everything" : (area === PLANT_AREA_NONE ? "No area" : String(area));
+  var count = shown.length + " item" + (shown.length === 1 ? "" : "s");
+  if (!sum.valued) {
+    return "<div style='background:#F4F7F8;border:1px solid #E2EAEE;border-radius:12px;padding:11px 13px;margin-bottom:10px;font-size:12.5px;color:#5A6A74;line-height:1.55'>" +
+      "<b>" + esc(where) + "</b> &middot; " + count +
+      "<div style='margin-top:3px'>Add what each one would cost to replace and the total for an insurance claim adds up here.</div></div>";
+  }
+  return "<div style='background:" + APPL_COLOR + ";color:#fff;border-radius:12px;padding:12px 14px;margin-bottom:10px'>" +
+    "<div style='display:flex;align-items:baseline;gap:8px'>" +
+      "<span style='flex:1;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;opacity:.85'>" + esc(where) + "</span>" +
+      "<span style='font-size:20px;font-weight:800'>" + esc(applianceMoney(sum.total)) + "</span>" +
+    "</div>" +
+    "<div style='font-size:12px;opacity:.85;margin-top:3px'>" + count + " &middot; " + sum.valued + " valued" +
+      (sum.missing ? " &middot; " + sum.missing + " not valued yet" : "") + "</div>" +
+  "</div>";
+}
+
+// Export/import row. `withExport` is false in the empty state — there is
+// nothing to export from an empty section, but there is every reason to import.
+function inventoryFileButtonsHTML(withExport) {
+  var btn = "width:100%;padding:12px;border:1.5px solid #D8E0E4;background:#fff;color:#5A6A74;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;touch-action:manipulation";
+  return (withExport ? "<button id='invExport' style='" + btn + "'>&#x1F4E4; Export the inventory (JSON)</button>" : "") +
+    "<button id='invImport' style='" + btn + "'>&#x1F4E5; Import an inventory file</button>" +
+    "<div style='font-size:11.5px;color:#A8B2B8;margin-top:7px;line-height:1.55;text-align:center'>Keep the exported file somewhere off this phone &mdash; that is the copy an insurance claim is made from.</div>";
+}
+
+function inventoryWireFileButtons(el) {
+  var ex = el.querySelector("#invExport");
+  if (ex) ex.addEventListener("click", function(){
+    var all = getAppliances();
+    if (!all.length) { toast("Nothing to export yet"); return; }
+    // Reuses the Plants v378 download helper rather than a second copy of it.
+    plantDownloadJSON({ hearth: INVENTORY_FILE_TAG, exported: new Date().toISOString().slice(0, 10),
+      items: all.map(inventoryExportObj) }, "hearth-home-inventory.json");
+    toast("&#x1F4E4; " + all.length + " item" + (all.length === 1 ? "" : "s") + " exported");
+  });
+  var im = el.querySelector("#invImport");
+  if (im) im.addEventListener("click", function(){
+    _applImportParsed = null;
+    _applView = "import";
+    renderAppliances();
+    window.scrollTo(0, 0);
+  });
+}
+
+// ── Import screen (v428) ──────────────────────────────────────────────────
+// Two steps, the plant-import shape: paste, then confirm what was found. The
+// confirm step exists because import is add-only — the thing a person needs to
+// see before tapping is HOW MANY records are about to appear, so a file pasted
+// twice is caught by the reader rather than by the section afterwards.
+function renderInventoryImport() {
+  var el = document.getElementById("appliancesContent");
+  if (!el) return;
+  function leave() {
+    _applImportParsed = null;
+    _applView = "list"; _applOpenId = null;
+    renderAppliances(); window.scrollTo(0, 0);
+  }
+  _applCancelFn = leave;
+
+  if (!_applImportParsed) {
+    el.innerHTML =
+      "<button id='invImpCancel' style='border:none;background:none;color:" + APPL_COLOR + ";font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px;touch-action:manipulation'>&larr; Cancel</button>" +
+      "<div style='font-size:22px;font-weight:800;color:#2A2010;margin-bottom:10px'>Import an inventory file</div>" +
+      "<div style='font-size:13px;color:#5A6A74;background:#F4F7F8;border:1px solid #E2EAEE;border-radius:10px;padding:12px 14px;margin-bottom:12px;line-height:1.65'>" +
+        "Paste the contents of a <b>hearth-home-inventory.json</b> file below. Everything in it is added as new items &mdash; nothing already here is changed or replaced." +
+      "</div>" +
+      "<textarea id='invImpJson' rows='8' placeholder='Paste the file contents here&hellip;' style='" + recipeInputCss() + "margin-bottom:14px;resize:vertical;line-height:1.5;font-size:12px;font-family:monospace'></textarea>" +
+      "<button id='invImpGo' style='width:100%;padding:13px;border:none;background:" + APPL_COLOR + ";color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation'>Next &rsaquo;</button>";
+    document.getElementById("invImpCancel").addEventListener("click", leave);
+    document.getElementById("invImpGo").addEventListener("click", function(){
+      var raw = (document.getElementById("invImpJson").value || "").trim();
+      // Chats and text editors love to wrap JSON in ```json fences.
+      raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+      if (!raw) { toast("Paste the file first"); return; }
+      var parsed = parseInventoryFile(raw);
+      if (parsed.error) { toast(parsed.error); return; }
+      _applImportParsed = parsed.items;
+      renderInventoryImport();
+      window.scrollTo(0, 0);
+    });
+    return;
+  }
+
+  var list = _applImportParsed;
+  var names = list.map(function(x){ return inventoryCleanText(x.name, 80); });
+  var totalSum = applianceValueSummary(list.map(function(x){
+    var v = applianceParseValue(x.value);
+    return (v === null || v === false) ? {} : { value: v };
+  }));
+  el.innerHTML =
+    "<button id='invImpBack' style='border:none;background:none;color:" + APPL_COLOR + ";font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px;touch-action:manipulation'>&larr; Back</button>" +
+    "<div style='font-size:22px;font-weight:800;color:#2A2010;margin-bottom:10px'>Import an inventory file</div>" +
+    "<div style='background:#F4F7F8;border:1px solid #E2EAEE;border-radius:10px;padding:12px 14px;margin-bottom:14px'>" +
+      "<div style='font-size:15px;font-weight:700;color:#2A2010;margin-bottom:4px'>" + list.length + " item" + (list.length === 1 ? "" : "s") + " in this file" +
+        (totalSum.valued ? " &middot; " + esc(applianceMoney(totalSum.total)) : "") + "</div>" +
+      "<div style='font-size:12px;color:#5A6A74;line-height:1.6'>" + esc(names.join(", ")) + "</div>" +
+    "</div>" +
+    "<button id='invImpAdd' style='width:100%;padding:13px;border:none;background:" + APPL_COLOR + ";color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation'>Add " +
+      (list.length === 1 ? "it" : "all " + list.length) + " as new items</button>" +
+    "<div style='font-size:11.5px;color:#A8B2B8;margin-top:8px;line-height:1.55;text-align:center'>Importing the same file twice gives you two copies of everything &mdash; it never updates what is already here.</div>";
+  document.getElementById("invImpBack").addEventListener("click", function(){
+    _applImportParsed = null; renderInventoryImport(); window.scrollTo(0, 0);
+  });
+  document.getElementById("invImpAdd").addEventListener("click", function(){
+    var n = importInventoryAsNew(list);
+    _applImportParsed = null;
+    _applView = "list"; _applOpenId = null; _applArea = "";
+    renderAppliances(); window.scrollTo(0, 0);
+    toast(n ? ("Added " + n + " item" + (n === 1 ? "" : "s")) : "Nothing to add");
+  });
 }
 
 function renderAppliances() {
   _applEditing = false;
   _applCancelFn = null;
   if (_applView === "editor") { renderApplianceEditor(); return; }
+  if (_applView === "import") { renderInventoryImport(); return; }
   if (_applView === "detail" && _applOpenId != null) { renderApplianceDetail(); return; }
   _applView = "list";
   var el = document.getElementById("appliancesContent");
@@ -4599,9 +4922,13 @@ function renderAppliances() {
   });
   if (!all.length) {
     el.innerHTML = "<div style='text-align:center;color:#7A8A94;padding:40px 20px'>" +
-      "<div style='font-size:40px;margin-bottom:10px'>&#x1F50C;</div>" +
+      "<div style='font-size:40px;margin-bottom:10px'>&#x1F4E6;</div>" +
       "<div style='font-size:16px;font-weight:600;margin-bottom:4px;color:#2A2010'>Nothing saved yet</div>" +
-      "<div style='font-size:13px'>Tap &ldquo;+ New&rdquo; to save an appliance &mdash; its model and serial number, when you bought it, and a link to the manual.</div></div>";
+      "<div style='font-size:13px'>Tap &ldquo;+ New&rdquo; to save something &mdash; what it is and where, its model and serial number, what it would cost to replace, and where the receipt and photos are.</div></div>" +
+      // The import button belongs in the empty state too: a phone that lost
+      // everything is exactly the phone with an inventory file to restore.
+      inventoryFileButtonsHTML(false);
+    inventoryWireFileButtons(el);
     return;
   }
 
@@ -4636,11 +4963,15 @@ function renderAppliances() {
     html += "</div>";
   }
 
+  html += inventorySummaryHTML(shown, _applArea);
+
   if (!shown.length) {
     html += "<div style='text-align:center;color:#7A8A94;padding:30px 20px;font-size:13px'>Nothing here under this filter.</div>";
   }
   shown.forEach(function(a){ html += applianceCardHTML(a); });
+  html += inventoryFileButtonsHTML(true);
   el.innerHTML = html;
+  inventoryWireFileButtons(el);
 
   el.querySelectorAll(".appl-card").forEach(function(card){
     card.addEventListener("click", function(){
@@ -4687,8 +5018,9 @@ function renderApplianceDetail() {
   var rec = all[i];
   var war = applianceWarranty(rec);
   var manual = applianceManualUrl(rec);
+  var photos = appliancePhotosUrl(rec);
 
-  var html = "<button id='applBack' style='border:none;background:none;color:" + APPL_COLOR + ";font-family:inherit;font-size:14px;font-weight:700;padding:0 0 10px;cursor:pointer;touch-action:manipulation'>&#x2039; All appliances</button>" +
+  var html = "<button id='applBack' style='border:none;background:none;color:" + APPL_COLOR + ";font-family:inherit;font-size:14px;font-weight:700;padding:0 0 10px;cursor:pointer;touch-action:manipulation'>&#x2039; All items</button>" +
     "<div style='font-size:22px;font-weight:800;color:#2A2010;line-height:1.25'>" + esc(rec.name || "(unnamed)") + "</div>";
   var area = String(rec.area || "").trim();
   if (area) html += "<div style='font-size:13px;color:#7A8A94;margin-top:3px'>" + esc(area) + "</div>";
@@ -4699,14 +5031,25 @@ function renderApplianceDetail() {
   html += applianceRowHTML("Serial number", rec.serial, true);
   html += applianceRowHTML("Bought", applianceDateLabel(rec.bought), false);
   html += applianceRowHTML("Bought from", rec.boughtFrom, false);
+  // v428 — the insurance cluster: what it would cost to replace, and where the
+  // proof of purchase is. Both sit with the buying details rather than at the
+  // top, because the model/serial rows are still what this section is opened for.
+  var val = applianceValueNum(rec);
+  if (val != null) html += applianceRowHTML("Replacement value", applianceMoney(val), false);
+  html += applianceRowHTML("Receipt", rec.receipt, false);
   if (war.state !== "none") {
     html += "<div style='background:" + (war.state === "in" ? "#E8F2E8" : "#F2EFE8") + ";color:" +
       (war.state === "in" ? "#2E6B3F" : "#7A6A50") + ";border-radius:11px;padding:11px 13px;margin-bottom:7px;font-size:14px;font-weight:700'>" +
       (war.state === "in" ? "&#x1F6E1;&#xFE0F; " : "") + esc(war.text) + "</div>";
   }
+  var linkCss = "display:flex;align-items:center;gap:10px;background:#fff;border-radius:11px;padding:12px 13px;margin-bottom:7px;box-shadow:0 1px 4px rgba(20,40,50,.07);text-decoration:none;color:" + APPL_COLOR + ";font-size:14px;font-weight:700;touch-action:manipulation";
   if (manual) {
-    html += "<a href='" + esc(manual) + "' target='_blank' rel='noopener noreferrer' style='display:flex;align-items:center;gap:10px;background:#fff;border-radius:11px;padding:12px 13px;margin-bottom:7px;box-shadow:0 1px 4px rgba(20,40,50,.07);text-decoration:none;color:" + APPL_COLOR + ";font-size:14px;font-weight:700;touch-action:manipulation'>" +
+    html += "<a href='" + esc(manual) + "' target='_blank' rel='noopener noreferrer' style='" + linkCss + "'>" +
       "<span style='flex:1'>&#x1F4D6; Open the manual</span><span style='font-size:16px'>&#x2197;</span></a>";
+  }
+  if (photos) {
+    html += "<a href='" + esc(photos) + "' target='_blank' rel='noopener noreferrer' style='" + linkCss + "'>" +
+      "<span style='flex:1'>&#x1F4F7; Photos &amp; receipt</span><span style='font-size:16px'>&#x2197;</span></a>";
   }
   if (String(rec.notes || "").trim()) {
     html += "<div style='background:#fff;border-radius:11px;padding:11px 13px;margin-bottom:7px;box-shadow:0 1px 4px rgba(20,40,50,.07)'>" +
@@ -4734,6 +5077,7 @@ function renderApplianceDetail() {
 
 function openApplianceEditor(id) {
   _applEditId = (id == null) ? null : id;
+  _applImportParsed = null;      // opening the editor abandons any half-finished import
   _applView = "editor";
   renderApplianceEditor();
   window.scrollTo(0, 0);
@@ -4787,9 +5131,20 @@ function renderApplianceEditor() {
     "<input id='apEdWarranty' type='date' style='" + inp + "' value='" + esc((rec && rec.warranty) || "") + "'>" +
     "<div style='" + lbl + ";margin-top:14px'>Bought from " + opt + "</div>" +
     "<input id='apEdFrom' type='text' placeholder='e.g. Harvey Norman, Cork' style='" + inp + "' value='" + esc((rec && rec.boughtFrom) || "") + "'>" +
+    // v428 — the two insurance fields. `inputmode=decimal` rather than
+    // type=number: a number input on a phone silently rejects "1,250" and
+    // spins on scroll, and this is a figure you type once and read often.
+    "<div style='" + lbl + ";margin-top:14px'>What would it cost to replace " + opt + "</div>" +
+    "<input id='apEdValue' type='text' inputmode='decimal' placeholder='e.g. 650' style='" + inp + "' value='" + esc(applianceValueEditText(rec)) + "'>" +
+    "<div style='font-size:11px;color:#A8B2B8;margin-top:5px;line-height:1.5'>Euro. Today&rsquo;s price to buy the same thing again &mdash; that is the number an insurer asks for, not what you paid.</div>" +
+    "<div style='" + lbl + ";margin-top:14px'>Where&rsquo;s the receipt " + opt + "</div>" +
+    "<input id='apEdReceipt' type='text' placeholder='e.g. Gmail, order 88214 &mdash; or the folder in the desk' style='" + inp + "' value='" + esc((rec && rec.receipt) || "") + "'>" +
     "<div style='" + lbl + ";margin-top:14px'>Link to the manual " + opt + "</div>" +
     "<input id='apEdManual' type='url' inputmode='url' placeholder='https://&hellip;' style='" + inp + "' value='" + esc((rec && rec.manual) || "") + "'>" +
     "<div style='font-size:11px;color:#A8B2B8;margin-top:5px;line-height:1.5'>The manufacturer&rsquo;s manual page, so the PDF is one tap away instead of in a drawer.</div>" +
+    "<div style='" + lbl + ";margin-top:14px'>Link to the photos " + opt + "</div>" +
+    "<input id='apEdPhotos' type='url' inputmode='url' placeholder='https://&hellip;' style='" + inp + "' value='" + esc((rec && rec.photos) || "") + "'>" +
+    "<div style='font-size:11px;color:#A8B2B8;margin-top:5px;line-height:1.5'>A OneDrive folder with the photos and the receipt. Hearth keeps the link, never the pictures &mdash; a claim wants them full size anyway.</div>" +
     "<div style='" + lbl + ";margin-top:14px'>Notes " + opt + "</div>" +
     "<textarea id='apEdNotes' rows='3' placeholder='Filter size, the service number, which fuse it&rsquo;s on&hellip;' style='" + inp + ";resize:vertical'>" + esc((rec && rec.notes) || "") + "</textarea>" +
     "<div style='display:flex;gap:8px;margin-top:18px'>" +
@@ -4807,8 +5162,15 @@ function renderApplianceEditor() {
     // Same gate the detail view renders through, so what saves and what is
     // offered as a link can never disagree.
     var manualRaw = document.getElementById("apEdManual").value.trim();
-    var manual = manualRaw ? applianceManualUrl({ manual: manualRaw }) : "";
+    var manual = manualRaw ? applianceLinkUrl(manualRaw) : "";
     if (manualRaw && !manual) { toast("The manual link should be a web address"); return; }
+    var photosRaw = document.getElementById("apEdPhotos").value.trim();
+    var photos = photosRaw ? applianceLinkUrl(photosRaw) : "";
+    if (photosRaw && !photos) { toast("The photos link should be a web address"); return; }
+    // false = there is text in the box that isn't a number. Refused rather than
+    // rounded to 0: a wrong figure on an insurance list is worse than a blank.
+    var value = applianceParseValue(document.getElementById("apEdValue").value);
+    if (value === false) { toast("The replacement value should be a number, like 650"); return; }
     var fields = {
       name: name,
       area: document.getElementById("apEdArea").value.trim(),
@@ -4818,14 +5180,20 @@ function renderApplianceEditor() {
       bought: document.getElementById("apEdBought").value.trim(),
       warranty: document.getElementById("apEdWarranty").value.trim(),
       boughtFrom: document.getElementById("apEdFrom").value.trim(),
+      // "" rather than a dropped key when the box is empty — a field left
+      // undefined gets refilled from the other device by the v296 merge fill,
+      // so a deliberately cleared value would come back.
+      value: (value === null ? "" : value),
+      receipt: document.getElementById("apEdReceipt").value.trim(),
       manual: manual,
+      photos: photos,
       notes: document.getElementById("apEdNotes").value.trim()
     };
     var cur = getAppliances();
     var savedId = _applEditId;
     if (_applEditId != null) {
       var j = cur.findIndex(function(a){ return a && a.id === _applEditId; });
-      if (j < 0) { toast("That appliance is no longer here"); leave(); return; }
+      if (j < 0) { toast("That item is no longer here"); leave(); return; }
       Object.keys(fields).forEach(function(k){ cur[j][k] = fields[k]; });
       cur[j].updated = Date.now();
     } else {
@@ -12662,7 +13030,9 @@ function flushSyncRenders(dirty) {
   if (dirty.watchlist && currentSection === "watch" && !_watchEditing)   safeRender("watch",   renderWatchlist);
   // Same guard shape again: an incoming sync must not redraw a half-typed
   // appliance away.
-  if (dirty.appliances && currentSection === "appliances" && !_applEditing) safeRender("appliances", renderAppliances);
+  // v428: the import screen is guarded like the plant one — a sync arriving
+  // mid-paste must not redraw the textarea out from under a half-typed file.
+  if (dirty.appliances && currentSection === "appliances" && !_applEditing && _applView !== "import") safeRender("appliances", renderAppliances);
   if (dirty.baby    && currentSection === "baby")                       safeRender("baby",    renderBabyView);
   // Lists: unchanged except for the section guard. switchSection() re-renders
   // the list on entry, so skipping it while hidden can't leave a stale view.
@@ -13430,7 +13800,7 @@ function switchSection(section) {
     renderWatchlist();
   } else if (section === "appliances") {
     document.getElementById("themeColor").setAttribute("content", "#3E5C6B");
-    document.getElementById("appTitle").innerHTML = "&#x1F50C; Appliances";
+    document.getElementById("appTitle").innerHTML = "&#x1F4E6; Home inventory";
     document.getElementById("hdrBadge").style.display = "none";
     renderAppliances();
   }
@@ -13501,6 +13871,7 @@ function openRecord(type, id, opts) {
     // for everything else.
     _applEditId = null;
     _applArea = "";                                    // a deep-link wins over an area filter
+    _applImportParsed = null;                          // and over a half-finished import (v428)
     if (id != null) { _applOpenId = Number(id); _applView = "detail"; }
     else { _applOpenId = null; _applView = "list"; }
     switchSection("appliances");
@@ -14547,7 +14918,7 @@ document.getElementById("bnSports").addEventListener("click", function(){ switch
 document.getElementById("bnFamlog").addEventListener("click", function(){ switchSection("famlog"); });
 document.getElementById("bnPlants").addEventListener("click", function(){ _plantView = "list"; _plantOpenId = null; _plantImporting = false; _plantImportParsed = null; switchSection("plants"); });
 document.getElementById("bnWatch").addEventListener("click", function(){ _watchView = "list"; _watchEditId = null; _watchOpenId = null; switchSection("watch"); });
-document.getElementById("bnAppliances").addEventListener("click", function(){ _applView = "list"; _applEditId = null; _applOpenId = null; switchSection("appliances"); });
+document.getElementById("bnAppliances").addEventListener("click", function(){ _applView = "list"; _applEditId = null; _applOpenId = null; _applImportParsed = null; switchSection("appliances"); });
 document.getElementById("applNewBtn").addEventListener("click", function(){ openApplianceEditor(null); });
 document.getElementById("watchNewBtn").addEventListener("click", function(){ openWatchEditor(null); });
 document.getElementById("plantNewBtn").addEventListener("click", function(){ openPlantEditor(null); window.scrollTo(0, 0); });
@@ -14884,7 +15255,7 @@ var GLOBAL_SEARCH_GROUPS = [
   { key:"travel",   label:"&#x2708; Travel",    color:"#1A5A8A" },
   { key:"notes",    label:"&#x1F4DD; Notes",    color:"#A05A10" },
   { key:"recipes",  label:"&#x1F37D; Recipes",  color:"#B5651D" }, // phase 2 (v387) — HEARTH-global-search.md §9. Colour matches the Recipes section's own theme colour (switchSection).
-  { key:"appliances", label:"&#x1F50C; Appliances", color:"#3E5C6B" } // v424 — the section has no nav icon by default, so search is its main door in.
+  { key:"appliances", label:"&#x1F4E6; Home inventory", color:"#3E5C6B" } // v424 — the section has no nav icon by default, so search is its main door in.
 ];
 // Notes aren't in LIST_CONFIG/listData (v318) — they live in their own two
 // stores (personal + work, NOTES_CONTEXTS). Reshaped to {id,name,notes} so
@@ -18235,25 +18606,42 @@ function buildTestSeed() {
         watching:false, watched:true, watchedAt:_tsTs(-2, 21, 0), rating:4, addedBy:"Cathal", added:_tsTs(-25, 20, 0), updated:_tsTs(-2, 21, 0) }
     ],
 
-    // ── Appliances (v424) ────────────────────────────────
+    // ── Home inventory (v424 as appliances, widened v428) ─
     // Three areas so the chip row shows (two named + one untagged), one still
     // in warranty and one out of it so both states of the warranty line are
     // reviewable, and a manual link so the detail view's outbound row renders.
+    // v428 adds the insurance side: values on four of the five so the totals
+    // card shows a real "N not valued yet", a receipt note, a photos link, and
+    // two things that are NOT appliances — the whole point of the widening is
+    // that a sofa and a bike belong on the same list as the dishwasher.
     appliances:[
       { id:_tsId(), name:"Demo Dishwasher", area:"Kitchen", brand:"Bosch", model:"SMS4HVI33E",
         serial:"FD-DEMO-9920014", bought:_tsDay(-400), warranty:_tsDay(330),
         boughtFrom:"Demo Electrical, Cork", manual:"https://www.bosch-home.ie/",
+        value:520, receipt:"Demo email, order 88214", photos:"",
         notes:"Salt goes in the cap under the bottom basket. Rinse aid every few months.",
         addedBy:"Cathal", added:_tsTs(-40, 12, 0), updated:_tsTs(-40, 12, 0) },
       { id:_tsId(), name:"Demo Washing Machine", area:"Utility", brand:"Whirlpool", model:"FFB9458BVEE",
         serial:"WM-DEMO-4471", bought:_tsDay(-1500), warranty:_tsDay(-770),
         boughtFrom:"Demo Electrical, Cork", manual:"",
+        value:430, receipt:"", photos:"",
         notes:"Filter behind the bottom flap - clean it twice a year.",
         addedBy:"Petra", added:_tsTs(-30, 12, 0), updated:_tsTs(-30, 12, 0) },
       { id:_tsId(), name:"Demo Lawnmower", area:"", brand:"Flymo", model:"EasiMow 300R",
         serial:"", bought:"", warranty:"", boughtFrom:"", manual:"",
+        value:"", receipt:"", photos:"",
         notes:"Spare blade in the shed.",
-        addedBy:"Cathal", added:_tsTs(-18, 12, 0), updated:_tsTs(-18, 12, 0) }
+        addedBy:"Cathal", added:_tsTs(-18, 12, 0), updated:_tsTs(-18, 12, 0) },
+      { id:_tsId(), name:"Demo Sofa", area:"Kitchen", brand:"Demo Furniture Co", model:"",
+        serial:"", bought:_tsDay(-900), warranty:"", boughtFrom:"Demo Furniture, Cork",
+        value:1400, receipt:"Folder in the desk", photos:"https://example.com/demo-photos",
+        notes:"Three-seater. Covers are washable at 30.",
+        addedBy:"Petra", added:_tsTs(-12, 12, 0), updated:_tsTs(-12, 12, 0) },
+      { id:_tsId(), name:"Demo Bike", area:"Utility", brand:"Giant", model:"Escape 3",
+        serial:"BK-DEMO-77120", bought:_tsDay(-220), warranty:"", boughtFrom:"Demo Cycles",
+        value:600, receipt:"Demo email, order 41007", photos:"",
+        notes:"Frame number is under the bottom bracket.",
+        addedBy:"Cathal", added:_tsTs(-8, 12, 0), updated:_tsTs(-8, 12, 0) }
     ],
 
     // ── Train / Track ────────────────────────────────────

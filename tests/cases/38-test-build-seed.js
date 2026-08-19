@@ -134,19 +134,35 @@ module.exports = {
         plantCareEvents(getPlants()[1]).some(function(e){ return e.water && e.feed; }),
         'no combined water+feed day in the demo plant');
       ok('the watchlist lands', getWatchlist().length === 3, 'got: ' + getWatchlist().length);
-      // v424: three appliances, and deliberately not three interchangeable ones —
-      // two named areas plus one untagged is what makes the area chip row appear on
-      // a test link, and one in-warranty plus one expired is the only way both
-      // states of the warranty line get reviewed. Keep that shape if you edit them.
-      ok('appliances land', getAppliances().length === 3, 'got: ' + getAppliances().length);
-      ok('the demo appliances cover two areas plus one untagged',
+      // v424 + v428: five inventory records, and deliberately not five
+      // interchangeable ones — two named areas plus one untagged is what makes the
+      // area chip row appear on a test link, one in-warranty plus one expired is the
+      // only way both states of the warranty line get reviewed, and four valued out
+      // of five is what makes the totals card show a real "1 not valued yet" rather
+      // than a suspiciously tidy sum. Keep that shape if you edit them.
+      ok('inventory records land', getAppliances().length === 5, 'got: ' + getAppliances().length);
+      ok('the demo records cover two areas plus one untagged',
         applianceAreas(getAppliances()).length === 2 &&
         appliancesInArea(getAppliances(), PLANT_AREA_NONE).length === 1,
         'areas: ' + JSON.stringify(applianceAreas(getAppliances())));
-      ok('one demo appliance is in warranty and one is out of it',
+      ok('one demo record is in warranty and one is out of it',
         getAppliances().some(function(a){ return applianceWarranty(a).state === 'in'; }) &&
         getAppliances().some(function(a){ return applianceWarranty(a).state === 'out'; }),
         'got: ' + getAppliances().map(function(a){ return applianceWarranty(a).state; }).join(','));
+      // v428: the demo has to exercise the insurance side too — a total, an
+      // unvalued record, and at least one thing that is not an appliance.
+      var _seedSum = applianceValueSummary(getAppliances());
+      ok('four of the five demo records are valued, one deliberately is not',
+        _seedSum.valued === 4 && _seedSum.missing === 1 && _seedSum.total === 2950,
+        'got: ' + JSON.stringify(_seedSum));
+      ok('the demo covers non-appliances, which is the point of the widening',
+        getAppliances().some(function(a){ return /Sofa/.test(a.name || ''); }) &&
+        getAppliances().some(function(a){ return /Bike/.test(a.name || ''); }),
+        'got: ' + getAppliances().map(function(a){ return a.name; }).join(', '));
+      ok('a demo record carries a receipt note and a photos link',
+        getAppliances().some(function(a){ return !!a.receipt; }) &&
+        getAppliances().some(function(a){ return !!appliancePhotosUrl(a); }),
+        'got: ' + JSON.stringify(getAppliances().map(function(a){ return [a.receipt, a.photos]; })));
       ok('workouts, bodyweight and blood pressure land',
         getWD().workouts.length === 2 && getWD().bodyweight.length === 3 && getWD().bp.length === 2,
         'got: ' + [getWD().workouts.length, getWD().bodyweight.length, (getWD().bp||[]).length].join('/'));

@@ -57,6 +57,17 @@ Current booking fields in the export: `type`, `title`, `start`, `end`, `location
 ## Plant data model — same rule, one table plus six scalars
 Plant import/export (v378, `plant-v1` files) iterates **`PLANT_SECTIONS`**, so adding a text section there flows through export, import and the AI prompt template automatically. The **scalar** fields are hand-listed in two places — **`plantExportObj`** and **`plantApplyImport`** — and a new one must be added to **both**: `name`, `latin`, `room`, `emoji`, `waterDays`, `feedDays`. Intentionally never in a plant file: `id` (regenerated), `updated` (set to now), `photo`, `waterLog`, `feedLog` — import must never touch a photo or a care log.
 
+## Home inventory data model — one file, two hand-listed halves
+The Home inventory (v424 as Appliances, widened v428) has **no `PLANT_SECTIONS`-style table**, so a new field is added by hand in five places, and the `inventory-v1` file needs **both** of its halves or the field is silently dropped on a round trip:
+1. **`renderApplianceEditor`** — the markup AND the save handler's `fields` object.
+2. **`renderApplianceDetail`** — the row.
+3. **`applianceSearchText`** — if it is worth searching for.
+4. **`inventoryExportObj`** — the field going out to a file.
+5. **`inventoryRecordFrom`** — the field coming back in, with a safe fallback.
+Plus **`buildTestSeed`**, per the section below.
+
+Current fields: `name`, `area`, `brand`, `model`, `serial`, `bought`, `warranty`, `boughtFrom`, `value` (v428, number or `""`), `receipt` (v428), `manual`, `photos` (v428, a link — never image bytes), `notes`. Intentionally omitted from the file: `id` (regenerated on import), `updated` (set to now), `addedBy`/`added`. **A cleared field stores `""`, never a dropped key** — `mergeApplianceData` refills `undefined` keys from the other device (the v296 rule), so an absent field comes back on the next sync.
+
 ## Test-build demo data (v407) — add to it when you add a section
 Test builds (any host that isn't `coshea321.github.io`, i.e. every raw.githack PR link) wipe the `fl4_*` store and reseed a fixed demo household **once per version** — the version string is stored in `fl4_testseed`, so a reload of the same version keeps whatever you were doing, and the next PR's link starts clean. The orange banner is the manual reset.
 
