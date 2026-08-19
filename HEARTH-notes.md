@@ -20,7 +20,7 @@
 3. **`HEARTH-backlog.md`** — strike through anything the version closed, and add anything it opened.
 
 ## Current version
-**v426 · 19/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
+**v427 · 19/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
 
 ## Recipes section — current shape
 - Store: `fl4_recipebook` — **shared household-wide** (newest-wins-by-`updated` merge via `/shared`, plus same merge on the personal channel for same-account devices); separate from grocery-import `fl4_recipes`.
@@ -181,3 +181,14 @@ Lessons from a parallel vanilla React PWA session that apply equally to Hearth:
 `sw.js` is in the repo root alongside `index.html`. Read it directly — no snapshot needed here.
 
 It is a **single-source-of-truth file**: changing the one `VERSION` constant updates the cache name and the SW version message together, so a routine version bump is a **one-line edit**. The version format is `vNNN · DD/MM/YYYY`.
+
+### A device stuck on an old version — symptoms and recovery (19/08/2026)
+**Symptom:** the app shows an old version and old behaviour (a shipped feature is visibly missing), while the **same URL in incognito shows the current one**. Incognito has no worker, so it proves the network is serving the new build and the problem is entirely local to that browser profile.
+
+**Cause (fixed in v426):** `install` used `cache.addAll`, which is all-or-nothing — one failed asset rejected the whole install, so the new worker never activated and the old one served indefinitely. **Update checks were never the broken part**: `reg.update()` ran on every open and dutifully downloaded each new build; every one of them then died at install. From v426 the install is best-effort per asset and cannot fail this way. **Never put `addAll` back.**
+
+**Recovery, cheapest first.** Note the in-app **🔄 Force app update** button (Settings → Import / Export) only helps a device that can already RECEIVE v426+ — **a device wedged on an older build cannot reach the button that would fix it**, which is exactly the case that prompted it. So for an already-stuck device:
+1. **Open and fully close the app two or three times.** From v426 onward the next update check can finish installing. Costs nothing, needs no menus.
+2. **Desktop: hard reload** (`Ctrl+Shift+R`) — bypasses the worker for the page itself. **There is no hard-reload gesture in Android Chrome**; pull-to-refresh is an ordinary reload and still goes through the worker.
+3. **Android Chrome: `chrome://serviceworker-internals`** → find the origin → **Unregister**. **This is what actually worked on Cathal's phone (19/08/2026)**, and it is the best option on mobile because it removes the worker while **leaving `localStorage` intact** — Firebase URL, login and household code all survive.
+4. **Last resort: delete the site's data** via the padlock/ⓘ icon → Cookies and site data → Delete. This DOES clear `localStorage`, so the Firebase URL, login and household code must be re-entered on that origin. Safe since v419 (an emptied device cannot push its emptiness to the household), and the data returns from Firebase.
