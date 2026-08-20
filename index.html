@@ -14633,95 +14633,59 @@ window.addEventListener("DOMContentLoaded", function() {
   });
 });
 
-// ── Swipe left/right to switch lists ─────────────────────
+// ── Swipe left/right to switch sub-tabs (Lists/Baby/Track) ──
+// Bound to document.body rather than the individual section divs: a section
+// div is only as tall as its rendered content, so on a sparse view (e.g. an
+// empty Baby > Medicine tab) blank space below the content isn't part of the
+// section element and touches there never reached the old per-section
+// listeners (was v429's bug — swipe worked inconsistently on short views).
 (function() {
   var startX = 0, startY = 0, startT = 0;
-  var area = document.getElementById("lifeSection");
-  if (!area) return;
-  area.addEventListener("touchstart", function(e) {
+  document.body.addEventListener("touchstart", function(e) {
     if (e.touches.length !== 1) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     startT = Date.now();
   }, { passive: true });
-  area.addEventListener("touchend", function(e) {
-    if (currentSection !== "lists") return;
-    // Don't swipe-switch while a sheet/overlay is open
-    var sheet = document.getElementById("itemSheet");
-    if (sheet && sheet.style.display === "block") return;
+  document.body.addEventListener("touchend", function(e) {
     var dx = e.changedTouches[0].clientX - startX;
     var dy = e.changedTouches[0].clientY - startY;
     var dt = Date.now() - startT;
     // Require: mostly horizontal, decent distance, reasonably quick
     if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6 || dt > 600) return;
-    // Build the list of visible tabs in order
-    var tabs = Array.prototype.filter.call(
-      document.querySelectorAll("#typeBar .type-btn"),
-      function(b){ return b.style.display !== "none"; }
-    );
-    var idx = tabs.findIndex(function(b){ return b.dataset.lt === currentList; });
-    if (idx < 0) return;
-    var next = dx < 0 ? idx + 1 : idx - 1; // swipe left → next list, right → previous
-    if (next < 0 || next >= tabs.length) return; // no wraparound
-    tabs[next].click();
-  }, { passive: true });
-})();
-
-// ── Swipe left/right to switch Baby tabs (v429) ──────────
-(function() {
-  var startX = 0, startY = 0, startT = 0;
-  var area = document.getElementById("babySection");
-  if (!area) return;
-  area.addEventListener("touchstart", function(e) {
-    if (e.touches.length !== 1) return;
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-    startT = Date.now();
-  }, { passive: true });
-  area.addEventListener("touchend", function(e) {
-    if (currentSection !== "baby") return;
-    var dx = e.changedTouches[0].clientX - startX;
-    var dy = e.changedTouches[0].clientY - startY;
-    var dt = Date.now() - startT;
-    // Require: mostly horizontal, decent distance, reasonably quick
-    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6 || dt > 600) return;
-    var tabs = Array.prototype.filter.call(
-      document.querySelectorAll(".baby-subnav .bsn-btn"),
-      function(b){ return b.style.display !== "none"; }
-    );
-    var idx = tabs.findIndex(function(b){ return b.dataset.bview === currentBabyView; });
-    if (idx < 0) return;
-    var next = dx < 0 ? idx + 1 : idx - 1; // swipe left → next tab, right → previous
-    if (next < 0 || next >= tabs.length) return; // no wraparound
-    tabs[next].click();
-  }, { passive: true });
-})();
-
-// ── Swipe left/right to switch Track tabs (v429) ─────────
-(function() {
-  var startX = 0, startY = 0, startT = 0;
-  var area = document.getElementById("trackSection");
-  if (!area) return;
-  area.addEventListener("touchstart", function(e) {
-    if (e.touches.length !== 1) return;
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-    startT = Date.now();
-  }, { passive: true });
-  area.addEventListener("touchend", function(e) {
-    if (currentSection !== "track") return;
-    var dx = e.changedTouches[0].clientX - startX;
-    var dy = e.changedTouches[0].clientY - startY;
-    var dt = Date.now() - startT;
-    // Require: mostly horizontal, decent distance, reasonably quick
-    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6 || dt > 600) return;
-    var tabs = Array.prototype.filter.call(
-      document.querySelectorAll("#trackSubNav .tsn-btn"),
-      function(b){ return b.style.display !== "none"; }
-    );
-    var idx = tabs.findIndex(function(b){ return b.dataset.tview === currentTrackView; });
-    if (idx < 0) return;
-    var next = dx < 0 ? idx + 1 : idx - 1; // swipe left → next tab, right → previous
+    var dir = dx < 0 ? 1 : -1; // swipe left → next tab, right → previous
+    var tabs, idx;
+    if (currentSection === "lists") {
+      // Don't swipe-switch while a sheet/overlay is open
+      var sheet = document.getElementById("itemSheet");
+      if (sheet && sheet.style.display === "block") return;
+      tabs = Array.prototype.filter.call(
+        document.querySelectorAll("#typeBar .type-btn"),
+        function(b){ return b.style.display !== "none"; }
+      );
+      idx = tabs.findIndex(function(b){ return b.dataset.lt === currentList; });
+      if (idx < 0) return;
+    } else if (currentSection === "baby") {
+      // Don't swipe-switch while the tooth-tap modal is open
+      var toothModal = document.getElementById("toothModal");
+      if (toothModal && toothModal.classList.contains("open")) return;
+      tabs = Array.prototype.filter.call(
+        document.querySelectorAll(".baby-subnav .bsn-btn"),
+        function(b){ return b.style.display !== "none"; }
+      );
+      idx = tabs.findIndex(function(b){ return b.dataset.bview === currentBabyView; });
+      if (idx < 0) return;
+    } else if (currentSection === "track") {
+      tabs = Array.prototype.filter.call(
+        document.querySelectorAll("#trackSubNav .tsn-btn"),
+        function(b){ return b.style.display !== "none"; }
+      );
+      idx = tabs.findIndex(function(b){ return b.dataset.tview === currentTrackView; });
+      if (idx < 0) return;
+    } else {
+      return;
+    }
+    var next = idx + dir;
     if (next < 0 || next >= tabs.length) return; // no wraparound
     tabs[next].click();
   }, { passive: true });
