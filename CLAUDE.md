@@ -66,7 +66,7 @@ The Home inventory (v424 as Appliances, widened v428) has **no `PLANT_SECTIONS`-
 5. **`inventoryRecordFrom`** — the field coming back in, with a safe fallback.
 Plus **`buildTestSeed`**, per the section below.
 
-Current fields: `name`, `area`, `brand`, `model`, `serial`, `bought`, `warranty`, `boughtFrom`, `value` (v428, number or `""`), `receipt` (v428), `manual`, `photos` (v428, a link — never image bytes), `notes`. Intentionally omitted from the file: `id` (regenerated on import), `updated` (set to now), `addedBy`/`added`. **A cleared field stores `""`, never a dropped key** — `mergeApplianceData` refills `undefined` keys from the other device (the v296 rule), so an absent field comes back on the next sync.
+Current fields: `name`, `area`, `brand`, `model`, `serial`, `fd` (v431, the factory-date code on Bosch/Siemens rating plates), `bought`, `warranty`, `boughtFrom`, `value` (v428, number or `""`), `receipt` (v428), `manual`, `photos` (v428, a link — never image bytes), `notes`. Intentionally omitted from the file: `id` (regenerated on import), `updated` (set to now), `addedBy`/`added`. **A cleared field stores `""`, never a dropped key** — `mergeApplianceData` refills `undefined` keys from the other device (the v296 rule), so an absent field comes back on the next sync.
 
 ## Test-build demo data (v407) — add to it when you add a section
 Test builds (any host that isn't `coshea321.github.io`, i.e. every raw.githack PR link) wipe the `fl4_*` store and reseed a fixed demo household **once per version** — the version string is stored in `fl4_testseed`, so a reload of the same version keeps whatever you were doing, and the next PR's link starts clean. The orange banner is the manual reset.
