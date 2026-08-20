@@ -79,6 +79,23 @@ module.exports = {
       ok('unparseable interval text becomes 0 (no reminder), not NaN',
         iv4.waterDays === 0, 'got: ' + JSON.stringify(iv4.waterDays));
 
+      // Reminder toggles (v430): waterOff is a plain boolean; the feed pause
+      // months are clamped to 1-12 like plantCleanDays clamps to 365.
+      var wo = { id:8, waterOff:false, waterLog:[], feedLog:[] };
+      plantApplyImport(wo, { name:'X', waterOff:true });
+      ok('waterOff:true in the file switches the toggle on', wo.waterOff === true, 'got: ' + wo.waterOff);
+      var wo2 = { id:9, waterOff:true, waterLog:[], feedLog:[] };
+      plantApplyImport(wo2, { name:'X', waterOff:false });
+      ok('waterOff:false in the file switches it back off', wo2.waterOff === false, 'got: ' + wo2.waterOff);
+      var wo3 = { id:10, waterOff:true, waterLog:[], feedLog:[] };
+      plantApplyImport(wo3, { name:'X' });
+      ok('waterOff the file omits keeps its old value', wo3.waterOff === true, 'got: ' + wo3.waterOff);
+
+      var fp = { id:11, feedPauseFrom:9, feedPauseTo:4, waterLog:[], feedLog:[] };
+      plantApplyImport(fp, { name:'X', feedPauseFrom:'3', feedPauseTo:99 });
+      ok('feed pause months are coerced/clamped like other intervals (99 is junk → 0)',
+        fp.feedPauseFrom === 3 && fp.feedPauseTo === 0, 'got: ' + JSON.stringify({from:fp.feedPauseFrom, to:fp.feedPauseTo}));
+
       // A runaway reply must not be written into localStorage whole.
       var big = { id:6, waterLog:[], feedLog:[] };
       var huge = new Array(PLANT_FIELD_MAX + 500).join('x') + 'yyyy';
@@ -93,6 +110,7 @@ module.exports = {
       // ── Export → import round trip ────────────────────────────────────────
       var p1 = { id: 910001, name:'RoundTrip Fern', latin:'Nephrolepis exaltata', emoji:'F', room:'Bathroom',
                  photo:'data:image/jpeg;base64,ZZZZ', waterDays:5, feedDays:30,
+                 waterOff:true, feedPauseFrom:9, feedPauseTo:4,
                  waterLog:[777], feedLog:[888], updated: 1000 };
       PLANT_SECTIONS.forEach(function(sec){ p1[sec.key] = 'text for ' + sec.key; });
       storeSet('fl4_plants', [p1]);
@@ -105,6 +123,9 @@ module.exports = {
         exported.name === 'RoundTrip Fern' && exported.latin === 'Nephrolepis exaltata' &&
         exported.room === 'Bathroom' && exported.emoji === 'F' &&
         exported.waterDays === 5 && exported.feedDays === 30, 'got: ' + JSON.stringify(exported));
+      ok('the reminder toggles are in the export',
+        exported.waterOff === true && exported.feedPauseFrom === 9 && exported.feedPauseTo === 4,
+        'got: ' + JSON.stringify(exported));
       ok('the export carries no id, photo or logs',
         exported.id === undefined && exported.photo === undefined &&
         exported.waterLog === undefined && exported.feedLog === undefined,
@@ -121,6 +142,9 @@ module.exports = {
       ok('every written field survives the round trip',
         fresh && fresh.name === 'RoundTrip Fern' && fresh.waterDays === 5 && fresh.feedDays === 30 &&
         PLANT_SECTIONS.every(function(sec){ return fresh[sec.key] === 'text for ' + sec.key; }),
+        'got: ' + JSON.stringify(fresh));
+      ok('the reminder toggles survive the round trip',
+        fresh && fresh.waterOff === true && fresh.feedPauseFrom === 9 && fresh.feedPauseTo === 4,
         'got: ' + JSON.stringify(fresh));
       ok('a new import starts with empty logs and no photo',
         fresh && fresh.waterLog.length === 0 && fresh.feedLog.length === 0 && !fresh.photo,

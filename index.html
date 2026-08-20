@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v429 · 20/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v430 · 20/08/2026</div>
 
   </div>
 </div>
@@ -2963,12 +2963,30 @@ function plantDaysSince(ts) {
   var todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.round((todayMid - then) / 86400000);
 }
+// Feed reminders can be paused for a season (v430) — e.g. September to April
+// for a plant that shouldn't be fed over winter. Both ends are months 1-12;
+// 0 on either means no pause. The range wraps across the year boundary when
+// from > to (Sept..April), so a plain from<=m<=to test isn't enough.
+// month is 1-12, defaulting to the real current month — overridable so the
+// wraparound arithmetic can be unit-tested without mocking Date.
+function plantFeedPaused(p, month) {
+  var from = parseInt(p && p.feedPauseFrom, 10) || 0;
+  var to = parseInt(p && p.feedPauseTo, 10) || 0;
+  if (!from || !to) return false;
+  var m = month || (new Date().getMonth() + 1);
+  if (from <= to) return m >= from && m <= to;
+  return m >= from || m <= to;
+}
 // Days until the next water/feed is due: negative = overdue, 0 = due today.
-// null means "don't nag" — either no interval is set, or it has never been
-// logged. A plant you have not watered YET is not overdue, or every plant
-// would land red the moment it's added.
+// null means "don't nag" — either no interval is set, it has never been
+// logged, or the reminder is switched off (outdoor plants skip watering
+// nags entirely; feeding can be paused for a season). A plant you have not
+// watered YET is not overdue, or every plant would land red the moment
+// it's added.
 function plantDueIn(p, kind) {
   if (!p) return null;
+  if (kind === "water" && p.waterOff) return null;
+  if (kind === "feed" && plantFeedPaused(p)) return null;
   var iv = parseInt(kind === "feed" ? p.feedDays : p.waterDays, 10);
   if (!iv || iv < 1) return null;
   var since = plantDaysSince(plantLastTs(kind === "feed" ? p.feedLog : p.waterLog));
@@ -3214,8 +3232,9 @@ function plantShrinkPhoto(file, cb) {
 //
 // KEEP IN SYNC: the text sections come from PLANT_SECTIONS, so adding one
 // there flows through export, import and the AI prompt automatically. The
-// scalar fields (name/latin/room/emoji/waterDays/feedDays) are hand-listed in
-// plantExportObj + plantApplyImport — add new ones to BOTH.
+// scalar fields (name/latin/room/emoji/waterDays/feedDays/waterOff/
+// feedPauseFrom/feedPauseTo) are hand-listed in plantExportObj +
+// plantApplyImport — add new ones to BOTH.
 var PLANT_FILE_TAG = "plant-v1";
 var PLANT_FIELD_MAX = 4000;   // per section; a runaway AI reply must not eat localStorage
 
@@ -3228,6 +3247,16 @@ function plantCleanDays(v) {
   if (!n || n < 1) return 0;                 // 0 (or junk) means "no reminder"
   return Math.min(365, n);
 }
+function plantCleanMonth(v) {
+  var n = parseInt(v, 10);
+  if (!n || n < 1 || n > 12) return 0;        // 0 (or junk) means "no pause"
+  return n;
+}
+var PLANT_MONTHS = ["No pause","January","February","March","April","May","June","July","August","September","October","November","December"];
+function plantMonthOptionsHTML(sel) {
+  sel = plantCleanMonth(sel);
+  return PLANT_MONTHS.map(function(name, i){ return "<option value='" + i + "'" + (i === sel ? " selected" : "") + ">" + name + "</option>"; }).join("");
+}
 // PLANT_SECTIONS labels are HTML source; the AI prompt is plain text.
 function plantPlainLabel(s) { return String(s || "").replace(/&amp;/g, "&"); }
 
@@ -3238,7 +3267,10 @@ function plantExportObj(p) {
     room:      p.room  || "",
     emoji:     p.emoji || "",
     waterDays: parseInt(p.waterDays, 10) || 0,
-    feedDays:  parseInt(p.feedDays, 10)  || 0
+    feedDays:  parseInt(p.feedDays, 10)  || 0,
+    waterOff:      !!p.waterOff,
+    feedPauseFrom: parseInt(p.feedPauseFrom, 10) || 0,
+    feedPauseTo:   parseInt(p.feedPauseTo, 10)   || 0
   };
   PLANT_SECTIONS.forEach(function(sec){ out[sec.key] = p[sec.key] || ""; });
   return out;
@@ -3343,6 +3375,9 @@ function plantApplyImport(rec, src) {
   var emoji = plantCleanText(src.emoji); if (emoji) rec.emoji = emoji.slice(0, 4);
   if (src.waterDays !== undefined && src.waterDays !== null && src.waterDays !== "") rec.waterDays = plantCleanDays(src.waterDays);
   if (src.feedDays  !== undefined && src.feedDays  !== null && src.feedDays  !== "") rec.feedDays  = plantCleanDays(src.feedDays);
+  if (src.waterOff !== undefined) rec.waterOff = !!src.waterOff;
+  if (src.feedPauseFrom !== undefined && src.feedPauseFrom !== null && src.feedPauseFrom !== "") rec.feedPauseFrom = plantCleanMonth(src.feedPauseFrom);
+  if (src.feedPauseTo   !== undefined && src.feedPauseTo   !== null && src.feedPauseTo   !== "") rec.feedPauseTo   = plantCleanMonth(src.feedPauseTo);
   PLANT_SECTIONS.forEach(function(sec){
     var v = plantCleanText(src[sec.key]);
     if (v) rec[sec.key] = v;
@@ -3643,8 +3678,10 @@ function plantCareRowHTML(p, kind) {
   var last = plantLastTs(isFeed ? p.feedLog : p.waterLog);
   var iv = parseInt(isFeed ? p.feedDays : p.waterDays, 10) || 0;
   var d = plantDueIn(p, kind);
+  var off = isFeed ? plantFeedPaused(p) : !!p.waterOff;
   var col = (d !== null && d < 0) ? "#B03030" : (d === 0 ? "#8A6A10" : "#7A8A6A");
-  var sub = iv ? (plantDueLabel(p, kind) || ("every " + iv + " day" + (iv === 1 ? "" : "s"))) : "no reminder set";
+  var sub = off ? (isFeed ? "feed reminder paused for the season" : "watering reminder off (outdoor)")
+    : (iv ? (plantDueLabel(p, kind) || ("every " + iv + " day" + (iv === 1 ? "" : "s"))) : "no reminder set");
   var loggedToday = !!last && plantDaysSince(last) === 0;
   return "<div style='display:flex;align-items:center;gap:10px;padding:11px 0" + (isFeed ? "" : ";border-bottom:1px solid #EDF0E8") + "'>" +
     "<span style='font-size:17px'>" + (isFeed ? "&#x1F331;" : "&#x1F4A7;") + "</span>" +
@@ -3766,7 +3803,7 @@ function openPlantEditor(id) {
   if (!el) return;
   var existing = id != null ? getPlants().find(function(x){ return x && x.id === id; }) : null;
   if (id != null && !existing) { toast("Plant not found"); _plantView = "list"; _plantOpenId = null; renderPlants(); return; }
-  var p = existing || { name:"", latin:"", emoji:"", room:"", photo:"", waterDays:7, feedDays:0 };
+  var p = existing || { name:"", latin:"", emoji:"", room:"", photo:"", waterDays:7, feedDays:0, waterOff:false, feedPauseFrom:0, feedPauseTo:0 };
 
   _plantEditing = true;
   _plantView = "editor";
@@ -3805,6 +3842,19 @@ function openPlantEditor(id) {
     "<div style='flex:1'>" + lbl("Feed every (days)") + "<input id='plFeedDays' type='number' inputmode='numeric' min='0' max='365' value='" + (parseInt(p.feedDays, 10) || 0) + "' style='" + recipeInputCss() + "'></div>" +
   "</div>" +
   "<div style='font-size:11px;color:#9A9A7A;margin:5px 2px 0'>0 means no reminder. Seasonal changes belong in the Watering and Feeding notes below.</div>";
+
+  html += "<label style='display:flex;align-items:center;gap:8px;margin:12px 2px 0;font-size:13px;color:#3A4A32;cursor:pointer'>" +
+    "<input id='plWaterOff' type='checkbox'" + (p.waterOff ? " checked" : "") + " style='width:18px;height:18px;flex-shrink:0'> " +
+    "Outdoor plant &mdash; skip watering reminders (rain handles it)" +
+  "</label>";
+
+  html += lbl("Pause feed reminders (seasonal)") +
+    "<div style='display:flex;gap:8px;align-items:center'>" +
+      "<select id='plFeedPauseFrom' style='" + recipeInputCss() + "flex:1'>" + plantMonthOptionsHTML(p.feedPauseFrom) + "</select>" +
+      "<span style='font-size:12px;color:#9A9A7A;flex-shrink:0'>to</span>" +
+      "<select id='plFeedPauseTo' style='" + recipeInputCss() + "flex:1'>" + plantMonthOptionsHTML(p.feedPauseTo) + "</select>" +
+    "</div>" +
+    "<div style='font-size:11px;color:#9A9A7A;margin:5px 2px 0'>e.g. September to April, for plants that shouldn't be fed over winter. Leave both as \"No pause\" to always use the feed reminder above.</div>";
 
   PLANT_SECTIONS.forEach(function(sec){
     html += lbl(sec.ico + " " + sec.label) +
@@ -3863,6 +3913,13 @@ function openPlantEditor(id) {
     rec.emoji = document.getElementById("plEmoji").value.trim().slice(0, 4);
     rec.waterDays = Math.max(0, Math.min(365, parseInt(document.getElementById("plWaterDays").value, 10) || 0));
     rec.feedDays  = Math.max(0, Math.min(365, parseInt(document.getElementById("plFeedDays").value, 10) || 0));
+    rec.waterOff = !!document.getElementById("plWaterOff").checked;
+    var fpFrom = plantCleanMonth(document.getElementById("plFeedPauseFrom").value);
+    var fpTo   = plantCleanMonth(document.getElementById("plFeedPauseTo").value);
+    // A half-set range (only one side chosen) is not a valid pause — clear both
+    // rather than silently pausing on an unintended single month.
+    rec.feedPauseFrom = (fpFrom && fpTo) ? fpFrom : 0;
+    rec.feedPauseTo   = (fpFrom && fpTo) ? fpTo   : 0;
     PLANT_SECTIONS.forEach(function(sec){
       var f = document.getElementById("plF_" + sec.key);
       if (f) rec[sec.key] = f.value.trim();
