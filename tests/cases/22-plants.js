@@ -50,6 +50,50 @@ module.exports = {
         plantDueIn({ waterDays:7, waterLog:[Date.now()], feedDays:21, feedLog:[daysAgo(21)] }, 'feed') === 0,
         'got: ' + plantDueIn({ waterDays:7, waterLog:[Date.now()], feedDays:21, feedLog:[daysAgo(21)] }, 'feed'));
 
+      // ── Reminder toggles (v430) ────────────────────────────────────────────
+      ok('waterOff suppresses the watering reminder even though it is overdue',
+        plantDueIn({ waterDays:7, waterOff:true, waterLog:[daysAgo(20)] }, 'water') === null,
+        'got: ' + plantDueIn({ waterDays:7, waterOff:true, waterLog:[daysAgo(20)] }, 'water'));
+      ok('waterOff leaves the feed reminder alone',
+        plantDueIn({ waterDays:7, waterOff:true, feedDays:21, feedLog:[daysAgo(21)] }, 'feed') === 0,
+        'got: ' + plantDueIn({ waterDays:7, waterOff:true, feedDays:21, feedLog:[daysAgo(21)] }, 'feed'));
+      ok('waterOff leaves plantDueIn(water) untouched when false',
+        plantDueIn({ waterDays:7, waterOff:false, waterLog:[daysAgo(9)] }, 'water') === -2,
+        'got: ' + plantDueIn({ waterDays:7, waterOff:false, waterLog:[daysAgo(9)] }, 'water'));
+
+      ok('a half-set feed pause range (only one side) never pauses',
+        plantFeedPaused({ feedPauseFrom:9, feedPauseTo:0 }, 1) === false &&
+        plantFeedPaused({ feedPauseFrom:0, feedPauseTo:4 }, 1) === false,
+        'a lone from/to paused when it should not');
+      ok('a non-wrapping range pauses inside it and not outside it',
+        plantFeedPaused({ feedPauseFrom:3, feedPauseTo:6 }, 4) === true &&
+        plantFeedPaused({ feedPauseFrom:3, feedPauseTo:6 }, 3) === true &&
+        plantFeedPaused({ feedPauseFrom:3, feedPauseTo:6 }, 6) === true &&
+        plantFeedPaused({ feedPauseFrom:3, feedPauseTo:6 }, 7) === false &&
+        plantFeedPaused({ feedPauseFrom:3, feedPauseTo:6 }, 2) === false,
+        'non-wrapping March-June range disagreed at a boundary');
+      ok('a wrapping range (September to April) pauses across the year boundary',
+        plantFeedPaused({ feedPauseFrom:9, feedPauseTo:4 }, 9)  === true &&   // Sept, start
+        plantFeedPaused({ feedPauseFrom:9, feedPauseTo:4 }, 12) === true &&   // Dec, mid-wrap
+        plantFeedPaused({ feedPauseFrom:9, feedPauseTo:4 }, 1)  === true &&   // Jan, after new year
+        plantFeedPaused({ feedPauseFrom:9, feedPauseTo:4 }, 4)  === true &&   // April, end
+        plantFeedPaused({ feedPauseFrom:9, feedPauseTo:4 }, 5)  === false &&  // May, just after
+        plantFeedPaused({ feedPauseFrom:9, feedPauseTo:4 }, 8)  === false,    // August, just before
+        'wrapping Sept-April range disagreed at a boundary');
+      // plantDueIn calls plantFeedPaused with no month override, i.e. the real
+      // current month — build ranges relative to it so this isn't flaky.
+      var curM = new Date().getMonth() + 1;
+      var farM = ((curM + 5) % 12) + 1;   // 6 months away either direction
+      ok('plantDueIn(feed) returns null while the real month sits inside the pause window',
+        plantDueIn({ feedDays:21, feedPauseFrom:curM, feedPauseTo:curM, feedLog:[daysAgo(30)] }, 'feed') === null,
+        'got: ' + plantDueIn({ feedDays:21, feedPauseFrom:curM, feedPauseTo:curM, feedLog:[daysAgo(30)] }, 'feed'));
+      ok('plantDueIn(feed) is unaffected by a pause window that excludes the real month',
+        plantDueIn({ feedDays:21, feedPauseFrom:farM, feedPauseTo:farM, feedLog:[daysAgo(21)] }, 'feed') === 0,
+        'got: ' + plantDueIn({ feedDays:21, feedPauseFrom:farM, feedPauseTo:farM, feedLog:[daysAgo(21)] }, 'feed'));
+      ok('plantDueIn(water) ignores feedPause entirely',
+        plantDueIn({ waterDays:7, feedPauseFrom:curM, feedPauseTo:curM, waterLog:[daysAgo(7)] }, 'water') === 0,
+        'got: ' + plantDueIn({ waterDays:7, feedPauseFrom:curM, feedPauseTo:curM, waterLog:[daysAgo(7)] }, 'water'));
+
       ok('plantOverdue true only at or past the interval',
         plantOverdue({ waterDays:7, waterLog:[daysAgo(8)] }) === true &&
         plantOverdue({ waterDays:7, waterLog:[daysAgo(3)] }) === false &&
