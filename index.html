@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v428 · 19/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v429 · 20/08/2026</div>
 
   </div>
 </div>
@@ -14662,6 +14662,66 @@ window.addEventListener("DOMContentLoaded", function() {
     var idx = tabs.findIndex(function(b){ return b.dataset.lt === currentList; });
     if (idx < 0) return;
     var next = dx < 0 ? idx + 1 : idx - 1; // swipe left → next list, right → previous
+    if (next < 0 || next >= tabs.length) return; // no wraparound
+    tabs[next].click();
+  }, { passive: true });
+})();
+
+// ── Swipe left/right to switch Baby tabs (v429) ──────────
+(function() {
+  var startX = 0, startY = 0, startT = 0;
+  var area = document.getElementById("babySection");
+  if (!area) return;
+  area.addEventListener("touchstart", function(e) {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    startT = Date.now();
+  }, { passive: true });
+  area.addEventListener("touchend", function(e) {
+    if (currentSection !== "baby") return;
+    var dx = e.changedTouches[0].clientX - startX;
+    var dy = e.changedTouches[0].clientY - startY;
+    var dt = Date.now() - startT;
+    // Require: mostly horizontal, decent distance, reasonably quick
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6 || dt > 600) return;
+    var tabs = Array.prototype.filter.call(
+      document.querySelectorAll(".baby-subnav .bsn-btn"),
+      function(b){ return b.style.display !== "none"; }
+    );
+    var idx = tabs.findIndex(function(b){ return b.dataset.bview === currentBabyView; });
+    if (idx < 0) return;
+    var next = dx < 0 ? idx + 1 : idx - 1; // swipe left → next tab, right → previous
+    if (next < 0 || next >= tabs.length) return; // no wraparound
+    tabs[next].click();
+  }, { passive: true });
+})();
+
+// ── Swipe left/right to switch Track tabs (v429) ─────────
+(function() {
+  var startX = 0, startY = 0, startT = 0;
+  var area = document.getElementById("trackSection");
+  if (!area) return;
+  area.addEventListener("touchstart", function(e) {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    startT = Date.now();
+  }, { passive: true });
+  area.addEventListener("touchend", function(e) {
+    if (currentSection !== "track") return;
+    var dx = e.changedTouches[0].clientX - startX;
+    var dy = e.changedTouches[0].clientY - startY;
+    var dt = Date.now() - startT;
+    // Require: mostly horizontal, decent distance, reasonably quick
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6 || dt > 600) return;
+    var tabs = Array.prototype.filter.call(
+      document.querySelectorAll("#trackSubNav .tsn-btn"),
+      function(b){ return b.style.display !== "none"; }
+    );
+    var idx = tabs.findIndex(function(b){ return b.dataset.tview === currentTrackView; });
+    if (idx < 0) return;
+    var next = dx < 0 ? idx + 1 : idx - 1; // swipe left → next tab, right → previous
     if (next < 0 || next >= tabs.length) return; // no wraparound
     tabs[next].click();
   }, { passive: true });
