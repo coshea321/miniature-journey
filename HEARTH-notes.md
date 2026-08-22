@@ -20,7 +20,7 @@
 3. **`HEARTH-backlog.md`** — strike through anything the version closed, and add anything it opened.
 
 ## Current version
-**v431 · 20/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
+**v432 · 22/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
 
 ## Recipes section — current shape
 - Store: `fl4_recipebook` — **shared household-wide** (newest-wins-by-`updated` merge via `/shared`, plus same merge on the personal channel for same-account devices); separate from grocery-import `fl4_recipes`.
@@ -97,6 +97,10 @@ Home · Lists · Recipes · Baby · Trips · Track · Watch (+ Train, Sports, Fa
     {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
     {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"maskable"}
     ```
+
+14. **List mutations bind to `currentList` at CALL time — a deferred action must capture its own list key (v432).** `saveCurrentList()` and `removeItem(id)` both read the module-level `currentList` when they run, not when they were scheduled. Anything that fires on a timer, a callback, or after an `await` can therefore land on whatever list the user has since switched to: the v432 Undo window would have tombstoned the id in the list on screen and left the real item undeleted. Use the list-explicit pair **`removeItemFrom(lt, id)` / `saveListFor(lt)`** for any deferred or cross-list write; the `currentList` wrappers are for immediate, on-screen actions only. `tests/cases/46-list-delete-undo.js` § 3 is the tripwire.
+
+15. **`getItems()` is the canonical array — never filter it (v432).** Several callers mutate the returned items in place (`toggleItem`, `toggleToday`, `togglePersonCheck`) or reassign `listData[lt].items` straight from it (`removeItemFrom`, clear-completed, reopen-all). Hiding anything inside `getItems()` therefore **deletes it for real** on the next tick or bulk action. The v432 pending-delete hides its item in **`visibleItems()`**, a render-layer view used by `renderList` and the on-screen counts only. Do NOT "simplify" this into a filter on `getItems()`.
 
 ## Data & export
 - Export auto-includes anything nested in `getWD()` (workouts incl. bodyweight/bp), `getBD()` (baby incl. growth/medicine/milestones/teeth/bags/babySex), `getActionLog()` (incl. cardio), plus list items themselves (incl. per-item `amount`, `tags`, `today`, `recipe`, `added` (v325), `checks` (v326) fields).

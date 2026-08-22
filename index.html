@@ -144,6 +144,11 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#1A3D1E;color:#fff;padding:10px 22px;border-radius:22px;font-size:14px;font-weight:600;z-index:600;white-space:nowrap;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.25);transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
 #toast.show{transform:translateX(-50%) translateY(0)}
+#undoBar{position:fixed;bottom:calc(58px + env(safe-area-inset-bottom,0px));left:12px;right:12px;max-width:456px;margin:0 auto;background:#1A3D1E;color:#fff;padding:8px 6px 8px 16px;border-radius:12px;font-size:14px;font-weight:600;z-index:620;display:none;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.3);opacity:0;transition:opacity .18s ease}
+#undoBar.show{display:flex;opacity:1}
+#undoBar .ub-msg{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#undoBar .ub-btn{flex-shrink:0;min-width:44px;min-height:44px;padding:0 14px;border:none;background:none;color:#8FD69A;font-family:inherit;font-size:14px;font-weight:800;letter-spacing:.5px;cursor:pointer;border-radius:9px;touch-action:manipulation}
+@media (prefers-reduced-motion:reduce){#undoBar{transition:none}}
 .sync-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F8F6F2;border-radius:9px;margin-bottom:6px}
 .sync-toggle-label{font-size:14px;font-weight:600;color:#1C2018}
 .toggle-switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
@@ -895,7 +900,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v431 · 20/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v432 · 22/08/2026</div>
 
   </div>
 </div>
@@ -1696,6 +1701,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
 </nav>
 
 <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<div id="undoBar"><span class="ub-msg" id="undoBarMsg" role="status" aria-live="polite" aria-atomic="true"></span><button type="button" class="ub-btn" id="undoBarBtn">UNDO</button></div>
 <div id="updateBanner" style="display:none;position:fixed;bottom:70px;left:12px;right:12px;z-index:800;background:#1C3A5C;border:1px solid #3A6A9C;border-radius:12px;padding:12px 16px;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.4)">
   <span style="flex:1;font-size:13px;color:#C0D8F0">&#x1F504; Update available</span>
   <button onclick="window.location.reload()" style="background:#3A8FE0;border:none;color:#fff;border-radius:8px;padding:8px 14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation">Refresh</button>
@@ -2138,10 +2144,13 @@ function loadListData(lt) {
   listData[lt] = d;
   return d;
 }
-function saveCurrentList() {
-  var d = listData[currentList];
-  if (d) { storeSet(LIST_CONFIG[currentList].key, d); pushPersonal(); if (isHouseholdSet() && isSynced(currentList)) pushHousehold(); }
+// v432: split so a deferred action can save the list it STARTED in. Every
+// caller that means "the list on screen" keeps using saveCurrentList().
+function saveListFor(lt) {
+  var d = listData[lt];
+  if (d) { storeSet(LIST_CONFIG[lt].key, d); pushPersonal(); if (isHouseholdSet() && isSynced(lt)) pushHousehold(); }
 }
+function saveCurrentList() { saveListFor(currentList); }
 
 // ── List sync helpers: union-by-id + newest-wins + deletion tombstones ──────
 // Fixes the wholesale-replace race (concurrent adds dropped) while keeping
@@ -2280,6 +2289,37 @@ function mergeListItems(localItems, remoteItems, tombs){
   return { items: out, push: push };   // push = our merged set is fuller/newer than remote → re-push to converge
 }
 function getItems() { return loadListData(currentList).items; }
+
+// ── v432: optimistic single-item delete + Undo ────────────────────────────
+// The confirm dialog on a list item's delete is replaced by immediate visual
+// removal plus an actionable snackbar. The record is NOT touched during the
+// window: no tombstone, no save, no push. The item stays canonical in
+// listData and is merely hidden from the rendered list, so Undo CANCELS a
+// pending action rather than resurrecting a deleted one — which matters
+// because a tombstone can already have reached the other phone by then.
+//
+// The pending action captures its OWN list key. removeItem()/saveCurrentList()
+// bind to `currentList` at CALL time, so committing through them after the
+// user switched tabs would tombstone the id in whatever list is open and
+// never delete the real item. Always commit via removeItemFrom(lt, id).
+//
+// Deliberately transient (Cathal, 22/08/2026): nothing is persisted, so an
+// Android process kill mid-window means the delete never happened and the
+// item is still there next launch. That is the safe failure direction, and
+// it keeps startup recovery + an expiry clock out of the app entirely.
+// Do NOT "improve" this into a persisted pending action without re-deciding.
+var PEND_DEL_MS = 6000;
+var _pendDel = null;        // { lt, id, name } — at most one, app-wide
+var _pendDelTimer = null;
+
+// Render-layer view of the current list. getItems() deliberately still
+// returns the canonical array: several callers mutate it in place or
+// reassign listData from it, so hiding the pending item there would delete
+// it for real on the next tick/clear/reopen.
+function visibleItems() {
+  if (!_pendDel || _pendDel.lt !== currentList) return getItems();
+  return getItems().filter(function(it){ return !(it && it.id === _pendDel.id); });
+}
 function getHist()  { return loadListData(currentList).hist; }
 function getCats()  { return getAllCats(currentList); }
 
@@ -9936,7 +9976,7 @@ function renderList() {
   // Notes sub-tab (v318): no LIST_CONFIG entry, so the list renderer must not
   // touch it — sync callbacks call renderList() regardless of the active tab.
   if (currentList === "notes") return;
-  var items = getItems();
+  var items = visibleItems();
   // Apply active search filter (fuzzy) — matches active and done items
   if (_listSearchQuery) {
     items = items.filter(function(it){ return it && fuzzyMatch(_listSearchQuery, it.name + " " + (it.notes||"")); });
@@ -9956,12 +9996,12 @@ function renderList() {
   // General "Today" filter: show only starred items. Auto-disengage if nothing is starred
   // (prevents being stranded in an empty filtered view with no chip to toggle off).
   if (currentList === "todo") {
-    if (_todayFilter && !getItems().some(function(it){ return it && it.today; })) _todayFilter = false;
+    if (_todayFilter && !visibleItems().some(function(it){ return it && it.today; })) _todayFilter = false;
     if (_todayFilter) items = items.filter(function(it){ return it && it.today; });
   }
   // "Recent" filter (v325, all lists): show only items added in the last 48h.
   // Auto-disengage if nothing qualifies (same safety net as the Today filter).
-  if (_recentFilter && !getItems().some(isRecentItem)) _recentFilter = false;
+  if (_recentFilter && !visibleItems().some(isRecentItem)) _recentFilter = false;
   if (_recentFilter) items = items.filter(isRecentItem);
   var lt = LIST_TYPES[currentList];
   var active=[], done=[];
@@ -10004,7 +10044,7 @@ function renderList() {
   if (currentList === "travel") {
     var allTags = getTravelTags().slice();
     // Include any tags present on items but not in the pool
-    getItems().forEach(function(it){ if (it && Array.isArray(it.tags)) it.tags.forEach(function(t){ if (!allTags.some(function(p){return p.toLowerCase()===t.toLowerCase();})) allTags.push(t); }); });
+    visibleItems().forEach(function(it){ if (it && Array.isArray(it.tags)) it.tags.forEach(function(t){ if (!allTags.some(function(p){return p.toLowerCase()===t.toLowerCase();})) allTags.push(t); }); });
     if (allTags.length) {
       html += "<div style='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px'>";
       html += "<span style='font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px'>&#x1F3F7; Filter:</span>";
@@ -10021,7 +10061,7 @@ function renderList() {
   }
   // General "Today" filter chip — only shown when at least one item is starred
   if (currentList === "todo") {
-    var _todayCount = getItems().filter(function(it){ return it && it.today; }).length;
+    var _todayCount = visibleItems().filter(function(it){ return it && it.today; }).length;
     if (_todayCount) {
       var _tOn = _todayFilter;
       html += "<div style='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px'>";
@@ -10032,7 +10072,7 @@ function renderList() {
   // "Recent" filter chip (v325, all lists) — self-suppressing: only shown when
   // something was added in the last 48h. Count includes done items (an item
   // added yesterday and already ticked is still "recently added").
-  var _recentCount = getItems().filter(function(it){ return it && isRecentItem(it); }).length;
+  var _recentCount = visibleItems().filter(function(it){ return it && isRecentItem(it); }).length;
   if (_recentCount) {
     var _rOn = _recentFilter;
     html += "<div style='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px'>";
@@ -10128,8 +10168,8 @@ function renderList() {
     btn.addEventListener("click", function(e){
       e.stopPropagation();
       var tag = btn.dataset.recipe;
-      var count = getItems().filter(function(it){ return it && it.recipe === tag; }).length;
-      var addedCount = getItems().filter(function(it){ return it && it.recipe === tag && it._recipeAdded; }).length;
+      var count = visibleItems().filter(function(it){ return it && it.recipe === tag; }).length;
+      var addedCount = visibleItems().filter(function(it){ return it && it.recipe === tag && it._recipeAdded; }).length;
 
       function doClear(deleteAdded) {
         var kept = [];
@@ -10218,8 +10258,7 @@ function renderList() {
     });
     card.querySelector(".del-btn").addEventListener("click", function(e){
       e.stopPropagation();
-      var it = getItems().find(function(x){ return x.id===id; });
-      confirmDialog("Delete \"" + (it ? it.name : "this item") + "\"?", function(){ removeItem(id); });
+      startPendDel(id);
     });
     card.querySelector(".item-pill").addEventListener("click", function(e){ e.stopPropagation(); openPicker(id); });
   });
@@ -10335,7 +10374,7 @@ function cardHTML(item, c) {
     "</div>" +
     "<span class='item-pill' style='background:" + c.bg + ";color:" + c.fg + "' title='Tap to change category'>" + c.emoji + " " + c.name + "</span>" +
     starBtn +
-    "<button class='del-btn'>&#x2715;</button></div>";
+    "<button class='del-btn' aria-label='Delete " + esc(item.name).replace(/'/g,"&#39;") + "'>&#x2715;</button></div>";
 }
 
 // v361: recurring tasks. Valid repeat values for General/Personal items and their row-chip labels.
@@ -10443,14 +10482,84 @@ function updateCollapseAllLabel() {
   link.innerHTML = anyOpen ? "&#9650;&#9660; Collapse all" : "&#9650;&#9660; Expand all";
 }
 
-function removeItem(id) {
-  addTomb(currentList, id);
-  listData[currentList].items = getItems().filter(function(x){ return x.id!==id; });
-  saveCurrentList(); renderList();
+// List-explicit deletion (v432). removeItem() stays as the currentList
+// wrapper for callers that genuinely mean "the list on screen right now".
+function removeItemFrom(lt, id) {
+  var d = loadListData(lt);
+  if (!d) return;
+  addTomb(lt, id);
+  d.items = d.items.filter(function(x){ return x && x.id!==id; });
+  saveListFor(lt);
 }
+function removeItem(id) {
+  removeItemFrom(currentList, id);
+  renderList();
+}
+
+function hideUndoBar() {
+  var bar = document.getElementById("undoBar");
+  if (bar) bar.classList.remove("show");
+}
+function clearPendDelTimer() {
+  if (_pendDelTimer) { clearTimeout(_pendDelTimer); _pendDelTimer = null; }
+}
+// Finish a pending delete for real: tombstone + save + push, on the list the
+// action STARTED in — never on whatever list happens to be open now.
+function commitPendDel() {
+  if (!_pendDel) return;
+  var p = _pendDel;
+  _pendDel = null;
+  clearPendDelTimer();
+  hideUndoBar();
+  removeItemFrom(p.lt, p.id);
+  if (currentList === p.lt) renderList();
+}
+// Cancel it. Nothing was ever written, so there is no tombstone to reverse
+// and no NEW badge to re-trigger — the original record kept its id the whole
+// time. If the partner edited the item during the window, their newer copy
+// is what reappears (we restore visibility, we do not write back a snapshot).
+function undoPendDel() {
+  if (!_pendDel) return;
+  var p = _pendDel;
+  _pendDel = null;
+  clearPendDelTimer();
+  hideUndoBar();
+  if (currentList === p.lt) renderList();
+  toast("&#x21A9;&#xFE0F; " + p.name + " restored");
+}
+// Optimistic delete. One pending action app-wide, deliberately: a second
+// delete COMMITS the first rather than stacking (an undo stack is
+// disproportionate machinery for a six-second convenience).
+function startPendDel(id) {
+  var it = getItems().find(function(x){ return x && x.id === id; });
+  if (!it) return;
+  commitPendDel();
+  _pendDel = { lt: currentList, id: id, name: it.name || "Item" };
+  renderList();
+  var bar = document.getElementById("undoBar"),
+      msg = document.getElementById("undoBarMsg"),
+      btn = document.getElementById("undoBarBtn");
+  if (bar && msg && btn) {
+    msg.textContent = _pendDel.name + " deleted";
+    btn.setAttribute("aria-label", "Undo deletion of " + _pendDel.name);
+    bar.classList.add("show");
+  }
+  _pendDelTimer = setTimeout(function pendDelExpire(){
+    // Never expire out from under a keyboard/switch user who has just landed
+    // on the button — re-arm instead and let them decide.
+    var b = document.getElementById("undoBarBtn");
+    if (b && document.activeElement === b) { _pendDelTimer = setTimeout(pendDelExpire, 2000); return; }
+    commitPendDel();
+  }, PEND_DEL_MS);
+}
+(function(){
+  var b = document.getElementById("undoBarBtn");
+  if (b) b.addEventListener("click", undoPendDel);
+})();
 // v332: both bulk actions hit every done item at once and can't be undone —
 // confirm before running, same pattern as the app's other confirmDialog() uses.
 elClearBtn.addEventListener("click", function(){
+  commitPendDel();   // a bulk delete supersedes a pending single one
   var n = getItems().filter(function(x){ return x && x.done; }).length;
   var word = currentList === "travel" ? "packed" : "completed";
   confirmDialog("Clear " + n + " " + word + " item" + (n!==1?"s":"") + "? This can't be undone.", function(){
@@ -10461,6 +10570,7 @@ elClearBtn.addEventListener("click", function(){
 });
 
 elReopenBtn.addEventListener("click", function(){
+  commitPendDel();   // don't reopen an item that is on its way out
   var n = getItems().filter(function(x){ return x && x.done; }).length;
   var verb = currentList === "travel" ? "Unpack" : "Reopen";
   confirmDialog(verb + " all " + n + " item" + (n!==1?"s":"") + "?", function(){
