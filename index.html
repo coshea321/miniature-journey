@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v431 · 20/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v432 · 24/08/2026</div>
 
   </div>
 </div>
@@ -3229,11 +3229,13 @@ function plantShrinkPhoto(file, cb) {
 // `photo` (a chat can't write one, and base64 would swamp the paste box) and
 // the water/feed logs (your own history, not care information). Import never
 // touches any of them, so an update keeps your photo and your logging streak.
+// `photoLink` (v432) IS in the file — it is a URL, a couple of dozen bytes, so
+// it costs the paste box nothing and it is the one photo thing a chat can fill.
 //
 // KEEP IN SYNC: the text sections come from PLANT_SECTIONS, so adding one
 // there flows through export, import and the AI prompt automatically. The
 // scalar fields (name/latin/room/emoji/waterDays/feedDays/waterOff/
-// feedPauseFrom/feedPauseTo) are hand-listed in plantExportObj +
+// feedPauseFrom/feedPauseTo/photoLink) are hand-listed in plantExportObj +
 // plantApplyImport — add new ones to BOTH.
 var PLANT_FILE_TAG = "plant-v1";
 var PLANT_FIELD_MAX = 4000;   // per section; a runaway AI reply must not eat localStorage
@@ -3260,6 +3262,20 @@ function plantMonthOptionsHTML(sel) {
 // PLANT_SECTIONS labels are HTML source; the AI prompt is plain text.
 function plantPlainLabel(s) { return String(s || "").replace(/&amp;/g, "&"); }
 
+// v432 — the photo LINK, which is not the photo. `photo` is a shrunk base64
+// thumbnail living in localStorage; this is a web address for a full-size
+// picture kept somewhere else (a Commons page, a OneDrive folder, a nursery
+// listing). A plant can have either, both or neither.
+//
+// It goes through applianceLinkUrl — the same http(s)-only gate the appliance
+// manual/photos links use, deliberately NOT a second copy of it. That helper is
+// named for where it was born, not for what it knows: it refuses any scheme but
+// http(s), which is the whole check. Two copies of a security gate is how one
+// of them drifts (the v428 lesson), so this reuses it rather than restating it.
+// Checked at RENDER time as well as on save, because a plant record can arrive
+// from sync or a restored backup written by an older version.
+function plantPhotoLinkUrl(p) { return applianceLinkUrl(p && p.photoLink); }
+
 function plantExportObj(p) {
   var out = {
     name:      p.name  || "",
@@ -3270,7 +3286,8 @@ function plantExportObj(p) {
     feedDays:  parseInt(p.feedDays, 10)  || 0,
     waterOff:      !!p.waterOff,
     feedPauseFrom: parseInt(p.feedPauseFrom, 10) || 0,
-    feedPauseTo:   parseInt(p.feedPauseTo, 10)   || 0
+    feedPauseTo:   parseInt(p.feedPauseTo, 10)   || 0,
+    photoLink:     p.photoLink || ""
   };
   PLANT_SECTIONS.forEach(function(sec){ out[sec.key] = p[sec.key] || ""; });
   return out;
@@ -3378,6 +3395,11 @@ function plantApplyImport(rec, src) {
   if (src.waterOff !== undefined) rec.waterOff = !!src.waterOff;
   if (src.feedPauseFrom !== undefined && src.feedPauseFrom !== null && src.feedPauseFrom !== "") rec.feedPauseFrom = plantCleanMonth(src.feedPauseFrom);
   if (src.feedPauseTo   !== undefined && src.feedPauseTo   !== null && src.feedPauseTo   !== "") rec.feedPauseTo   = plantCleanMonth(src.feedPauseTo);
+  // Same gate as the editor and the detail view. A file offering something that
+  // isn't an http(s) address leaves the existing link alone rather than storing
+  // a dead — or hostile — one: blanks-left-alone applies to junk too.
+  var photoLink = applianceLinkUrl(src.photoLink);
+  if (photoLink) rec.photoLink = photoLink.slice(0, 500);
   PLANT_SECTIONS.forEach(function(sec){
     var v = plantCleanText(src[sec.key]);
     if (v) rec[sec.key] = v;
@@ -3747,6 +3769,17 @@ function renderPlantDetail() {
   // …and what you did before that.
   html += plantCareHistoryHTML(p);
 
+  // v432 — the photo link, if there is one. Rendered through the gate rather
+  // than from the raw field, so a record that arrived from sync carrying
+  // something that isn't an http(s) address simply shows no row.
+  var photoLink = plantPhotoLinkUrl(p);
+  if (photoLink) {
+    html += "<a href='" + esc(photoLink) + "' target='_blank' rel='noopener noreferrer' " +
+      "style='display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #E4EADC;border-radius:12px;" +
+      "padding:12px 14px;margin-bottom:14px;text-decoration:none;color:#2E7D4F;font-size:14px;font-weight:700;touch-action:manipulation'>" +
+      "<span style='flex:1'>&#x1F5BC;&#xFE0F; Photo of this plant</span><span style='font-size:16px'>&#x2197;</span></a>";
+  }
+
   // Summary + watering/feeding first, then everything else under a divider.
   var lowerStarted = false;
   PLANT_SECTIONS.forEach(function(sec){
@@ -3803,7 +3836,7 @@ function openPlantEditor(id) {
   if (!el) return;
   var existing = id != null ? getPlants().find(function(x){ return x && x.id === id; }) : null;
   if (id != null && !existing) { toast("Plant not found"); _plantView = "list"; _plantOpenId = null; renderPlants(); return; }
-  var p = existing || { name:"", latin:"", emoji:"", room:"", photo:"", waterDays:7, feedDays:0, waterOff:false, feedPauseFrom:0, feedPauseTo:0 };
+  var p = existing || { name:"", latin:"", emoji:"", room:"", photo:"", photoLink:"", waterDays:7, feedDays:0, waterOff:false, feedPauseFrom:0, feedPauseTo:0 };
 
   _plantEditing = true;
   _plantView = "editor";
@@ -3827,6 +3860,10 @@ function openPlantEditor(id) {
       "<div style='font-size:11px;color:#9A9A7A;margin-top:4px'>Shrunk to a thumbnail before it's saved.</div>" +
     "</div>" +
   "</div>";
+
+  html += lbl("Link to a photo (optional)") +
+    "<input id='plPhotoLink' type='url' inputmode='url' value='" + esc(p.photoLink || "") + "' placeholder='https://&hellip;' style='" + recipeInputCss() + "'>" +
+    "<div style='font-size:11px;color:#9A9A7A;margin:5px 2px 0'>A web page showing what this plant looks like &mdash; handy for telling two similar plants apart. Hearth keeps the link, never the picture.</div>";
 
   html += lbl("Name") + "<input id='plName' type='text' value='" + esc(p.name || "") + "' placeholder='Spider Plant' style='" + recipeInputCss() + "'>";
   html += lbl("Botanical name (optional)") + "<input id='plLatin' type='text' value='" + esc(p.latin || "") + "' placeholder=\"Chlorophytum comosum 'Vittatum'\" style='" + recipeInputCss() + "'>";
@@ -3898,6 +3935,12 @@ function openPlantEditor(id) {
   document.getElementById("plSave").addEventListener("click", function(){
     var name = document.getElementById("plName").value.trim();
     if (!name) { toast("Give the plant a name"); return; }
+    // Checked before anything is written, so a typo'd link is refused rather
+    // than saved as a dead one. Same gate the detail view renders through, so
+    // what saves and what is offered as a link can never disagree.
+    var photoLinkRaw = document.getElementById("plPhotoLink").value.trim();
+    var photoLink = photoLinkRaw ? applianceLinkUrl(photoLinkRaw) : "";
+    if (photoLinkRaw && !photoLink) { toast("The photo link should be a web address"); return; }
     var all = getPlants(), rec;
     if (existing) {
       var i = all.findIndex(function(x){ return x && x.id === existing.id; });
@@ -3920,6 +3963,9 @@ function openPlantEditor(id) {
     // rather than silently pausing on an unintended single month.
     rec.feedPauseFrom = (fpFrom && fpTo) ? fpFrom : 0;
     rec.feedPauseTo   = (fpFrom && fpTo) ? fpTo   : 0;
+    // "" rather than a dropped key — an absent field comes back from the other
+    // device on the next sync (the v296 rule).
+    rec.photoLink = photoLink;
     PLANT_SECTIONS.forEach(function(sec){
       var f = document.getElementById("plF_" + sec.key);
       if (f) rec[sec.key] = f.value.trim();
@@ -18655,6 +18701,10 @@ function buildTestSeed() {
     plants:[
       { id:_tsId(), name:"Demo Monstera", latin:"Monstera deliciosa", room:"Sitting room", emoji:"🌿",
         waterDays:7, feedDays:28, photo:"",
+        // v432 — a photo link so the detail view's outbound row renders on a
+        // test build. The other demo plant deliberately has none, so both
+        // states are reviewable from one link.
+        photoLink:"https://commons.wikimedia.org/wiki/Category:Monstera_deliciosa",
         summary:"Big glossy leaves, very forgiving. Doing well since it moved off the windowsill.",
         watering:"A good soak when the top 3cm is dry - roughly weekly in summer, every 2 weeks in winter.",
         feeding:"Balanced houseplant feed at half strength, monthly from March to September.",

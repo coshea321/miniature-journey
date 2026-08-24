@@ -96,6 +96,30 @@ module.exports = {
       ok('feed pause months are coerced/clamped like other intervals (99 is junk → 0)',
         fp.feedPauseFrom === 3 && fp.feedPauseTo === 0, 'got: ' + JSON.stringify({from:fp.feedPauseFrom, to:fp.feedPauseTo}));
 
+      // Photo link (v432). Unlike the photo itself this DOES travel in a file,
+      // and it is the only plant field that becomes a tappable href — so the
+      // http(s) gate matters more here than the length cap does.
+      var pl = { id:12, photoLink:'', waterLog:[], feedLog:[] };
+      plantApplyImport(pl, { name:'X', photoLink:'https://example.com/fern.jpg' });
+      ok('a photo link in the file is stored', pl.photoLink === 'https://example.com/fern.jpg', 'got: ' + pl.photoLink);
+      var pl2 = { id:13, photoLink:'', waterLog:[], feedLog:[] };
+      plantApplyImport(pl2, { name:'X', photoLink:'example.com/fern.jpg' });
+      ok('a schemeless photo link gets https:// like every other link in the app',
+        pl2.photoLink === 'https://example.com/fern.jpg', 'got: ' + pl2.photoLink);
+      var pl3 = { id:14, photoLink:'https://good.example/keep.jpg', waterLog:[], feedLog:[] };
+      plantApplyImport(pl3, { name:'X', photoLink:'javascript:alert(1)' });
+      ok('a javascript: photo link is refused, leaving the existing one alone',
+        pl3.photoLink === 'https://good.example/keep.jpg', 'got: ' + pl3.photoLink);
+      var pl4 = { id:15, photoLink:'https://good.example/keep.jpg', waterLog:[], feedLog:[] };
+      plantApplyImport(pl4, { name:'X' });
+      ok('a photo link the file omits keeps its old value',
+        pl4.photoLink === 'https://good.example/keep.jpg', 'got: ' + pl4.photoLink);
+      ok('the render-time gate agrees with the import gate',
+        plantPhotoLinkUrl({ photoLink:'javascript:alert(1)' }) === '' &&
+        plantPhotoLinkUrl({ photoLink:'https://example.com/f.jpg' }) === 'https://example.com/f.jpg' &&
+        plantPhotoLinkUrl({}) === '',
+        'got: ' + JSON.stringify([plantPhotoLinkUrl({ photoLink:'javascript:alert(1)' }), plantPhotoLinkUrl({})]));
+
       // A runaway reply must not be written into localStorage whole.
       var big = { id:6, waterLog:[], feedLog:[] };
       var huge = new Array(PLANT_FIELD_MAX + 500).join('x') + 'yyyy';
@@ -109,7 +133,8 @@ module.exports = {
 
       // ── Export → import round trip ────────────────────────────────────────
       var p1 = { id: 910001, name:'RoundTrip Fern', latin:'Nephrolepis exaltata', emoji:'F', room:'Bathroom',
-                 photo:'data:image/jpeg;base64,ZZZZ', waterDays:5, feedDays:30,
+                 photo:'data:image/jpeg;base64,ZZZZ', photoLink:'https://example.com/fern.jpg',
+                 waterDays:5, feedDays:30,
                  waterOff:true, feedPauseFrom:9, feedPauseTo:4,
                  waterLog:[777], feedLog:[888], updated: 1000 };
       PLANT_SECTIONS.forEach(function(sec){ p1[sec.key] = 'text for ' + sec.key; });
@@ -126,6 +151,9 @@ module.exports = {
       ok('the reminder toggles are in the export',
         exported.waterOff === true && exported.feedPauseFrom === 9 && exported.feedPauseTo === 4,
         'got: ' + JSON.stringify(exported));
+      // The photo does not travel; the link to one does. Both halves matter.
+      ok('the photo link is in the export', exported.photoLink === 'https://example.com/fern.jpg',
+        'got: ' + JSON.stringify(exported.photoLink));
       ok('the export carries no id, photo or logs',
         exported.id === undefined && exported.photo === undefined &&
         exported.waterLog === undefined && exported.feedLog === undefined,
@@ -146,6 +174,8 @@ module.exports = {
       ok('the reminder toggles survive the round trip',
         fresh && fresh.waterOff === true && fresh.feedPauseFrom === 9 && fresh.feedPauseTo === 4,
         'got: ' + JSON.stringify(fresh));
+      ok('the photo link survives the round trip',
+        fresh && fresh.photoLink === 'https://example.com/fern.jpg', 'got: ' + JSON.stringify(fresh && fresh.photoLink));
       ok('a new import starts with empty logs and no photo',
         fresh && fresh.waterLog.length === 0 && fresh.feedLog.length === 0 && !fresh.photo,
         'got: ' + JSON.stringify({ w:fresh && fresh.waterLog, f:fresh && fresh.feedLog, p:fresh && fresh.photo }));
