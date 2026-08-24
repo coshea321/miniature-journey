@@ -133,6 +133,11 @@ module.exports = {
       ok('one demo care day reads as watered AND fed',
         plantCareEvents(getPlants()[1]).some(function(e){ return e.water && e.feed; }),
         'no combined water+feed day in the demo plant');
+      // v432: one plant with a photo link and one without, so both states of the
+      // detail view's outbound row are reviewable from a single test link.
+      ok('one demo plant carries a photo link and one does not',
+        !!plantPhotoLinkUrl(getPlants()[0]) && !plantPhotoLinkUrl(getPlants()[1]),
+        'got: ' + JSON.stringify(getPlants().map(plantPhotoLinkUrl)));
       ok('the watchlist lands', getWatchlist().length === 3, 'got: ' + getWatchlist().length);
       // v424 + v428: five inventory records, and deliberately not five
       // interchangeable ones — two named areas plus one untagged is what makes the
