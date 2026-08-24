@@ -207,6 +207,125 @@ module.exports = {
         !!(missing && missing.error) && getPlants().length === 5,
         'got: ' + JSON.stringify(missing) + ' len ' + getPlants().length);
 
+      // ── Name matching + the per-row plan (v433) ───────────────────────────
+      // The reason this exists: before v433 a multi-plant file could ONLY be
+      // added as new, so re-importing his own exported shelf duplicated every
+      // plant and stranded the originals with all their care history.
+      ok('name matching ignores case and collapses whitespace',
+        plantNameKey('  Peace   LILY ') === 'peace lily', 'got: ' + plantNameKey('  Peace   LILY '));
+      var book = [{ id:1, name:'Peace Lily', room:'Kitchen' }, { id:2, name:'peace  lily', room:'Hall' },
+                  { id:3, name:'Peace Lily Junior' }, { id:4, name:'Aloe Vera' }];
+      ok('an exact name matches case- and space-insensitively',
+        plantNameMatches('PEACE LILY', book).map(function(p){ return p.id; }).join(',') === '1,2',
+        'got: ' + JSON.stringify(plantNameMatches('PEACE LILY', book).map(function(p){ return p.id; })));
+      // The guard that keeps this safe: a near-miss must NOT auto-target, or an
+      // import silently overwrites the wrong plant's care notes.
+      ok('a longer name containing the same words is NOT a match',
+        plantNameMatches('Peace Lily', book).every(function(p){ return p.id !== 3; }),
+        'substring matching leaked in — a fuzzy match would overwrite the wrong plant');
+      ok('a blank name matches nothing rather than everything',
+        plantNameMatches('   ', book).length === 0, 'got: ' + plantNameMatches('   ', book).length);
+
+      // importPlantsByPlan: update, add and skip in ONE pass.
+      var keepLogs = { id:920001, name:'Plan Fern', room:'Hall', summary:'my own note',
+                       photo:'data:image/jpeg;base64,KEEP', waterLog:[111,222], feedLog:[333], updated:1000 };
+      var keepAlone = { id:920002, name:'Plan Ivy', summary:'untouched', waterLog:[444], feedLog:[], updated:1000 };
+      storeSet('fl4_plants', [keepLogs, keepAlone]);
+      var planRes = importPlantsByPlan([
+        { src:{ name:'Plan Fern', summary:'from the file' }, action:'update', id:920001 },
+        { src:{ name:'Plan Ivy',  summary:'should not land' }, action:'skip' },
+        { src:{ name:'Plan Cactus', summary:'brand new' },     action:'new' }
+      ]);
+      ok('the plan reports what it did', planRes.updated === 1 && planRes.added === 1 && planRes.skipped === 1,
+        'got: ' + JSON.stringify(planRes));
+      var afterPlan = getPlants();
+      ok('an updated row takes the file text', afterPlan[0].summary === 'from the file', 'got: ' + afterPlan[0].summary);
+      // The promise the whole feature rests on.
+      ok('an updated row keeps its photo and both care logs',
+        afterPlan[0].photo === 'data:image/jpeg;base64,KEEP' &&
+        afterPlan[0].waterLog.join(',') === '111,222' && afterPlan[0].feedLog.join(',') === '333',
+        'got: ' + JSON.stringify({ p:afterPlan[0].photo, w:afterPlan[0].waterLog, f:afterPlan[0].feedLog }));
+      ok('a skipped row writes nothing at all',
+        afterPlan[1].summary === 'untouched' && afterPlan[1].updated === 1000,
+        'got: ' + JSON.stringify({ s:afterPlan[1].summary, u:afterPlan[1].updated }));
+      ok('a new row lands as an extra plant with empty logs and no photo',
+        afterPlan.length === 3 && afterPlan[2].summary === 'brand new' &&
+        afterPlan[2].waterLog.length === 0 && afterPlan[2].feedLog.length === 0 && !afterPlan[2].photo,
+        'got: ' + JSON.stringify(afterPlan[2]));
+      ok('a new row never reuses an existing id',
+        afterPlan[2].id !== 920001 && afterPlan[2].id !== 920002, 'got: ' + afterPlan[2].id);
+
+      // Two "new" rows in one plan must not collide — the i*1000 stride.
+      storeSet('fl4_plants', []);
+      importPlantsByPlan([{ src:{ name:'N1' }, action:'new' }, { src:{ name:'N2' }, action:'new' },
+                          { src:{ name:'N3' }, action:'new' }]);
+      var planIds = {}, planDupe = null;
+      getPlants().forEach(function(x){ if (planIds[x.id]) planDupe = x.id; planIds[x.id] = true; });
+      ok('several new rows in one plan get unique ids', planDupe === null && getPlants().length === 3,
+        'duplicate id: ' + planDupe + ', len ' + getPlants().length);
+
+      // Deleted on another device between opening the screen and tapping Import.
+      storeSet('fl4_plants', [{ id:930001, name:'Still here', summary:'mine', waterLog:[], feedLog:[] }]);
+      var gone = importPlantsByPlan([
+        { src:{ name:'Ghost', summary:'x' }, action:'update', id:-1 },
+        { src:{ name:'Still here', summary:'landed' }, action:'update', id:930001 }
+      ]);
+      ok('an update targeting a deleted plant is counted, not written at -1',
+        gone.missing === 1 && gone.updated === 1 && getPlants().length === 1 &&
+        getPlants()[0].summary === 'landed',
+        'got: ' + JSON.stringify(gone) + ' book ' + JSON.stringify(getPlants()));
+
+      // An all-skip plan must not touch the store at all.
+      storeSet('fl4_plants', [{ id:940001, name:'Untouched', summary:'keep', waterLog:[], feedLog:[], updated:1000 }]);
+      var allSkip = importPlantsByPlan([{ src:{ name:'Untouched', summary:'no' }, action:'skip' }]);
+      ok('an all-skip plan leaves the book exactly as it was',
+        allSkip.skipped === 1 && allSkip.updated === 0 && allSkip.added === 0 &&
+        getPlants()[0].summary === 'keep' && getPlants()[0].updated === 1000,
+        'got: ' + JSON.stringify(allSkip) + ' book ' + JSON.stringify(getPlants()));
+      ok('an empty plan is a no-op rather than a throw',
+        (function(){ var r = importPlantsByPlan([]); return r.updated === 0 && r.added === 0; })(),
+        'empty plan did not come back clean');
+
+      // ── The import screen's defaults (v433) ───────────────────────────────
+      // Rendered, not just computed: the row default IS the safety property.
+      // One match pre-selects, SEVERAL must start unset so a wrong plant can
+      // never be overwritten by a tap on Import alone, and none means "new".
+      storeSet('fl4_plants', [
+        { id:11, name:'Peace Lily',   room:'Kitchen', waterLog:[], feedLog:[] },
+        { id:12, name:'peace  lily',  room:'Hall',    waterLog:[], feedLog:[] },
+        { id:13, name:'Aloe Vera',    room:'Sunroom', waterLog:[], feedLog:[] }
+      ]);
+      switchSection('plants');
+      _plantImporting = true;
+      _plantImportParsed = [{ name:'Aloe Vera' }, { name:'Peace Lily' }, { name:'Dumb Cane' }];
+      renderPlantImport();
+      var rows = document.querySelectorAll('.plImpRow');
+      ok('every file entry gets its own destination row', rows.length === 3, 'got: ' + rows.length);
+      ok('a single name match is pre-selected', rows[0] && rows[0].value === '13', 'got: ' + (rows[0] && rows[0].value));
+      ok('TWO name matches start unset rather than guessing',
+        rows[1] && rows[1].value === '', 'got: ' + JSON.stringify(rows[1] && rows[1].value));
+      ok('no name match defaults to adding a new plant',
+        rows[2] && rows[2].value === 'new', 'got: ' + (rows[2] && rows[2].value));
+      ok('every row can still be pointed anywhere, including skip',
+        rows[0].querySelector("option[value='skip']") && rows[0].querySelector("option[value='11']"),
+        'a row is missing the skip or the retarget option');
+
+      // Import must refuse while a row is unresolved — the guard that makes
+      // "several matches" safe. Tapping it writes nothing.
+      document.getElementById('plImpGo').click();
+      ok('Import is refused while a row is still unchosen, writing nothing',
+        getPlants().length === 3 && !getPlants().some(function(p){ return p.name === 'Dumb Cane'; }),
+        'got: ' + JSON.stringify(getPlants().map(function(p){ return p.name; })));
+
+      // The pre-v433 one-tap path is still reachable in one tap.
+      document.getElementById('plImpAllNew').click();
+      var allNewRows = document.querySelectorAll('.plImpRow');
+      ok('"set every row to add as new" restores the old all-or-nothing behaviour',
+        allNewRows[0].value === 'new' && allNewRows[1].value === 'new' && allNewRows[2].value === 'new',
+        'got: ' + [allNewRows[0].value, allNewRows[1].value, allNewRows[2].value].join(','));
+
+      _plantImporting = false; _plantImportParsed = null;
+
       // ── The AI prompt template ────────────────────────────────────────────
       var prompt = plantAIPrompt();
       ok('the prompt names the file tag the parser demands',
