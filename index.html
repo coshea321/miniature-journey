@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v434 · 26/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v435 · 26/08/2026</div>
 
   </div>
 </div>
@@ -11687,7 +11687,31 @@ var foodDate = (function(){
   return d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1)+"-"+(d.getDate()<10?"0":"")+d.getDate();
 })();
 
-function getFoodLog() { return storeGet("fl4_food_log") || []; }
+// A food entry's `meal` is an INDEX into MEAL_TYPES. renderFoodView groups the
+// day by that index but totals the day by reduce, so an entry carrying
+// anything else counts toward the total and the goal bar while appearing under
+// no meal heading -- the day simply doesn't add up, with nothing on screen to
+// say why. (v407's demo seed did exactly this: it wrote "breakfast"/"lunch"
+// as strings, so 770 kcal of demo food was in the total and in no group.)
+// Normalised HERE so every reader gets a valid index from one place, the same
+// contract as getRecipeBook's null guard -- do NOT push this check out to the
+// renderers, that is how one of them gets missed again.
+function foodMealIndex(v) {
+  var n = (typeof v === "number") ? Math.floor(v) : parseInt(v, 10);
+  if (n >= 0 && n < MEAL_TYPES.length) return n;
+  var s = String(v == null ? "" : v).trim().toLowerCase();
+  for (var i = 0; i < MEAL_TYPES.length; i++) {
+    if (MEAL_TYPES[i].label.toLowerCase() === s) return i;
+  }
+  return MEAL_TYPES.length - 1; // unrecognised: the Snack bucket, so it is at least visible
+}
+function getFoodLog() {
+  return (storeGet("fl4_food_log") || []).filter(function(e){ return !!e; }).map(function(e){
+    var mi = foodMealIndex(e.meal);
+    // Copy only what needs fixing -- normal entries stay the stored objects.
+    return (mi === e.meal) ? e : Object.assign({}, e, { meal: mi });
+  });
+}
 function saveFoodLog(e) { storeSet("fl4_food_log", e); pushPersonal(); }
 
 // ── Recipe -> food journal (v434) ────────────────────────────────────────
@@ -19137,9 +19161,12 @@ function buildTestSeed() {
       { id:_tsId(), name:"Demo antihistamine", dose:"10 mg", notes:"Hay fever.", ts:_tsTs(-1, 8, 0), updated:_tsTs(-1, 8, 0) }
     ],
     food_log:[
-      { id:_tsId(), date:_tsDay(0), meal:"breakfast", text:"Porridge and banana", cal:320, calAuto:true },
-      { id:_tsId(), date:_tsDay(0), meal:"lunch",     text:"Chicken sandwich",   cal:450, calAuto:true },
-      { id:_tsId(), date:_tsDay(-1), meal:"dinner",   text:"Pasta bake",         cal:680, calAuto:false }
+      // meal is an INDEX into MEAL_TYPES (0 Breakfast, 1 Lunch, 2 Dinner, 3 Snack),
+      // never a name — see foodMealIndex. Seeding names here (v407-v433) put
+      // 770 kcal of demo food into the day's total under no meal heading.
+      { id:_tsId(), date:_tsDay(0),  meal:0, text:"Porridge and banana", cal:320, calAuto:true },
+      { id:_tsId(), date:_tsDay(0),  meal:1, text:"Chicken sandwich",    cal:450, calAuto:true },
+      { id:_tsId(), date:_tsDay(-1), meal:2, text:"Pasta bake",          cal:680, calAuto:false }
     ],
     food_notes:{},
     saved_meals:[

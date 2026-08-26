@@ -158,6 +158,37 @@ module.exports = {
       ok('it is not labelled "(estimated)" there',
         fj.indexOf('(estimated)') === -1, 'a typed figure is wearing the estimated label');
 
+      // ── 7. The day's total always equals what is listed ─────────────────
+      // A meal value that isn't an index into MEAL_TYPES used to be counted in the
+      // day's total (a plain reduce) while rendering under no meal heading (an
+      // === match on the index), so the summary bar disagreed with the list and
+      // nothing on screen explained the gap. Normalised in getFoodLog now.
+      storeSet('fl4_food_log', [
+        { id: 9001, date: todayStr(), meal: 'breakfast', text: 'Legacy Porridge', cal: 320, calAuto: true },
+        { id: 9002, date: todayStr(), meal: 1,           text: 'Sandwich',        cal: 450, calAuto: true },
+        { id: 9003, date: todayStr(), meal: 'nonsense',  text: 'Mystery',         cal: 100, calAuto: false }
+      ]);
+      ok('a meal NAME is read back as its index', getFoodLog()[0].meal === 0, JSON.stringify(getFoodLog()[0].meal));
+      ok('a valid index is passed through untouched', getFoodLog()[1].meal === 1, JSON.stringify(getFoodLog()[1].meal));
+      ok('an unrecognised meal still lands in a real bucket rather than vanishing',
+        getFoodLog()[2].meal === 3, JSON.stringify(getFoodLog()[2].meal));
+      ok('normalising does not disturb the rest of the entry',
+        getFoodLog()[0].text === 'Legacy Porridge' && getFoodLog()[0].cal === 320, JSON.stringify(getFoodLog()[0]));
+
+      foodDate = todayStr();
+      renderFoodView();
+      var rows = document.getElementById('foodEntries').querySelectorAll('.food-del-btn').length;
+      ok('EVERY entry for the day is listed, whatever its meal value was',
+        rows === 3, rows + ' rows rendered for 3 entries');
+      var summary = document.getElementById('foodDaySummary').textContent;
+      ok('the day total is exactly the sum of what is listed',
+        /870 kcal/.test(summary), summary.slice(0, 90));
+      ok('the per-meal figures add up to the day total too', (function(){
+        var sum = 0, m = summary.match(/(Breakfast|Lunch|Dinner|Snack): ([0-9,]+)/g) || [];
+        m.forEach(function(x){ sum += parseInt(x.split(': ')[1].replace(/,/g, ''), 10); });
+        return sum === 870;
+      })(), summary.slice(0, 90));
+
       storeSet('fl4_food_log', []);
       return {pass:pass, fail:fail};
     })()`);
