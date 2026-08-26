@@ -77,6 +77,14 @@ module.exports = {
       var todayStrLocal = today.getFullYear() + '-' +
         (today.getMonth()+1 < 10 ? '0' : '') + (today.getMonth()+1) + '-' +
         (today.getDate() < 10 ? '0' : '') + today.getDate();
+      // v434: seeding meal NAMES here put 770 kcal of demo food into the day's
+      // total under no meal heading, so the demo build visibly didn't add up.
+      ok('every seeded food entry has a numeric meal index, never a name', (function(){
+        return (seed.food_log || []).every(function(e){
+          return typeof e.meal === 'number' && e.meal >= 0 && e.meal <= 3;
+        });
+      })(), JSON.stringify((seed.food_log || []).map(function(e){ return e.meal; })));
+
       ok('the meal plan starts today', seed.mealplan[0].day === todayStrLocal,
         'got: ' + seed.mealplan[0].day + ', expected ' + todayStrLocal);
       ok('the demo trip is in the future', seed.trips[0].start > todayStrLocal,
