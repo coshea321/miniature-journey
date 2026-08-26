@@ -20,7 +20,7 @@
 3. **`HEARTH-backlog.md`** — strike through anything the version closed, and add anything it opened.
 
 ## Current version
-**v439 · 26/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
+**v440 · 26/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
 
 ## TDEE / daily calories (v439) — the one rule that must not break
 Store: **`fl4_profile`** (personal channel, in `pushPersonal`/apply, the backup payload and `buildTestSeed`) — `sex`, `heightCm`, `birthYear`, `activity`, `rate`, `goalKg`. Rendered by `renderTdeeCard()` into `#tdeeCard` at the top of Train → Body.
