@@ -94,7 +94,7 @@ module.exports = {
       var savedKeys = ['fl4_grocery','fl4_todo','fl4_travel','fl4_personal','fl4_recipebook','fl4_mealplan',
                        'fl4_trips','fl4_plants','fl4_watchlist','fl4_appliances','fl4_baby','fl4_workouts','fl4_action_log',
                        'fl4_track_med','fl4_food_log','fl4_saved_meals','fl4_recipes','fl4_travel_tags',
-                       'fl4_notes_global','fl4_notes_global_work','fl4_cal_goal'];
+                       'fl4_notes_global','fl4_notes_global_work','fl4_cal_goal','fl4_profile'];
       var savedState = {};
       savedKeys.forEach(function(k){ savedState[k] = storeGet(k); localStorage.removeItem(k); });
       var savedListData = listData;
@@ -193,6 +193,14 @@ module.exports = {
           return !!r && r.name === 'Demo Sunday Roast' && Array.isArray(r.lines) && r.lines.length === 4;
         })(), 'got: ' + JSON.stringify(storeGet('fl4_recipes')));
       ok('the calorie goal lands', storeGet('fl4_cal_goal') === 2200, 'got: ' + storeGet('fl4_cal_goal'));
+      // v439 — without a seeded profile the demo build shows the TDEE card's
+      // empty "set yourself up" state instead of the feature.
+      ok('the TDEE profile lands', (function(){
+        var pr = storeGet('fl4_profile');
+        return !!pr && pr.sex === 'm' && pr.heightCm === 178 && pr.birthYear === 1985 && pr.goalKg === 78;
+      })(), 'got: ' + JSON.stringify(storeGet('fl4_profile')));
+      ok('and it is enough to produce a burn and a goal on the demo build',
+        profileComplete() && tdeeGoal().ok === true && tdeeGoal().goal > 0, JSON.stringify(tdeeGoal()));
 
       // Seeding twice must not double anything up — importBackupData is
       // additive by id, and the reset path relies on that being true.

@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v438 · 26/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v439 · 26/08/2026</div>
 
   </div>
 </div>
@@ -1147,6 +1147,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
   </div>
   <div id="trainBodyView" class="train-content" style="display:none">
+    <div id="tdeeCard"></div>
     <div class="bw-card">
       <div class="bw-card-title">&#x2696;&#xFE0F; Log Bodyweight</div>
       <div class="bw-input-row">
@@ -12875,7 +12876,9 @@ function buildExportPayload() {
   //  teeth, bags, babySex), action_log (incl. cardio), track_med (Track section's
   //  family medicine log, v380 — factual only, personal-only sync, distinct
   //  from Baby's dosing medicine), food_log, food_notes,
-  //  saved_meals, cal_goal, secVisible, syncPrefs, recipes (list import recipes),
+  //  saved_meals, cal_goal, profile (v439 — height/year of birth/sex/activity/
+  //   rate/target weight, the inputs to the TDEE estimate), secVisible,
+  //  syncPrefs, recipes (list import recipes),
   //  travel_tags (Travel tag pool; per-item tags live on the items themselves),
   //  recipebook (Recipes section), trips (Trips section, incl. nested bookings),
   //  mealplan (week dinner planner, v317),
@@ -12908,6 +12911,7 @@ function buildExportPayload() {
     watchlist:storeGet("fl4_watchlist")||[],
     appliances:storeGet("fl4_appliances")||[],
     cal_goal:storeGet("fl4_cal_goal")||2000,
+    profile:storeGet("fl4_profile")||{},
     secVisible:storeGet("fl4_secVisible")||{},
     syncPrefs:storeGet("fl4_syncPrefs")||{}
   };
@@ -13249,6 +13253,7 @@ function importBackupData(data) {
     });
   }
   if(data.cal_goal&&!storeGet("fl4_cal_goal"))storeSet("fl4_cal_goal",data.cal_goal);
+  if(data.profile&&typeof data.profile==="object"&&Object.keys(data.profile).length&&!storeGet("fl4_profile"))storeSet("fl4_profile",data.profile);
   return imported;
 }
 function importedSummary(n){
@@ -13961,6 +13966,7 @@ var d = {};
   d.food_notes   = storeGet("fl4_food_notes")  || {};
   d.saved_meals  = storeGet("fl4_saved_meals") || [];
   d.cal_goal     = storeGet("fl4_cal_goal") || 2000;
+  d.profile      = storeGet("fl4_profile") || {};
   d.baby = getBD();
   d.med_deleted = purgeTombs(getTombs("med"));
   d.growth_deleted = purgeTombs(getTombs("growth"));
@@ -14144,6 +14150,7 @@ function applyPersonal(d) {
     storeSet("fl4_saved_meals", Object.values(smIndex));
   }
   if (d.cal_goal) storeSet("fl4_cal_goal", d.cal_goal);
+  if (d.profile && typeof d.profile === "object" && Object.keys(d.profile).length) storeSet("fl4_profile", d.profile);
 
   // ── Recipe book: newest-wins by `updated` (mirrors the household channel) ──
   if (Array.isArray(d.recipebook)) {
@@ -15158,7 +15165,7 @@ function updateCardioEst() {
   var calEl = document.getElementById("cardioCalories");
   var estEl = document.getElementById("cardioEst");
   if (cardioActivity && dur > 0 && !calEl.value) {
-    var est = Math.round(cardioActivity.met * 70 * dur / 60);
+    var est = estimateSessionKcal(cardioActivity.met, dur);
     estEl.textContent = "Est. ~" + est + " kcal";
     calEl.placeholder = "~" + est;
   } else { estEl.textContent = ""; calEl.placeholder = ""; }
@@ -15170,7 +15177,7 @@ document.getElementById("cardioLogBtn").addEventListener("click", function() {
   if (!name) { toast("Select or type an activity"); return; }
   var dur = parseFloat(document.getElementById("cardioDuration").value) || 0;
   var cal = parseFloat(document.getElementById("cardioCalories").value) ||
-            (cardioActivity && dur ? Math.round(cardioActivity.met * 70 * dur / 60) : 0);
+            (cardioActivity && dur ? estimateSessionKcal(cardioActivity.met, dur) : 0);
   if (!dur && !cal) { toast("Enter duration or calories"); return; }
   var entry = { id:Date.now(), ts:Date.now(), date:workoutDate, type:"cardio",
     activity:name, ico:(cardioActivity&&cardioActivity.ico)||"&#x1F3C3;",
@@ -17994,6 +18001,433 @@ function renderWorkoutHistory() {
   });
 }
 
+// ── TDEE, weight-loss goal & daily calorie target (v439) ──────────────────
+// Combines three things the app already records: the food journal's calories,
+// the bodyweight log, and — for context only — the Train section's burn.
+//
+// THE RULE THIS MUST NEVER BREAK: training calories are NOT added to a
+// weight-derived TDEE. A falling weight ALREADY contains every workout that
+// helped cause it, so adding the Train kcal on top double-counts them and
+// inflates the daily goal by several hundred kcal — you eat at maintenance,
+// the app says you are on track, and nothing moves. Training burn is shown
+// beside these numbers as context and is deliberately never a term in any
+// sum below. Do NOT "improve" this by adding exercise back in.
+//
+// Two estimates, crossfaded:
+//   FORMULA  — Mifflin-St Jeor BMR x an activity multiplier. Works on day one,
+//              needs height/year of birth/sex, and is +/-10-15% per person.
+//   MEASURED — average intake vs. the actual weight trend over a rolling
+//              window. Needs ~2 weeks of logging and is the accurate one,
+//              because it is measured from this body, not a population.
+// Formula alone below TDEE_BLEND_FROM days of span, measured alone from
+// TDEE_BLEND_FULL, linearly blended in between.
+var TDEE_KCAL_PER_KG  = 7700;  // energy in 1 kg of body fat
+var TDEE_WINDOW_DAYS  = 28;    // rolling window the measured figure reads
+var TDEE_BLEND_FROM   = 14;    // measured starts counting at this span
+var TDEE_BLEND_FULL   = 28;    // and is trusted on its own from here
+var TDEE_MIN_COVERAGE = 0.8;   // share of span days needing a food entry
+var TDEE_FLOOR_KCAL   = 1500;  // never propose a daily goal below this
+var TDEE_MAX_DEFICIT  = 0.25;  // nor a deficit above this share of TDEE
+var TDEE_MIN_PLAUSIBLE = 800;  // a measured figure outside this range is a
+var TDEE_MAX_PLAUSIBLE = 6000; // data glitch, not a metabolism — refuse it
+
+var TDEE_ACTIVITY = [
+  { v:1.2,   label:"Sedentary",          note:"desk job, little walking" },
+  { v:1.375, label:"Lightly active",     note:"light exercise 1-3 days/week" },
+  { v:1.55,  label:"Moderately active",  note:"exercise 3-5 days/week" },
+  { v:1.725, label:"Very active",        note:"hard exercise 6-7 days/week" }
+];
+// The activity multiplier is the ONLY place training enters the formula
+// estimate, and it is an average of a normal week — never today's log.
+var TDEE_RATES = [
+  { v:0,    label:"Maintain",    note:"no deficit" },
+  { v:0.25, label:"0.25 kg/week", note:"gentle" },
+  { v:0.5,  label:"0.5 kg/week",  note:"standard" },
+  { v:0.75, label:"0.75 kg/week", note:"aggressive" }
+];
+
+function getProfile() {
+  var p = storeGet("fl4_profile") || {};
+  return {
+    sex:       p.sex === "f" ? "f" : (p.sex === "m" ? "m" : ""),
+    heightCm:  +p.heightCm  || 0,
+    birthYear: +p.birthYear || 0,
+    activity:  +p.activity  || 1.375,
+    rate:      p.rate == null ? 0.5 : (+p.rate || 0),
+    goalKg:    +p.goalKg    || 0
+  };
+}
+function saveProfile(p) { storeSet("fl4_profile", p); pushPersonal(); }
+
+function profileAge(p) {
+  var y = (p || getProfile()).birthYear;
+  return y ? (new Date().getFullYear() - y) : 0;
+}
+function profileComplete(p) {
+  p = p || getProfile();
+  var age = profileAge(p);
+  return !!(p.sex && p.heightCm >= 100 && p.heightCm <= 250 && age >= 15 && age <= 100);
+}
+
+// Newest logged weight, or 0 when nothing is logged. Deliberately NOT
+// latestBodyweightKg(), whose 70 kg default is right for a cardio estimate
+// and wrong here — a TDEE built on a guessed weight looks authoritative.
+function tdeeCurrentKg() {
+  var bw = (getWD().bodyweight || []).filter(function(e){ return e && e.date && +e.weight > 0; })
+    .slice().sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); });
+  return bw.length ? +bw[0].weight : 0;
+}
+
+// Mifflin-St Jeor (1990) — the resting figure clinical guidelines default to.
+function bmrMifflin(p, kg) {
+  if (!profileComplete(p) || !(kg > 0)) return 0;
+  return Math.round(10 * kg + 6.25 * p.heightCm - 5 * profileAge(p) + (p.sex === "m" ? 5 : -161));
+}
+function formulaTDEE(p, kg) {
+  var b = bmrMifflin(p, kg);
+  return b ? Math.round(b * (p.activity || 1.375)) : 0;
+}
+
+// Days since epoch for a YYYY-MM-DD string — the x-axis of the weight trend.
+function tdeeDayNum(dateStr) {
+  var d = new Date(dateStr + "T12:00:00");
+  return isNaN(d.getTime()) ? null : Math.round(d.getTime() / 86400000);
+}
+
+// Least-squares slope in kg/day. A plain first-minus-last would be at the
+// mercy of two water-weight mornings; the regression uses every reading.
+function tdeeWeightSlope(points) {
+  var n = points.length;
+  if (n < 2) return null;
+  var sx=0, sy=0, sxx=0, sxy=0;
+  for (var i=0; i<n; i++) {
+    var x = points[i].x, y = points[i].y;
+    sx += x; sy += y; sxx += x*x; sxy += x*y;
+  }
+  var denom = n*sxx - sx*sx;
+  if (!denom) return null;
+  return (n*sxy - sx*sy) / denom;
+}
+
+function measuredTDEE() {
+  var today  = tdeeDayNum(trainTodayStr());
+  var cutoff = today - TDEE_WINDOW_DAYS;
+  var pts = (getWD().bodyweight || [])
+    .filter(function(e){ return e && e.date && +e.weight > 0; })
+    .map(function(e){ return { x: tdeeDayNum(e.date), y: +e.weight }; })
+    // >= cutoff, not >: a reading taken exactly TDEE_WINDOW_DAYS ago is the
+    // oldest one the window is meant to cover, and dropping it shortened
+    // every span by a day and cost the run its earliest weight.
+    .filter(function(pt){ return pt.x !== null && pt.x >= cutoff && pt.x <= today; })
+    .sort(function(a,b){ return a.x - b.x; });
+  if (pts.length < 2) return { ok:false, reason:"weights", days:0, points:pts.length };
+
+  var first = pts[0].x, last = pts[pts.length-1].x, span = last - first;
+  if (span < TDEE_BLEND_FROM) return { ok:false, reason:"span", days:span, points:pts.length };
+
+  // Food coverage across the same span. A day with no entry is a day that
+  // wasn't logged, never a zero-calorie day — so the average is taken over
+  // logged days only, and the whole run is refused if too many are missing.
+  var byDate = {};
+  getFoodLog().forEach(function(e){
+    if (!e || !e.date) return;
+    var x = tdeeDayNum(e.date);
+    if (x === null || x < first || x > last) return;
+    byDate[e.date] = (byDate[e.date] || 0) + (+e.cal || 0);
+  });
+  var dates = Object.keys(byDate), spanDays = span + 1;
+  var coverage = dates.length / spanDays;
+  if (coverage < TDEE_MIN_COVERAGE) {
+    return { ok:false, reason:"food", days:span, spanDays:spanDays,
+             logged:dates.length, coverage:coverage, points:pts.length };
+  }
+
+  var total = 0;
+  dates.forEach(function(d){ total += byDate[d]; });
+  var meanIntake = total / dates.length;
+
+  var slope = tdeeWeightSlope(pts);  // kg/day, negative while losing
+  if (slope === null) return { ok:false, reason:"weights", days:span, points:pts.length };
+
+  // Losing weight means the body covered a shortfall: add that back on.
+  // Gaining means it banked a surplus: take it off. One line, both cases.
+  var tdee = Math.round(meanIntake - slope * TDEE_KCAL_PER_KG);
+  if (tdee < TDEE_MIN_PLAUSIBLE || tdee > TDEE_MAX_PLAUSIBLE) {
+    return { ok:false, reason:"implausible", days:span, spanDays:spanDays,
+             logged:dates.length, coverage:coverage, points:pts.length, raw:tdee };
+  }
+  return { ok:true, tdee:tdee, days:span, spanDays:spanDays, logged:dates.length,
+           coverage:coverage, points:pts.length, intake:Math.round(meanIntake),
+           kgPerWeek: Math.round(slope * 7 * 100) / 100 };
+}
+
+function blendedTDEE() {
+  var p = getProfile(), kg = tdeeCurrentKg();
+  var f = formulaTDEE(p, kg);
+  var m = measuredTDEE();
+  if (!f && !m.ok) return { ok:false, source:"none", formula:0, measured:m, kg:kg };
+  if (!m.ok)       return { ok:true, tdee:f,      source:"formula",  weight:0, formula:f, measured:m, kg:kg };
+  if (!f)          return { ok:true, tdee:m.tdee, source:"measured", weight:1, formula:0, measured:m, kg:kg };
+  var w = (m.days - TDEE_BLEND_FROM) / (TDEE_BLEND_FULL - TDEE_BLEND_FROM);
+  w = Math.max(0, Math.min(1, w));
+  return { ok:true, tdee: Math.round(f * (1 - w) + m.tdee * w),
+           source: w <= 0 ? "formula" : (w >= 1 ? "measured" : "blend"),
+           weight:w, formula:f, measured:m, kg:kg };
+}
+
+// TDEE minus the deficit the chosen rate implies, through two hard guards:
+// never below TDEE_FLOOR_KCAL, and never a deficit above a quarter of TDEE.
+// Both are safety limits, not preferences — don't make them configurable.
+function tdeeGoal() {
+  var t = blendedTDEE();
+  if (!t.ok) return { ok:false, detail:t };
+  var rate = Math.max(0, getProfile().rate);
+  var deficit = rate * TDEE_KCAL_PER_KG / 7;
+  var capped = "";
+  var maxDef = t.tdee * TDEE_MAX_DEFICIT;
+  if (deficit > maxDef) { deficit = maxDef; capped = "pct"; }
+  var goal = t.tdee - deficit;
+  if (goal < TDEE_FLOOR_KCAL) {
+    goal = Math.min(TDEE_FLOOR_KCAL, t.tdee);  // and never a goal above TDEE
+    deficit = t.tdee - goal;
+    capped = "floor";
+  }
+  goal = Math.round(goal);
+  deficit = Math.round(deficit);
+  return { ok:true, tdee:t.tdee, source:t.source, detail:t, goal:goal, deficit:deficit,
+           rate:rate, actualRate: Math.round(deficit * 7 / TDEE_KCAL_PER_KG * 100) / 100,
+           capped:capped };
+}
+
+// Only ever a projection off the CURRENT rate — never a promise, and never
+// stored, so it re-reads every time the weight or the rate moves.
+function tdeeTargetDate(g) {
+  var p = getProfile(), kg = tdeeCurrentKg();
+  if (!g || !g.ok || !p.goalKg || !kg || p.goalKg >= kg || g.actualRate <= 0) return null;
+  var weeks = (kg - p.goalKg) / g.actualRate;
+  if (!isFinite(weeks) || weeks <= 0 || weeks > 520) return null;
+  var d = new Date();
+  d.setDate(d.getDate() + Math.round(weeks * 7));
+  return { weeks: Math.round(weeks), toLose: Math.round((kg - p.goalKg) * 10) / 10,
+           label: d.toLocaleDateString("en-IE", { day:"numeric", month:"short", year:"numeric" }) };
+}
+
+// Context only — see the double-counting warning at the top of this block.
+function tdeeTrainingToday() {
+  var today = trainTodayStr(), k = 0;
+  (getWD().workouts || []).forEach(function(w){ if (w && w.date === today) k += (+w.kcal || 0); });
+  getActionLog().forEach(function(e){ if (e && e.type === "cardio" && e.date === today) k += (+e.calories || 0); });
+  return Math.round(k);
+}
+function tdeeIntakeToday() {
+  var today = trainTodayStr();
+  return getFoodLog().reduce(function(s,e){ return s + (e && e.date === today ? (+e.cal || 0) : 0); }, 0);
+}
+
+function tdeeSourceLine(t) {
+  var m = t.measured || {};
+  if (t.source === "formula")  return "Estimated from your height, age and activity level.";
+  if (t.source === "measured") return "Measured from " + m.days + " days of your own food and weight logs.";
+  return "Blending the formula with " + m.days + " days of your own logs.";
+}
+
+// Why the measured figure isn't running yet, in Cathal's terms, never a code
+// reason — this text is the whole feedback loop for "keep logging".
+function tdeeMeasuredWait(m) {
+  if (!m || m.ok) return "";
+  if (m.reason === "weights") return "Log your weight on at least two days " + TDEE_BLEND_FROM + "+ days apart and this switches to your real numbers.";
+  if (m.reason === "span")    return "Your weight log spans " + m.days + " day" + (m.days === 1 ? "" : "s") + " so far — " + TDEE_BLEND_FROM + " days of it and this switches to your real numbers.";
+  if (m.reason === "food")    return "Food logged on " + m.logged + " of the last " + m.spanDays + " days — this needs about " + Math.round(TDEE_MIN_COVERAGE * 100) + "% of days to use your real numbers.";
+  if (m.reason === "implausible") return "Your logs give an unlikely figure (" + m.raw + " kcal), so the formula is being used instead. Check for a mistyped weight or a huge food entry.";
+  return "";
+}
+
+function renderTdeeCard() {
+  var el = document.getElementById("tdeeCard");
+  if (!el) return;
+  var p = getProfile(), kg = tdeeCurrentKg(), g = tdeeGoal();
+  var h = "<div class='bw-card'>" +
+    "<div class='bw-card-title' style='display:flex;align-items:center;gap:8px'>" +
+      "<span style='flex:1'>&#x1F525; Daily Calories</span>" +
+      "<button id='tdeeEdit' style='padding:5px 10px;background:none;border:1.5px solid #C4A07A;border-radius:7px;color:#A05A10;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation'>" +
+        (profileComplete(p) ? "Edit" : "Set up") + "</button>" +
+    "</div>";
+
+  if (!g.ok) {
+    var need = [];
+    if (!kg) need.push("log today&rsquo;s weight above");
+    if (!profileComplete(p)) need.push("tap <b>Set up</b> and add your height, year of birth and sex");
+    h += "<p style='font-size:13px;color:#6A5A40;line-height:1.55;margin:0 0 10px'>" +
+         "To work out what you burn in a day, " + need.join(" and ") + ".</p>" +
+         "<p style='font-size:12px;color:#8A7A5A;line-height:1.5;margin:0'>" +
+         "After about two weeks of logging food and weight, this stops estimating and starts measuring from your own numbers.</p>";
+  } else {
+    var eaten = tdeeIntakeToday(), burned = tdeeTrainingToday();
+    var left = g.goal - eaten;
+    var curGoal = storeGet("fl4_cal_goal") || 2000;
+    var tgt = tdeeTargetDate(g);
+    var m = g.detail.measured;
+
+    h += "<div style='display:flex;gap:10px;margin-bottom:12px'>" +
+      "<div style='flex:1;background:#FBF6EC;border-radius:10px;padding:11px 12px;text-align:center'>" +
+        "<div style='font-size:24px;font-weight:700;color:#2A2010;line-height:1.1'>" + g.tdee.toLocaleString() + "</div>" +
+        "<div style='font-size:11px;color:#8A7A5A;margin-top:3px'>kcal burned per day</div>" +
+      "</div>" +
+      "<div style='flex:1;background:#F3F8F3;border-radius:10px;padding:11px 12px;text-align:center'>" +
+        "<div style='font-size:24px;font-weight:700;color:#2F6A45;line-height:1.1'>" + g.goal.toLocaleString() + "</div>" +
+        "<div style='font-size:11px;color:#6A8A72;margin-top:3px'>kcal to eat per day</div>" +
+      "</div>" +
+    "</div>";
+
+    h += "<div style='font-size:12px;color:#8A7A5A;line-height:1.5;margin-bottom:10px'>" + tdeeSourceLine(g.detail) + "</div>";
+
+    if (!m.ok) {
+      var wait = tdeeMeasuredWait(m);
+      if (wait) h += "<div style='font-size:12px;color:#8A7A5A;background:#FBF6EC;border-radius:8px;padding:9px 11px;line-height:1.5;margin-bottom:10px'>" + wait + "</div>";
+    } else {
+      h += "<div style='font-size:12px;color:#8A7A5A;line-height:1.5;margin-bottom:10px'>" +
+        "Averaging " + m.intake.toLocaleString() + " kcal a day over " + m.logged + " logged days, " +
+        (m.kgPerWeek < 0 ? "losing " + Math.abs(m.kgPerWeek) + " kg" : m.kgPerWeek > 0 ? "gaining " + m.kgPerWeek + " kg" : "holding steady") +
+        (m.kgPerWeek === 0 ? "" : " a week") + "." +
+      "</div>";
+    }
+
+    // The plan
+    h += "<div style='border-top:1px solid #EDE4D4;padding-top:10px;margin-bottom:10px'>";
+    if (g.rate <= 0) {
+      h += "<div style='font-size:13px;color:#4A3A20'>Set to <b>maintain</b> — eating your full burn.</div>";
+    } else {
+      h += "<div style='font-size:13px;color:#4A3A20;line-height:1.6'>" +
+        "Aiming to lose <b>" + g.actualRate + " kg a week</b> on a " + g.deficit.toLocaleString() + " kcal daily deficit" +
+        (kg ? ", from " + kg + " kg" : "") + "." +
+        (tgt ? "<br><span style='color:#8A7A5A'>" + tgt.toLose + " kg to go &middot; about " + tgt.weeks + " week" + (tgt.weeks === 1 ? "" : "s") + ", around " + tgt.label + ".</span>" : "") +
+      "</div>";
+    }
+    if (g.capped === "pct") {
+      h += "<div style='font-size:12px;color:#A05A10;margin-top:6px;line-height:1.5'>Held back to a quarter of your burn — " + g.rate + " kg a week would be too steep at your size.</div>";
+    } else if (g.capped === "floor") {
+      h += "<div style='font-size:12px;color:#A05A10;margin-top:6px;line-height:1.5'>Held at the " + TDEE_FLOOR_KCAL.toLocaleString() + " kcal floor — a bigger deficit isn&rsquo;t safe to plan for here.</div>";
+    }
+    h += "</div>";
+
+    // Today
+    h += "<div style='border-top:1px solid #EDE4D4;padding-top:10px'>" +
+      "<div style='font-size:13px;color:#4A3A20;line-height:1.6'>" +
+        "Today: <b>" + eaten.toLocaleString() + "</b> eaten of " + g.goal.toLocaleString() +
+        (left >= 0 ? " &middot; <span style='color:#2F6A45'>" + left.toLocaleString() + " left</span>"
+                   : " &middot; <span style='color:#C05A3A'>" + Math.abs(left).toLocaleString() + " over</span>") +
+      "</div>";
+    if (burned > 0) {
+      h += "<div style='font-size:12px;color:#8A7A5A;margin-top:5px;line-height:1.5'>" +
+        "&#x1F3CB;&#xFE0F; " + burned.toLocaleString() + " kcal logged in Train today &mdash; already counted in the figures above, so don&rsquo;t eat it back.</div>";
+    }
+    h += "</div>";
+
+    if (curGoal !== g.goal) {
+      h += "<button id='tdeeApply' style='width:100%;margin-top:12px;padding:11px;border:none;background:#A05A10;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>" +
+        "Use " + g.goal.toLocaleString() + " as my food goal</button>" +
+        "<div style='font-size:11px;color:#A89A80;text-align:center;margin-top:5px'>Food journal goal is " + curGoal.toLocaleString() + " right now</div>";
+    } else {
+      h += "<div style='font-size:11px;color:#A89A80;text-align:center;margin-top:12px'>&#x2713; Your food journal goal matches this</div>";
+    }
+  }
+
+  h += "</div>";
+  el.innerHTML = h;
+
+  var editBtn = document.getElementById("tdeeEdit");
+  if (editBtn) editBtn.addEventListener("click", openTdeeEditor);
+  var applyBtn = document.getElementById("tdeeApply");
+  if (applyBtn) applyBtn.addEventListener("click", function(){
+    var gg = tdeeGoal();
+    if (!gg.ok) return;
+    storeSet("fl4_cal_goal", gg.goal);
+    pushPersonal();
+    renderTdeeCard();
+    toast("&#x1F525; Food goal set to " + gg.goal.toLocaleString() + " kcal");
+  });
+}
+
+function openTdeeEditor() {
+  var p = getProfile();
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.55);z-index:700;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto";
+  var box = document.createElement("div");
+  box.style.cssText = "background:#fff;border-radius:14px;padding:20px;width:100%;max-width:340px;max-height:100%;overflow-y:auto;box-sizing:border-box";
+  function lbl(t){ return "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 6px'>" + t + "</div>"; }
+  var inCss = "width:100%;border:2px solid #E0D0B0;border-radius:9px;padding:10px 12px;font-family:inherit;font-size:15px;outline:none;box-sizing:border-box;background:#fff;color:#2A2010";
+  box.innerHTML =
+    "<div style='font-family:Georgia,serif;font-size:18px;font-weight:600;color:#2A2010'>Your numbers</div>" +
+    "<div style='font-size:12px;color:#8A7A5A;line-height:1.5;margin-top:5px'>Used to estimate your burn until there is enough logging to measure it.</div>" +
+    lbl("Sex") +
+    "<div style='display:flex;gap:8px'>" +
+      "<button class='_tdSex' data-sex='m' style='flex:1;padding:10px;border-radius:9px;font-family:inherit;font-size:14px;cursor:pointer;touch-action:manipulation;" + (p.sex === "m" ? "border:2px solid #A05A10;background:#FBF0E2;color:#7A3A05;font-weight:700" : "border:2px solid #E0D0B0;background:#fff;color:#8A7A5A") + "'>Male</button>" +
+      "<button class='_tdSex' data-sex='f' style='flex:1;padding:10px;border-radius:9px;font-family:inherit;font-size:14px;cursor:pointer;touch-action:manipulation;" + (p.sex === "f" ? "border:2px solid #A05A10;background:#FBF0E2;color:#7A3A05;font-weight:700" : "border:2px solid #E0D0B0;background:#fff;color:#8A7A5A") + "'>Female</button>" +
+    "</div>" +
+    "<div style='font-size:11px;color:#A89A80;margin-top:5px;line-height:1.45'>The Mifflin-St Jeor formula takes one of two values here; it has no third option.</div>" +
+    lbl("Height (cm)") +
+    "<input id='_tdHeight' type='number' min='100' max='250' inputmode='numeric' value='" + (p.heightCm || "") + "' placeholder='e.g. 178' style='" + inCss + "'>" +
+    lbl("Year of birth") +
+    "<input id='_tdYear' type='number' min='1900' max='" + (new Date().getFullYear() - 15) + "' inputmode='numeric' value='" + (p.birthYear || "") + "' placeholder='e.g. 1985' style='" + inCss + "'>" +
+    lbl("Usual activity") +
+    "<select id='_tdAct' style='" + inCss + "'>" +
+      TDEE_ACTIVITY.map(function(a){
+        return "<option value='" + a.v + "'" + (Math.abs(a.v - p.activity) < 0.001 ? " selected" : "") + ">" + a.label + " &mdash; " + a.note + "</option>";
+      }).join("") +
+    "</select>" +
+    "<div style='font-size:11px;color:#A89A80;margin-top:5px;line-height:1.45'>A normal week, not today. Your logged workouts are already inside this.</div>" +
+    lbl("Goal") +
+    "<select id='_tdRate' style='" + inCss + "'>" +
+      TDEE_RATES.map(function(r){
+        return "<option value='" + r.v + "'" + (Math.abs(r.v - p.rate) < 0.001 ? " selected" : "") + ">" + r.label + (r.note ? " &mdash; " + r.note : "") + "</option>";
+      }).join("") +
+    "</select>" +
+    lbl("Target weight (kg, optional)") +
+    "<input id='_tdGoalKg' type='number' min='30' max='300' step='0.1' inputmode='decimal' value='" + (p.goalKg || "") + "' placeholder='leave blank for no target' style='" + inCss + "'>" +
+    "<div style='display:flex;gap:8px;margin-top:18px'>" +
+      "<button id='_tdCancel' style='flex:1;padding:11px;border:1.5px solid #E0D0B0;border-radius:9px;background:none;font-family:inherit;font-size:14px;cursor:pointer;touch-action:manipulation;color:#7A5A30'>Cancel</button>" +
+      "<button id='_tdSave' style='flex:1;padding:11px;border:none;background:#A05A10;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Save</button>" +
+    "</div>";
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+
+  var sex = p.sex;
+  box.querySelectorAll("._tdSex").forEach(function(b){
+    b.addEventListener("click", function(){
+      sex = b.dataset.sex;
+      box.querySelectorAll("._tdSex").forEach(function(o){
+        var on = o.dataset.sex === sex;
+        o.style.border = on ? "2px solid #A05A10" : "2px solid #E0D0B0";
+        o.style.background = on ? "#FBF0E2" : "#fff";
+        o.style.color = on ? "#7A3A05" : "#8A7A5A";
+        o.style.fontWeight = on ? "700" : "400";
+      });
+    });
+  });
+  function close(){ if (ov.parentNode) document.body.removeChild(ov); }
+  document.getElementById("_tdCancel").addEventListener("click", close);
+  ov.addEventListener("click", function(e){ if (e.target === ov) close(); });
+  document.getElementById("_tdSave").addEventListener("click", function(){
+    var hgt = parseFloat(document.getElementById("_tdHeight").value) || 0;
+    var yr  = parseInt(document.getElementById("_tdYear").value, 10) || 0;
+    var gkg = parseFloat(document.getElementById("_tdGoalKg").value) || 0;
+    var age = yr ? (new Date().getFullYear() - yr) : 0;
+    if (!sex) { toast("Pick male or female"); return; }
+    if (hgt < 100 || hgt > 250) { toast("Enter a height between 100 and 250 cm"); return; }
+    if (age < 15 || age > 100)  { toast("Enter a year of birth for an age of 15-100"); return; }
+    if (gkg && (gkg < 30 || gkg > 300)) { toast("Enter a target weight between 30 and 300 kg"); return; }
+    saveProfile({
+      sex: sex, heightCm: hgt, birthYear: yr,
+      activity: parseFloat(document.getElementById("_tdAct").value) || 1.375,
+      rate:     parseFloat(document.getElementById("_tdRate").value) || 0,
+      goalKg:   gkg
+    });
+    close();
+    renderTdeeCard();
+    toast("Saved");
+  });
+}
+
 // ── Bodyweight log ────────────────────────────────────────
 document.getElementById("bwLogBtn").addEventListener("click", function() {
   var val=parseFloat(document.getElementById("bwInput").value);
@@ -18028,6 +18462,7 @@ document.getElementById("bpLogBtn").addEventListener("click", function() {
 });
 
 function renderBodyView() {
+  renderTdeeCard();
   var data=getWD(), bw=(data.bodyweight||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
   var bwChartEl=document.getElementById("bwChart");
   if (bwChartEl) bwChartEl.innerHTML = bwChartHtml(bw.slice().reverse());
@@ -19739,7 +20174,8 @@ function buildTestSeed() {
       { id:_tsId(), name:"Demo usual breakfast",
         items:[{ text:"Porridge and banana", cal:320, calAuto:true }, { text:"Coffee", cal:10, calAuto:true }] }
     ],
-    cal_goal:2200
+    cal_goal:2200,
+    profile:{ sex:"m", heightCm:178, birthYear:1985, activity:1.375, rate:0.5, goalKg:78 }
     // syncPrefs is deliberately NOT seeded: importBackupData doesn't apply it,
     // and it is read into a var at parse time anyway, so a value written here
     // would sit in storage doing nothing. The built-in defaults are correct.

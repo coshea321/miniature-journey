@@ -20,7 +20,21 @@
 3. **`HEARTH-backlog.md`** — strike through anything the version closed, and add anything it opened.
 
 ## Current version
-**v438 · 26/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
+**v439 · 26/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
+
+## TDEE / daily calories (v439) — the one rule that must not break
+Store: **`fl4_profile`** (personal channel, in `pushPersonal`/apply, the backup payload and `buildTestSeed`) — `sex`, `heightCm`, `birthYear`, `activity`, `rate`, `goalKg`. Rendered by `renderTdeeCard()` into `#tdeeCard` at the top of Train → Body.
+
+**Training calories are NEVER added to the TDEE or to the daily goal.** A weight-derived TDEE already contains every workout that helped cause the weight change, so adding the Train kcal on top double-counts them and inflates the target by hundreds of kcal — the app reads "on track" while the scale doesn't move. Training burn is shown beside the numbers as context only. `tests/cases/49-tdee.js` pins this with a tripwire (a 1,500 kcal training day must move nothing); **if it ever fails, don't fix the test — find what wired exercise back into the sum.**
+
+Two estimates, crossfaded on the span of the weight log:
+- `formulaTDEE()` — Mifflin-St Jeor BMR × `activity`. Needs a complete profile *and* a logged weight; it deliberately does **not** fall back to `latestBodyweightKg()`'s 70 kg default (right for a cardio estimate, wrong for a number presented as your metabolism).
+- `measuredTDEE()` — mean daily intake minus the **least-squares** slope of the weight trend × 7,700 kcal/kg. Regression, not first-minus-last, so one water-weight morning can't swing it. Gated on: 2+ readings, a span ≥ `TDEE_BLEND_FROM` (14) days, food logged on ≥ 80% of the days in that span, and a plausible result (800–6,000).
+- `blendedTDEE()` — formula alone below 14 days, measured alone from `TDEE_BLEND_FULL` (28), linear in between.
+
+**A day with no food entry is a day that wasn't logged, never a zero-calorie day.** The mean is taken over logged days only and the run is refused below the coverage floor — averaging the blanks in understates intake and therefore understates TDEE.
+
+`tdeeGoal()` applies two guards that are safety limits, not preferences: never below `TDEE_FLOOR_KCAL` (1500), never a deficit above `TDEE_MAX_DEFICIT` (25%) of TDEE, and never a goal *above* TDEE. It writes `fl4_cal_goal` only behind an explicit button, so a hand-typed goal is never silently overwritten.
 
 ## Recipes section — current shape
 - Store: `fl4_recipebook` — **shared household-wide** (newest-wins-by-`updated` merge via `/shared`, plus same merge on the personal channel for same-account devices); separate from grocery-import `fl4_recipes`.
