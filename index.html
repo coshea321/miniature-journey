@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v437 · 26/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v438 · 26/08/2026</div>
 
   </div>
 </div>
@@ -8806,9 +8806,57 @@ var _calHelperState = null;
 // What goes out. Default is the recipes with NO figure yet — the job is
 // filling in the blanks, and re-sending priced recipes just burns the paste
 // budget. The toggle re-prices the whole book when a figure looks wrong.
-function calHelperPool(includeAll) {
+// `filter` is the SECTION (v437): "all" | "fav" | a category name, the same
+// three shapes and the same meanings as the recipe list's own _recipeFilter.
+// It is a separate axis from includeAll -- section says WHICH recipes,
+// includeAll says whether the ones already priced are among them -- so both
+// apply at once and neither replaces the other. Omitted (the pre-v437 call
+// shape) means every section.
+function calHelperPool(includeAll, filter) {
   var rb = getRecipeBook().filter(Boolean);
+  if (filter && filter !== "all") {
+    rb = rb.filter(function(r){
+      return filter === "fav" ? !!r.fav : String(r.category || "").trim() === filter;
+    });
+  }
   return includeAll ? rb : rb.filter(function(r){ return !r.kcal; });
+}
+
+// The book's categories in use, sorted — the chip row's middle section, built
+// the same way the recipe list builds its own.
+function calHelperCats() {
+  var cats = [];
+  getRecipeBook().filter(Boolean).forEach(function(r){
+    var c = String(r.category || "").trim();
+    if (c && cats.indexOf(c) === -1) cats.push(c);
+  });
+  return cats.sort();
+}
+
+function calHelperHasFav() {
+  return getRecipeBook().filter(Boolean).some(function(r){ return !!r.fav; });
+}
+
+// Chip row for the copy step. Rendered even when the current section is empty:
+// an empty section with no way off it is a dead end, and the whole point of
+// the row is switching between them.
+function calFilterBarHTML(cur) {
+  var bar = "<div style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px'>";
+  function chip(key, label) {
+    var on = cur === key;
+    return "<button class='cal-filter' data-key='" + esc(key).replace(/'/g, "&#39;") + "' style='border:1.5px solid " + (on ? "#B5651D" : "#E0D0B8") + ";background:" + (on ? "#B5651D" : "#fff") + ";color:" + (on ? "#fff" : "#7A5A30") + ";border-radius:14px;padding:5px 13px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>" + label + "</button>";
+  }
+  bar += chip("all", "All");
+  if (calHelperHasFav()) bar += chip("fav", "&#x2605; Favourites");
+  calHelperCats().forEach(function(c){ bar += chip(c, esc(c)); });
+  return bar + "</div>";
+}
+
+// What the current section is called in a sentence.
+function calFilterLabel(f) {
+  if (!f || f === "all") return "recipe";
+  if (f === "fav") return "favourite";
+  return f + " recipe";
 }
 
 // One recipe as something pricing it needs to see: what it is, how many it
@@ -8854,8 +8902,8 @@ function calBatchCount(list) {
 
 // The clipboard payload for one batch: the instructions AND those recipes, so
 // there is one thing to paste rather than two. `batch` is 0-based.
-function calExportText(batch, includeAll) {
-  var pool = calHelperPool(includeAll);
+function calExportText(batch, includeAll, filter) {
+  var pool = calHelperPool(includeAll, filter);
   var ranges = calBatchRanges(pool);
   var count = Math.max(1, ranges.length);
   var b = Math.min(Math.max(parseInt(batch, 10) || 0, 0), count - 1);
@@ -8983,7 +9031,7 @@ function applyCalImport() {
   // ones renumber from the start — advancing the index here would skip a
   // batch's worth of recipes. Only the whole-book pool is stable enough to
   // step through.
-  var pool = calHelperPool(st.includeAll);
+  var pool = calHelperPool(st.includeAll, st.filter);
   if (!pool.length) { calHelperExit(); return; }
   var count = calBatchCount(pool);
   if (count > 1 || !st.includeAll) {
@@ -8996,6 +9044,19 @@ function applyCalImport() {
   calHelperExit();
 }
 
+// Shared by both copy-step renders. A section change resets the batch index:
+// the pool it indexed into no longer exists.
+function calWireFilterChips(el, st) {
+  Array.prototype.forEach.call(el.querySelectorAll(".cal-filter"), function(b){
+    b.addEventListener("click", function(){
+      st.filter = b.getAttribute("data-key");
+      st.batch = 0;
+      st.error = "";
+      renderCalHelper();
+    });
+  });
+}
+
 function calHelperExit() {
   _calHelperState = null;
   _recipeView = "list";
@@ -9006,7 +9067,10 @@ function renderCalHelper() {
   // Same guard the editor and the prep helper use: this screen holds unsaved
   // input, so a sync landing mid-review must not redraw it out from under him.
   _recipeEditing = true;
-  if (!_calHelperState) _calHelperState = { step: "copy", batch: 0, rows: [], accept: {}, edits: {}, unreadable: [], error: "", includeAll: false };
+  // Opens on Favourites (v437), the same default and the same fallback as the
+  // recipe list itself — that is the section Cathal works in, and defaulting
+  // anywhere else would mean a chip tap every single time.
+  if (!_calHelperState) _calHelperState = { step: "copy", batch: 0, rows: [], accept: {}, edits: {}, unreadable: [], error: "", includeAll: false, filter: "fav" };
   var st = _calHelperState;
   var el = document.getElementById("recipesContent");
   var head =
@@ -9016,30 +9080,44 @@ function renderCalHelper() {
   if (st.step === "review") { renderCalHelperReview(el, st, head); return; }
 
   var rb = getRecipeBook().filter(Boolean);
-  var priced = rb.filter(function(r){ return !!r.kcal; }).length;
-  var pool = calHelperPool(st.includeAll);
+  // Never open on an empty section: the same guard the recipe list uses, for
+  // a book with no favourites yet.
+  if (st.filter === "fav" && !calHelperHasFav()) st.filter = "all";
+  // A category renamed or emptied out from under a held state.
+  if (st.filter && st.filter !== "all" && st.filter !== "fav" && calHelperCats().indexOf(st.filter) === -1) st.filter = "all";
+
+  var priced = calHelperPool(true, st.filter).filter(function(r){ return !!r.kcal; }).length;
+  var pool = calHelperPool(st.includeAll, st.filter);
   var ranges = calBatchRanges(pool);
   var count = Math.max(1, ranges.length);
   if (st.batch == null || st.batch < 0 || st.batch >= count) st.batch = 0;
+  var bar = calFilterBarHTML(st.filter);
+  var noun = calFilterLabel(st.filter);
 
   var toggle =
     "<label id='calAllWrap' style='display:flex;align-items:center;gap:10px;cursor:pointer;background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:12px'>" +
       "<input type='checkbox' id='calAll'" + (st.includeAll ? " checked" : "") + " style='width:19px;height:19px;flex:none'>" +
-      "<span style='font-size:13px;color:#8A5A1A;line-height:1.45'>Include the " + priced + " recipe" + (priced !== 1 ? "s" : "") + " that already have a figure" +
+      "<span style='font-size:13px;color:#8A5A1A;line-height:1.45'>Include the " + priced + " " + noun + (priced !== 1 ? "s" : "") + " that already have a figure" +
         "<span style='display:block;font-size:11px;color:#A08A6A'>Off by default — nothing you have already priced is sent back out.</span>" +
       "</span>" +
     "</label>";
 
-  // Nothing to do: every recipe is priced already. Say so plainly and leave
-  // the toggle, which is the only thing that can change the answer.
+  // Nothing to do in THIS section. Say which, and keep both the chips and the
+  // toggle on screen — they are the only two things that can change the
+  // answer, and an empty section with no way off it is a dead end (the whole
+  // point of the row is switching between sections).
   if (!pool.length) {
+    var inSection = calHelperPool(true, st.filter).length;
     el.innerHTML = head +
       "<div style='font-size:13px;color:#8A7A5A;line-height:1.6;margin-bottom:14px'>" +
-        (rb.length
-          ? "Every recipe in your book already has a calorie figure. Tick below to send them out again and re-price them."
-          : "There are no recipes in your book yet.") +
-      "</div>" + (rb.length ? toggle : "");
+        (!rb.length
+          ? "There are no recipes in your book yet."
+          : !inSection
+            ? "Nothing in this section yet — pick another below."
+            : "Every " + noun + " already has a calorie figure. Pick another section below, or tick to send these out again and re-price them.") +
+      "</div>" + (rb.length ? bar : "") + (inSection ? toggle : "");
     document.getElementById("calBackBtn").addEventListener("click", calHelperExit);
+    calWireFilterChips(el, st);
     var _allEmpty = document.getElementById("calAll");
     if (_allEmpty) _allEmpty.addEventListener("change", function(){
       st.includeAll = _allEmpty.checked; st.batch = 0; renderCalHelper();
@@ -9047,7 +9125,7 @@ function renderCalHelper() {
     return;
   }
 
-  var text = calExportText(st.batch, st.includeAll);
+  var text = calExportText(st.batch, st.includeAll, st.filter);
   var curRange = ranges[st.batch] || { from: 0, to: -1, blocks: [] };
   var inBatch = curRange.blocks.length;
 
@@ -9071,13 +9149,14 @@ function renderCalHelper() {
 
   el.innerHTML = head +
     "<div style='font-size:13px;color:#8A7A5A;line-height:1.6;margin-bottom:14px'>" +
-      "Copy the recipes below, paste them into a chat, then paste the reply back here. " +
+      "Copy the " + noun + "s below, paste them into a chat, then paste the reply back here. " +
       "You get a calories-per-serving figure for each one, which you can edit before it is saved. " +
       "Nothing is written to a recipe until you review it and tap Apply." +
     "</div>" +
+    bar +
     toggle +
     batchHtml +
-    "<button id='calCopyBtn' style='width:100%;box-sizing:border-box;padding:13px;border:none;background:#B5651D;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px'>&#x1F4CB; Copy " + (count > 1 ? ("batch " + (st.batch + 1) + " of " + count + " (" + inBatch + " recipes)") : (pool.length + " recipe" + (pool.length !== 1 ? "s" : ""))) + "</button>" +
+    "<button id='calCopyBtn' style='width:100%;box-sizing:border-box;padding:13px;border:none;background:#B5651D;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px'>&#x1F4CB; Copy " + (count > 1 ? ("batch " + (st.batch + 1) + " of " + count + " (" + inBatch + " recipes)") : (pool.length + " " + noun + (pool.length !== 1 ? "s" : ""))) + "</button>" +
     "<textarea id='calExportBox' readonly rows='5' style='" + recipeInputCss() + "margin-bottom:20px;resize:vertical;line-height:1.5;font-size:12px;color:#7A6A50'>" + esc(text) + "</textarea>" +
     "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Paste the reply</div>" +
     (st.error ? "<div style='font-size:13px;color:#B03030;font-weight:600;margin-bottom:8px'>" + esc(st.error) + "</div>" : "") +
@@ -9086,6 +9165,7 @@ function renderCalHelper() {
 
   document.getElementById("calBackBtn").addEventListener("click", calHelperExit);
   document.getElementById("calCopyBtn").addEventListener("click", function(){ prepCopyToClipboard(text); });
+  calWireFilterChips(el, st);
   var _all = document.getElementById("calAll");
   if (_all) _all.addEventListener("change", function(){
     st.includeAll = _all.checked; st.batch = 0; st.error = ""; renderCalHelper();
@@ -19465,7 +19545,7 @@ function buildTestSeed() {
         ingredients:parseIngredients(
           "500 g white fish\n600 g potatoes\n300 ml milk\n50 g butter\n2 tbsp plain flour\n100 g frozen peas"),
         prep:"Peel and quarter the potatoes.", method:"Boil and mash the potatoes with half the butter.\nMake a white sauce with the rest.\nFold in the fish and peas, top with mash, bake 25 minutes.",
-        notes:"", url:"", fav:false, inRotation:true, updated:_tsTs(-4, 12, 0), addedBy:"Petra" }
+        notes:"", url:"", fav:true, inRotation:true, updated:_tsTs(-4, 12, 0), addedBy:"Petra" }
     ],
     mealplan:[
       { day:_tsDay(0), recipeId:R1, servings:4, updated:_tsTs(-2, 10, 0), addedBy:"Cathal" },

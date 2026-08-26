@@ -31,12 +31,12 @@ module.exports = {
       function byId(id){ return getRecipeBook().find(function(r){ return r.id === id; }); }
 
       storeSet('fl4_recipebook', [
-        { id: 4701, name: 'Unpriced Stew', servings: 4, updated: 1, category: 'Dinner',
+        { id: 4701, name: 'Unpriced Stew', servings: 4, updated: 1, category: 'Dinner', fav: true,
           method: 'Fry the beef in oil, then stew it.',
           ingredients: parseIngredients('500 g Beef\\n2 tbsp Olive oil') },
-        { id: 4702, name: 'Unpriced Soup', servings: 2, updated: 1,
+        { id: 4702, name: 'Unpriced Soup', servings: 2, updated: 1, category: 'Lunch',
           method: 'Simmer it.', ingredients: parseIngredients('300 g Lentils') },
-        { id: 4703, name: 'Already Priced', servings: 4, kcal: 600, updated: 1,
+        { id: 4703, name: 'Already Priced', servings: 4, kcal: 600, updated: 1, category: 'Dinner',
           method: 'Bake it.', ingredients: parseIngredients('200 g Flour') }
       ]);
       switchSection('recipes');
@@ -141,6 +141,94 @@ module.exports = {
         /already has a calorie figure/.test(content().textContent) && !document.getElementById('calCopyBtn'),
         content().textContent.slice(0, 160));
       ok('and it still offers the re-price toggle', !!document.getElementById('calAll'), 'no toggle on the empty state');
+
+      // ── 6. Section filter (v437) ────────────────────────────────────────
+      // The section is a SEPARATE axis from includeAll: section says which
+      // recipes, includeAll says whether the priced ones are among them. Both
+      // apply at once — a regression that made one replace the other would
+      // quietly send out the wrong set.
+      storeSet('fl4_recipebook', [
+        { id: 4711, name: 'Fav Unpriced', servings: 2, updated: 1, category: 'Dinner', fav: true,
+          method: 'Cook.', ingredients: parseIngredients('100 g Beef') },
+        { id: 4712, name: 'Fav Priced', servings: 2, kcal: 500, updated: 1, category: 'Dinner', fav: true,
+          method: 'Cook.', ingredients: parseIngredients('100 g Pork') },
+        { id: 4713, name: 'Plain Unpriced', servings: 2, updated: 1, category: 'Lunch',
+          method: 'Cook.', ingredients: parseIngredients('100 g Fish') }
+      ]);
+      function names(list){ return list.map(function(r){ return r.name; }).sort().join(','); }
+
+      ok('omitting the section keeps the pre-v437 behaviour — every section',
+        names(calHelperPool(false)) === 'Fav Unpriced,Plain Unpriced', names(calHelperPool(false)));
+      ok('the favourites section narrows to favourites AND still skips priced ones',
+        names(calHelperPool(false, 'fav')) === 'Fav Unpriced', names(calHelperPool(false, 'fav')));
+      ok('the two axes combine rather than replacing each other',
+        names(calHelperPool(true, 'fav')) === 'Fav Priced,Fav Unpriced', names(calHelperPool(true, 'fav')));
+      ok('a category section narrows to that category',
+        names(calHelperPool(false, 'Lunch')) === 'Plain Unpriced', names(calHelperPool(false, 'Lunch')));
+      ok('"all" is the same as omitting it',
+        names(calHelperPool(false, 'all')) === names(calHelperPool(false)), names(calHelperPool(false, 'all')));
+      ok('the categories offered are the ones actually in use, sorted',
+        calHelperCats().join(',') === 'Dinner,Lunch', calHelperCats().join(','));
+
+      var favText = calExportText(0, false, 'fav');
+      ok('the export honours the section', /Fav Unpriced/.test(favText) && favText.indexOf('Plain Unpriced') === -1,
+        favText.slice(0, 300));
+
+      // ── 7. The helper opens on Favourites, with the list's fallback ─────
+      openHelper();
+      ok('the helper opens on the Favourites section', _calHelperState.filter === 'fav', _calHelperState.filter);
+      ok('the chip row is on screen', content().querySelectorAll('.cal-filter').length >= 3,
+        String(content().querySelectorAll('.cal-filter').length));
+      ok('it offers a Favourites chip when there are favourites',
+        /Favourites/.test(content().textContent), 'no favourites chip');
+      ok('the copy button counts only the section',
+        /Copy 1 favourite/.test(content().textContent), content().textContent.slice(0, 400));
+
+      // Switching section re-pools and resets the batch index.
+      _calHelperState.batch = 3;
+      var lunchChip = Array.prototype.filter.call(content().querySelectorAll('.cal-filter'), function(b){
+        return b.getAttribute('data-key') === 'Lunch';
+      })[0];
+      ok('a category chip is offered', !!lunchChip, 'no Lunch chip');
+      lunchChip.click();
+      ok('tapping a chip switches section', _calHelperState.filter === 'Lunch', _calHelperState.filter);
+      ok('and resets the batch index, which pointed into the old pool',
+        _calHelperState.batch === 0, String(_calHelperState.batch));
+      ok('the export follows the chip', /Plain Unpriced/.test(calExportText(0, false, _calHelperState.filter)),
+        'export did not follow the chip');
+
+      // ── 8. An exhausted section is never a dead end ─────────────────────
+      storeSet('fl4_recipebook', [
+        { id: 4721, name: 'Fav Priced Only', servings: 2, kcal: 500, updated: 1, category: 'Dinner', fav: true,
+          method: 'Cook.', ingredients: parseIngredients('100 g Beef') },
+        { id: 4722, name: 'Other Unpriced', servings: 2, updated: 1, category: 'Lunch',
+          method: 'Cook.', ingredients: parseIngredients('100 g Fish') }
+      ]);
+      openHelper();
+      ok('an exhausted section says so instead of offering an empty copy',
+        !document.getElementById('calCopyBtn') && /already has a calorie figure/.test(content().textContent),
+        content().textContent.slice(0, 200));
+      ok('the chips STAY on screen so the section can be changed — not a dead end',
+        content().querySelectorAll('.cal-filter').length >= 2,
+        String(content().querySelectorAll('.cal-filter').length));
+      var otherChip = Array.prototype.filter.call(content().querySelectorAll('.cal-filter'), function(b){
+        return b.getAttribute('data-key') === 'Lunch';
+      })[0];
+      ok('and tapping one from the empty state works', !!otherChip, 'no chip to escape with');
+      otherChip.click();
+      ok('switching off the exhausted section brings the copy step back',
+        !!document.getElementById('calCopyBtn'), 'still stuck on the empty state');
+
+      // No favourites at all: the list's own fallback, never an empty opening.
+      storeSet('fl4_recipebook', [
+        { id: 4731, name: 'No Favs Here', servings: 2, updated: 1, category: 'Lunch',
+          method: 'Cook.', ingredients: parseIngredients('100 g Fish') }
+      ]);
+      openHelper();
+      ok('with no favourites in the book it falls back to All',
+        _calHelperState.filter === 'all', _calHelperState.filter);
+      ok('and offers no Favourites chip', !/Favourites/.test(content().textContent), 'offered an empty section');
+      ok('so there is still something to copy', !!document.getElementById('calCopyBtn'), 'nothing to copy');
 
       return {pass:pass, fail:fail};
     })()`);
