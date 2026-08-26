@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v433 · 24/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v434 · 26/08/2026</div>
 
   </div>
 </div>
@@ -9373,6 +9373,11 @@ function renderRecipeDetail() {
       "<button id='servMinus' style='width:34px;height:34px;border:1.5px solid #D8C8A8;background:#fff;border-radius:8px;font-size:20px;color:#7A5A30;cursor:pointer;line-height:1'>&minus;</button>" +
       "<span id='servCount' style='font-size:20px;font-weight:700;color:#2A2010;min-width:24px;text-align:center'>" + _recipeServings + "</span>" +
       "<button id='servPlus' style='width:34px;height:34px;border:1.5px solid #D8C8A8;background:#fff;border-radius:8px;font-size:20px;color:#7A5A30;cursor:pointer;line-height:1'>+</button>" +
+      // v434: the scaled total tracks the stepper, the per-serving figure below
+      // it is the stored number — so it stays obvious which one was typed in.
+      (r.kcal ? "<span style='margin-left:auto;text-align:right;line-height:1.3'>" +
+        "<b style='font-size:14px;color:#2A2010'>" + (r.kcal * _recipeServings).toLocaleString() + " kcal</b>" +
+        "<br><span style='font-size:11px;color:#9A8A6A'>" + r.kcal.toLocaleString() + " per serving</span></span>" : "") +
     "</div>" +
     "<div style='display:flex;align-items:center;gap:8px;margin:-8px 0 14px'>" +
       "<button id='recipeFocusToggle' type='button' aria-pressed='" + (_recipeFocusOn ? "true" : "false") + "' style='flex-shrink:0;border:1.5px solid " + (_recipeFocusOn ? "#B5651D" : "#E0D0B8") + ";background:" + (_recipeFocusOn ? "#B5651D" : "#fff") + ";color:" + (_recipeFocusOn ? "#fff" : "#7A5A30") + ";border-radius:14px;padding:5px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>&#x1F526; Focus</button>" +
@@ -9385,6 +9390,7 @@ function renderRecipeDetail() {
     (r.notes ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Notes</div><div style='font-size:14px;color:#6A5A40;line-height:1.6;margin-bottom:18px'>" + esc(r.notes) + "</div>" : "") +
     (r.url ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Source</div><a href='" + esc(r.url) + "' target='_blank' rel='noopener noreferrer' style='display:inline-block;font-size:14px;color:#B5651D;font-weight:600;word-break:break-all;margin-bottom:18px'>&#x1F517; " + esc(r.url) + "</a>" : "") +
     "<button id='recipeToGroceryBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#2D6B35;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F6D2; Add to grocery list&hellip;</button>" +
+    "<button id='recipeToFoodBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#A05A10;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F373; Log to food journal&hellip;</button>" +
     "<div style='display:flex;gap:8px;margin-top:8px'>" +
       "<button id='recipeEditBtn' style='flex:1;padding:11px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Edit</button>" +
       "<button id='recipeDeleteBtn' style='padding:11px 16px;border:1.5px solid #E0C0C0;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Delete</button>" +
@@ -9477,6 +9483,7 @@ function renderRecipeDetail() {
     });
   });
   document.getElementById("recipeToGroceryBtn").addEventListener("click", function(){ openGroceryPicker(r.id, mult); });
+  document.getElementById("recipeToFoodBtn").addEventListener("click", function(){ openRecipeFoodLogSheet(r.id); });
   document.getElementById("recipeEditBtn").addEventListener("click", function(){ openRecipeEditor(r.id); });
 }
 
@@ -9698,6 +9705,9 @@ function openRecipeEditor(id) {
     "<input id='reName' type='text' value='" + (r?esc(r.name).replace(/'/g,"&#39;"):"") + "' placeholder='Recipe name' style='" + recipeInputCss() + "margin-bottom:12px'>" +
     fieldLabel("Serves") +
     "<input id='reServings' type='number' min='1' value='" + (r?r.servings||1:1) + "' style='" + recipeInputCss() + "margin-bottom:12px;max-width:90px'>" +
+    fieldLabel("Calories per serving (optional)") +
+    "<input id='reKcal' type='number' min='0' max='9999' inputmode='numeric' value='" + (r&&r.kcal?r.kcal:"") + "' placeholder='e.g. 520' style='" + recipeInputCss() + "margin-bottom:4px;max-width:110px'>" +
+    "<div style='font-size:11px;color:#9A8A6A;margin-bottom:12px'>Your own figure, per serving &mdash; used when you log this recipe to the food journal.</div>" +
     fieldLabel("Category (optional)") +
     "<input id='reCategory' type='text' value='" + (r&&r.category?esc(r.category).replace(/'/g,"&#39;"):"") + "' placeholder='e.g. Breakfast, Dinner, Dessert' list='reCatList' style='" + recipeInputCss() + "margin-bottom:12px'>" +
     "<datalist id='reCatList'>" + recipeCategoryOptions() + "</datalist>" +
@@ -9766,16 +9776,19 @@ function openRecipeEditor(id) {
     var notes  = document.getElementById("reNotes").value.trim();
     var url = normalizeRecipeUrl(document.getElementById("reUrl").value);
     var inRotation = document.getElementById("reInRotation").checked;
+    // Typed, never estimated (v434) — see the FOOD_CAL note on logRecipeToFood.
+    var kcal = parseInt(document.getElementById("reKcal").value, 10) || 0;
+    if (kcal < 0) kcal = 0;
     var rb = getRecipeBook();
     if (isNew) {
       var nid = nextRecipeId(recipeIdMap(rb));
-      rb.unshift({ id:nid, name:name, servings:servings, category:category, ingredients:ingredients, prep:prep, method:method, notes:notes, url:url, fav:false, inRotation:inRotation, updated:Date.now(), addedBy:hearthUser });
+      rb.unshift({ id:nid, name:name, servings:servings, kcal:kcal, category:category, ingredients:ingredients, prep:prep, method:method, notes:notes, url:url, fav:false, inRotation:inRotation, updated:Date.now(), addedBy:hearthUser });
       _recipeOpenId = nid;
     } else {
       var ex = rb.find(function(x){ return x.id === id; });
       // The textarea only carries "amount unit name", so re-parsing it would
       // drop the v368 shopping preferences — carry them onto the new lines.
-      if (ex) { ex.name=name; ex.servings=servings; ex.category=category; ex.ingredients=carryGroceryPrefs(ingredients, ex.ingredients); ex.prep=prep; ex.method=method; ex.notes=notes; ex.url=url; ex.inRotation=inRotation; ex.updated=Date.now(); }
+      if (ex) { ex.name=name; ex.servings=servings; ex.kcal=kcal; ex.category=category; ex.ingredients=carryGroceryPrefs(ingredients, ex.ingredients); ex.prep=prep; ex.method=method; ex.notes=notes; ex.url=url; ex.inRotation=inRotation; ex.updated=Date.now(); }
     }
     saveRecipeBook(rb);
     _recipeEditing = false;
@@ -11676,6 +11689,119 @@ var foodDate = (function(){
 
 function getFoodLog() { return storeGet("fl4_food_log") || []; }
 function saveFoodLog(e) { storeSet("fl4_food_log", e); pushPersonal(); }
+
+// ── Recipe -> food journal (v434) ────────────────────────────────────────
+// One recipe becomes ONE food-log line, priced off the kcal-per-serving
+// figure TYPED into the recipe editor.
+//
+// Do NOT "improve" this by estimating from the ingredients. FOOD_CAL above
+// is mixed-basis -- butter (720) and cheese (400) are per 100g, egg (70) and
+// bread (80) are per item, coffee (5) is per cup -- and there is no per-unit
+// basis stored to multiply the ingredient amounts against. Summing it would
+// be out by a factor of ten on exactly the fatty ingredients that dominate a
+// total, and a calorie figure is one Cathal acts on. Typed, editable, shown
+// with its working: the medicine-dosing rule, applied to food.
+//
+// Split of concerns: the recipe (and so its kcal) is household-shared, the
+// food log is personal -- the figure syncs to Petra, the fact that it was
+// eaten does not.
+function recipeDefaultMeal(r) {
+  var cat = String((r && r.category) || "").trim().toLowerCase();
+  for (var i = 0; i < MEAL_TYPES.length; i++) {
+    if (MEAL_TYPES[i].label.toLowerCase() === cat) return i;
+  }
+  return currentFoodMeal;
+}
+function fmtPortions(n) { return (n % 1) ? n.toFixed(1) : String(n); }
+function foodTodayStr() {
+  var d = new Date();
+  return d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1)+"-"+(d.getDate()<10?"0":"")+d.getDate();
+}
+
+function openRecipeFoodLogSheet(id) {
+  var r = getRecipeBook().find(function(x){ return x.id === id; });
+  if (!r) return;
+
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.55);z-index:700;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box";
+  var box = document.createElement("div");
+  box.style.cssText = "background:#fff;border-radius:14px;padding:20px;width:100%;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.2)";
+  function close() { if (ov.parentNode) document.body.removeChild(ov); }
+
+  // No figure typed yet: say so and offer the editor, never guess one.
+  if (!r.kcal) {
+    box.innerHTML =
+      "<div style='font-family:Georgia,serif;font-size:17px;font-weight:600;color:#2A2010;margin-bottom:8px'>" + esc(r.name) + "</div>" +
+      "<div style='font-size:14px;color:#6A5A40;line-height:1.55;margin-bottom:14px'>No calories set for this recipe yet. Add a per-serving figure in the recipe editor and it&rsquo;s ready to log from here.</div>" +
+      "<div style='display:flex;gap:8px'>" +
+        "<button id='_rfClose' style='flex:1;padding:11px;border:1.5px solid #E0D0B0;border-radius:9px;background:none;font-family:inherit;font-size:14px;cursor:pointer;touch-action:manipulation;color:#7A5A30'>Close</button>" +
+        "<button id='_rfEdit' style='flex:1;padding:11px;border:none;background:#A05A10;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Set calories</button>" +
+      "</div>";
+    ov.appendChild(box);
+    document.body.appendChild(ov);
+    document.getElementById("_rfClose").addEventListener("click", close);
+    document.getElementById("_rfEdit").addEventListener("click", function(){ close(); openRecipeEditor(r.id); });
+    ov.addEventListener("click", function(e){ if (e.target === ov) close(); });
+    return;
+  }
+
+  var portions = 1;                    // how much was eaten, not the recipe's servings
+  var mealIdx  = recipeDefaultMeal(r); // "Dinner" category lands on Dinner
+
+  function doLog() {
+    var total = Math.round(r.kcal * portions);
+    var text  = r.name + (portions === 1 ? "" : " (" + fmtPortions(portions) + " portions)");
+    var log = getFoodLog();
+    log.push({ id: Date.now(), date: foodTodayStr(), meal: mealIdx, text: text, cal: total, calAuto: false });
+    saveFoodLog(log);
+    close();
+    toast("&#x1F373; " + MEAL_TYPES[mealIdx].label + ": " + text + " (" + total + " kcal)");
+  }
+
+  function wire() {
+    document.getElementById("_rfMinus").addEventListener("click", function(){
+      if (portions > 0.5) { portions = Math.round((portions - 0.5) * 10) / 10; draw(); }
+    });
+    document.getElementById("_rfPlus").addEventListener("click", function(){
+      if (portions < 10) { portions = Math.round((portions + 0.5) * 10) / 10; draw(); }
+    });
+    box.querySelectorAll("._rfMeal").forEach(function(b){
+      b.addEventListener("click", function(){ mealIdx = +b.dataset.mi; draw(); });
+    });
+    document.getElementById("_rfCancel").addEventListener("click", close);
+    document.getElementById("_rfLog").addEventListener("click", doLog);
+  }
+
+  function draw() {
+    var total = Math.round(r.kcal * portions);
+    box.innerHTML =
+      "<div style='font-family:Georgia,serif;font-size:17px;font-weight:600;color:#2A2010;margin-bottom:2px'>" + esc(r.name) + "</div>" +
+      "<div style='font-size:12px;color:#9A8A6A;margin-bottom:14px'>" + r.kcal.toLocaleString() + " kcal per serving &middot; logging to today</div>" +
+      "<div style='display:flex;align-items:center;gap:9px;background:#FBF5EC;border:1px solid #ECE0CC;border-radius:12px;padding:10px 12px;margin-bottom:12px'>" +
+        "<span style='font-size:12px;font-weight:700;color:#7A5A30;text-transform:uppercase;letter-spacing:.5px'>Portions</span>" +
+        "<button id='_rfMinus' style='width:32px;height:32px;border:1.5px solid #D8C8A8;background:#fff;border-radius:8px;font-size:19px;color:#7A5A30;cursor:pointer;line-height:1;touch-action:manipulation'>&minus;</button>" +
+        "<span style='font-size:18px;font-weight:700;color:#2A2010;min-width:30px;text-align:center'>" + fmtPortions(portions) + "</span>" +
+        "<button id='_rfPlus' style='width:32px;height:32px;border:1.5px solid #D8C8A8;background:#fff;border-radius:8px;font-size:19px;color:#7A5A30;cursor:pointer;line-height:1;touch-action:manipulation'>+</button>" +
+        "<b style='margin-left:auto;font-size:15px;color:#7A3A05'>" + total.toLocaleString() + " kcal</b>" +
+      "</div>" +
+      "<div style='display:flex;gap:6px;margin-bottom:16px'>" +
+        MEAL_TYPES.map(function(m, i){
+          var on = (i === mealIdx);
+          return "<button class='_rfMeal' data-mi='" + i + "' style='flex:1;padding:8px 2px;border:1.5px solid " + (on?"#A05A10":"#E0D0B0") + ";background:" + (on?"#A05A10":"#fff") + ";color:" + (on?"#fff":"#7A5A30") + ";border-radius:9px;font-family:inherit;font-size:11px;font-weight:700;line-height:1.5;cursor:pointer;touch-action:manipulation'>" + m.icon + "<br>" + m.label + "</button>";
+        }).join("") +
+      "</div>" +
+      "<div style='display:flex;gap:8px'>" +
+        "<button id='_rfCancel' style='flex:1;padding:11px;border:1.5px solid #E0D0B0;border-radius:9px;background:none;font-family:inherit;font-size:14px;cursor:pointer;touch-action:manipulation;color:#7A5A30'>Cancel</button>" +
+        "<button id='_rfLog' style='flex:1;padding:11px;border:none;background:#A05A10;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Log it</button>" +
+      "</div>";
+    wire();
+  }
+
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  ov.addEventListener("click", function(e){ if (e.target === ov) close(); });
+  draw();
+}
 
 function estimateCals(text) {
   var low = text.toLowerCase().replace(/[^a-z0-9 ]/g," ").trim();
@@ -18809,23 +18935,23 @@ function buildTestSeed() {
 
     // ── Recipes + meal plan ──────────────────────────────
     recipebook:[
-      { id:R1, name:"Demo Chicken Traybake", servings:4, category:"Dinner",
+      { id:R1, name:"Demo Chicken Traybake", servings:4, kcal:520, category:"Dinner",
         ingredients:parseIngredients(
           "4 chicken thighs\n2 red peppers\n1 red onion\n400 g baby potatoes\n2 tbsp olive oil\n1 tsp smoked paprika\n1 lemon"),
         prep:"Halve the potatoes and cut the peppers into chunks.",
         method:"Heat the oven to 200C.\nToss everything on a big tray with the oil and paprika.\nRoast 35-40 minutes until the chicken is cooked through.\nSqueeze over the lemon before serving.",
         notes:"Demo recipe - safe to edit or delete.", url:"", fav:true, inRotation:true,
         updated:_tsTs(-20, 12, 0), addedBy:"Cathal" },
-      { id:R2, name:"Demo Pasta Bake", servings:4, category:"Dinner",
+      { id:R2, name:"Demo Pasta Bake", servings:4, kcal:610, category:"Dinner",
         ingredients:parseIngredients(
           "300 g penne\n1 jar tomato sauce\n150 g cheddar\n1 courgette\n2 cloves garlic\n1 tbsp olive oil"),
         prep:"", method:"Cook the pasta.\nFry the courgette and garlic.\nStir through the sauce, top with cheese, bake 20 minutes.",
         notes:"", url:"", fav:false, inRotation:true, updated:_tsTs(-15, 12, 0), addedBy:"Petra" },
-      { id:R3, name:"Demo Porridge", servings:2, category:"Breakfast",
+      { id:R3, name:"Demo Porridge", servings:2, kcal:280, category:"Breakfast",
         ingredients:parseIngredients("100 g porridge oats\n500 ml milk\n1 banana\n1 tbsp honey"),
         prep:"", method:"Simmer the oats and milk for 5 minutes, stirring. Top with sliced banana and honey.",
         notes:"", url:"", fav:false, inRotation:false, updated:_tsTs(-9, 8, 0), addedBy:"Cathal" },
-      { id:R4, name:"Demo Fish Pie", servings:4, category:"Dinner",
+      { id:R4, name:"Demo Fish Pie", servings:4, kcal:480, category:"Dinner",
         ingredients:parseIngredients(
           "500 g white fish\n600 g potatoes\n300 ml milk\n50 g butter\n2 tbsp plain flour\n100 g frozen peas"),
         prep:"Peel and quarter the potatoes.", method:"Boil and mash the potatoes with half the butter.\nMake a white sauce with the rest.\nFold in the fish and peas, top with mash, bake 25 minutes.",
