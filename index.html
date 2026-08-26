@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v435 · 26/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v436 · 26/08/2026</div>
 
   </div>
 </div>
@@ -7401,6 +7401,7 @@ function renderRecipes() {
   if (_recipeView === "plan") { renderMealPlanner(); return; }
   if (_recipeView === "tidy") { renderRecipeTidy(); return; }
   if (_recipeView === "prephelper") { renderPrepHelper(); return; }
+  if (_recipeView === "calhelper") { renderCalHelper(); return; }
   if (_recipeView === "duplicates") { renderDupRepair(); return; }
   if (_recipeView === "grocerypick") { renderGroceryPick(); return; }
   var el = document.getElementById("recipesContent");
@@ -7469,6 +7470,7 @@ function renderRecipes() {
       "<button id='rcpPlanBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F4C5; Week plan</button>" +
       "<button id='rcpTidyBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F9F9; Tidy</button>" +
       "<button id='rcpPrepBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F4DD; Prep helper</button>" +
+      "<button id='rcpCalBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F525; Calories</button>" +
       "<button id='rcpSelStart' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x2713; Select</button>" +
     "</div>";
   }
@@ -7597,6 +7599,13 @@ function renderRecipes() {
     _recipeScrollPos = window.scrollY || document.documentElement.scrollTop;
     _prepHelperState = null;      // always rebuild the export against what's stored now
     _recipeView = "prephelper";
+    renderRecipes();
+  });
+  var _rcpCalBtn = document.getElementById("rcpCalBtn");
+  if (_rcpCalBtn) _rcpCalBtn.addEventListener("click", function(){
+    _recipeScrollPos = window.scrollY || document.documentElement.scrollTop;
+    _calHelperState = null;       // always rebuild the export against what's stored now
+    _recipeView = "calhelper";
     renderRecipes();
   });
   var _selStart = document.getElementById("rcpSelStart");
@@ -8771,6 +8780,433 @@ function matchPrepEntries(list) {
 function prepRowValue(row) {
   var e = _prepHelperState && _prepHelperState.edits[row.id];
   return String(e != null ? e : row.prep).trim();
+}
+
+// ── Calorie helper: copy out → price it elsewhere → paste back (v436) ─────
+// v434 gave a recipe a `kcal` field (calories per SERVING) and made the food
+// journal log off it, but every figure had to be typed in one recipe at a
+// time. This is the same round trip as the prep helper above, writing that
+// one field instead: copy the recipes out, have something estimate them,
+// paste the reply back, review it, apply.
+//
+// The reason it is a copy-out/paste-back and not a calculation inside the app
+// is the v434 rule and it has not changed: FOOD_CAL is mixed-basis (butter
+// and cheese per 100g, egg and bread per item) with no per-unit basis stored
+// to multiply ingredient amounts against, so the app cannot price an
+// ingredient list. Something that can read the recipe has to do it, and the
+// number still arrives as a PROPOSAL that Cathal reviews and can edit before
+// a single recipe is written.
+//
+// DELIBERATELY kcal-ONLY, exactly like the prep helper: this round trip reads
+// a lot and writes one integer. Don't widen it to other fields without a
+// fresh design call — the narrowness IS the safety argument.
+// null | { step:"copy"|"review", batch, rows:[], accept:{}, edits:{}, unreadable:[], error:"", includeAll:false }
+var _calHelperState = null;
+
+// What goes out. Default is the recipes with NO figure yet — the job is
+// filling in the blanks, and re-sending priced recipes just burns the paste
+// budget. The toggle re-prices the whole book when a figure looks wrong.
+function calHelperPool(includeAll) {
+  var rb = getRecipeBook().filter(Boolean);
+  return includeAll ? rb : rb.filter(function(r){ return !r.kcal; });
+}
+
+// One recipe as something pricing it needs to see: what it is, how many it
+// serves (the answer is PER SERVING, so this is the load-bearing number), what
+// goes in, and how it is cooked. The method stays in full and untruncated —
+// "deep fry in 1L of oil" is the difference between 400 and 900 kcal, and a
+// truncation would cut exactly that kind of line. Length is the batcher's
+// problem, not this function's.
+function calExportRecipeBlock(r) {
+  var out = ["id " + r.id + " — " + (r.name || "Untitled") + " (serves " + (r.servings || 1) + ")"];
+  var ings = (r.ingredients || []).map(function(ing){
+    if (!ing || !ing.name) return "";
+    if (isHeaderIng(ing)) return "  " + headerLabel(ing) + ":";
+    return "  - " + ingredientToLine(ing);
+  }).filter(Boolean);
+  if (ings.length) out.push("Ingredients:", ings.join("\n"));
+  if (r.method) out.push("Method:", "  " + String(r.method).replace(/\n/g, "\n  "));
+  if (r.kcal) out.push("Figure already set: " + r.kcal + " kcal per serving");
+  return out.join("\n");
+}
+
+// Same character budget and the same packing rule as the prep helper — one
+// transport limit, one number to tune. Kept as its own function rather than
+// widening prepBatchRanges: that one works, and the pool it runs over here is
+// a filtered list, not the whole book.
+function calBatchRanges(list) {
+  var out = [], cur = null, used = 0;
+  (list || []).filter(Boolean).forEach(function(r, i){
+    var b = calExportRecipeBlock(r);
+    var len = b.length + 2;                      // the blank line between blocks
+    if (cur && used + len > PREP_BATCH_CHARS) cur = null;
+    if (!cur) { cur = { from: i, to: i, blocks: [] }; out.push(cur); used = 0; }
+    cur.to = i;
+    cur.blocks.push(b);
+    used += len;
+  });
+  return out;
+}
+
+function calBatchCount(list) {
+  return Math.max(1, calBatchRanges(list).length);
+}
+
+// The clipboard payload for one batch: the instructions AND those recipes, so
+// there is one thing to paste rather than two. `batch` is 0-based.
+function calExportText(batch, includeAll) {
+  var pool = calHelperPool(includeAll);
+  var ranges = calBatchRanges(pool);
+  var count = Math.max(1, ranges.length);
+  var b = Math.min(Math.max(parseInt(batch, 10) || 0, 0), count - 1);
+  var range = ranges[b] || { from: 0, to: -1, blocks: [] };
+  var L = [];
+  L.push("I keep my recipes in an app called Hearth. Some of my recipes are below.");
+  L.push("");
+  L.push("For each recipe, estimate the CALORIES IN ONE SERVING.");
+  L.push("");
+  L.push("Rules:");
+  L.push("- PER SERVING, not for the whole dish. Each recipe says how many it serves — work out the total and divide by that number.");
+  L.push("- A whole number of kcal. No range, no decimal, no \"about\".");
+  L.push("- Count the cooking fat. Oil, butter and the like in the method count even when the method is vague about how much; assume a normal amount for the pan size.");
+  L.push("- Where a quantity is missing or vague, use an ordinary household amount for a dish of that size rather than skipping the ingredient.");
+  L.push("- Ignore anything served alongside that is not in the ingredients. Price the dish as written.");
+  L.push("- A rough, honest estimate is what is wanted. Do not refuse a recipe because the ingredients are imprecise — every recipe below should come back with a number.");
+  L.push("");
+  L.push("Put your WHOLE reply inside a single code block (three backticks before and after), so it can be copied in one tap on a phone.");
+  L.push("");
+  L.push("Inside that code block, reply in EXACTLY this format and nothing else — no explanation, no working, no note, no apology:");
+  L.push("");
+  L.push("=== 123");
+  L.push("520");
+  L.push("");
+  L.push("=== 456");
+  L.push("310");
+  L.push("");
+  L.push("Format rules:");
+  L.push("- One block per recipe. The block starts with === followed by the recipe's id, then the number of kcal per serving on the next line, on its own.");
+  L.push("- A blank line between blocks.");
+  L.push("- Just the number. No units, no commas, no quotes, no JSON, no working out.");
+  L.push("- Keep each id exactly as given — the app matches on it.");
+  L.push("- The code block is the whole reply. Do not write anything above or below it, and do not split it into several code blocks.");
+  L.push("");
+  L.push(count > 1
+    ? "--- MY RECIPES — BATCH " + (b + 1) + " OF " + count + " (recipes " + (range.from + 1) + "-" + (range.to + 1) + " of " + pool.length + ") ---"
+    : "--- MY RECIPES (" + pool.length + ") ---");
+  range.blocks.forEach(function(bl){ L.push(""); L.push(bl); });
+  return L.join("\n");
+}
+
+// Reuses the prep helper's block format and its two marker regexes verbatim —
+// the "=== <id>" shape with no quoting or escaping anywhere is the v402/v404
+// lesson, and a reply made of bare integers has even less to get wrong. What
+// differs is only what a block's body means: one number, not prep lines.
+function parseCalReply(raw) {
+  var s = prepStripInvisible(raw).trim();
+  if (!s) return { error: "Paste the reply into the box first." };
+  if (!PREP_BLOCK_HINT.test(s)) {
+    return { error: "That doesn't look like a reply from the prompt above — every recipe should start with === and its number." };
+  }
+  var lines = String(s).replace(/\r\n?/g, "\n").split("\n");
+  var blocks = [], cur = null, missed = [];
+  lines.forEach(function(line){
+    var m = line.match(PREP_BLOCK_MARK);
+    if (m) { cur = { id: m[1], body: [] }; blocks.push(cur); return; }
+    if (PREP_BLOCK_HINT.test(line)) { missed.push(line.trim()); return; }
+    if (!cur) return;                                   // preamble before the first block
+    var t = line.trim();
+    if (!t || /^```/.test(t)) return;
+    cur.body.push(t);
+  });
+  // A line that reads like a marker but produced no block must never be
+  // dropped in silence — the prep helper learned that the hard way.
+  if (missed.length) {
+    return { error: "Couldn't read this line: “" + missed[0].slice(0, 60) + "”. Every recipe should start with === and its number." };
+  }
+
+  var rb = getRecipeBook();
+  var rows = [], unreadable = [], seen = {};
+  blocks.forEach(function(bk){
+    var rec = rb.find(function(x){ return x && String(x.id) === String(bk.id); });
+    if (!rec) { unreadable.push("id " + bk.id + " (no such recipe)"); return; }
+    if (seen[rec.id]) return;                           // one row per recipe, first wins
+    // First integer in the block body, so "520", "520 kcal" and "~520" all read.
+    var m = bk.body.join(" ").replace(/,/g, "").match(/\d+/);
+    var n = m ? parseInt(m[0], 10) : 0;
+    if (!n || n < 1 || n > 9999) {
+      unreadable.push((rec.name || ("id " + bk.id)) + (m ? " (" + m[0] + "?)" : " (no number)"));
+      return;
+    }
+    seen[rec.id] = true;
+    rows.push({ id: rec.id, name: rec.name || "", kcal: n, existing: rec.kcal || 0 });
+  });
+
+  if (!rows.length) {
+    return { error: unreadable.length
+      ? "No usable numbers in that reply — nothing matched a recipe in your book."
+      : "No calorie figures found in that reply." };
+  }
+  return { rows: rows, unreadable: unreadable };
+}
+
+// The number a row would actually write — an inline edit wins over what came
+// back. Returns 0 for anything out of range, which apply reads as "skip".
+function calRowValue(row) {
+  var e = _calHelperState && _calHelperState.edits[row.id];
+  var n = parseInt(e != null ? e : row.kcal, 10);
+  if (!n || n < 1 || n > 9999) return 0;
+  return n;
+}
+
+// Writes ONLY `kcal`, and only on ticked rows. Every other field on the record
+// is left exactly as it was — same narrowness as applyPrepImport, same reason.
+function applyCalImport() {
+  var st = _calHelperState;
+  if (!st) return;
+  var rb = getRecipeBook();
+  var n = 0;
+  st.rows.forEach(function(row){
+    if (!st.accept[row.id]) return;
+    var i = rb.findIndex(function(x){ return x && x.id === row.id; });
+    if (i < 0) return;                       // deleted on another device mid-review — guard the -1
+    var v = calRowValue(row);
+    if (!v) return;                          // emptied or nonsense inline = "leave this one alone"
+    rb[i].kcal = v;
+    rb[i].updated = Date.now();              // unstamped mutations lose the merge (v353)
+    n++;
+  });
+  saveRecipeBook(rb);
+  toast(n ? ("Calories set on " + n + " recipe" + (n !== 1 ? "s" : "")) : "Nothing applied");
+
+  // Batch advance differs from the prep helper's on purpose. On the default
+  // pool the recipes just applied DROP OUT of it, so the remaining unpriced
+  // ones renumber from the start — advancing the index here would skip a
+  // batch's worth of recipes. Only the whole-book pool is stable enough to
+  // step through.
+  var pool = calHelperPool(st.includeAll);
+  if (!pool.length) { calHelperExit(); return; }
+  var count = calBatchCount(pool);
+  if (count > 1 || !st.includeAll) {
+    st.step = "copy";
+    st.batch = st.includeAll ? Math.min((st.batch || 0) + 1, count - 1) : 0;
+    st.rows = []; st.accept = {}; st.edits = {}; st.unreadable = []; st.error = "";
+    renderCalHelper();
+    return;
+  }
+  calHelperExit();
+}
+
+function calHelperExit() {
+  _calHelperState = null;
+  _recipeView = "list";
+  renderRecipes();
+}
+
+function renderCalHelper() {
+  // Same guard the editor and the prep helper use: this screen holds unsaved
+  // input, so a sync landing mid-review must not redraw it out from under him.
+  _recipeEditing = true;
+  if (!_calHelperState) _calHelperState = { step: "copy", batch: 0, rows: [], accept: {}, edits: {}, unreadable: [], error: "", includeAll: false };
+  var st = _calHelperState;
+  var el = document.getElementById("recipesContent");
+  var head =
+    "<button id='calBackBtn' style='border:none;background:none;color:#B5651D;font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px'>&larr; All recipes</button>" +
+    "<div style='font-family:Georgia,serif;font-size:22px;font-weight:600;margin-bottom:6px'>Calorie helper</div>";
+
+  if (st.step === "review") { renderCalHelperReview(el, st, head); return; }
+
+  var rb = getRecipeBook().filter(Boolean);
+  var priced = rb.filter(function(r){ return !!r.kcal; }).length;
+  var pool = calHelperPool(st.includeAll);
+  var ranges = calBatchRanges(pool);
+  var count = Math.max(1, ranges.length);
+  if (st.batch == null || st.batch < 0 || st.batch >= count) st.batch = 0;
+
+  var toggle =
+    "<label id='calAllWrap' style='display:flex;align-items:center;gap:10px;cursor:pointer;background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:12px'>" +
+      "<input type='checkbox' id='calAll'" + (st.includeAll ? " checked" : "") + " style='width:19px;height:19px;flex:none'>" +
+      "<span style='font-size:13px;color:#8A5A1A;line-height:1.45'>Include the " + priced + " recipe" + (priced !== 1 ? "s" : "") + " that already have a figure" +
+        "<span style='display:block;font-size:11px;color:#A08A6A'>Off by default — nothing you have already priced is sent back out.</span>" +
+      "</span>" +
+    "</label>";
+
+  // Nothing to do: every recipe is priced already. Say so plainly and leave
+  // the toggle, which is the only thing that can change the answer.
+  if (!pool.length) {
+    el.innerHTML = head +
+      "<div style='font-size:13px;color:#8A7A5A;line-height:1.6;margin-bottom:14px'>" +
+        (rb.length
+          ? "Every recipe in your book already has a calorie figure. Tick below to send them out again and re-price them."
+          : "There are no recipes in your book yet.") +
+      "</div>" + (rb.length ? toggle : "");
+    document.getElementById("calBackBtn").addEventListener("click", calHelperExit);
+    var _allEmpty = document.getElementById("calAll");
+    if (_allEmpty) _allEmpty.addEventListener("change", function(){
+      st.includeAll = _allEmpty.checked; st.batch = 0; renderCalHelper();
+    });
+    return;
+  }
+
+  var text = calExportText(st.batch, st.includeAll);
+  var curRange = ranges[st.batch] || { from: 0, to: -1, blocks: [] };
+  var inBatch = curRange.blocks.length;
+
+  var batchHtml = "";
+  if (count > 1) {
+    var chips = "";
+    for (var bi = 0; bi < count; bi++) {
+      var on = bi === st.batch;
+      chips += "<button class='cal-batch' data-b='" + bi + "' style='padding:6px 12px;border:1.5px solid " + (on ? "#B5651D" : "#D8C0A0") + ";background:" + (on ? "#B5651D" : "#FBF4E8") + ";color:" + (on ? "#fff" : "#8A5A1A") + ";border-radius:14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>" + (bi + 1) + "</button>";
+    }
+    batchHtml =
+      "<div style='background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:12px'>" +
+        "<div style='font-size:12px;color:#8A5A1A;line-height:1.5;margin-bottom:8px'>" +
+          "That's too much to do in one go — a long paste gets cut off and the reply stops before it gets through them all. " +
+          "Do it in " + count + " batches, applying each one before moving to the next. " +
+          "Batches are sized by length, not by count, so a batch of long recipes holds fewer of them." +
+        "</div>" +
+        "<div style='display:flex;flex-wrap:wrap;gap:6px'>" + chips + "</div>" +
+      "</div>";
+  }
+
+  el.innerHTML = head +
+    "<div style='font-size:13px;color:#8A7A5A;line-height:1.6;margin-bottom:14px'>" +
+      "Copy the recipes below, paste them into a chat, then paste the reply back here. " +
+      "You get a calories-per-serving figure for each one, which you can edit before it is saved. " +
+      "Nothing is written to a recipe until you review it and tap Apply." +
+    "</div>" +
+    toggle +
+    batchHtml +
+    "<button id='calCopyBtn' style='width:100%;box-sizing:border-box;padding:13px;border:none;background:#B5651D;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px'>&#x1F4CB; Copy " + (count > 1 ? ("batch " + (st.batch + 1) + " of " + count + " (" + inBatch + " recipes)") : (pool.length + " recipe" + (pool.length !== 1 ? "s" : ""))) + "</button>" +
+    "<textarea id='calExportBox' readonly rows='5' style='" + recipeInputCss() + "margin-bottom:20px;resize:vertical;line-height:1.5;font-size:12px;color:#7A6A50'>" + esc(text) + "</textarea>" +
+    "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Paste the reply</div>" +
+    (st.error ? "<div style='font-size:13px;color:#B03030;font-weight:600;margin-bottom:8px'>" + esc(st.error) + "</div>" : "") +
+    "<textarea id='calImportBox' rows='6' placeholder='Paste the whole reply here' style='" + recipeInputCss() + "margin-bottom:10px;resize:vertical;line-height:1.5;font-size:13px'></textarea>" +
+    "<button id='calReviewBtn' style='width:100%;box-sizing:border-box;padding:13px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Review what came back</button>";
+
+  document.getElementById("calBackBtn").addEventListener("click", calHelperExit);
+  document.getElementById("calCopyBtn").addEventListener("click", function(){ prepCopyToClipboard(text); });
+  var _all = document.getElementById("calAll");
+  if (_all) _all.addEventListener("change", function(){
+    st.includeAll = _all.checked; st.batch = 0; st.error = ""; renderCalHelper();
+  });
+  Array.prototype.forEach.call(el.querySelectorAll(".cal-batch"), function(b){
+    b.addEventListener("click", function(){
+      st.batch = parseInt(b.getAttribute("data-b"), 10) || 0;
+      renderCalHelper();
+    });
+  });
+  document.getElementById("calReviewBtn").addEventListener("click", function(){
+    var res = parseCalReply(document.getElementById("calImportBox").value);
+    if (res.error) { st.error = res.error; renderCalHelper(); return; }
+    st.error = "";
+    st.rows = res.rows;
+    st.unreadable = res.unreadable || [];
+    st.edits = {};
+    // Pre-ticked only where there is nothing of his to lose, the prep helper's
+    // rule: a recipe that already has a figure stays unticked, so replacing it
+    // is a deliberate tap rather than a default he has to notice and undo.
+    st.accept = {};
+    st.rows.forEach(function(row){ st.accept[row.id] = !row.existing; });
+    st.step = "review";
+    renderCalHelper();
+  });
+}
+
+function renderCalHelperReview(el, st, head) {
+  var accepted = 0, replacing = 0, withExisting = 0;
+  st.rows.forEach(function(row){
+    if (st.accept[row.id]) accepted++;
+    if (st.accept[row.id] && row.existing) replacing++;
+    if (row.existing) withExisting++;
+  });
+
+  var html = head +
+    "<div style='font-size:13px;color:#8A7A5A;line-height:1.6;margin-bottom:14px'>" +
+      st.rows.length + " recipe" + (st.rows.length !== 1 ? "s" : "") + " came back. Tick what you want, edit any number, then Apply. " +
+      "Only the calories are written — nothing else on the recipe is touched." +
+    "</div>";
+
+  if (withExisting) {
+    html +=
+      "<div style='background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:12px'>" +
+        "<div style='font-size:12px;color:#8A5A1A;line-height:1.5;margin-bottom:8px'>" +
+          withExisting + " of these already have a figure, so they start unticked — " +
+          "nothing you set stays replaced unless you say so." +
+        "</div>" +
+        "<div style='display:flex;gap:6px;flex-wrap:wrap'>" +
+          "<button id='calTickAll' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Tick all " + st.rows.length + "</button>" +
+          "<button id='calTickNone' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Untick all</button>" +
+        "</div>" +
+      "</div>";
+  }
+
+  if (st.unreadable.length) {
+    html += "<div style='background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#8A5A1A;line-height:1.5'>" +
+            "Skipped, no usable number: " + esc(st.unreadable.slice(0, 8).join(", ")) +
+            (st.unreadable.length > 8 ? " and " + (st.unreadable.length - 8) + " more" : "") + "</div>";
+  }
+
+  st.rows.forEach(function(row){
+    var on = !!st.accept[row.id];
+    var val = _calHelperState.edits[row.id] != null ? _calHelperState.edits[row.id] : row.kcal;
+    html +=
+      "<div style='border:1.5px solid " + (on ? "#D8C0A0" : "#ECE4D6") + ";background:" + (on ? "#FDFAF3" : "#fff") + ";border-radius:12px;padding:12px;margin-bottom:10px'>" +
+        "<div class='cal-chkwrap' data-id='" + row.id + "' style='display:flex;align-items:center;gap:10px;cursor:pointer;padding:2px 0 8px'>" +
+          "<input type='checkbox' class='cal-chk'" + (on ? " checked" : "") + " style='width:20px;height:20px;flex:none'>" +
+          "<span style='flex:1;font-size:15px;font-weight:700;color:#2A2010'>" + esc(row.name) + "</span>" +
+          (row.existing ? "<span style='font-size:11px;color:#B03030;font-weight:700'>replaces " + row.existing + "</span>" : "") +
+        "</div>" +
+        "<div style='display:flex;align-items:center;gap:8px'>" +
+          "<input type='number' class='cal-edit' data-id='" + row.id + "' min='1' max='9999' inputmode='numeric' value='" + esc(String(val)) + "' style='" + recipeInputCss() + "max-width:120px'>" +
+          "<span style='font-size:13px;color:#8A7A5A'>kcal per serving</span>" +
+        "</div>" +
+      "</div>";
+  });
+
+  html +=
+    "<button id='calApply'" + (accepted ? "" : " disabled") + " style='width:100%;box-sizing:border-box;padding:13px;margin-top:6px;border:none;background:" + (accepted ? "#2D6B35" : "#D8CEBC") + ";color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:" + (accepted ? "pointer" : "default") + "'>" +
+      (accepted ? ("Apply to " + accepted + " recipe" + (accepted !== 1 ? "s" : "")) : "Tick the ones you want") +
+    "</button>" +
+    "<button id='calBackToCopy' style='width:100%;box-sizing:border-box;padding:11px;margin-top:8px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>&larr; Paste a different reply</button>";
+
+  el.innerHTML = html;
+
+  document.getElementById("calBackBtn").addEventListener("click", calHelperExit);
+  document.getElementById("calBackToCopy").addEventListener("click", function(){
+    st.step = "copy"; st.rows = []; st.accept = {}; st.edits = {}; st.unreadable = [];
+    renderCalHelper();
+  });
+  var _tickAll = document.getElementById("calTickAll");
+  if (_tickAll) _tickAll.addEventListener("click", function(){
+    st.rows.forEach(function(row){ st.accept[row.id] = true; });
+    renderCalHelper();
+  });
+  var _tickNone = document.getElementById("calTickNone");
+  if (_tickNone) _tickNone.addEventListener("click", function(){
+    st.rows.forEach(function(row){ st.accept[row.id] = false; });
+    renderCalHelper();
+  });
+  // Inline edits are kept in state, not read at apply time: the review
+  // re-renders on every tick, which would otherwise throw away typing.
+  Array.prototype.forEach.call(el.querySelectorAll(".cal-edit"), function(t){
+    t.addEventListener("input", function(){ st.edits[t.getAttribute("data-id")] = t.value; });
+  });
+  Array.prototype.forEach.call(el.querySelectorAll(".cal-chkwrap"), function(w){
+    w.addEventListener("click", function(e){
+      var c = w.querySelector(".cal-chk");
+      if (!c) return;
+      if (e.target !== c) c.checked = !c.checked;   // tapped the padding, not the box
+      st.accept[w.getAttribute("data-id")] = c.checked;
+      renderCalHelper();
+    });
+  });
+  document.getElementById("calApply").addEventListener("click", function(){
+    if (!accepted) return;
+    var msg = "Set calories on " + accepted + " recipe" + (accepted !== 1 ? "s" : "") + "?";
+    if (replacing) msg += " " + replacing + " of them already had a figure, which will be replaced.";
+    confirmDialog(msg, applyCalImport);
+  });
 }
 
 // ── Duplicate recipes: find and repair (v401) ─────────────────────────────
@@ -18971,11 +19407,11 @@ function buildTestSeed() {
           "300 g penne\n1 jar tomato sauce\n150 g cheddar\n1 courgette\n2 cloves garlic\n1 tbsp olive oil"),
         prep:"", method:"Cook the pasta.\nFry the courgette and garlic.\nStir through the sauce, top with cheese, bake 20 minutes.",
         notes:"", url:"", fav:false, inRotation:true, updated:_tsTs(-15, 12, 0), addedBy:"Petra" },
-      { id:R3, name:"Demo Porridge", servings:2, kcal:280, category:"Breakfast",
+      { id:R3, name:"Demo Porridge", servings:2, category:"Breakfast",
         ingredients:parseIngredients("100 g porridge oats\n500 ml milk\n1 banana\n1 tbsp honey"),
         prep:"", method:"Simmer the oats and milk for 5 minutes, stirring. Top with sliced banana and honey.",
         notes:"", url:"", fav:false, inRotation:false, updated:_tsTs(-9, 8, 0), addedBy:"Cathal" },
-      { id:R4, name:"Demo Fish Pie", servings:4, kcal:480, category:"Dinner",
+      { id:R4, name:"Demo Fish Pie", servings:4, category:"Dinner",
         ingredients:parseIngredients(
           "500 g white fish\n600 g potatoes\n300 ml milk\n50 g butter\n2 tbsp plain flour\n100 g frozen peas"),
         prep:"Peel and quarter the potatoes.", method:"Boil and mash the potatoes with half the butter.\nMake a white sauce with the rest.\nFold in the fish and peas, top with mash, bake 25 minutes.",
