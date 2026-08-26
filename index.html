@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v436 · 26/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v437 · 26/08/2026</div>
 
   </div>
 </div>
@@ -16737,12 +16737,12 @@ function playChime(){
 // ── Program data ──────────────────────────────────────────
 var WK_TRAIN = {
   pull:{name:'Pull Day',color:'#3b82f6',emoji:'&#x1F535;',supersets:[
-    {id:'A',rounds:3,restSec:50,exercises:[{id:'rows',name:'Rows',type:'weighted'},{id:'bulgarian',name:'Bulgarian Split Squats',type:'weighted'}]},
-    {id:'B',rounds:3,restSec:50,exercises:[{id:'pullups',name:'Pull-ups / Inverted Rows',type:'reps'},{id:'glute_bridge',name:'Marching Glute Bridge',type:'reps'}]}
+    {id:'A',rounds:3,restSec:90,exercises:[{id:'rows',name:'Rows',type:'weighted'},{id:'bulgarian',name:'Bulgarian Split Squats',type:'weighted'}]},
+    {id:'B',rounds:3,restSec:90,exercises:[{id:'pullups',name:'Pull-ups / Inverted Rows',type:'reps'},{id:'glute_bridge',name:'Marching Glute Bridge',type:'reps'}]}
   ]},
   push:{name:'Push Day',color:'#ef4444',emoji:'&#x1F534;',supersets:[
-    {id:'A',rounds:3,restSec:50,exercises:[{id:'dips',name:'Dips',type:'reps'},{id:'sldl',name:'Single-leg Deadlift',type:'weighted'}]},
-    {id:'B',rounds:3,restSec:50,exercises:[{id:'pushups',name:'Push-ups',type:'reps'},{id:'side_plank',name:'Side Plank',type:'duration'}]}
+    {id:'A',rounds:3,restSec:90,exercises:[{id:'dips',name:'Dips',type:'reps'},{id:'sldl',name:'Single-leg Deadlift',type:'weighted'}]},
+    {id:'B',rounds:3,restSec:90,exercises:[{id:'pushups',name:'Push-ups',type:'reps'},{id:'side_plank',name:'Side Plank',type:'duration'}]}
   ]}
 };
 var COND_TRAIN = {rounds:2,exercises:[{id:'step_ups',name:'Step-ups',type:'reps'},{id:'marching',name:'Marching in Place',type:'duration'}]};
@@ -17419,7 +17419,7 @@ function finishPhysio() {
 // BODYWEIGHT WORKOUT SESSION
 // ============================================================
 function openWorkoutSession(wType) {
-  SS = { type:"workout", wType:wType, wSsIdx:0, wRound:1, wPhase:"intro", wRestTime:0, wRestDur:0, wCondRound:1, wEntries:{} };
+  SS = { type:"workout", wType:wType, wSsIdx:0, wRound:1, wPhase:"intro", wRestTime:0, wRestDur:0, wCondRound:1, wEntries:{}, wTyped:{}, wLast:wktLastEntries(wType) };
   var wk = WK_TRAIN[wType];
   openSessionOverlay(wk.name);
   document.getElementById("sesProgFill").style.background = wk.color;
@@ -17444,7 +17444,7 @@ function renderWorkoutSession() {
     body.innerHTML = "<div class='ses-intro'>" +
       "<div class='ses-intro-ico'>"+(SS.wType==="pull"?"&#x1F4AA;":"&#x1F525;")+"</div>" +
       "<div class='ses-intro-name'>"+wk.name+"</div>" +
-      "<div class='ses-intro-sub'>"+wk.supersets.length+" supersets &middot; 3 rounds each &middot; 50s rest</div>" +
+      "<div class='ses-intro-sub'>"+wk.supersets.length+" supersets &middot; 3 rounds each &middot; 90s rest</div>" +
       "<div class='ses-intro-list'>"+exList+"</div>" +
       "<button class='ses-begin-btn' style='background:"+wk.color+"' onclick='beginWorkout()'>Start workout</button>" +
       "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
@@ -17491,7 +17491,7 @@ function renderWorkoutSession() {
   if (SS.wPhase === "cond") {
     var exHtml = COND_TRAIN.exercises.map(function(ex,i){
       var key = "cond_"+SS.wCondRound+"_"+ex.id;
-      var val = SS.wEntries[key] || {};
+      var val = wktFillEntry("cond", SS.wCondRound, ex);
       return "<div class='ss-ex'>" +
         "<div class='ss-ex-name'>"+esc(ex.name)+"</div>" +
         "<div class='ss-inputs'>" + inputsHtml(ex, key, val) + "</div>" +
@@ -17523,7 +17523,7 @@ function renderWorkoutSession() {
 
   var exHtml2 = ss2.exercises.map(function(ex){
     var key = ss2.id+"_"+SS.wRound+"_"+ex.id;
-    var val = SS.wEntries[key] || {};
+    var val = wktFillEntry(ss2.id, SS.wRound, ex);
     return "<div class='ss-ex'>" +
       "<div class='ss-ex-name'>"+esc(ex.name)+"</div>" +
       "<div class='ss-inputs'>" + inputsHtml(ex, key, val) + "</div>" +
@@ -17538,6 +17538,55 @@ function renderWorkoutSession() {
     exHtml2 + "</div>" +
     "<button class='ss-done-btn' onclick='completeWktRound()'>Done with round</button>";
   wireInputs();
+}
+
+// ── Remember last time's numbers (v437) ───────────────────
+// A round opens pre-filled instead of blank, so a set you repeat needs no
+// typing at all. wktFillEntry writes what it shows back into SS.wEntries, so
+// these are real values and an untouched round still saves what is on screen.
+function wktFieldsFor(ex) {
+  if (ex.type === "weighted") return ["reps","weight"];
+  if (ex.type === "duration") return ["duration"];
+  return ["reps"];
+}
+
+function wktLastEntries(wType) {
+  var wk = WK_TRAIN[wType], out = {}, ws = getWD().workouts || [], prev = null;
+  for (var i=0;i<ws.length;i++) {
+    if (ws[i].sessionName === wk.name && ws[i].exercises && ws[i].exercises.length) { prev = ws[i]; break; }
+  }
+  if (!prev) return out;
+  wk.supersets.forEach(function(ss2){
+    ss2.exercises.forEach(function(ex){
+      var rec = null, fields = wktFieldsFor(ex);
+      for (var j=0;j<prev.exercises.length;j++) if (prev.exercises[j].name === ex.name) { rec = prev.exercises[j]; break; }
+      if (!rec || !rec.sets) return;
+      for (var r=1;r<=ss2.rounds;r++) {
+        var set = rec.sets[r-1] || {}, v = {}, any = false;
+        fields.forEach(function(f){ if (set[f]) { v[f] = String(set[f]); any = true; } });
+        if (any) out[ss2.id+"_"+r+"_"+ex.id] = v;
+      }
+    });
+  });
+  return out;
+}
+
+function wktFillEntry(prefix, round, ex) {
+  var key = prefix+"_"+round+"_"+ex.id;
+  if (!SS.wEntries[key]) SS.wEntries[key] = {};
+  var cur = SS.wEntries[key], last = SS.wLast || {};
+  wktFieldsFor(ex).forEach(function(f){
+    if (Object.prototype.hasOwnProperty.call(cur, f)) return;  // already filled or typed
+    var v = "", r, pk;
+    for (r=round-1; r>=1 && !v; r--) {                          // a round you typed today wins
+      pk = prefix+"_"+r+"_"+ex.id;
+      if (SS.wTyped[pk+"."+f]) v = (SS.wEntries[pk]||{})[f] || "";
+    }
+    if (!v) v = (last[key]||{})[f] || "";                       // else last time, same round
+    for (r=round-1; r>=1 && !v; r--) v = (last[prefix+"_"+r+"_"+ex.id]||{})[f] || "";
+    cur[f] = v;
+  });
+  return cur;
 }
 
 function inputsHtml(ex, key, val) {
@@ -17555,6 +17604,7 @@ function wireInputs() {
       var key=inp.dataset.key, field=inp.dataset.field;
       if (!SS.wEntries[key]) SS.wEntries[key]={};
       SS.wEntries[key][field] = inp.value;
+      SS.wTyped[key+"."+field] = true;
     });
   });
 }
