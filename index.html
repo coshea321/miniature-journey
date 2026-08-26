@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v439 · 26/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v440 · 26/08/2026</div>
 
   </div>
 </div>
@@ -12368,7 +12368,7 @@ function estimateCals(text) {
 
 function foodDateStr(date) {
   var d = new Date(date + "T12:00:00");
-  var today = foodDate;
+  var today = (function(){ var d2=new Date(); return d2.getFullYear()+"-"+(d2.getMonth()<9?"0":"")+(d2.getMonth()+1)+"-"+(d2.getDate()<10?"0":"")+d2.getDate(); })();
   var yest  = (function(){ var d2 = new Date(today+"T12:00:00"); d2.setDate(d2.getDate()-1);
     return d2.getFullYear()+"-"+(d2.getMonth()<9?"0":"")+(d2.getMonth()+1)+"-"+(d2.getDate()<10?"0":"")+d2.getDate();
   })();
