@@ -20,7 +20,7 @@
 3. **`HEARTH-backlog.md`** — strike through anything the version closed, and add anything it opened.
 
 ## Current version
-**v441 · 27/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
+**v442 · 27/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
 
 ## TDEE / daily calories (v439) — the one rule that must not break
 Store: **`fl4_profile`** (personal channel, in `pushPersonal`/apply, the backup payload and `buildTestSeed`) — `sex`, `heightCm`, `birthYear`, `activity`, `rate`, `goalKg`. Rendered by `renderTdeeCard()` into `#tdeeCard` at the top of **Track → Body** (Track's sub-nav is Log / Medicine / Body / Food; Train's is Programs / Log / History and has no Body tab). **The hosting div is still called `trainBodyView` and the view is `TRACK_VIEWS.body`** — the id is a leftover from before v339 moved the personal logs into Track, kept deliberately under the "internal section ids NEVER change" rule. Reading the id as the location is how v439 and v441 both came to write "Train → Body" in their notes and PR checklists; it is Track.
@@ -37,6 +37,14 @@ Two estimates, crossfaded on the span of the weight log:
 `tdeeGoal()` applies two guards that are safety limits, not preferences: never below `TDEE_FLOOR_KCAL` (1500), never a deficit above `TDEE_MAX_DEFICIT` (25%) of TDEE, and never a goal *above* TDEE. It writes `fl4_cal_goal` only behind an explicit button, so a hand-typed goal is never silently overwritten.
 
 **The goal and the profile are stamped, and the sync merge is newest-wins (v441).** `fl4_cal_goal` and `fl4_profile` are a bare number and a bare object — no per-record `updated` field for the merge to compare — so `applyPersonal` used to take whichever value the payload carried. Every push sends `storeGet("fl4_cal_goal") || 2000`, so a device that had never set a goal pushed the **fallback 2000** and the next pull wrote it over the real goal: the "it keeps resetting to 2000" report. Each value now has its own stamp, `fl4_cal_goal_ts` / `fl4_profile_ts`, written at every local write site, carried in the push payload and the backup file, and compared on merge — **strictly newer incoming wins, equal or older loses, and a value with no stamp counts as 0 so it can never overwrite a stamped one.** The one exception is a device with nothing stored at all, which adopts whatever arrives (stamp and all) so a fresh phone still picks the goal up. When local is the newer side the merge schedules a `pushPersonal()` to converge, the same way `recipebook` does. **Write goals through `setCalGoal()`, never a bare `storeSet("fl4_cal_goal", …)`** — an unstamped write leaves the old stamp in place and the value quietly loses the next merge. `tests/cases/50-cal-goal-sync.js` pins it, tripwire included.
+
+## Food journal autosuggest + saved meal -> recipe (v442)
+Two paths that share one rule, and the rule is the reason both needed care.
+
+- **Autosuggest.** `foodSuggestPool()` merges the food log (deduped by name, newest-first) with `getRecipeBook()` names; `foodSuggestMatches(q, max)` ranks name-start > word-start > anywhere, then by how often it was logged, from 2 characters, capped at 6, with an exact match filtered out. `renderFoodSuggest()` paints `#foodSuggestBox` — a plain div inside the sticky add form, positioned `bottom:100%` against it. **Deliberately NOT a `<datalist>`**: the v-recipe-category comment in `index.html` already records that Android often won't surface one, and this is the one input where that matters most.
+- **Saved meal -> recipe.** `savedMealToRecipe(i)` COPIES: the saved meal survives, because it is the one-tap logging shortcut and the recipe is the cookbook entry. It also crosses scope — the saved meal is personal, the recipe is household-shared. A name already in the book is refused, not duplicated.
+- **The shared rule (v434, applied twice more): a figure only travels if a human typed it.** A suggestion carries a past entry's kcal only when `calAuto` is false, and a recipe's `kcal` only when it was typed in the editor; `savedMealCalories()` returns 0 unless **every** item in the meal was hand-typed. An estimate left in the box would flip `calAuto` off and turn a guess into a number that looks checked. `estimateCals` regenerates the estimate anyway, so nothing is lost by refusing to copy it. **Do NOT "improve" either path by summing or forwarding estimates.**
+- Pinned by `tests/cases/51-food-autosuggest.js` and `tests/cases/52-saved-meal-to-recipe.js`, both carrying that tripwire.
 
 ## Recipes section — current shape
 - Store: `fl4_recipebook` — **shared household-wide** (newest-wins-by-`updated` merge via `/shared`, plus same merge on the personal channel for same-account devices); separate from grocery-import `fl4_recipes`.
@@ -57,7 +65,7 @@ Two estimates, crossfaded on the span of the weight log:
 
 ## What Hearth is
 - A family-hub Progressive Web App for two people (Cathal + partner Petra).
-- **One single-file vanilla HTML/JS app**: `index.html` (~12,100 lines, ~715k at v326) plus `sw.js` (service worker).
+- **One single-file vanilla HTML/JS app**: `index.html` plus `sw.js` (service worker).
 - No build step, no framework. Plain HTML/CSS/JS.
 - **Hosting:** GitHub Pages at `coshea321.github.io/miniature-journey`
 - **Storage:** localStorage (primary) + Firebase Realtime Database (household sync between the two users)

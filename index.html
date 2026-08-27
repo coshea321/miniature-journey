@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v441 · 27/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v442 · 27/08/2026</div>
 
   </div>
 </div>
@@ -1128,6 +1128,10 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     <div id="foodEntries" style="padding:8px 12px"></div>
     <!-- Add form -->
     <div style="padding:10px 12px 6px;background:#FDFAF3;border-top:1px solid #E8D8C0;position:sticky;bottom:55px">
+      <!-- Autosuggest panel (v442). Lives INSIDE the sticky wrapper on purpose:
+           position:sticky makes that div the containing block, so bottom:100%
+           floats the panel directly above the add form instead of the page. -->
+      <div id="foodSuggestBox" style="display:none;position:absolute;left:12px;right:12px;bottom:100%;margin-bottom:6px;background:#fff;border:1.5px solid #C4A07A;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.18);overflow:hidden;overflow-y:auto;max-height:212px;z-index:10"></div>
       <!-- Saved meals row -->
       <div style="display:flex;gap:5px;margin-bottom:7px;overflow-x:auto;padding-bottom:2px" id="savedMealsRow"></div>
       <div style="display:flex;gap:6px;margin-bottom:6px">
@@ -12396,6 +12400,129 @@ function foodShiftDay(date, delta) {
   return d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1)+"-"+(d.getDate()<10?"0":"")+d.getDate();
 }
 
+// -- Food journal autosuggest (v442) --------------------------------------
+// Typing in the "What did you eat?" box offers what you have logged before
+// plus your recipe names, so a repeat meal is one tap instead of retyping.
+//
+// The calorie rule is the one that matters here, and it is the v434 rule
+// again: a suggestion only carries a figure that a HUMAN typed -- a
+// hand-entered kcal on a past entry, or a recipe's per-serving kcal from its
+// editor. An auto-estimated figure is deliberately NOT carried across; the
+// box is left empty so estimateCals regenerates it and the entry stays
+// flagged `calAuto`. Copying an estimate forward would launder a guess into
+// something that looks hand-checked, and calorie figures are numbers Cathal
+// acts on. Do NOT "improve" this by prefilling estimates.
+var _foodSuggest = [];
+
+function foodSuggestKey(s) { return String(s == null ? "" : s).trim().toLowerCase().replace(/\s+/g, " "); }
+
+// One entry per distinct food name, newest-first so the display text and any
+// typed figure come from the most recent time it was logged.
+function foodSuggestPool() {
+  var map = {}, out = [];
+  function slot(text) {
+    var k = foodSuggestKey(text);
+    if (!k) return null;
+    if (!map[k]) { map[k] = { key: k, text: String(text).trim(), cal: 0, uses: 0, last: 0, recipe: false }; out.push(map[k]); }
+    return map[k];
+  }
+  getFoodLog().slice().sort(function(a, b) { return (b.id || 0) - (a.id || 0); }).forEach(function(e) {
+    var it = slot(e.text);
+    if (!it) return;
+    it.uses++;
+    if ((e.id || 0) > it.last) it.last = e.id || 0;
+    if (!it.cal && e.cal && !e.calAuto) it.cal = e.cal;   // typed only -- see the note above
+  });
+  getRecipeBook().forEach(function(r) {
+    var it = slot(r.name);
+    if (!it) return;
+    it.recipe = true;
+    if (!it.cal && r.kcal) it.cal = r.kcal;               // typed in the recipe editor, never estimated
+  });
+  return out;
+}
+
+function foodSuggestMatches(q, max) {
+  var needle = foodSuggestKey(q);
+  if (needle.length < 2) return [];
+  var hits = [];
+  foodSuggestPool().forEach(function(it) {
+    if (it.key === needle) return;                        // exact: already in the box, nothing to offer
+    var at = it.key.indexOf(needle);
+    if (at < 0) return;
+    // starts the name (2) > starts a word inside it (1) > anywhere (0)
+    hits.push({ it: it, rank: at === 0 ? 2 : (it.key.charAt(at - 1) === " " ? 1 : 0) });
+  });
+  hits.sort(function(a, b) {
+    if (b.rank !== a.rank) return b.rank - a.rank;
+    if (b.it.uses !== a.it.uses) return b.it.uses - a.it.uses;
+    if (b.it.last !== a.it.last) return b.it.last - a.it.last;
+    return a.it.text.localeCompare(b.it.text);
+  });
+  return hits.slice(0, max || 6).map(function(h) { return h.it; });
+}
+
+function hideFoodSuggest() {
+  var box = document.getElementById("foodSuggestBox");
+  if (box) { box.style.display = "none"; box.innerHTML = ""; }
+  _foodSuggest = [];
+}
+
+function renderFoodSuggest() {
+  var box = document.getElementById("foodSuggestBox");
+  var fi  = document.getElementById("foodItemInput");
+  if (!box || !fi) return;
+  _foodSuggest = foodSuggestMatches(fi.value, 6);
+  if (!_foodSuggest.length) { hideFoodSuggest(); return; }
+  box.innerHTML = _foodSuggest.map(function(it, i) {
+    var last = i === _foodSuggest.length - 1;
+    return "<div class='food-sugg' data-si='" + i + "' style='display:flex;align-items:center;gap:8px;padding:10px 11px;cursor:pointer;touch-action:manipulation" +
+      (last ? "" : ";border-bottom:1px solid #F0E4D0") + "'>" +
+      "<span style='font-size:13px;flex-shrink:0'>" + (it.recipe ? "&#x1F4D6;" : "&#x1F553;") + "</span>" +
+      "<span style='flex:1;font-size:14px;color:#2A2010;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + esc(it.text) + "</span>" +
+      (it.cal ? "<span style='font-size:11px;font-weight:700;color:#A05A10;flex-shrink:0'>" + it.cal + " kcal</span>" : "") +
+    "</div>";
+  }).join("");
+  box.style.display = "block";
+  box.scrollTop = 0;
+  box.querySelectorAll(".food-sugg").forEach(function(row) {
+    // Swallow the focus change, or the input blurs and the panel is gone
+    // before the click ever lands on it.
+    row.addEventListener("mousedown", function(e) { e.preventDefault(); });
+    row.addEventListener("click", function() { pickFoodSuggest(+row.dataset.si); });
+  });
+}
+
+function pickFoodSuggest(i) {
+  var it = _foodSuggest[i];
+  if (!it) return;
+  var fi = document.getElementById("foodItemInput");
+  var ci = document.getElementById("foodCalInput");
+  if (!fi) return;
+  fi.value = it.text;
+  if (ci && it.cal && !ci.value) ci.value = it.cal;       // typed figures only
+  hideFoodSuggest();
+  refreshFoodCalEst();
+  fi.focus();
+}
+
+// The live "Est. ~N kcal" line under the inputs. Top-level so both the input
+// listener and pickFoodSuggest drive it from one place.
+function refreshFoodCalEst() {
+  var fi    = document.getElementById("foodItemInput");
+  var estEl = document.getElementById("foodCalEst");
+  var calIn = document.getElementById("foodCalInput");
+  if (!fi || !estEl || !calIn) return;
+  var est = estimateCals(fi.value);
+  if (est && !calIn.value) {
+    estEl.textContent = "Est. ~" + est + " kcal";
+    calIn.placeholder = "~" + est + " kcal (estimated)";
+  } else {
+    estEl.textContent = "";
+    calIn.placeholder = "kcal (auto-estimated)";
+  }
+}
+
 function renderFoodView() {
   var today = (function(){ var d=new Date(); return d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1)+"-"+(d.getDate()<10?"0":"")+d.getDate(); })();
 
@@ -12518,23 +12645,19 @@ function renderFoodView() {
   var mt = MEAL_TYPES[currentFoodMeal];
   document.getElementById("foodMealToggle").innerHTML = mt.icon + " " + mt.label;
 
-  // Auto-estimate as user types
+  // Auto-estimate + autosuggest as user types
   var fi = document.getElementById("foodItemInput");
   if (fi && !fi._wired) {
     fi._wired = true;
-    fi.addEventListener("input", function() {
-      var est = estimateCals(fi.value);
-      var estEl = document.getElementById("foodCalEst");
-      var calIn = document.getElementById("foodCalInput");
-      if (est && !calIn.value) {
-        estEl.textContent = "Est. ~" + est + " kcal";
-        calIn.placeholder = "~" + est + " kcal (estimated)";
-      } else {
-        estEl.textContent = "";
-        calIn.placeholder = "kcal (auto-estimated)";
-      }
+    fi.addEventListener("input", function() { refreshFoodCalEst(); renderFoodSuggest(); });
+    fi.addEventListener("focus", function() { renderFoodSuggest(); });
+    // Backstop only: picking a suggestion cancels the blur (mousedown is
+    // prevented), so this fires when focus really has left the box.
+    fi.addEventListener("blur", function() { setTimeout(hideFoodSuggest, 180); });
+    fi.addEventListener("keydown", function(e) {
+      if (e.key === "Escape") { hideFoodSuggest(); return; }
+      if (e.key === "Enter") { hideFoodSuggest(); document.getElementById("foodAddBtn").click(); }
     });
-    fi.addEventListener("keydown", function(e){ if (e.key==="Enter") document.getElementById("foodAddBtn").click(); });
   }
 }
 
@@ -12572,6 +12695,7 @@ document.getElementById("foodAddBtn").addEventListener("click", function() {
   document.getElementById("foodCalInput").value  = "";
   document.getElementById("foodCalEst").textContent = "";
   document.getElementById("foodCalInput").placeholder = "kcal (auto-estimated)";
+  hideFoodSuggest();
   renderFoodView();
   toast("&#x1F373; Logged: " + text + (cal ? " (~" + cal + " kcal)" : ""));
 });
@@ -12645,6 +12769,72 @@ document.getElementById("saveMealBtn").addEventListener("click", function() {
   inp.addEventListener("keydown", function(e){ if (e.key === "Enter") doSave(); });
 });
 
+// -- Saved meal -> recipe (v442) ------------------------------------------
+// A saved meal is a personal one-tap logging shortcut; the recipe book is
+// household-shared. This COPIES, it never moves: the saved meal stays exactly
+// where it was, because "also make it a recipe" is not a request to lose the
+// shortcut. Note the scope crossing it implies -- the meal was personal, the
+// recipe it becomes is visible to the whole household.
+//
+// Calories follow the v434 rule one more time. The total is only carried into
+// the recipe's `kcal` when EVERY item carries a hand-typed figure: one
+// auto-estimated line makes the total a guess, and a recipe's kcal is the
+// number every future food-log entry gets priced off. Mixed or estimated, it
+// is left blank for Cathal to type. Do NOT "fix" this by summing estimates.
+function savedMealCalories(meal) {
+  var items = (meal && meal.items) || [];
+  if (!items.length) return 0;
+  var total = 0;
+  for (var i = 0; i < items.length; i++) {
+    if (!items[i].cal || items[i].calAuto) return 0;
+    total += items[i].cal;
+  }
+  return total;
+}
+
+// The recipe this saved meal became, if it is already in the book. Name match
+// only, normalized the way the autosuggest normalizes food names.
+function savedMealRecipe(meal) {
+  var key = foodSuggestKey(meal && meal.name);
+  if (!key) return null;
+  return getRecipeBook().find(function(r){ return foodSuggestKey(r.name) === key; }) || null;
+}
+
+// Returns the new recipe's id, or null if it was refused.
+function savedMealToRecipe(mi) {
+  var saved = storeGet("fl4_saved_meals") || [];
+  var meal = saved[mi];
+  if (!meal) return null;
+  var name = String(meal.name || "").trim() || "My meal";
+  if (savedMealRecipe(meal)) { toast("A recipe called &ldquo;" + esc(name) + "&rdquo; is already in your book"); return null; }
+  // One logged line in, one ingredient out. parseIngredients picks up whatever
+  // amount the text carries ("2 eggs" -> 2 x eggs) and leaves the rest as a
+  // plain named ingredient, which is the honest result: a food-log line is not
+  // a measured quantity.
+  //
+  // Parsed a line at a time, with a fallback, because parseIngredients is
+  // built for RECIPE lines where a bare unit word is a measure. "Rashers",
+  // "Slices", "Scoop" are all in INGREDIENT_UNIT_MAP, so a food-log line
+  // consisting only of one parses to a unit with an EMPTY name and gets
+  // filtered out -- the meal would silently lose an item. In a food log those
+  // words are the food's name. Do NOT collapse this back into one
+  // parseIngredients call over the joined text.
+  var ingredients = [];
+  (meal.items || []).forEach(function(it) {
+    var line = String(it.text || "").trim();
+    if (!line) return;
+    var parsed = parseIngredients(line)[0];
+    ingredients.push((parsed && parsed.name && !parsed.header) ? parsed : { name: line });
+  });
+  var rb = getRecipeBook();
+  var id = nextRecipeId(recipeIdMap(rb));
+  rb.unshift({ id:id, name:name, servings:1, kcal:savedMealCalories(meal), category:"",
+    ingredients:ingredients, prep:"", method:"", notes:"", url:"", fav:false,
+    inRotation:false, updated:Date.now(), addedBy:hearthUser });
+  saveRecipeBook(rb);
+  return id;
+}
+
 function openSavedMealsManager() {
   var saved = storeGet("fl4_saved_meals") || [];
   var overlay = document.createElement("div");
@@ -12660,11 +12850,35 @@ function openSavedMealsManager() {
           "<div style='font-size:12px;color:#B8805A'>" + m.items.length + " items" + (m.cal?" · ~"+m.cal+" kcal total":"") + "</div>" +
           m.items.map(function(it){ return "<div style='font-size:11px;color:#B8805A;padding-left:8px'>• " + esc(it.text) + (it.cal?" ("+it.cal+"kcal)":"") + "</div>"; }).join("") +
           "</div>" +
-          "<button data-del='" + i + "' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;padding:4px 8px'>&#x2715;</button>" +
+          // Already in the book: a second, deliberate tap opens it, rather than
+          // the manager teleporting you over to Recipes on its own.
+          (savedMealRecipe(m)
+            ? "<button data-open='" + i + "' style='border:1.5px solid #C4A07A;background:none;color:#7A3A05;font-family:inherit;font-size:11px;font-weight:700;border-radius:14px;cursor:pointer;touch-action:manipulation;padding:5px 9px;white-space:nowrap;flex-shrink:0'>&#x1F4D6; Open</button>"
+            : "<button data-rec='" + i + "' style='border:1.5px solid #C4A07A;background:none;color:#7A3A05;font-family:inherit;font-size:11px;font-weight:700;border-radius:14px;cursor:pointer;touch-action:manipulation;padding:5px 9px;white-space:nowrap;flex-shrink:0'>&#x1F4D6; Make recipe</button>") +
+          "<button data-del='" + i + "' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;padding:4px 8px;flex-shrink:0'>&#x2715;</button>" +
         "</div>";
       }).join("") : "<p style='color:#B8805A;font-size:14px'>No saved meals yet.</p>") +
       "<button style='width:100%;margin-top:14px;padding:12px;border:none;background:#F5E8D8;color:#7A3A05;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Close</button>";
     box.querySelector("button:last-child").addEventListener("click", function(){ document.body.removeChild(overlay); renderFoodView(); });
+    box.querySelectorAll("[data-rec]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var m = saved[+btn.dataset.rec];
+        var id = savedMealToRecipe(+btn.dataset.rec);
+        if (!id) return;                       // name clash -- savedMealToRecipe already said so
+        render();                              // the row flips to "Open"
+        toast("&#x1F4D6; Recipe added: " + esc(m.name) +
+              (savedMealCalories(m) ? "" : " &mdash; add the method and calories"));
+      });
+    });
+    box.querySelectorAll("[data-open]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var r = savedMealRecipe(saved[+btn.dataset.open]);
+        if (!r) { render(); return; }
+        if (overlay.parentNode) document.body.removeChild(overlay);
+        switchSection("recipes");
+        openRecipeEditor(r.id);
+      });
+    });
     box.querySelectorAll("[data-del]").forEach(function(btn){
       btn.addEventListener("click", function(){
         saved.splice(+btn.dataset.del, 1);
@@ -12710,7 +12924,7 @@ document.getElementById("trackSubNav").addEventListener("click", function(e) {
   renderTrackView();
 });
 
-var HIDEABLE_SECTIONS = ["home", "train", "trips", "track", "sports", "famlog", "plants", "watch", "appliances"]; // lists and baby are always visible; notes lives inside Lists (v318); Track hosts Log/Food/Body (v339); Plants is opt-in (v377)
+var HIDEABLE_SECTIONS = ["home", "train", "trips", "track", "sports", "famlog", "plants", "watch", "appliances"]; // lists and baby are always visible; notes lives inside Lists (v318); Track hosts Log/Medicine/Body/Food (v339, Medicine added v380); Plants is opt-in (v377)
 
 var sectionVisible = (function() {
   var stored = storeGet("fl4_secVisible") || {};
@@ -20217,8 +20431,13 @@ function buildTestSeed() {
     ],
     food_notes:{},
     saved_meals:[
+      // Two on purpose (v442): the first is all auto-estimated, so "Make
+      // recipe" leaves its kcal blank; the second is all hand-typed, so the
+      // total carries. Both branches of savedMealCalories visible on a test build.
       { id:_tsId(), name:"Demo usual breakfast",
-        items:[{ text:"Porridge and banana", cal:320, calAuto:true }, { text:"Coffee", cal:10, calAuto:true }] }
+        items:[{ text:"Porridge and banana", cal:320, calAuto:true }, { text:"Coffee", cal:10, calAuto:true }] },
+      { id:_tsId(), name:"Demo counted lunch",
+        items:[{ text:"Chicken sandwich", cal:450, calAuto:false }, { text:"Apple", cal:80, calAuto:false }] }
     ],
     cal_goal:2200,
     cal_goal_ts:_tsTs(-3, 20, 0),
