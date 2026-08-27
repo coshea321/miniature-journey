@@ -895,7 +895,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v440 · 26/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v441 · 27/08/2026</div>
 
   </div>
 </div>
@@ -12231,6 +12231,20 @@ function getFoodLog() {
 }
 function saveFoodLog(e) { storeSet("fl4_food_log", e); pushPersonal(); }
 
+// ── Calorie goal: stamped on every local write (v441) ────────────────────
+// The goal is a bare scalar, so the personal-sync merge has no per-record
+// `updated` field to compare and used to take the incoming value blindly.
+// Any device that had never set a goal pushed the `|| 2000` fallback, and
+// that push stomped a real goal set on another device back to 2000. Every
+// local write now stamps `fl4_cal_goal_ts`; the merge takes the incoming
+// value only when its stamp is newer. Route ALL goal writes through here --
+// a bare storeSet("fl4_cal_goal", ...) leaves the stamp stale and the value
+// silently loses to the next sync.
+function setCalGoal(v) {
+  storeSet("fl4_cal_goal", v);
+  storeSet("fl4_cal_goal_ts", Date.now());
+}
+
 // ── Recipe -> food journal (v434) ────────────────────────────────────────
 // One recipe becomes ONE food-log line, priced off the kcal-per-serving
 // figure TYPED into the recipe editor.
@@ -12582,7 +12596,7 @@ document.getElementById("foodDaySummary").addEventListener("click", function() {
   setTimeout(function(){ inp.focus(); inp.select(); }, 60);
   function doSave() {
     var v = +inp.value;
-    if (v > 0) { storeSet("fl4_cal_goal", v); pushPersonal(); renderFoodView(); }
+    if (v > 0) { setCalGoal(v); pushPersonal(); renderFoodView(); }
     document.body.removeChild(ov);
   }
   document.getElementById("_goalSave").addEventListener("click", doSave);
@@ -12876,8 +12890,9 @@ function buildExportPayload() {
   //  teeth, bags, babySex), action_log (incl. cardio), track_med (Track section's
   //  family medicine log, v380 — factual only, personal-only sync, distinct
   //  from Baby's dosing medicine), food_log, food_notes,
-  //  saved_meals, cal_goal, profile (v439 — height/year of birth/sex/activity/
-  //   rate/target weight, the inputs to the TDEE estimate), secVisible,
+  //  saved_meals, cal_goal + cal_goal_ts, profile + profile_ts (v439 — height/
+  //   year of birth/sex/activity/rate/target weight, the inputs to the TDEE
+  //   estimate; the two _ts stamps are v441, the newest-wins keys), secVisible,
   //  syncPrefs, recipes (list import recipes),
   //  travel_tags (Travel tag pool; per-item tags live on the items themselves),
   //  recipebook (Recipes section), trips (Trips section, incl. nested bookings),
@@ -12911,7 +12926,9 @@ function buildExportPayload() {
     watchlist:storeGet("fl4_watchlist")||[],
     appliances:storeGet("fl4_appliances")||[],
     cal_goal:storeGet("fl4_cal_goal")||2000,
+    cal_goal_ts:+storeGet("fl4_cal_goal_ts")||0,
     profile:storeGet("fl4_profile")||{},
+    profile_ts:+storeGet("fl4_profile_ts")||0,
     secVisible:storeGet("fl4_secVisible")||{},
     syncPrefs:storeGet("fl4_syncPrefs")||{}
   };
@@ -13252,8 +13269,11 @@ function importBackupData(data) {
       if(add.length) saveCustomCats(lt, cur.concat(add));
     });
   }
-  if(data.cal_goal&&!storeGet("fl4_cal_goal"))storeSet("fl4_cal_goal",data.cal_goal);
-  if(data.profile&&typeof data.profile==="object"&&Object.keys(data.profile).length&&!storeGet("fl4_profile"))storeSet("fl4_profile",data.profile);
+  // Additive as ever -- a restore only fills a goal/profile this device does
+  // not have. The v441 stamp rides along so the restored value keeps its place
+  // in the newest-wins merge; an older file with no stamp restores as 0.
+  if(data.cal_goal&&!storeGet("fl4_cal_goal")){storeSet("fl4_cal_goal",data.cal_goal);storeSet("fl4_cal_goal_ts",+data.cal_goal_ts||0);}
+  if(data.profile&&typeof data.profile==="object"&&Object.keys(data.profile).length&&!storeGet("fl4_profile")){storeSet("fl4_profile",data.profile);storeSet("fl4_profile_ts",+data.profile_ts||0);}
   return imported;
 }
 function importedSummary(n){
@@ -13966,7 +13986,9 @@ var d = {};
   d.food_notes   = storeGet("fl4_food_notes")  || {};
   d.saved_meals  = storeGet("fl4_saved_meals") || [];
   d.cal_goal     = storeGet("fl4_cal_goal") || 2000;
+  d.cal_goal_ts  = +storeGet("fl4_cal_goal_ts") || 0;   // v441: 0 = never set here, so it loses every merge
   d.profile      = storeGet("fl4_profile") || {};
+  d.profile_ts   = +storeGet("fl4_profile_ts") || 0;
   d.baby = getBD();
   d.med_deleted = purgeTombs(getTombs("med"));
   d.growth_deleted = purgeTombs(getTombs("growth"));
@@ -14149,8 +14171,32 @@ function applyPersonal(d) {
     d.saved_meals.filter(Boolean).forEach(function(m){ smIndex[m.id]=m; });
     storeSet("fl4_saved_meals", Object.values(smIndex));
   }
-  if (d.cal_goal) storeSet("fl4_cal_goal", d.cal_goal);
-  if (d.profile && typeof d.profile === "object" && Object.keys(d.profile).length) storeSet("fl4_profile", d.profile);
+  // ── Calorie goal + TDEE profile: newest-wins by stamp (v441) ─────────────
+  // Both used to be taken from the incoming payload unconditionally, which is
+  // how the goal kept "resetting to 2000": a device that had never set one
+  // pushed the `|| 2000` fallback and the next pull wrote it over the real
+  // goal. A value with NO stamp counts as 0, so it never overwrites a stamped
+  // one -- an old device still on the pre-v441 build can no longer stomp this,
+  // it can only be corrected by the converge push below. The `== null` arm is
+  // the first-run case: a device with nothing stored takes whatever is there,
+  // stamp or not, so a fresh phone still picks the goal up.
+  var _goalPush = false, _profPush = false;
+  if (d.cal_goal) {
+    var _incGoalTs = +d.cal_goal_ts || 0, _locGoalTs = +storeGet("fl4_cal_goal_ts") || 0;
+    if (storeGet("fl4_cal_goal") == null || _incGoalTs > _locGoalTs) {
+      storeSet("fl4_cal_goal", d.cal_goal);
+      storeSet("fl4_cal_goal_ts", _incGoalTs);
+    } else if (_locGoalTs > _incGoalTs) _goalPush = true;   // local newer -> push to converge
+  }
+  if (d.profile && typeof d.profile === "object" && Object.keys(d.profile).length) {
+    var _incProfTs = +d.profile_ts || 0, _locProfTs = +storeGet("fl4_profile_ts") || 0;
+    var _locProf = storeGet("fl4_profile");
+    if (!_locProf || !Object.keys(_locProf).length || _incProfTs > _locProfTs) {
+      storeSet("fl4_profile", d.profile);
+      storeSet("fl4_profile_ts", _incProfTs);
+    } else if (_locProfTs > _incProfTs) _profPush = true;
+  }
+  if (_goalPush || _profPush) setTimeout(function(){ if (isLoggedIn()) pushPersonal(); }, 0);
 
   // ── Recipe book: newest-wins by `updated` (mirrors the household channel) ──
   if (Array.isArray(d.recipebook)) {
@@ -18057,7 +18103,7 @@ function getProfile() {
     goalKg:    +p.goalKg    || 0
   };
 }
-function saveProfile(p) { storeSet("fl4_profile", p); pushPersonal(); }
+function saveProfile(p) { storeSet("fl4_profile", p); storeSet("fl4_profile_ts", Date.now()); pushPersonal(); }
 
 function profileAge(p) {
   var y = (p || getProfile()).birthYear;
@@ -18341,7 +18387,7 @@ function renderTdeeCard() {
   if (applyBtn) applyBtn.addEventListener("click", function(){
     var gg = tdeeGoal();
     if (!gg.ok) return;
-    storeSet("fl4_cal_goal", gg.goal);
+    setCalGoal(gg.goal);
     pushPersonal();
     renderTdeeCard();
     toast("&#x1F525; Food goal set to " + gg.goal.toLocaleString() + " kcal");
@@ -20175,7 +20221,9 @@ function buildTestSeed() {
         items:[{ text:"Porridge and banana", cal:320, calAuto:true }, { text:"Coffee", cal:10, calAuto:true }] }
     ],
     cal_goal:2200,
-    profile:{ sex:"m", heightCm:178, birthYear:1985, activity:1.375, rate:0.5, goalKg:78 }
+    cal_goal_ts:_tsTs(-3, 20, 0),
+    profile:{ sex:"m", heightCm:178, birthYear:1985, activity:1.375, rate:0.5, goalKg:78 },
+    profile_ts:_tsTs(-3, 20, 0)
     // syncPrefs is deliberately NOT seeded: importBackupData doesn't apply it,
     // and it is read into a var at parse time anyway, so a value written here
     // would sit in storage doing nothing. The built-in defaults are correct.
