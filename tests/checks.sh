@@ -167,6 +167,26 @@ SHADOW=$(grep -nE '^var (history|location|name|status|frames|top|parent|self)\b'
   || echo "  WARN no escaped <\\/script> found — if the print-doc string now closes with a literal tag, the app will blank-page. The boot smoke test is the real guard here."
 echo "  note $(grep -c '</script>' index.html) literal </script> and $(grep -c '<script' index.html) <script occurrences (informational)"
 
+# ── Piggyback fixes (HEARTH-backlog.md § Piggyback fixes) ────────────────────
+# Verified stale lines too small to justify a version of their own. Each one
+# below is a literal string that should no longer be in the file; while it is
+# still there we print a note so every PR's Checks block carries the reminder,
+# and the note disappears by itself once the line is fixed.
+# INFORMATIONAL ONLY — never touch `fail`. These are corrections to make while
+# you are already in the file, not a reason to block someone else's change.
+# Adding one: append "<file>|<literal string>|<what to do>" to the list, and
+# strike the item through in the backlog when it ships.
+PIGGYBACK="index.html|Track hosts Log/Food/Body|add Medicine — it has been a Track sub-tab since v380
+HEARTH-notes.md|~12,100 lines|delete the size parenthetical; CLAUDE.md says this file quotes no size"
+while IFS='|' read -r pf ps pmsg; do
+  [ -z "$pf" ] && continue
+  if [ -f "$pf" ] && grep -qF "$ps" "$pf"; then
+    echo "  note pending piggyback fix — $pf: $pmsg"
+  fi
+done <<EOF
+$PIGGYBACK
+EOF
+
 echo
 [ "$fail" = "0" ] && echo "MECHANICAL CHECKS: PASS" || echo "MECHANICAL CHECKS: FAIL"
 exit $fail
