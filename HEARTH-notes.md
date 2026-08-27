@@ -20,7 +20,7 @@
 3. **`HEARTH-backlog.md`** — strike through anything the version closed, and add anything it opened.
 
 ## Current version
-**v440 · 26/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
+**v441 · 27/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
 
 ## TDEE / daily calories (v439) — the one rule that must not break
 Store: **`fl4_profile`** (personal channel, in `pushPersonal`/apply, the backup payload and `buildTestSeed`) — `sex`, `heightCm`, `birthYear`, `activity`, `rate`, `goalKg`. Rendered by `renderTdeeCard()` into `#tdeeCard` at the top of Train → Body.
@@ -35,6 +35,8 @@ Two estimates, crossfaded on the span of the weight log:
 **A day with no food entry is a day that wasn't logged, never a zero-calorie day.** The mean is taken over logged days only and the run is refused below the coverage floor — averaging the blanks in understates intake and therefore understates TDEE.
 
 `tdeeGoal()` applies two guards that are safety limits, not preferences: never below `TDEE_FLOOR_KCAL` (1500), never a deficit above `TDEE_MAX_DEFICIT` (25%) of TDEE, and never a goal *above* TDEE. It writes `fl4_cal_goal` only behind an explicit button, so a hand-typed goal is never silently overwritten.
+
+**The goal and the profile are stamped, and the sync merge is newest-wins (v441).** `fl4_cal_goal` and `fl4_profile` are a bare number and a bare object — no per-record `updated` field for the merge to compare — so `applyPersonal` used to take whichever value the payload carried. Every push sends `storeGet("fl4_cal_goal") || 2000`, so a device that had never set a goal pushed the **fallback 2000** and the next pull wrote it over the real goal: the "it keeps resetting to 2000" report. Each value now has its own stamp, `fl4_cal_goal_ts` / `fl4_profile_ts`, written at every local write site, carried in the push payload and the backup file, and compared on merge — **strictly newer incoming wins, equal or older loses, and a value with no stamp counts as 0 so it can never overwrite a stamped one.** The one exception is a device with nothing stored at all, which adopts whatever arrives (stamp and all) so a fresh phone still picks the goal up. When local is the newer side the merge schedules a `pushPersonal()` to converge, the same way `recipebook` does. **Write goals through `setCalGoal()`, never a bare `storeSet("fl4_cal_goal", …)`** — an unstamped write leaves the old stamp in place and the value quietly loses the next merge. `tests/cases/50-cal-goal-sync.js` pins it, tripwire included.
 
 ## Recipes section — current shape
 - Store: `fl4_recipebook` — **shared household-wide** (newest-wins-by-`updated` merge via `/shared`, plus same merge on the personal channel for same-account devices); separate from grocery-import `fl4_recipes`.
