@@ -426,6 +426,10 @@ body.baby-mode #toast{background:#3A3328}
 .today-card-plants .tc-count{color:#2E7D4F}
 .today-card-plants .tc-label{color:#8AA87A}
 .today-card-plants .tc-sub{color:#3A7A48}
+.today-card-cals{background:linear-gradient(135deg,#FAEEDC 0%,#FDF7EE 100%);border:1px solid #C4A07A55;cursor:pointer}
+.today-card-cals .tc-count{color:#A05A10}
+.today-card-cals .tc-label{color:#B8956A}
+.today-card-cals .tc-sub{color:#8A5A20}
 
 /* ============================================================
    TRAIN SECTION — dark theme
@@ -855,6 +859,27 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
           </div>
         </div>
       </div>
+      <!-- Calories (v443): self-suppressing, UNLIKE the plants card above -
+           hidden until something is logged today, so a day Cathal isn't
+           tracking leaves the home screen quiet rather than showing a zero. -->
+      <div class="today-card today-card-cals" id="tcCalCard" style="grid-column:span 2;display:none">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div>
+            <div class="tc-icon" style="margin-bottom:0">&#x1F525;</div>
+          </div>
+          <div style="flex:1">
+            <div class="tc-label" style="margin-bottom:2px">Calories today</div>
+            <div class="tc-sub" id="tcCalSub" style="font-size:13px">Nothing logged yet</div>
+            <div style="height:5px;background:#EDE1CC;border-radius:3px;margin-top:7px;overflow:hidden">
+              <div id="tcCalBar" style="height:100%;width:0;border-radius:3px;background:#4CAF7D;transition:width .2s"></div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div class="tc-count" style="font-size:20px" id="tcCalCount">&mdash;</div>
+            <div class="tc-label" id="tcCalLabel">kcal</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Quick-add buttons -->
@@ -895,7 +920,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v442 · 27/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v443 · 28/08/2026</div>
 
   </div>
 </div>
@@ -12881,6 +12906,10 @@ function openSavedMealsManager() {
     });
     box.querySelectorAll("[data-del]").forEach(function(btn){
       btn.addEventListener("click", function(){
+        // v443: the tombstone is what makes the delete STICK. Without it the
+        // next pull re-added the other device's copy and the meal came back.
+        var gone = saved[+btn.dataset.del];
+        if (gone) addTomb("saved_meals", gone.id);
         saved.splice(+btn.dataset.del, 1);
         storeSet("fl4_saved_meals", saved);
         pushPersonal();
@@ -14199,6 +14228,7 @@ var d = {};
   d.food_log_deleted   = purgeTombs(getTombs("food_log"));
   d.food_notes   = storeGet("fl4_food_notes")  || {};
   d.saved_meals  = storeGet("fl4_saved_meals") || [];
+  d.saved_meals_deleted = purgeTombs(getTombs("saved_meals"));
   d.cal_goal     = storeGet("fl4_cal_goal") || 2000;
   d.cal_goal_ts  = +storeGet("fl4_cal_goal_ts") || 0;   // v441: 0 = never set here, so it loses every merge
   d.profile      = storeGet("fl4_profile") || {};
@@ -14379,11 +14409,20 @@ function applyPersonal(d) {
     var localFN = storeGet("fl4_food_notes") || {};
     storeSet("fl4_food_notes", Object.assign({}, d.food_notes, localFN)); // local daily notes win
   }
+  // ── Saved meals: merge by id + deletion tombstones (v443) ────────────────
+  // This was the ONE personal collection merged without tombstones, so the
+  // union below re-added anything the other device still held and a delete
+  // only ever survived until the next pull -- Cathal's "Demo usual breakfast
+  // comes back". Do NOT drop the tombstone filter to "simplify" this: a saved
+  // meal's id is Date.now() at creation, so a tombstone can never block a
+  // newly saved meal, and the 90d purge keeps the map tiny.
+  var _smTombs = mergeTombs(getTombs("saved_meals"), (d.saved_meals_deleted && typeof d.saved_meals_deleted === "object") ? d.saved_meals_deleted : {});
+  storeSet("fl4_tomb_saved_meals", purgeTombs(_smTombs));
   if (Array.isArray(d.saved_meals)) {
     var localSM = storeGet("fl4_saved_meals") || [], smIndex = {};
     localSM.forEach(function(m){ if(m) smIndex[m.id]=m; });
     d.saved_meals.filter(Boolean).forEach(function(m){ smIndex[m.id]=m; });
-    storeSet("fl4_saved_meals", Object.values(smIndex));
+    storeSet("fl4_saved_meals", Object.values(smIndex).filter(function(m){ return m && _smTombs[m.id] == null; }));
   }
   // ── Calorie goal + TDEE profile: newest-wins by stamp (v441) ─────────────
   // Both used to be taken from the incoming payload unconditionally, which is
@@ -16779,6 +16818,33 @@ function stopHomeClock() {
   _homeClockTimer = null;
 }
 
+// ── Home calories card (v443) ───────────────────────────────────────────────
+// "On track" is measured against PACE, not just the goal: the day's goal spread
+// across a 07:00-21:00 eating window, so a big lunch reads differently at 1pm
+// than the same total does at 9pm. Two deliberate choices, both to keep it
+// gentle rather than nagging:
+//   * being UNDER pace is never flagged - eating less than planned is not a
+//     problem to warn about - so there are three states, not four; and
+//   * the band is wide (a fifth of the goal, floor 300) so a normal breakfast
+//     inside the first hour of the window never reads as a warning.
+// Reads fl4_cal_goal (the food journal's own goal), NOT the TDEE card's
+// computed goal: that is the number Cathal set and is tracking to, and it needs
+// no height/weight/profile set up before this card can say anything at all.
+// Returns null when nothing is logged today - the card hides on null.
+function homeCalState() {
+  var today = trainTodayStr();
+  if (!getFoodLog().some(function(e){ return e && e.date === today; })) return null;
+  var eaten = tdeeIntakeToday();
+  var goal  = +storeGet("fl4_cal_goal") || 2000;
+  var mins  = (function(){ var d = new Date(); return d.getHours()*60 + d.getMinutes(); })();
+  var pace  = Math.max(0, Math.min(1, (mins - 420) / 840));   // 07:00 -> 21:00
+  var band  = Math.max(goal * 0.2, 300);
+  var state = eaten > goal ? "over"
+            : (eaten > goal * pace + band ? "ahead" : "ontrack");
+  return { eaten:eaten, goal:goal, left:goal - eaten, state:state,
+           pct: Math.max(0, Math.min(100, Math.round(eaten / goal * 100))) };
+}
+
 function renderHomeScreen() {
   // While awaiting the first remote fetch after sign-in, show a gentle loading
   // state instead of painting stale local data (prevents the flash of old content)
@@ -16870,6 +16936,28 @@ function renderHomeScreen() {
     if (_pLabel) _pLabel.textContent = _ps.label;
     if (_pSub)   _pSub.textContent   = _ps.sub;
   } catch(e){ console.error("plants card: "+e.message); }
+
+  // ── Calories glance card (v443) ──────────────────────────
+  try {
+    var _cs   = homeCalState();
+    var _cCard = document.getElementById("tcCalCard");
+    if (_cCard) {
+      _cCard.style.display = _cs ? "" : "none";
+      if (_cs) {
+        var _cTone = _cs.state === "over" ? "#EF5350" : _cs.state === "ahead" ? "#FFA726" : "#4CAF7D";
+        var _cSub  = _cs.state === "over"
+              ? Math.abs(_cs.left).toLocaleString() + " over your goal"
+              : _cs.left.toLocaleString() + " left \u00b7 " +
+                (_cs.state === "ahead" ? "a bit ahead of pace" : "nicely on track");
+        document.getElementById("tcCalCount").textContent = _cs.eaten.toLocaleString();
+        document.getElementById("tcCalLabel").textContent = "of " + _cs.goal.toLocaleString();
+        document.getElementById("tcCalSub").textContent   = _cSub;
+        var _cBar = document.getElementById("tcCalBar");
+        _cBar.style.width = _cs.pct + "%";
+        _cBar.style.background = _cTone;
+      }
+    }
+  } catch(e){ console.error("calories card: "+e.message); }
 
   // ── Today summary card (v302) ────────────────────────────
   try { renderTodayCard(); } catch(e){ console.error("renderTodayCard: "+e.message); }
@@ -16968,6 +17056,17 @@ document.getElementById("tcTrainCard").addEventListener("click", function(){ swi
     _plantOpenId = null; _plantView = "list"; _plantArea = "";
     _plantImporting = false; _plantImportParsed = null;
     switchSection("plants");
+  });
+})();
+(function(){
+  var cc = document.getElementById("tcCalCard");
+  if (!cc) return;
+  cc.addEventListener("click", function(){
+    // Straight to the food journal on TODAY: the card is a today figure, so
+    // landing on whatever day was last browsed would contradict it.
+    foodDate = trainTodayStr();
+    currentTrackView = "food";
+    switchSection("track");
   });
 })();
 (function(){
