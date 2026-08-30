@@ -115,6 +115,41 @@ module.exports = {
                       return getTombs("saved_meals")[999] > 0; })(),
          'the restore cleared a tombstone it should not have touched');
 
+      // ── v445: the restore must SAY it restored something ──────────────────
+      // Cathal's report on the first cut of this version: the meal really was
+      // restored, but the toast said "Nothing new to import", so the fix looked
+      // broken. importedSummary only knew about lists/recipes/trips/notes, so
+      // every other collection restored silently. THE TRIPWIRE: a restore that
+      // adds records must never summarise as "" -- an empty summary is what
+      // becomes "Nothing new to import" in the import handler.
+      reset();
+      storeSet("fl4_saved_meals", []);
+      var mealOnly = importBackupData({ saved_meals: [demo] });
+      ok('restoring a saved meal is counted', mealOnly.meals === 1,
+         'got: ' + JSON.stringify(mealOnly));
+      ok('TRIPWIRE a saved-meal-only restore does not summarise as nothing',
+         importedSummary(mealOnly) === "1 saved meal",
+         'got: "' + importedSummary(mealOnly) + '"');
+
+      var foodOnly = importBackupData({ food_log: [
+        { id: 90001, date: "2026-08-01", name: "Diag toast", cal: 200, meal: 0 },
+        { id: 90002, date: "2026-08-01", name: "Diag tea",   cal: 20,  meal: 0 } ] });
+      ok('restoring food-log entries is counted', foodOnly.food === 2,
+         'got: ' + JSON.stringify(foodOnly));
+      ok('and reads as food entries', importedSummary(foodOnly) === "2 food entries",
+         'got: "' + importedSummary(foodOnly) + '"');
+
+      ok('a restore that genuinely adds nothing still summarises as nothing',
+         importedSummary(importBackupData({ saved_meals: [demo] })) === "",
+         'a no-op restore should stay silent');
+
+      ok('more than three kinds falls back to a plain total',
+         importedSummary({lists:1,recipes:1,trips:1,notes:1}) === "4 records",
+         'got: "' + importedSummary({lists:1,recipes:1,trips:1,notes:1}) + '"');
+      ok('singular and plural both read correctly',
+         importedSummary({plants:1}) === "1 plant" && importedSummary({plants:2}) === "2 plants",
+         'got: "' + importedSummary({plants:1}) + '" / "' + importedSummary({plants:2}) + '"');
+
       reset();
       return {pass:pass, fail:fail};
     })()`);
