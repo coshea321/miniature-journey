@@ -12914,6 +12914,13 @@ function openSavedMealsManager() {
         storeSet("fl4_saved_meals", saved);
         pushPersonal();
         render();
+        // v445: render() rebuilds THIS overlay only. The saved-meal chips in the
+        // Food view underneath are painted by renderFoodView(), which until now
+        // ran only when the sheet was closed -- so a deleted meal sat there in
+        // the chip row until you navigated away and came back. Repaint both:
+        // the overlay is a separate element on <body>, so redrawing the view
+        // beneath it is safe and leaves the open sheet alone.
+        renderFoodView();
       });
     });
   }

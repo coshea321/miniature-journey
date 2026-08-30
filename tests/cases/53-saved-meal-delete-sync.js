@@ -150,6 +150,37 @@ module.exports = {
          importedSummary({plants:1}) === "1 plant" && importedSummary({plants:2}) === "2 plants",
          'got: "' + importedSummary({plants:1}) + '" / "' + importedSummary({plants:2}) + '"');
 
+      // ── v445: deleting must repaint the Food view, not just the sheet ─────
+      // Cathal's second report: the meal vanished from storage and from the
+      // manager, but the saved-meal chips in the Food view behind it kept
+      // showing it until you navigated away and back -- renderFoodView() ran
+      // only when the sheet was CLOSED. This asserts the SCREEN, not the store:
+      // the earlier assertions in this file all passed while this was broken,
+      // which is exactly why it reached him.
+      reset();
+      storeSet("fl4_saved_meals", [
+        { id:501, name:"ZzMealAAA", cal:300, items:[{text:"a", cal:300, calAuto:false}] },
+        { id:502, name:"ZzMealBBB", cal:400, items:[{text:"b", cal:400, calAuto:false}] }
+      ]);
+      currentSection = "track"; currentTrackView = "food";
+      renderFoodView();
+      var foodDiv = document.getElementById("notesFoodView");
+      ok('both saved meals show in the Food view to begin with',
+         foodDiv.innerHTML.indexOf("ZzMealAAA") !== -1 && foodDiv.innerHTML.indexOf("ZzMealBBB") !== -1,
+         'chips missing before the delete');
+      openSavedMealsManager();
+      var delBtns = document.querySelectorAll("[data-del]");
+      ok('the manager offers a delete per saved meal', delBtns.length === 2, 'got: ' + delBtns.length);
+      delBtns[0].click();
+      ok('TRIPWIRE the deleted meal leaves the Food view immediately, without closing the sheet',
+         foodDiv.innerHTML.indexOf("ZzMealAAA") === -1,
+         'the Food view still shows the deleted meal - renderFoodView() was not called on delete');
+      ok('the meal that was not deleted is still on screen',
+         foodDiv.innerHTML.indexOf("ZzMealBBB") !== -1, 'the surviving meal vanished too');
+      Array.prototype.slice.call(document.querySelectorAll("button")).forEach(function(b){
+        if (b.textContent === "Close") b.click();
+      });
+
       reset();
       return {pass:pass, fail:fail};
     })()`);
