@@ -389,3 +389,113 @@ anchors at v443 — re-grep before editing, line numbers rot.)*
   this is the first thing to suspect, and unregistering the worker
   (`chrome://serviceworker-internals`) is the cheap recovery that keeps
   `localStorage` — i.e. no re-entering the Firebase URL or household code.
+
+---
+
+## Priority plan & model suitability (added 30/08/2026, on Opus 5)
+
+Cathal asked: prioritise the audit findings alongside the backlog's other bug
+fixes, and say which of them plain Sonnet can build.
+
+### First: what the backlog actually still holds
+
+Re-derived from `HEARTH-backlog.md` rather than assumed. **Almost nothing in it
+is an open bug.** Everything under "Pending / next steps" is one of:
+
+- **shipped** (struck through — the great majority),
+- **rejected or closed on record** (nav consolidation stages 2–4, purchase
+  quantities, eating exercise calories back, warranty badges, dark mode…),
+- **a feature needing its own design confirm** (TDEE follow-ups ①–⑤, watchlist
+  ①②③④⑥, plants ②④, recipe prep ⓪①②, inventory ②③, global-search item-level
+  deep links) — these are *not* bugs and shouldn't compete with fixes,
+- **blocked on Cathal, not on code** (Undo/optimistic delete: reviewed, NOT
+  approved, 3 decisions still open; Cloudflare step 7: dashboard + home screens;
+  categorising imported recipes),
+- **explicitly accepted** (the minor recipe-parser gaps: "rare; acceptable").
+
+That leaves exactly **one** live bug in the backlog:
+
+- **`flushSyncRenders` never passes `watchlist`** (found at v424, still unfixed —
+  re-confirmed at v443 in section 1 above; *both* calls omit it, 14552 and 19144).
+  Two lines. Cosmetic: a partner's watchlist edit doesn't repaint the open
+  section until you leave and come back.
+
+And the § Piggyback fixes list is **empty** — both entries were fixed in v442.
+
+**So the six audit findings are effectively the whole live bug queue.** That is
+the main scheduling fact: these aren't competing with a backlog of other fixes.
+
+### The combined queue
+
+| # | Version | Item | Why here | Model |
+|---|---|---|---|---|
+| 1 | v444 | **F6** SW redirect guard (+ 5th sw-case) | Only item where *waiting* makes it worse | **Opus/Fable** — service worker |
+| 2 | v445 | **F1** saved-meal restore + **F5** comment + **watchlist flush** | One small correctness bundle, all in `index.html` | **Opus/Fable** (F1 is sync-adjacent) |
+| 3 | v446 | **F3** render-time link gates | Needs one design answer first | Opus to decide; **Sonnet can build** |
+| 4 | piggyback | **F4** `secVisible` half only | Rides any later version | **Sonnet** |
+| 5 | parked | **F4** `syncPrefs` half, **F2** dead notes store | Low value, need decisions | Opus if ever |
+
+**Why F6 first, and when to flip it.** F6 is the only finding whose cost is
+asymmetric in time: today it is a no-op (nothing redirects on GitHub Pages), and
+after step 7 a bad cache wedges a phone in a state that needs
+`chrome://serviceworker-internals` to clear — hard to talk someone through
+remotely. F1 is a *more real* bug today but a rare one (it only bites on a backup
+restore of a meal deleted in the last 90 days). **If step 7 has slipped and isn't
+happening for a while, do F1 first** — it is the one with an actual user-visible
+symptom.
+
+### Sonnet verdicts, against CLAUDE.md's own rules
+
+The governing rule: sync/merge, dosing, trip import/export, the service worker,
+or any fuzzy design ⇒ Fable/Opus, and **build in the same session** (no
+design-here-build-there split for those). Separately, a build describable in
+under ~200 words shouldn't be split either — writing the spec costs more than
+doing the work. **Most of these findings are under 200 words**, so the practical
+answer is usually "whoever is in the session should just build it", and the only
+real question is whether that session may be Sonnet.
+
+- **F6 — NOT Sonnet.** Service worker, named explicitly. One Opus/Fable session,
+  design and build together, with the new `tests/sw-cases/` file. Also the one
+  finding I could not reproduce here (no outbound access to the Pages host), so
+  it wants a session that will reason about it rather than pattern-match a fix.
+- **F1 — decision on Opus; the typing is trivial either way.** The code is ~3
+  lines. But there is a genuine semantic question first, and it is *not*
+  cosmetic: **should a restored saved meal resurrect, or should the delete
+  stick?** `importBackupData` already does both, deliberately — list items,
+  recipes, plants, watchlist, appliances and trips **resurrect** (tombstone
+  cleared, `updated` stamped); hist (v323), medicine (v329) and growth/milestones
+  (v371) **stay deleted**. Saved meals need to be assigned to one camp. My read:
+  resurrect, matching its nearest neighbours and the "additive only" contract at
+  the top of the function — a saved meal is a convenience shortcut, not safety
+  data like a logged dose. **Once that is written down, Sonnet can build it**
+  (copy the recipebook pattern verbatim). Don't hand it over before.
+- **F3 — Sonnet-buildable after one design answer.** The change is wrapping three
+  render sites in the existing `applianceLinkUrl`; no new gate function (the
+  comment at `index.html:4936` forbids a second copy, and that is the whole
+  point of the finding). The open question: watchlist and list-item links accept
+  `mailto:` and `tel:` on save, `applianceLinkUrl` allows http(s) only — so
+  either widen the shared gate to those two schemes, or accept narrowing those
+  fields. **This must be decided, not guessed.** If it gets split across
+  sessions, the design PR has to be **merged** before the build session starts
+  (the v415 lesson).
+- **F5 — any model, no version of its own.** One comment line. Add it to
+  § Piggyback fixes so `tests/checks.sh` starts printing the reminder.
+- **watchlist flush — Sonnet.** Two lines, and `HEARTH-backlog.md` already
+  states the exact fix (`watchlist:_rDirty.watchlist` in both calls). It sits
+  inside the sync functions but changes only which view repaints, not what
+  merges — no merge semantics involved.
+- **F4 — split it.** `secVisible` is UI state: restoring it is obviously safe and
+  **Sonnet-safe**. `syncPrefs` decides what leaves the device, so silently
+  restoring it from a file is a real decision — Opus, and only if Cathal wants it.
+- **F2 — park.** Needs a real-device check that the arrays are empty before
+  anything is dropped, plus a decision. Touches both sync payloads. Low value.
+
+### The three questions blocking the queue
+
+1. **F1:** restored saved meal — resurrect (my recommendation) or stay deleted?
+2. **F3:** keep `mailto:`/`tel:` on watchlist + list-item links (widen the shared
+   gate), or narrow those fields to http(s) like everything else?
+3. **F4:** should a backup restore bring back your section toggles? And
+   separately, your sync preferences?
+
+Q1 and Q2 are each one sentence of answer and then the work is small. Q3 can wait.
