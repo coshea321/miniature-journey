@@ -23,7 +23,7 @@ Base audited: `origin/main` at v443 (commit b0f17b3).
 - [x] Section 1: Sync/merge layer — DONE, one finding (F1) + notes below
 - [ ] Section 2: Food journal / TDEE / autosuggest / saved-meal→recipe (v434–v443 — newest code, least reviewed)
 - [x] Section 3: Security pass — DONE, one finding (F3) + notes below
-- [ ] Section 4: Service worker (v426 best-effort install, v373 cache-first shell, /cdn-cgi passthrough)
+- [x] Section 4: Service worker — DONE, one finding (F6) + notes below
 - [x] Section 5: Data-model consistency — DONE, two findings (F4, F5) + notes below
 - [ ] Section 6: Dosing safety pins (mostly covered by checks.sh — spot-verify wording sites)
 - [ ] Final: triage findings by severity, write summary at top
@@ -115,6 +115,23 @@ Mechanically diffed every hand-listed field map against its documented list.
   missing-key rule is correctly implemented at 5059. ✓
 - **`buildTestSeed` vs `buildExportPayload`:** every top-level key in the seed
   (22 of them) exists in the payload — no silently-dropped seed section. ✓
+
+### Section 4 — service worker (DONE 30/08)
+Read `sw.js` in full (123 lines). **The three hard-won rules are all intact:**
+- v426 best-effort install — per-asset `c.add(...).catch(() => {})`, no `addAll`
+  anywhere ✓ (this is the "stuck on an old version" root cause; the comment at
+  21–28 correctly forbids reverting it).
+- v389 `cache: 'reload'` on each install fetch ✓.
+- v422 `/cdn-cgi/` passthrough present (77) and pinned by
+  `tests/sw-cases/04-sw-cdn-cgi-passthrough.js` ✓.
+- Activate deletes every non-current cache ✓ (the "SW cache grows forever"
+  claim the 02/07 triage dismissed remains correctly dismissed).
+- **One real gap: the shell's background refresh has no redirect guard — F6.**
+  This one matters *now*, because Cloudflare step 7 is live planned work.
+- Minor (not worth a finding on its own, fold into any SW version): the
+  `caches.open(CACHE).then(c => c.put(...))` calls at 94 and 117 are not held
+  by `e.waitUntil`, so the browser may terminate the worker before the write
+  lands. Self-heals on the next open; costs at most one extra open.
 
 ## Findings
 *(numbered F1, F2… as found; severity: HIGH = data loss/safety/security,
@@ -229,3 +246,49 @@ anchors at v443 — re-grep before editing, line numbers rot.)*
   `HEARTH-backlog.md` § Piggyback fixes (both current entries there are struck
   through as fixed in v442, so the list is empty and this would be its only
   live item).
+
+### F6 (MED now, HIGH at Cloudflare step 7) — the shell's background refresh can cache the Access login page AS the app
+- **Where:** `sw.js` 90–107, the v373 cache-first-with-background-refresh shell
+  branch. Specifically the `response.status === 200` gate at 92.
+- **What:** v422 fixed the *callback* leg by letting `/cdn-cgi/` paths bypass the
+  worker. But the leg that runs first is a plain navigation to `/`, which is the
+  **shell** branch, not a `/cdn-cgi/` path. Once the Access session expires,
+  Cloudflare answers that navigation with a redirect to its login page. The
+  background `fetch(e.request)` follows the redirect, and what comes back is a
+  **200** — status 200 is the login page, not the app. The only gate before
+  `c.put(e.request, clone)` is that status check, so the login page HTML can be
+  written into the versioned cache **under the app shell's own key**.
+- **Effect if it lands:** the next open is served cache-first and paints
+  Cloudflare's login page (or a blank/broken page) *as the app*, from cache, with
+  no network involved — so it persists offline and survives reloads. That is the
+  same shape as the v426 "wedged device" incident, and the recovery is the same
+  expensive ladder (`chrome://serviceworker-internals` → Unregister, or delete
+  site data and re-enter the Firebase URL, login and household code). On a phone
+  that is the worst outcome in the whole SW.
+- **Confidence — read this before fixing.** The hazard is real and the code path
+  is plainly unguarded, but I could **not** verify the exact browser behaviour
+  here: whether the followed cross-origin redirect yields a response
+  `Cache.put` accepts, and whether `respondWith` later refuses it for a
+  navigation (`response.redirected === true` is rejected for navigations in
+  some browsers, which would turn this into a hard error instead of a silent
+  bad-cache). This sandbox has no outbound access to the Pages host, and the
+  live gate has never been exercised from a device whose session expired — so
+  this is **a hazard to close defensively, not a confirmed reproduction.**
+  Do not write it up as a diagnosed incident.
+- **Fix shape (cheap, defensive, no behaviour change when the gate is absent):**
+  before caching in the shell branch, require the response to be same-origin and
+  un-redirected — roughly `if (response && response.status === 200 &&
+  !response.redirected && new URL(response.url).origin === self.location.origin)`.
+  Same guard is worth having on the generic asset branch at 115. It costs nothing
+  today (on GitHub Pages nothing redirects) and it is exactly the case step 7
+  will start producing. **Touches the service worker ⇒ Fable/Opus session, no
+  design-here-build-there split** (CLAUDE.md is explicit).
+- **Test:** a 5th `tests/sw-cases/` file in the shape of `04-sw-cdn-cgi-
+  passthrough.js` — serve a path that 302s to a different origin, confirm the
+  cached shell is still the app afterwards. The harness already serves over a
+  real HTTP origin, so this is expressible.
+- **Also worth telling Cathal regardless of the fix:** if a family member ever
+  reports the app opening to a Cloudflare page or a blank screen after step 7,
+  this is the first thing to suspect, and unregistering the worker
+  (`chrome://serviceworker-internals`) is the cheap recovery that keeps
+  `localStorage` — i.e. no re-entering the Firebase URL or household code.
