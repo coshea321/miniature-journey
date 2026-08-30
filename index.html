@@ -645,6 +645,7 @@ body.train-mode #toast{background:#3A3328}
 .ss-ex{padding:12px 14px;border-bottom:1px solid #fff}
 .ss-ex:last-of-type{border-bottom:none}
 .ss-ex-name{font-size:15px;font-weight:700;color:#2A2010;margin-bottom:8px}
+.ss-ex-cue{font-size:12px;color:#8A7A5A;line-height:1.55;margin:-4px 0 9px}
 .ss-inputs{display:flex;gap:8px}
 .ss-field{flex:1;text-align:center}
 .ss-field-label{font-size:10px;color:#8A7A5A;margin-bottom:4px;font-weight:700;text-transform:uppercase}
@@ -920,7 +921,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v445 · 30/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v446 · 30/08/2026</div>
 
   </div>
 </div>
@@ -17258,17 +17259,39 @@ function playChime(){
 }
 
 // ── Program data ──────────────────────────────────────────
+// v446: reviewed against the precise history — a 4 cm hiatus hernia, mild bilateral L5/S1
+// foraminal stenosis and an L4/L5 disc bulge. Exercise `id`s are the key BOTH the workout
+// history and wktLastEntries' prefill hang off, so ids are frozen; two `name`s changed
+// because the safe variation IS the change (Rows -> chest-supported, Dips -> bench).
+// Shown on the intro screen (note) and on each superset card (cue).
+var WK_TRAIN_NOTE = "Reviewed 30/08/2026 against a 4 cm hiatus hernia, mild bilateral L5/S1 foraminal stenosis and an L4/L5 disc bulge. Two rules run through the whole session. Breathe out on the effort and never hold your breath under load — a held breath is exactly the pressure spike a hernia this size does not want. And keep the lower back in the middle of its range, neither arched nor rounded: arching closes the L5/S1 foramen, rounding under load is what an L4/L5 bulge feels. Train at least 2–3 hours after eating, and not in the first hour after waking. Stop for regurgitation, chest or upper-abdominal pressure, or symptoms travelling further down a leg. New saddle numbness, bladder or bowel changes, foot drop or progressive weakness need urgent medical assessment.";
+
 var WK_TRAIN = {
-  pull:{name:'Pull Day',color:'#3b82f6',emoji:'&#x1F535;',supersets:[
-    {id:'A',rounds:3,restSec:90,exercises:[{id:'rows',name:'Rows',type:'weighted'},{id:'bulgarian',name:'Bulgarian Split Squats',type:'weighted'}]},
-    {id:'B',rounds:3,restSec:90,exercises:[{id:'pullups',name:'Pull-ups / Inverted Rows',type:'reps'},{id:'glute_bridge',name:'Marching Glute Bridge',type:'reps'}]}
+  pull:{name:'Pull Day',color:'#3b82f6',emoji:'&#x1F535;',note:WK_TRAIN_NOTE,supersets:[
+    {id:'A',rounds:3,restSec:90,exercises:[
+      {id:'rows',name:'Ring Rows',type:'weighted',cue:"Rings hung so you can hang back on straight arms with your heels on the floor. Body in one line from ankle to ear, ribs down; pull the rings to your lower ribs, then lower under control. This replaced a bent-over row for a reason — an unsupported row holds the lower back in loaded flexion, the position an L4/L5 bulge likes least, and needs a brace that spikes abdominal pressure. On rings the spine stays straight and unloaded, and there is no weight to hold your breath against. Progress by walking your feet forward, not by adding load — there is nothing to put a dumbbell on here, so leave the weight box blank and log the reps. Breathe out as you pull."},
+      {id:'bulgarian',name:'Bulgarian Split Squats',type:'weighted',cue:"Rear foot on the step ladder, and use a LOW rung — around mid-shin. A high rear foot forces the front hip open and pulls you into a lower-back arch, which is precisely what closes the L5/S1 foramen, so the rung you pick matters more here than the weight does. Start holding a ring or the ladder frame for balance; once that is steady, a light dumbbell hanging in each hand is the load — down by your sides keeps the weight under your centre instead of out in front, where it would pull you forward. Torso tall, tailbone tucked a little, front knee tracking over the foot. Breathe out on the way up."}
+    ]},
+    {id:'B',rounds:3,restSec:90,exercises:[
+      {id:'pullups',name:'Assisted Pull-ups',type:'reps',cue:"Assisted on purpose, not as a fallback: rings set low enough to stand under and take some weight through your legs, or a band under one foot on the bar. Take enough help that you can breathe through the rep — a max-effort pull-up means a hard brace and a held breath, and that pressure spike is the thing to avoid with a 4 cm hernia. Ribs down rather than arching, breathe out as you pull. A relaxed hang between sets is fine and gently decompresses the spine."},
+      {id:'glute_bridge',name:'Marching Glute Bridge',type:'reps',cue:"Feet flat, lift the hips to a low, near-neutral height — no big arch at the top — then lift one knee at a time without letting the hips drop or twist. This is the best-tolerated item in either day for you: real glute work with almost no spinal load and no abdominal pressure."}
+    ]}
   ]},
-  push:{name:'Push Day',color:'#ef4444',emoji:'&#x1F534;',supersets:[
-    {id:'A',rounds:3,restSec:90,exercises:[{id:'dips',name:'Dips',type:'reps'},{id:'sldl',name:'Single-leg Deadlift',type:'weighted'}]},
-    {id:'B',rounds:3,restSec:90,exercises:[{id:'pushups',name:'Push-ups',type:'reps'},{id:'side_plank',name:'Side Plank',type:'duration'}]}
+  push:{name:'Push Day',color:'#ef4444',emoji:'&#x1F534;',note:WK_TRAIN_NOTE,supersets:[
+    {id:'A',rounds:3,restSec:90,exercises:[
+      {id:'dips',name:'Bench Dips',type:'reps',cue:"Hands on a rung of the step ladder behind you, feet out in front, elbows bending straight back. Stop when the upper arms reach about parallel — deeper cranks the shoulder. Walk the feet in to make it easier. Do NOT trade these for ring dips: a full dip is the highest intra-abdominal-pressure movement in either day and it finishes folded forward, the worst combination for a hernia this size, and rings add instability on top of that. Breathe out on the way up."},
+      {id:'sldl',name:'Single-leg Deadlift',type:'weighted',cue:"Fingertips on a ring for balance — that is what the rings are best for here. Hinge from the hip with a long neutral spine and stop around mid-shin; the hinge is the point, not the depth. Rounding at the bottom to reach further is what loads a disc bulge. Bodyweight with the arms reaching is a real set. Once the hinge is clean, the kettlebell goes in the hand OPPOSITE your standing leg — held that side it counterbalances the reaching leg rather than pulling you into a twist, and rotation is the third thing that closes the foramen. Breathe out as you stand up."}
+    ]},
+    {id:'B',rounds:3,restSec:90,exercises:[
+      {id:'pushups',name:'Push-ups',type:'reps',cue:"Hands under the shoulders, ribs down, hips level — as much a plank as a press, so no sag in the lower back. Put your hands on a rung of the step ladder to take weight off, and go up a rung any time a full push-up makes you hold your breath. Breathe out on the way up, every rep."},
+      {id:'side_plank',name:'Side Plank',type:'duration',cue:"From the knees is fine and is the version to start on. Shoulder stacked over the elbow, hips lifted into one straight line, and keep breathing normally right through the hold. Side plank is one of the lowest-compression ways to train the trunk, which is why it stays — but only if it does not turn into a breath-hold."}
+    ]}
   ]}
 };
-var COND_TRAIN = {rounds:2,exercises:[{id:'step_ups',name:'Step-ups',type:'reps'},{id:'marching',name:'Marching in Place',type:'duration'}]};
+var COND_TRAIN = {rounds:2,exercises:[
+  {id:'step_ups',name:'Step-ups',type:'reps',cue:"A low rung on the step ladder — lower than feels necessary — and stand up tall on each rep rather than leaning forward over the knee. Push through the whole foot and breathe out on the way up."},
+  {id:'marching',name:'Marching in Place',type:'duration',cue:"Easy pace, tall posture, arms swinging naturally. Nothing to brace and nothing to hold — if you cannot talk while you do it, slow down."}
+]};
 
 var YOGA_FLOWS_TRAIN = [
   [{name:'Seated Centering',sanskrit:'Sukhasana',dur:60,cue:'Sit cross-legged, using a folded blanket under your hips if needed to tilt the pelvis forward. Rest hands on knees, palms up. Close your eyes. Inhale slowly for 4 counts, filling from the belly upward. Exhale for 6 counts, letting the shoulders soften. Set an intention for your practice.'},
@@ -17317,21 +17340,26 @@ var YOGA_FLOWS_TRAIN = [
   // v414: Full Body Flow (Revised) — same session re-sequenced for lumbar stenosis + hiatal hernia.
   // Dead Bug → heel slides, double Knees-to-Chest → single, Cat-Cow → Cat-to-Neutral, nerve floss dropped
   // (it lives in Nerve & Hip), plus scapular press, calf raises and supported Tree for shoulders and balance.
-  [{name:'Seated Centering',sanskrit:'Sukhasana',dur:60,cue:'Sit cross-legged, using a folded blanket under your hips if needed to tilt the pelvis forward. Rest hands on knees, palms up. Close your eyes. Inhale slowly for 4 counts, filling from the belly upward. Exhale for 6 counts, letting the shoulders soften. Set an intention for your practice.'},
+  // v446: cues re-tuned for the precise history — mild bilateral L5/S1 FORAMINAL stenosis (not central
+  // canal) plus an L4/L5 disc bulge. The foramen closes on extension, side-bending AND rotation; the disc
+  // is loaded by end-range and loaded flexion. So the target is the MIDDLE of the range in both directions,
+  // and the generic "flex to open the canal" line only half applies. Do NOT re-deepen the twists, the side
+  // stretches or the fold — smallness is the point, not an omission.
+  [{name:'Seated Centering',sanskrit:'Sukhasana',dur:60,cue:'Sit cross-legged, using a folded blanket under your hips if needed to tilt the pelvis forward. Rest hands on knees, palms up. Close your eyes. Inhale slowly for 4 counts, filling from the belly upward. Exhale for 6 counts, letting the shoulders soften. Set an intention for your practice. Sit up on a firm cushion or block high enough that your hips end up above your knees — perched rather than slumped, so the lower back is not held rounded for the whole minute.'},
   {name:'Neck and Shoulder Rolls',sanskrit:'Seated Mobilisation',dur:30,cue:"Sitting tall, drop your right ear toward your shoulder — don't force it. Slowly roll your chin to your chest, then your left ear to the left shoulder. Reverse the direction. Then roll both shoulders forward 3 times, backward 3 times. Move slowly and follow your breath."},
   {name:'Pelvic Tilts',sanskrit:'Lumbar warm-up',dur:30,cue:"Lie on your back with knees bent and feet flat. Gently flatten your lower back against the mat by tightening your deep abdominals and tilting your pelvis upward slightly. Hold 2 seconds, then release back to neutral. Move slowly and with control. Keep breathing — this is a light tilt, not a hard brace.",url:'https://www.youtube.com/watch?v=GKz3q3-12-g'},
   {name:'Alternating Heel Slides',sanskrit:'Trunk control',dur:50,cue:"Replaces Dead Bug. Lie on your back, knees bent, feet flat, spine resting in its natural curve — don't press it hard into the floor. Exhale slowly as you slide one heel away along the mat until the leg is nearly straight. Inhale as you draw it back. Alternate, about 5 slides each side. Same trunk control, far less abdominal pressure, and no breath-holding."},
-  {name:'Cat to Neutral',sanskrit:'Marjaryasana',dur:60,cue:"Tabletop — wrists under shoulders, knees under hips. Exhale and round the spine gently toward the ceiling, tucking chin and tailbone. Inhale and return only as far as a flat, neutral back — do not drop down into a deep Cow. Extension tends to narrow the space around the nerves; a little flexion opens it. 6–8 slow rounds."},
+  {name:'Cat to Neutral',sanskrit:'Marjaryasana',dur:60,cue:"Tabletop — wrists under shoulders, knees under hips. Exhale and round the spine gently toward the ceiling, tucking chin and tailbone. Inhale and return only as far as a flat, neutral back — do not drop down into a deep Cow. Extension narrows the foramen the nerve root leaves through, and a little flexion opens it — but round only to a comfortable middle, never to your maximum, because repeated end-range flexion is its own irritant for a disc bulge. 6–8 slow rounds."},
   {name:'Quadruped Scapular Press',sanskrit:'Shoulder girdle',dur:30,cue:"Stay in tabletop with your elbows straight the whole time — the movement happens only at the shoulder blades. Let your chest sink a small amount as the blades draw together, then exhale and press the floor away so the upper back rounds slightly. Small, slow, about 10 reps. This adds the shoulder work the flow was missing without adding a plank."},
   {name:'Bird Dog',sanskrit:'Dandayamna Bharmanasana',dur:50,cue:"From tabletop, draw your navel in gently. Extend your right arm forward and left leg back — keep the leg no higher than hip height, lower is fine. Exhale as you extend and don't let the lower back arch. Hips stay level. Hold 3 steady breaths, lower slowly. Switch sides. 3 rounds each."},
-  {name:"Supported Child's Pose",sanskrit:'Utthita Balasana',dur:45,cue:"Knees wide apart, hips sinking back toward the heels, with a bolster or stacked cushions under your chest so the torso is propped rather than folded flat. Forehead rests, arms reach forward. Breathe into the back of your ribcage. If folding brings on reflux or upper-abdominal pressure, skip it and rock gently back and forth in tabletop instead."},
+  {name:"Supported Child's Pose",sanskrit:'Utthita Balasana',dur:45,cue:"Knees wide apart, hips sinking back toward the heels, with a bolster or stacked cushions under your chest so the torso is propped rather than folded flat. Forehead rests, arms reach forward. Breathe into the back of your ribcage. Keep the prop high enough that this stays a rest rather than a maximal fold — with a disc bulge the depth of the fold is not what makes it useful. If folding brings on reflux or upper-abdominal pressure, skip it and rock gently back and forth in tabletop instead."},
   {name:'Low Lunge Right',sanskrit:'Anjaneyasana',dur:45,cue:"Step right foot forward, lower left knee to mat, top of foot flat. Use a shorter stance than usual. Tuck the tailbone slightly and stack the ribs over the hips, then shift forward only until you feel the left hip flexor. Both hands rest on your right thigh or your hips — keep the torso tall rather than arching back."},
-  {name:'Half Splits Right',sanskrit:'Ardha Hanumanasana',dur:45,cue:'From Low Lunge, shift hips back over your left knee and straighten the right leg — flex the foot. Hinge forward from the hips with a long, flat back rather than rounding. Rest hands on the mat or your shin. Don\'t chase depth; a light stretch behind the right leg is enough.'},
+  {name:'Half Splits Right',sanskrit:'Ardha Hanumanasana',dur:45,cue:'From Low Lunge, shift hips back over your left knee and straighten the right leg — flex the foot. Hinge forward from the hips with a long, flat back rather than rounding. Rest hands on the mat or your shin. Don\'t chase depth; a light stretch behind the right leg is enough. Use blocks or your shin — if you have to round your back to reach the floor, don\'t reach the floor.'},
   {name:'Low Lunge Left',sanskrit:'Anjaneyasana',dur:45,cue:'Step left foot forward, right knee lowers to mat. Short stance, tailbone tucked slightly, ribs stacked. Shift gently forward to open the right hip flexor. Hands to your left thigh or hips, chest open, shoulders relaxed away from ears. No backward arching.'},
-  {name:'Half Splits Left',sanskrit:'Ardha Hanumanasana',dur:45,cue:'Shift hips back over your right knee, straighten the left leg — flex the foot. Hinge forward from the hips with a long spine, not a rounded back. Hands to the floor or shin for support. Light stretch only.'},
+  {name:'Half Splits Left',sanskrit:'Ardha Hanumanasana',dur:45,cue:'Shift hips back over your right knee, straighten the left leg — flex the foot. Hinge forward from the hips with a long spine, not a rounded back. Hands to the floor, a block or your shin for support. Light stretch only — if reaching lower means rounding the back, stay high.'},
   {name:'Mountain with Calf Raises',sanskrit:'Tadasana variation',dur:40,cue:"Stand feet hip-width near a wall or chair for a fingertip touch. Inhale and sweep both arms out and up while rising onto the balls of your feet; exhale, lower the heels and the arms together. Slow and controlled, about 8 rounds. The calf raise adds the ankle and lower-leg strength the flow was short on."},
-  {name:'Side Stretch Right',sanskrit:'Parsva Urdhva Hastasana',dur:30,cue:'Right arm sweeps overhead. Lean gently to the left — keep both hips square and grounded. Feel a long line from your right hip to your fingertips. Left hand rests on your thigh for support. Hold 4 slow breaths.'},
-  {name:'Side Stretch Left',sanskrit:'Parsva Urdhva Hastasana',dur:30,cue:'Left arm sweeps overhead. Lean gently to the right. Both feet grounded equally. Create length through the entire left side of the body. Right hand rests lightly on your thigh. 4 breaths.'},
+  {name:'Side Stretch Right',sanskrit:'Parsva Urdhva Hastasana',dur:30,cue:'Right arm sweeps overhead. Lean gently to the left — keep both hips square and grounded. Feel a long line from your right hip to your fingertips. Left hand rests on your thigh for support. Keep it small, and make it a lengthening of the upper side rather than a bend in the lower back — leaning closes the foramen on the side you lean toward, and yours are narrowed on both. Hold 4 slow breaths.'},
+  {name:'Side Stretch Left',sanskrit:'Parsva Urdhva Hastasana',dur:30,cue:'Left arm sweeps overhead. Lean gently to the right. Both feet grounded equally. Create length through the entire left side of the body. Right hand rests lightly on your thigh. Same rule — long through the ribs, minimal bend at the waist. 4 breaths.'},
   {name:'Supported Tree Right',sanskrit:'Vrksasana',dur:30,cue:"Fingertips of one hand on a wall or the back of a chair. Stand on the right leg, place the left foot against the right ankle, calf or inner thigh — never against the knee itself. Hips level, tailbone slightly tucked, gaze steady on one point. Balance work like this is the piece most stenosis programmes leave out."},
   {name:'Supported Tree Left',sanskrit:'Vrksasana',dur:30,cue:"Switch sides — fingertips still on the wall or chair. Stand on the left leg, right foot to the left ankle, calf or inner thigh, avoiding the knee. Stay tall, breathe steadily, and use as much hand support as you need. Coming out and going back in counts as practice."},
   {name:'Warrior I Right',sanskrit:'Virabhadrasana I',dur:50,cue:"Step left foot back into a shorter stance than usual, turn it out to 45°. Square hips toward the front. Bend the right knee over the ankle. Tuck the tailbone a little and draw the lower ribs in. Hands can stay on your hips — only take the arms overhead if that doesn't arch your lower back."},
@@ -17340,8 +17368,8 @@ var YOGA_FLOWS_TRAIN = [
   {name:'Warrior II Left',sanskrit:'Virabhadrasana II',dur:45,cue:'Left arm extends forward, right arm reaches back. Gaze over your left fingertips. Both arms reach actively in opposite directions. Torso upright, ribs down. Deepen the bend in the left knee without letting it collapse inward.'},
   {name:'Low Dynamic Bridge',sanskrit:'Setu Bandha variation',dur:50,cue:"Feet hip-width apart, flat on the mat, knees bent. Exhale and press through your feet to lift the hips to a low height — spine near neutral, no big arch at the top. Inhale as you lower. 6–8 controlled reps rather than one long hold. Leave your arms flat by your sides; don't interlace the hands underneath."},
   {name:'Reclined Butterfly',sanskrit:'Supta Baddha Konasana',dur:60,cue:"Soles of the feet together, knees falling open. If lying flat brings on reflux, prop your whole upper torso on a wedge or a bolster running the length of your spine so the chest sits above the stomach. One hand on the belly, one on the chest. Nothing to do here — just breathe and let gravity work."},
-  {name:'Supine Twist Right',sanskrit:'Supta Matsyendrasana',dur:30,cue:'Bring both knees up, then let them fall to the right. Extend your left arm out at shoulder height, palm facing up. Keep both shoulders heavy on the mat. Gaze toward the ceiling or gently to the left. Use each exhale to release a little further — never force it.'},
-  {name:'Supine Twist Left',sanskrit:'Supta Matsyendrasana',dur:30,cue:'Bring knees back to centre, then let them fall to the left. Right arm extends wide, palm up. Use your exhales to release tension in the upper back and shoulders. Allow the twist to deepen naturally.'},
+  {name:'Supine Twist Right',sanskrit:'Supta Matsyendrasana',dur:30,cue:'Bring both knees up, then let them fall to the right. Extend your left arm out at shoulder height, palm facing up. Keep both shoulders heavy on the mat. Gaze toward the ceiling or gently to the left. Rest the knees on a cushion so they are supported rather than hanging, and keep the twist small — don\'t use the exhales to travel further. Rotation narrows the foramen, and yours are narrowed on both sides.'},
+  {name:'Supine Twist Left',sanskrit:'Supta Matsyendrasana',dur:30,cue:'Bring knees back to centre, then let them fall to the left. Right arm extends wide, palm up. Cushion under the knees again. Let the exhales release the upper back and shoulders rather than deepen the twist — small and supported is the point here, not range.'},
   {name:'Single Knee to Chest Right',sanskrit:'Apanasana variation',dur:30,cue:"Replaces the double knee hug. Lie with both knees bent, feet flat. Draw the right knee up and hold behind the thigh, not over the shinbone — the thigh should not press into your stomach. Left foot stays on the floor. Gentle, steady, breathing normally throughout."},
   {name:'Single Knee to Chest Left',sanskrit:'Apanasana variation',dur:30,cue:"Lower the right foot, then draw the left knee up and hold behind the left thigh. Right foot stays flat on the floor. Same rule: enough to feel a gentle opening in the lower back, not enough to compress the abdomen."},
   {name:'Supported Savasana',sanskrit:'Savasana',dur:90,cue:"Extend both legs long, feet falling open, arms slightly away from the body with palms up. If lying flat brings on reflux, keep the wedge or bolster under your whole upper torso. Close your eyes and stop controlling your breath. Release the face, jaw, hands and feet. You've done the work — now rest and absorb it."}]
@@ -17349,7 +17377,14 @@ var YOGA_FLOWS_TRAIN = [
 var YOGA_TRAIN_NAMES   = ['Full Body Flow','Hips & Lower Back','Full Body Flow (Revised)'];
 var YOGA_TRAIN_DESCS   = ['25 poses · ~19 min','18 poses · ~22 min','28 poses · ~20 min'];
 // Index-aligned with YOGA_FLOWS_TRAIN; shown on the session intro screen. Empty string = no note.
-var YOGA_TRAIN_NOTES   = ['','','Revised after the August 2026 review for lumbar stenosis and a hiatal hernia. Nerve flossing now lives in Nerve & Hip rather than here. Practise at least 2–3 hours after eating, keep breathing throughout, and stop for regurgitation, chest or upper-abdominal pressure, or symptoms travelling further down a leg. New saddle numbness, bladder or bowel changes, foot drop or progressive weakness need urgent medical assessment. This is mobility and core work — keep it alongside your strength days and walking.'];
+// v446: index 0 gains a note of its own. The original flow stays byte-for-byte unchanged — that is
+// v415's call, the two run side by side until Cathal retires one — but "unchanged" must not read as
+// "cleared", so the four poses the precise history argues with are named in the note instead.
+var YOGA_TRAIN_NOTES   = [
+  "This is the original flow and it predates the physio review, so it has not been re-sequenced for your spine or your hernia. Four poses in it are worth modifying rather than doing as written. Cat-Cow drops into extension, which closes the L5/S1 foramen — round on the exhale and come back only as far as a flat back. Dead Bug asks you to press the lower back firmly into the mat and hold it there, which invites a brace and a held breath. Bridge Pose is a 55-second hold with the fingers interlaced underneath, peeling up to a high arch. And Knees to Chest draws both thighs onto your abdomen at end-range flexion. Full Body Flow (Revised) is the version rebuilt around all of this — this one is kept so the two can be compared.",
+  '',
+  "Revised August 2026 and re-tuned 30/08/2026 against the precise history — a 4 cm hiatus hernia, mild bilateral L5/S1 foraminal stenosis and an L4/L5 disc bulge. That combination is why this flow keeps to the middle of the range in both directions: extension, side-bending and rotation all close the foramen, while end-range and loaded flexion is what a disc bulge feels. The general 'flex to open the canal' advice is written for central canal stenosis and only half applies to you. Nerve flossing lives in Nerve & Hip rather than here. Practise at least 2–3 hours after eating, and not in the first hour after waking when the discs are at their most swollen. Keep breathing throughout — no breath-holding — and stop for regurgitation, chest or upper-abdominal pressure, or symptoms travelling further down a leg. New saddle numbness, bladder or bowel changes, foot drop or progressive weakness need urgent medical assessment. This is mobility and core work — keep it alongside your strength days and walking."
+];
 var YOGA_TRAIN_TOTALS  = YOGA_FLOWS_TRAIN.map(function(f){return f.reduce(function(s,p){return s+p.dur;},0);});
 
 var POSE_PHOTOS_TRAIN = {
@@ -17550,8 +17585,8 @@ function renderTrainView() {
 function renderTrainPrograms() {
   var el = document.getElementById("progGrid");
   var programs = [
-    { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#E8EFFA,#F0F5FC)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Rows · Split Squats · Pull-ups · Glute Bridge", descColor:"#2A5AB0" },
-    { type:"workout", key:"push",  bg:"linear-gradient(135deg,#FBEAEA,#FCF2F2)", border:"#ef444430", icon:"&#x1F534;", name:"Push Day", desc:"Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B03030" },
+    { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#E8EFFA,#F0F5FC)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Ring Rows · Split Squats · Assisted Pull-ups · Bridge", descColor:"#2A5AB0" },
+    { type:"workout", key:"push",  bg:"linear-gradient(135deg,#FBEAEA,#FCF2F2)", border:"#ef444430", icon:"&#x1F534;", name:"Push Day", desc:"Bench Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B03030" },
     { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#F0EAFA,#F6F2FC)", border:"#8b5cf630", icon:"&#x1F9D8;", name:"Full Body Flow", tag:"Physio", desc:"24 poses · ~18 min", descColor:"#6A3CB0" },
     { type:"yoga",    key:2,       bg:"linear-gradient(135deg,#EAE4F8,#F2EDFB)", border:"#8b5cf650", icon:"&#x1F9D8;", name:"Full Body Flow (Revised)", tag:"Physio", desc:"28 poses · ~20 min · stenosis + hernia", descColor:"#6A3CB0" },
     { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#F0EAFA,#F6F2FC)", border:"#8b5cf630", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", tag:"Physio", desc:"18 poses · ~12 min", descColor:"#6A3CB0" },
@@ -17968,6 +18003,7 @@ function renderWorkoutSession() {
       "<div class='ses-intro-ico'>"+(SS.wType==="pull"?"&#x1F4AA;":"&#x1F525;")+"</div>" +
       "<div class='ses-intro-name'>"+wk.name+"</div>" +
       "<div class='ses-intro-sub'>"+wk.supersets.length+" supersets &middot; 3 rounds each &middot; 90s rest</div>" +
+      (wk.note ? "<div style='width:100%;max-width:320px;background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#e0c060;line-height:1.5;text-align:left'>&#x26A0;&#xFE0F; "+esc(wk.note)+"</div>" : "") +
       "<div class='ses-intro-list'>"+exList+"</div>" +
       "<button class='ses-begin-btn' style='background:"+wk.color+"' onclick='beginWorkout()'>Start workout</button>" +
       "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
@@ -18016,7 +18052,7 @@ function renderWorkoutSession() {
       var key = "cond_"+SS.wCondRound+"_"+ex.id;
       var val = wktFillEntry("cond", SS.wCondRound, ex);
       return "<div class='ss-ex'>" +
-        "<div class='ss-ex-name'>"+esc(ex.name)+"</div>" +
+        "<div class='ss-ex-name'>"+esc(ex.name)+"</div>" + (ex.cue ? "<div class='ss-ex-cue'>"+esc(ex.cue)+"</div>" : "") +
         "<div class='ss-inputs'>" + inputsHtml(ex, key, val) + "</div>" +
       "</div>";
     }).join("");
@@ -18048,7 +18084,7 @@ function renderWorkoutSession() {
     var key = ss2.id+"_"+SS.wRound+"_"+ex.id;
     var val = wktFillEntry(ss2.id, SS.wRound, ex);
     return "<div class='ss-ex'>" +
-      "<div class='ss-ex-name'>"+esc(ex.name)+"</div>" +
+      "<div class='ss-ex-name'>"+esc(ex.name)+"</div>" + (ex.cue ? "<div class='ss-ex-cue'>"+esc(ex.cue)+"</div>" : "") +
       "<div class='ss-inputs'>" + inputsHtml(ex, key, val) + "</div>" +
     "</div>";
   }).join("");
