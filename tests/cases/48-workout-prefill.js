@@ -43,7 +43,7 @@ module.exports = {
       // ── A saved Pull Day to remember ────────────────────────────────────
       storeSet('fl4_workouts', { bodyweight: [], workouts: [
         { id: 4801, date: '2026-08-20', type: 'workout', sessionName: 'Pull Day', kcal: 200, exercises: [
-          { name: 'Rows', sets: [ {reps:10, weight:20, duration:0}, {reps:9, weight:20, duration:0}, {reps:8, weight:17.5, duration:0} ] },
+          { name: 'Chest-Supported Rows', sets: [ {reps:10, weight:20, duration:0}, {reps:9, weight:20, duration:0}, {reps:8, weight:17.5, duration:0} ] },
           { name: 'Bulgarian Split Squats', sets: [ {reps:12, weight:0, duration:0}, {reps:12, weight:0, duration:0}, {reps:10, weight:0, duration:0} ] }
         ]}
       ]});
@@ -84,7 +84,7 @@ module.exports = {
 
       // ── 5. Free-form logs are not sessions ──────────────────────────────
       storeSet('fl4_workouts', { bodyweight: [], workouts: [
-        { id: 4802, date: '2026-08-21', exercises: [ { name: 'Rows', sets: [ {reps:99, weight:99, duration:0} ] } ] }
+        { id: 4802, date: '2026-08-21', exercises: [ { name: 'Chest-Supported Rows', sets: [ {reps:99, weight:99, duration:0} ] } ] }
       ]});
       session();
       var f1 = wktFillEntry('A', 1, ex('rows'));
