@@ -22,12 +22,12 @@
 //   4. both days carry the safety note, and it still says the two things the
 //      whole review turns on: breathe out / never hold your breath, and train
 //      2-3 hours after eating
-//   5. the Revised flow has a note, and so does flow 0 — flow 0 is deliberately
-//      left unchanged, so its note is the ONLY thing telling him which four of
-//      its poses to modify. An empty string there is a real regression
-//   6. the Revised flow still contains no Cat-Cow and no double Knees to Chest
-//      (v415 removed them; extension closes the foramen, and both thighs on the
-//      abdomen is the hernia problem)
+//   5. the one Full Body Flow (v447 merged the two) carries a note that names
+//      the diagnosis AND tells him the switches exist and are remembered
+//   6. v415's removals survive the merge AS THE DEFAULT — Cat-Cow and the double
+//      Knees to Chest are slot options now, not deletions, so the guarantee
+//      moved from "absent from the file" to "absent unless he asks for them"
+//      (extension closes the foramen; both thighs on the abdomen is the hernia)
 
 module.exports = {
   name: '55-train-safety-cues',
@@ -107,25 +107,25 @@ module.exports = {
       ok('the workout intro screen renders the safety note',
         introHtml.indexOf('never hold your breath') !== -1, introHtml.slice(0, 200));
 
-      // ── 5. Flow notes ───────────────────────────────────────────────────
+      // ── 5. Flow notes (v447: ONE Full Body Flow, so one note) ──────────
       ok('YOGA_TRAIN_NOTES stays index-aligned with YOGA_FLOWS_TRAIN',
         YOGA_TRAIN_NOTES.length === YOGA_FLOWS_TRAIN.length,
         YOGA_TRAIN_NOTES.length + ' vs ' + YOGA_FLOWS_TRAIN.length);
-      ok('the Revised flow note names the foraminal stenosis and the disc',
-        /foraminal/i.test(YOGA_TRAIN_NOTES[2]) && /L4\\/L5/.test(YOGA_TRAIN_NOTES[2]),
-        String(YOGA_TRAIN_NOTES[2]).slice(0, 120));
-      ok('the ORIGINAL flow (index 0) carries its own note - it is left unchanged, so the note is the only warning',
-        !!YOGA_TRAIN_NOTES[0] && YOGA_TRAIN_NOTES[0].length > 200,
-        String(YOGA_TRAIN_NOTES[0]).length + '');
-      ['Cat-Cow','Dead Bug','Bridge Pose','Knees to Chest'].forEach(function(pose){
-        ok('flow 0 note names ' + pose, YOGA_TRAIN_NOTES[0].indexOf(pose) !== -1);
-      });
+      ok('the Full Body Flow note names the foraminal stenosis and the disc',
+        /foraminal/i.test(YOGA_TRAIN_NOTES[0]) && /L4\\/L5/.test(YOGA_TRAIN_NOTES[0]),
+        String(YOGA_TRAIN_NOTES[0]).slice(0, 120));
+      ok('the note tells him the switches exist and are remembered',
+        /switches below/i.test(YOGA_TRAIN_NOTES[0]) && /last picked/i.test(YOGA_TRAIN_NOTES[0]),
+        String(YOGA_TRAIN_NOTES[0]).slice(-260));
 
-      // ── 6. The Revised flow has not regained what v415 removed ─────────
-      var revised = YOGA_FLOWS_TRAIN[2].map(function(p){ return p.name; });
-      ok('the Revised flow still has no Cat-Cow', revised.indexOf('Cat-Cow') === -1);
-      ok('the Revised flow still has no double Knees to Chest', revised.indexOf('Knees to Chest') === -1);
-      ok('the Revised flow still has Cat to Neutral instead', revised.indexOf('Cat to Neutral') !== -1);
+      // ── 6. v415's removals survive the v447 merge AS THE DEFAULT ────────
+      // They are slot options now rather than deletions, so the guarantee moved:
+      // it is no longer "absent from the file", it is "absent unless he asks".
+      storeSet('fl4_yoga_variants', {});
+      var deflt = buildFullBodyFlow().map(function(p){ return p.name; });
+      ok('by default the flow still has no Cat-Cow', deflt.indexOf('Cat-Cow') === -1);
+      ok('by default the flow still has no double Knees to Chest', deflt.indexOf('Knees to Chest') === -1);
+      ok('by default the flow still has Cat to Neutral instead', deflt.indexOf('Cat to Neutral') !== -1);
 
       return {pass:pass, fail:fail};
     })()`);
