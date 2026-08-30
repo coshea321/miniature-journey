@@ -13,15 +13,16 @@ Base audited: `origin/main` at v443 (commit b0f17b3).
 - Do NOT re-report anything already triaged in `HEARTH-backlog.md` (five external
   reviews + the v351 bug review + the 19/07 sync audit are already absorbed there).
   Known-open items are listed below under "Already known" so they aren't re-found.
-- Session model: Fable (top-tier), so the sync/dosing areas may be audited here
-  per the standing model-check rule.
+- Session model: started on Fable, switched to **Opus 5** part-way through
+  (during section 3). Both are top-tier, so the sync/dosing areas stay in scope
+  per the standing model-check rule; no section needs redoing because of it.
 
 ## Status / what's left
 - [x] Baseline: `tests/checks.sh` — PASS (all green at v443)
 - [x] Baseline: `node tests/run.js` — PASS (all 54 cases + 4 sw-cases, exit 0)
 - [x] Section 1: Sync/merge layer — DONE, one finding (F1) + notes below
 - [ ] Section 2: Food journal / TDEE / autosuggest / saved-meal→recipe (v434–v443 — newest code, least reviewed)
-- [ ] Section 3: Security pass — esc()/innerHTML sites, URL gates (`applianceLinkUrl` coverage), import parsers (trip/plant/inventory/backup JSON)
+- [x] Section 3: Security pass — DONE, one finding (F3) + notes below
 - [ ] Section 4: Service worker (v426 best-effort install, v373 cache-first shell, /cdn-cgi passthrough)
 - [ ] Section 5: Data-model consistency — export/import field maps vs documented field lists (trip, plant, inventory); `buildTestSeed` coverage; `buildExportPayload` coverage
 - [ ] Section 6: Dosing safety pins (mostly covered by checks.sh — spot-verify wording sites)
@@ -71,6 +72,32 @@ Read in full: `pushPersonal` (14204), `applyPersonal` (14294–14554),
 - Tie-break asymmetry, recipe-deletes-don't-propagate, food_notes local-wins:
   all as documented, deliberate, on record — not findings.
 
+### Section 3 — security pass (DONE 30/08)
+Swept every `<a ` construction site (12 hits) and the URL gates; spot-checked
+escaping in the newest renderers (food autosuggest 12496, watchlist detail
+4460–4499, appliance detail 5383, recipe detail 9937, booking rows 6089).
+- **Gated correctly at save AND render:** appliance `manual`/`photos`
+  (`applianceLinkUrl` 4943, http(s)-only with the host:port carve-out), plant
+  `photoLink` (`plantPhotoLinkUrl` 3307 — save 4171, import 3431, render 4004).
+  These two are the v428/v432 standard.
+- **Gated at save only, rendered raw from the record:** watchlist `w.link`
+  (save gate 4685-ish http(s)/mailto/tel; rendered ungated at 4486), list
+  `item.link` (save gate 15880; rendered ungated at 11091), recipe `r.url`
+  (save runs `normalizeRecipeUrl` at 10323, which *prefixes* rather than
+  refuses; rendered ungated at 9937). → **F3**.
+- `calLink` (11046): item name is `encodeURIComponent`d ✓, but `dueDate`/
+  `dueTime` are concatenated into a single-quoted href with no esc — a
+  malformed synced record could break out of the attribute. Folded into F3.
+- Escaping spot-checks all pass (`esc()` used consistently in the sampled
+  renderers; `toast()` renders via textContent; watch info links are
+  encodeURIComponent-built search URLs, never stored). Full 21k-line XSS sweep
+  NOT done — out of scope for one session; the prior external reviews +
+  council passes covered the older sections.
+- Import parsers: `inventoryRecordFrom` gates manual/photos (5050) ✓,
+  plant import gates photoLink (3431) ✓, trip import's `location` is
+  encodeURIComponent'd at render ✓. `importBackupData` is the one ungated
+  entry — which is exactly why F3's render-time gate matters.
+
 ## Findings
 *(numbered F1, F2… as found; severity: HIGH = data loss/safety/security,
 MED = real bug, user-visible, LOW = polish/hygiene. Each carries file:line
@@ -98,3 +125,51 @@ anchors at v443 — re-grep before editing, line numbers rot.)*
   have no `updated` field, so no stamping needed. One-line-ish; good piggyback
   candidate for the next version touching the food-journal area + a small
   extension to `tests/cases/53-saved-meal-delete-sync.js` or `07-backup-roundtrip`.
+
+### F2 (LOW) — `fl4_notes_<lt>` per-list notes: a dead store still riding sync, export and import
+- **Where:** `getNotes`/`saveNotes` (16109–16118), sync payloads (14215/14599
+  send, 14351/19004 wholesale-replace on receive), export (13181), import (13495),
+  wipe (13725).
+- **What:** the per-list notes subsystem's UI was removed in v335 (orphaned
+  pre-v318 `noteEditorOverlay` etc.), but the four `fl4_notes_grocery/todo/
+  travel/personal` arrays still ride every push/pull/backup, and the receive
+  side is a wholesale last-write-wins overwrite (no merge, no tombstones).
+  Grep at v443 finds **no UI reader or writer left** — only sync/export/import.
+- **Effect:** none user-visible today (nothing writes them, so the naive
+  overwrite has nothing to lose). Cost is payload bytes + a trap: if a future
+  feature ever reuses the store, it inherits a lossy merge silently.
+- **Fix shape:** decision for Cathal, not urgent — either drop the fields from
+  push/apply/export/import in one version, or leave with a warning comment at
+  `saveNotes`. Verify on a real device first that the arrays are actually empty
+  before dropping (they may hold pre-v335 data worth exporting once).
+
+### F3 (MED) — three link fields are gated on save but rendered raw: the v428/v432 rule isn't applied app-wide
+- **Where:** watchlist link (save gate ~4685–4686, raw render 4486), list item
+  link (save gate 15880–15881, raw render 11091), recipe source URL (save
+  `normalizeRecipeUrl` 10323, raw render 9937). Plus `calLink` (11046–11069),
+  which builds an href from unescaped `dueDate`/`dueTime`.
+- **What:** `HEARTH-notes.md` states the rule plainly for appliances and plants —
+  *"a record can arrive from sync or a restored backup written by anything"*, so
+  the gate runs **on save, on import AND at render time**. Those two fields obey
+  it. The three older link fields do not: their only check is in the editor's
+  save handler, and the render path emits `esc(value)` straight into an `href`.
+  `esc()` escapes the quotes so the attribute can't be broken out of, but it does
+  **nothing** about the scheme — `javascript:alert(1)` survives `esc()` intact.
+- **Effect:** no live exploit path today, and this is deliberately NOT a
+  re-report of the 5th-review item the backlog already dismissed (that one was
+  about `normalizeRecipeUrl`'s own behaviour). The gap is that a record reaching
+  the store **without passing an editor** is rendered ungated. Three such paths
+  exist: `importBackupData` (no link gating at all), a sync payload from a device
+  running any build, and a hand-edited backup JSON. The realistic risk is low —
+  this is a two-person family app on a gated origin, and the attacker would need
+  write access to Firebase or the file the user restores. But the fix is the same
+  one already shipped twice, and the inconsistency is itself the hazard: the next
+  person adding a link field will copy whichever neighbour they land on.
+- **Fix shape:** wrap the three render sites in the existing `applianceLinkUrl`
+  (it already allows exactly http(s); the watchlist/item fields additionally
+  permit `mailto:`/`tel:` on save, so either widen the shared gate deliberately
+  or accept narrowing those two to http(s) — **needs a design call, don't guess**).
+  Do NOT write a second gate function — the v428 comment at 4936 says why in
+  as many words. `calLink` is separate and smaller: `esc()` the two date parts.
+- **Model note:** this touches a security gate, so per CLAUDE.md it wants a
+  Fable/Opus session, not a plain-Sonnet build.
