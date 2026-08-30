@@ -553,3 +553,86 @@ real question is whether that session may be Sonnet.
    separately, your sync preferences?
 
 Q1 and Q2 are each one sentence of answer and then the work is small. Q3 can wait.
+
+---
+
+## The repaint sweep (30/08/2026, on Opus 5)
+
+Cathal asked for the sweep proposed after v445 fixed four instances of one bug:
+*a mutation repaints the surface it was invoked from and forgets every other
+view reading the same data.*
+
+### The scope is far narrower than "every mutation site"
+
+`switchSection` (index.html ~15080) re-renders every section on entry — Home,
+Lists, Train, Recipes, Baby, Trips, Track, Plants, Watch, Appliances all get a
+fresh render when you arrive. **So cross-section staleness self-heals and is not
+worth chasing.** The class only bites *within* a section:
+
+- an **overlay or sheet** mutating a store while the view behind it displays it
+  (the saved-meals manager — v445), or
+- a handler that repaints **some** of the visible readers but not all (the
+  backup import — v445).
+
+That reframing is the main output of the sweep: it turns an open-ended trawl
+into two enumerable lists.
+
+### What was checked
+- **All 18 dynamically-built overlays** (`document.body.appendChild(ov|overlay|box)`):
+  voice review, meal-plan picker, meal-plan day sheet, bulk category picker,
+  the list overlay in `renderList`, note editor, recipe→food-log sheet, two in
+  `renderFoodView`, saved-meals manager, cloud backups, sync health ×2, sports
+  manage, TDEE editor, `confirmDialog`, add-bottle.
+- **All 43 top-level functions that write a store and call no render**, filtered
+  to the user-facing ones, each traced to its call sites.
+
+### Result: one real gap, one candidate dismissed
+
+**S1 — `restoreCloudBackup` (index.html:13673) — REAL, unfixed.** Restoring a
+**cloud** backup repaints only `renderList()`, plus Recipes / Trips / Home when
+those are the open section. Missing: **plants, watchlist, appliances, baby,
+train, Track (incl. Food), and the tab dots.** This is exactly the bug Cathal
+hit with the *file* import, sitting untouched in the sibling code path — v445
+fixed one of the two entry points into `importBackupData` and not the other.
+Restoring a cloud backup while on Track → Food leaves the Food view stale.
+*Verified by direct code comparison against the file-import handler, whose
+identical staleness was demonstrated empirically; not by a live cloud restore,
+which needs Firebase.* **Fix:** the same `flushSyncRenders({...all}) +
+renderTrackView()` v445 applied to the file import — the two handlers should
+share one "repaint after a restore" helper rather than each keeping a hand-listed
+set, which is how they drifted apart in the first place.
+
+**S2 — `closeSessionOverlay` (index.html:17602) — CANDIDATE, DISMISSED.** It
+repaints Home when visible but never Train, and Train is the section behind a
+session. I reported this as a find and then disproved it: **Train's default
+sub-tab is Programs, a static grid of programme cards that displays no session
+data**, and `renderWorkoutLog`/`renderWorkoutHistory` contain **zero**
+session-launch sites — so `currentTrainView` is always `"programs"` when a
+session ends, and nothing on screen has changed. The diagnostic's control line
+(an explicit `renderTrainView()` also showing nothing) is what exposed the bad
+premise. **Not a bug; do not "fix" it.** Adding `renderTrainView()` there would
+be harmless but would encode a misunderstanding.
+
+### Everything else checked out
+Plant care log + undo, all three plant import paths, inventory import, meal-plan
+assign/servings/remove/cooked, bag toggles, bulk categorise, note editor, sports
+manage, the TDEE editor and the add-bottle sheet all repaint their view
+correctly. The remaining "mutates without rendering" functions are pure
+persistence, auth and seed helpers whose callers render — correct as they are.
+
+### The honest scorecard
+Two candidates, one real. **This is the second time this session a
+confident code-reading inference did not survive a test** (F6 was the first),
+and both times the thing that caught it was checking whether the probe could
+detect the bug at all. Worth keeping as the working rule: *a finding derived
+from reading is a hypothesis; it is only a finding once something fails without
+the fix.*
+
+### Still open, logged not fixed
+- **S1**, above — needs a version; blocked only on v445 merging.
+- **The Saved Meals sheet ignores the Android back button** (no `role="dialog"`,
+  no `data-bbclose`; `closeTopOverlay` falls straight past it). Found while
+  fixing the v445 delete. This is very likely *why* Cathal saw the stale chips:
+  a back-press that falls through probably left the section, which is exactly
+  his "only after navigating away and back". Worth doing with S1, and worth
+  auditing the other overlays for the same tagging gap at the same time.
