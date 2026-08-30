@@ -81,7 +81,9 @@ descending value:
 - `tests/checks.sh`: **PASS** — all mechanical checks green, no pending piggyback
   fix notes, size 1,249,221 bytes (matches base), version v443 · 28/08/2026
   consistent across index.html/sw.js.
-- `node tests/run.js`: (in progress — 54 case files)
+- `node tests/run.js`: **PASS** — all 54 `tests/cases/` files plus the 4
+  `tests/sw-cases/` files, exit 0, zero page errors. Re-ran `tests/checks.sh`
+  at the end of the audit: still PASS (no app files were touched).
 
 ## Already known — do NOT re-report as new findings
 - `applyHousehold`/`applyPersonal` `flushSyncRenders` calls omit `watchlist`
@@ -121,6 +123,32 @@ Read in full: `pushPersonal` (14204), `applyPersonal` (14294–14554),
 - Tie-break asymmetry, recipe-deletes-don't-propagate, food_notes local-wins:
   all as documented, deliberate, on record — not findings.
 
+### Section 2 — food journal / TDEE (v434–v443) (DONE 30/08) — no findings
+The newest and least-reviewed code, checked against the rules in
+`HEARTH-notes.md` § TDEE and § Food journal autosuggest.
+- **Training calories are nowhere in the TDEE or goal sums** ✓ — the one rule
+  that must not break. `measuredTDEE` (18471) uses mean intake and the weight
+  slope only; `tdeeGoal` (18540) reads `blendedTDEE` and `rate`. Nothing reads
+  workout kcal. Case 49's tripwire is genuinely guarding live behaviour.
+- Coverage floor, least-squares slope, plausibility band, blend weights all
+  match the documented constants (18385–18389) ✓. Missing days are excluded
+  from the mean rather than counted as zero (18490–18506) ✓ — the rule that
+  makes the estimate honest.
+- `tdeeGoal`'s two guards are both present and ordered correctly: deficit capped
+  at 25% first, then floored at 1500, and `Math.min(TDEE_FLOOR_KCAL, t.tdee)`
+  correctly refuses to propose a goal *above* TDEE for a very low TDEE ✓.
+- **The "a figure only travels if a human typed it" rule holds in all three
+  places** ✓ — `pickFoodSuggest` (12521) copies `it.cal` only into an empty
+  box, and `foodSuggestMatches` sources it from non-`calAuto` entries only.
+- v443 saved-meal delete: the tombstone is written on the one and only delete
+  path (12907–12917) ✓ — the sync half of v443 is right; only the backup half
+  is missing (F1).
+- `foodMealIndex` normalisation is called from `getFoodLog` **only** (12245,
+  12256) ✓ — the v435 rule about not spreading it across renderers holds.
+- Home calories card (16834): reads `fl4_cal_goal` with a `|| 2000` fallback, so
+  the divide at 16845 can't produce NaN ✓. Read-only, so the `setCalGoal` rule
+  doesn't apply.
+
 ### Section 3 — security pass (DONE 30/08)
 Swept every `<a ` construction site (12 hits) and the URL gates; spot-checked
 escaping in the newest renderers (food autosuggest 12496, watchlist detail
@@ -147,24 +175,6 @@ escaping in the newest renderers (food autosuggest 12496, watchlist detail
   encodeURIComponent'd at render ✓. `importBackupData` is the one ungated
   entry — which is exactly why F3's render-time gate matters.
 
-### Section 5 — data-model consistency (DONE 30/08)
-Mechanically diffed every hand-listed field map against its documented list.
-**The three multi-place field maps are all consistent at v443 — no drift:**
-- **Trip bookings (3 places):** export map (6180), `importTripFromJSON`
-  (5576–5586), `mergeBookingsIntoTrip` (5603) all carry the same 11 fields
-  (`type,title,start,end,location,ref,notes,connectsFrom,boarding,gate,seats`),
-  matching CLAUDE.md exactly. `id`/`updated` omitted as documented. ✓
-- **Plants (2 hand-listed scalars):** `plantExportObj` (3309) and
-  `plantApplyImport` (3417) both carry all 10 (`name,latin,room,emoji,
-  waterDays,feedDays,waterOff,feedPauseFrom,feedPauseTo,photoLink`); sections
-  flow through `PLANT_SECTIONS` in both. `photo`/`waterLog`/`feedLog` correctly
-  untouched by import. ✓
-- **Inventory (the file's two halves):** `inventoryExportObj` (4993) and
-  `inventoryRecordFrom` (5036) both carry all 14 fields; the `value: ""`-not-
-  missing-key rule is correctly implemented at 5059. ✓
-- **`buildTestSeed` vs `buildExportPayload`:** every top-level key in the seed
-  (22 of them) exists in the payload — no silently-dropped seed section. ✓
-
 ### Section 4 — service worker (DONE 30/08)
 Read `sw.js` in full (123 lines). **The three hard-won rules are all intact:**
 - v426 best-effort install — per-asset `c.add(...).catch(() => {})`, no `addAll`
@@ -182,31 +192,23 @@ Read `sw.js` in full (123 lines). **The three hard-won rules are all intact:**
   by `e.waitUntil`, so the browser may terminate the worker before the write
   lands. Self-heals on the next open; costs at most one extra open.
 
-### Section 2 — food journal / TDEE (v434–v443) (DONE 30/08) — no findings
-The newest and least-reviewed code, checked against the rules in
-`HEARTH-notes.md` § TDEE and § Food journal autosuggest.
-- **Training calories are nowhere in the TDEE or goal sums** ✓ — the one rule
-  that must not break. `measuredTDEE` (18471) uses mean intake and the weight
-  slope only; `tdeeGoal` (18540) reads `blendedTDEE` and `rate`. Nothing reads
-  workout kcal. Case 49's tripwire is genuinely guarding live behaviour.
-- Coverage floor, least-squares slope, plausibility band, blend weights all
-  match the documented constants (18385–18389) ✓. Missing days are excluded
-  from the mean rather than counted as zero (18490–18506) ✓ — the rule that
-  makes the estimate honest.
-- `tdeeGoal`'s two guards are both present and ordered correctly: deficit capped
-  at 25% first, then floored at 1500, and `Math.min(TDEE_FLOOR_KCAL, t.tdee)`
-  correctly refuses to propose a goal *above* TDEE for a very low TDEE ✓.
-- **The "a figure only travels if a human typed it" rule holds in all three
-  places** ✓ — `pickFoodSuggest` (12521) copies `it.cal` only into an empty
-  box, and `foodSuggestMatches` sources it from non-`calAuto` entries only.
-- v443 saved-meal delete: the tombstone is written on the one and only delete
-  path (12907–12917) ✓ — the sync half of v443 is right; only the backup half
-  is missing (F1).
-- `foodMealIndex` normalisation is called from `getFoodLog` **only** (12245,
-  12256) ✓ — the v435 rule about not spreading it across renderers holds.
-- Home calories card (16834): reads `fl4_cal_goal` with a `|| 2000` fallback, so
-  the divide at 16845 can't produce NaN ✓. Read-only, so the `setCalGoal` rule
-  doesn't apply.
+### Section 5 — data-model consistency (DONE 30/08)
+Mechanically diffed every hand-listed field map against its documented list.
+**The three multi-place field maps are all consistent at v443 — no drift:**
+- **Trip bookings (3 places):** export map (6180), `importTripFromJSON`
+  (5576–5586), `mergeBookingsIntoTrip` (5603) all carry the same 11 fields
+  (`type,title,start,end,location,ref,notes,connectsFrom,boarding,gate,seats`),
+  matching CLAUDE.md exactly. `id`/`updated` omitted as documented. ✓
+- **Plants (2 hand-listed scalars):** `plantExportObj` (3309) and
+  `plantApplyImport` (3417) both carry all 10 (`name,latin,room,emoji,
+  waterDays,feedDays,waterOff,feedPauseFrom,feedPauseTo,photoLink`); sections
+  flow through `PLANT_SECTIONS` in both. `photo`/`waterLog`/`feedLog` correctly
+  untouched by import. ✓
+- **Inventory (the file's two halves):** `inventoryExportObj` (4993) and
+  `inventoryRecordFrom` (5036) both carry all 14 fields; the `value: ""`-not-
+  missing-key rule is correctly implemented at 5059. ✓
+- **`buildTestSeed` vs `buildExportPayload`:** every top-level key in the seed
+  (22 of them) exists in the payload — no silently-dropped seed section. ✓
 
 ### Section 6 — dosing safety (DONE 30/08) — no findings
 `tests/checks.sh` pins the literals mechanically and passes; I verified the
