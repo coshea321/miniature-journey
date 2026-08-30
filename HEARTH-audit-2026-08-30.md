@@ -30,7 +30,7 @@ Six findings, none critical. In the order I'd fix them:
 
 | | Severity | What | Fix size |
 |---|---|---|---|
-| **F6** | MED → **HIGH at Cloudflare step 7** | SW's background shell refresh has no redirect guard, so an expired Access session can cache the Cloudflare login page *as the app* | ~2 lines + a test |
+| ~~**F6**~~ | **WITHDRAWN 30/08** | Claimed the SW could cache the Access login page as the app shell. **Disproven by experiment** — see the F6 entry. No fix needed. | none |
 | **F1** | MED | v443 gave saved meals tombstones for sync but not for backup restore — a restored saved meal silently vanishes on the next pull | ~3 lines + a test |
 | **F3** | MED | Watchlist / list-item / recipe link fields are scheme-gated on save but rendered raw; the appliance+plant fields gate at render too | 3 call sites, needs one design call |
 | **F4** | LOW | `secVisible` + `syncPrefs` are exported but never imported — section toggles don't survive the documented "delete site data" recovery | small, needs a design call |
@@ -38,9 +38,13 @@ Six findings, none critical. In the order I'd fix them:
 | **F2** | LOW | `fl4_notes_<lt>` is a dead store still riding sync/export/import with a lossy merge | cleanup, needs a decision |
 
 **Two things worth Cathal's attention beyond the fixes:**
-1. **F6 is timed.** It costs nothing today (nothing redirects on GitHub Pages)
-   and becomes a real wedged-phone risk the moment step 7 makes the gate the
-   family's way in. Worth landing *before* step 7, not after.
+1. **F6 was WRONG and is withdrawn (30/08).** I claimed the service worker could
+   cache the Cloudflare Access login page as the app shell. Building the fix
+   included writing a test and then checking the test actually caught the bug —
+   it did not, and the follow-up experiment showed why: **the scenario cannot
+   happen.** Full evidence in the F6 entry below. Nothing to fix, nothing to
+   land before step 7. The audit's original note did at least flag it as
+   unreproduced, but the severity I gave it was too strong.
 2. **F3 and F1 are the same shape of bug** — a rule that was applied correctly
    when it was written, and then not applied to the next thing added. That is
    worth knowing about the codebase generally: the docs are excellent at saying
@@ -48,9 +52,8 @@ Six findings, none critical. In the order I'd fix them:
    inherit the rule. F5 is the same drift in the comment that exists to prevent it.
 
 **Suggested batching if these get built:** F1+F5 together (one small version,
-both touch the food/export area). F6 on its own (service worker ⇒ Fable/Opus,
-no split, wants its own test). F3 on its own after a design call about
-`mailto:`/`tel:`. F2 and F4 only if Cathal wants them.
+both touch the food/export area). F3 on its own after a design call about
+`mailto:`/`tel:`. F2 and F4 only if Cathal wants them. F6 needs nothing.
 
 ## Status / what's left
 - [x] Baseline: `tests/checks.sh` — PASS (all green at v443)
@@ -344,7 +347,56 @@ anchors at v443 — re-grep before editing, line numbers rot.)*
   through as fixed in v442, so the list is empty and this would be its only
   live item).
 
-### F6 (MED now, HIGH at Cloudflare step 7) — the shell's background refresh can cache the Access login page AS the app
+### F6 — WITHDRAWN 30/08/2026. The claim was wrong; the scenario cannot happen.
+
+**Verdict: not a bug. No code change needed. Do not re-open this without new
+evidence, and do not let a later session "rediscover" it from reading the
+`status === 200` line — that line is sufficient, for the reason below.**
+
+**What I claimed:** that once Cloudflare Access is live, an expired session
+answers a navigation with a redirect to the login page; the SW's background
+shell refresh follows it, gets a 200, and caches the login page under the app
+shell's key — so the next open paints the login page as the app, from cache.
+
+**How it was disproven.** I wrote the guard and a test
+(`05-sw-redirect-guard.js`), then ran the **negative control**: removed the
+guard and re-ran, expecting the new case to fail. **It passed** — so the test
+pinned nothing. Rather than patch the test, I instrumented the test server with
+a request counter and measured what actually happens, with the guard removed
+and the server 302-ing the shell:
+
+```
+index.html requests during probe: 1     <- the background refresh DID run
+login-probe requests:             0     <- the redirect was NOT followed
+cache after:  { app: true, login: false } <- cache clean anyway
+```
+
+**The mechanism.** A navigation request carries `redirect: "manual"`, so the
+worker's `fetch(e.request)` does not follow the 302 at all — it resolves to an
+**opaqueredirect** response with **`status === 0`**. The pre-existing
+`response.status === 200` check therefore already refuses it. The login page
+cannot reach the shell cache by this route, before or after any guard.
+
+**What survives.** Only a much smaller, and much less interesting, variant: the
+generic asset branch fetches with `redirect: "follow"`, so a same-origin asset
+that is *not already cached* and that redirects could be stored under its own
+key. That is a stray asset, not the app shell, and it self-heals on the next
+version bump (the cache is renamed per version). Not worth a version on its own;
+worth one defensive line if that branch is ever touched for another reason.
+
+**Cost of the error:** one build/verify cycle. **Value of the negative control:**
+it caught a wrong finding before it became a shipped version and a permanent,
+confidently-worded changelog entry describing a mechanism that does not exist.
+The lesson is the general one, and it is why the step exists: *a test that has
+never been seen to fail has not been shown to test anything.*
+
+**Branch note:** `claude/sw-redirect-guard-v444` was pushed before this was
+known. **It has no PR and must not be merged.** Its changelog entry states the
+disproven mechanism as fact.
+
+<details><summary>Original F6 write-up, kept for the record (superseded)</summary>
+
+#### (superseded) the shell's background refresh can cache the Access login page AS the app
 - **Where:** `sw.js` 90–107, the v373 cache-first-with-background-refresh shell
   branch. Specifically the `response.status === 200` gate at 92.
 - **What:** v422 fixed the *callback* leg by letting `/cdn-cgi/` paths bypass the
@@ -389,6 +441,8 @@ anchors at v443 — re-grep before editing, line numbers rot.)*
   this is the first thing to suspect, and unregistering the worker
   (`chrome://serviceworker-internals`) is the cheap recovery that keeps
   `localStorage` — i.e. no re-entering the Firebase URL or household code.
+
+</details>
 
 ---
 
