@@ -20,7 +20,7 @@
 3. **`HEARTH-backlog.md`** — strike through anything the version closed, and add anything it opened.
 
 ## Current version
-**v442 · 27/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
+**v444 · 30/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
 
 ## TDEE / daily calories (v439) — the one rule that must not break
 Store: **`fl4_profile`** (personal channel, in `pushPersonal`/apply, the backup payload and `buildTestSeed`) — `sex`, `heightCm`, `birthYear`, `activity`, `rate`, `goalKg`. Rendered by `renderTdeeCard()` into `#tdeeCard` at the top of **Track → Body** (Track's sub-nav is Log / Medicine / Body / Food; Train's is Programs / Log / History and has no Body tab). **The hosting div is still called `trainBodyView` and the view is `TRACK_VIEWS.body`** — the id is a leftover from before v339 moved the personal logs into Track, kept deliberately under the "internal section ids NEVER change" rule. Reading the id as the location is how v439 and v441 both came to write "Train → Body" in their notes and PR checklists; it is Track.
@@ -213,6 +213,21 @@ Lessons from a parallel vanilla React PWA session that apply equally to Hearth:
 `sw.js` is in the repo root alongside `index.html`. Read it directly — no snapshot needed here.
 
 It is a **single-source-of-truth file**: changing the one `VERSION` constant updates the cache name and the SW version message together, so a routine version bump is a **one-line edit**. The version format is `vNNN · DD/MM/YYYY`.
+
+### Never cache a redirected response (v444)
+`cacheableResponse()` gates BOTH cache writes in the fetch handler. A bare
+`status === 200` is not enough once the site sits behind Cloudflare Access: an
+expired session answers a plain navigation with a redirect to the login page,
+and the **followed redirect is itself a 200**, so the login page would be
+written into the cache under the app shell's own key — and the shell is served
+cache-first, so the next open paints the login page AS the app, from cache,
+offline, with no way out but unregistering the worker. Same wedged-device shape
+as the v426 `addAll` bug. The guard requires 200 **and** `!redirected` **and**
+`type === 'basic'` **and** a same-origin final URL. **Do NOT relax it back to a
+status check** — status cannot tell our shell from a login page. It is a no-op
+on GitHub Pages (nothing redirects there); it exists for the Pages/Access
+origin. Pinned by `tests/sw-cases/05-sw-redirect-guard.js`, which drives a real
+302 via the test server's `setShellRedirect` mode and then inspects the cache.
 
 ### A device stuck on an old version — symptoms and recovery (19/08/2026)
 **Symptom:** the app shows an old version and old behaviour (a shipped feature is visibly missing), while the **same URL in incognito shows the current one**. Incognito has no worker, so it proves the network is serving the new build and the problem is entirely local to that browser profile.

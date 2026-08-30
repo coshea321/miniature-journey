@@ -16,6 +16,10 @@
 //   setSwVersion(v)  — serve sw.js with its VERSION line rewritten, so the
 //                      browser sees a genuinely different build and runs its
 //                      real update flow
+//   setShellRedirect(b) — answer './' and '/index.html' with a 302 to a fake
+//                      login page (v444). This is the shape an expired
+//                      Cloudflare Access session has: the app's own URL
+//                      redirects away, and the followed redirect is a 200.
 
 const http = require('http');
 const fs = require('fs');
@@ -29,8 +33,15 @@ const MIME = {
   '.webmanifest': 'application/manifest+json',
 };
 
+// v444: see setShellRedirect below. The marker string is what the SW test
+// looks for in the cache — if it ever appears there, the shell was poisoned.
+const LOGIN_PROBE_PATH = '/__login-probe.html';
+const LOGIN_PROBE_BODY =
+  '<!DOCTYPE html><html><head><title>Sign in</title></head>' +
+  '<body>HEARTH-TEST-LOGIN-PAGE</body></html>';
+
 function startServer(root) {
-  const state = { mode: 'ok', swVersion: null };
+  const state = { mode: 'ok', swVersion: null, shellRedirect: false };
   const sockets = new Set();
   const heldResponses = new Set(); // 'hang' mode: replies we deliberately never send
 
@@ -46,6 +57,26 @@ function startServer(root) {
 
     let urlPath = decodeURIComponent(String(req.url || '/').split('?')[0]);
     if (urlPath === '/' || urlPath === '') urlPath = '/index.html';
+
+    // v444: the stand-in for Cloudflare Access's login page. Served from a
+    // string rather than the repo — it must NOT be a real file, or a bug that
+    // caches it would look like a legitimate asset.
+    if (urlPath === LOGIN_PROBE_PATH) {
+      const body = Buffer.from(LOGIN_PROBE_BODY, 'utf8');
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Length': body.length,
+        'Cache-Control': 'no-store',
+      });
+      res.end(body);
+      return;
+    }
+    if (state.shellRedirect && urlPath === '/index.html') {
+      res.writeHead(302, { Location: LOGIN_PROBE_PATH, 'Cache-Control': 'no-store' });
+      res.end();
+      return;
+    }
+
     const file = path.join(root, urlPath);
 
     // Never serve outside the repo, even if a test asks for it.
@@ -113,9 +144,19 @@ function startServer(root) {
     setSwVersion(v) {
       state.swVersion = v || null;
     },
+    setShellRedirect(v) {
+      state.shellRedirect = !!v;
+    },
+    get loginProbePath() {
+      return LOGIN_PROBE_PATH;
+    },
+    get loginProbeMarker() {
+      return 'HEARTH-TEST-LOGIN-PAGE';
+    },
     reset() {
       this.setMode('ok');
       this.setSwVersion(null);
+      this.setShellRedirect(false);
     },
     close() {
       this.setMode('ok');

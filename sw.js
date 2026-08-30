@@ -1,5 +1,5 @@
 // ── Single source of truth — bump this and everything updates ──
-const VERSION = 'v443 · 28/08/2026';
+const VERSION = 'v444 · 30/08/2026';
 const CACHE   = 'hearth-' + VERSION;
 
 const ASSETS = [
@@ -57,6 +57,28 @@ self.addEventListener('message', e => {
   }
 });
 
+// v444: only ever cache a response that is really OUR asset, freshly fetched
+// from this origin. A bare `status === 200` is NOT enough once the site sits
+// behind an auth gate (Cloudflare Access — see the Pages/Access work): when the
+// Access session expires, a plain navigation to './' is answered with a
+// REDIRECT to Cloudflare's login page, and the followed redirect is itself a
+// 200. Caching that writes the LOGIN PAGE in under the app shell's own key —
+// and because the shell is served cache-first (v373), the next open then paints
+// the login page AS the app, from cache, with no network involved. That is the
+// v426 "wedged device" shape again, and unregistering the worker is the only
+// way out of it. Cheap insurance: on GitHub Pages nothing redirects, so this
+// changes nothing there. Never cache a response this returns false for.
+function cacheableResponse(response) {
+  if (!response || response.status !== 200) return false;
+  if (response.redirected) return false;      // followed a redirect — not the asset we asked for
+  if (response.type !== 'basic') return false; // 'basic' is same-origin; cors/opaque are not ours
+  try {
+    // response.url is the FINAL url. Belt and braces alongside .redirected.
+    if (response.url && new URL(response.url).origin !== self.location.origin) return false;
+  } catch (err) { return false; }
+  return true;
+}
+
 // Fetch strategy:
 //  - sw.js itself: never intercepted (browser always fetches it fresh)
 //  - app shell ('/' and index.html): CACHE-FIRST with background refresh
@@ -89,7 +111,7 @@ self.addEventListener('fetch', e => {
     // visit) we wait on the network exactly as before.
     e.respondWith((() => {
       const refresh = fetch(e.request).then(response => {
-        if (response && response.status === 200) {
+        if (cacheableResponse(response)) {
           const clone = response.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
@@ -112,7 +134,7 @@ self.addEventListener('fetch', e => {
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(response => {
-        if (response && response.status === 200) {
+        if (cacheableResponse(response)) {
           const clone = response.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
