@@ -920,7 +920,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v443 · 28/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v445 · 30/08/2026</div>
 
   </div>
 </div>
@@ -13144,7 +13144,10 @@ function buildExportPayload() {
   //   watering/feeding logs, which all ride inside the plant records),
   //  watchlist (Watchlist section, v391 — incl. the watching/watched status,
   //   the season (v392), the ★ rating and any pasted link; the info links are
-  //   built from the title at render time and are deliberately never stored).
+  //   built from the title at render time and are deliberately never stored),
+  //  appliances (Home inventory, v424/v428 — every field is plain text on the
+  //   record, so one key covers it; the manual/photos/receipt are LINKS and
+  //   notes, never image bytes).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*, fl4_last_backup, fl4_backup_snooze,
   //  fl4_last_cloudbackup, fl4_tomb_* (sync deletion tombstones),
@@ -13406,7 +13409,26 @@ function importBackupData(data) {
   if(Array.isArray(data.track_med)){var tm=getTrackMed(),tmIds={};tm.forEach(function(x){tmIds[x.id]=true;});var newTm=data.track_med.filter(function(x){return x&&!tmIds[x.id];});if(newTm.length)storeSet("fl4_track_med",newTm.concat(tm));}
   if(Array.isArray(data.food_log)){var fl=getFoodLog(),flIds={};fl.forEach(function(x){flIds[x.id]=true;});var newFl=data.food_log.filter(function(x){return x&&!flIds[x.id];});if(newFl.length)storeSet("fl4_food_log",newFl.concat(fl));}
   if(data.food_notes){var fn=storeGet("fl4_food_notes")||{};Object.keys(data.food_notes).forEach(function(k){if(!fn[k])fn[k]=data.food_notes[k];});storeSet("fl4_food_notes",fn);}
-  if(Array.isArray(data.saved_meals)){var sm=storeGet("fl4_saved_meals")||[],smIds={};sm.forEach(function(m){smIds[m.id]=true;});storeSet("fl4_saved_meals",sm.concat(data.saved_meals.filter(function(m){return m&&!smIds[m.id];})));}
+  // Saved meals: additive only, and a restored meal CLEARS any matching
+  // tombstone — the same shape as the recipebook/plants/watchlist restores
+  // below. v443 gave saved meals deletion tombstones for the sync merge but
+  // left this line alone, so a restored meal reappeared and was then silently
+  // filtered straight back out by the next pull. Resurrecting is deliberate
+  // (Cathal, 30/08/2026) and matches its neighbours: a saved meal is a logging
+  // shortcut, not safety data like a dose, so it follows the list-item rule and
+  // NOT the medicine one. Note this still does not tomb-FILTER the incoming
+  // side, which v443 deliberately avoided so a test-build re-seed can restore
+  // the demo meals.
+  if(Array.isArray(data.saved_meals)){
+    var sm=storeGet("fl4_saved_meals")||[],smIds={};sm.forEach(function(m){if(m)smIds[m.id]=true;});
+    var newSm=data.saved_meals.filter(function(m){return m&&m.id!=null&&!smIds[m.id];});
+    if(newSm.length){
+      var smTombsR=getTombs("saved_meals"), smChanged=false;
+      newSm.forEach(function(m){ if(smTombsR[m.id]!==undefined){ delete smTombsR[m.id]; smChanged=true; } });
+      if(smChanged) storeSet("fl4_tomb_saved_meals", smTombsR);
+      storeSet("fl4_saved_meals", sm.concat(newSm));
+    }
+  }
   if(Array.isArray(data.recipes)){var rc=storeGet("fl4_recipes")||[],rcN={};rc.forEach(function(m){if(m)rcN[m.name.toLowerCase()]=true;});storeSet("fl4_recipes",rc.concat(data.recipes.filter(function(m){return m&&m.name&&!rcN[m.name.toLowerCase()];})));}
   if(Array.isArray(data.travel_tags)){var tt=storeGet("fl4_travel_tags")||[];data.travel_tags.forEach(function(t){if(t&&!tt.some(function(x){return x.toLowerCase()===t.toLowerCase();}))tt.push(t);});storeSet("fl4_travel_tags",tt);}
   if(Array.isArray(data.recipebook)){
@@ -14550,7 +14572,7 @@ function applyPersonal(d) {
   } catch (err) { console.warn("applyPersonal error (sync continues):", err); }
   finally { syncPaused = false; }
   flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby, appliances:_rDirty.appliances,
-                     plants:_rDirty.plants, list:true, home:true, train:true });
+                     plants:_rDirty.plants, watchlist:_rDirty.watchlist, list:true, home:true, train:true });
 }
 function fetchPersonal(cb) {
   if (!isLoggedIn()) { if(cb)cb(); return; }
@@ -19142,7 +19164,7 @@ function applyHousehold(data) {
   // v375: one batched flush instead of renders scattered through the merge above.
   // No renderTrainView here — the Train view is fed by the personal channel only.
   flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby, appliances:_rDirty.appliances,
-                     plants:_rDirty.plants, list:true, dots:true, home:true });
+                     plants:_rDirty.plants, watchlist:_rDirty.watchlist, list:true, dots:true, home:true });
   // Gentle in-app toast if the partner added something while we're using the app
   var _totalNew = 0, _firstLt = null;
   Object.keys(_newFromOther).forEach(function(lt){ _totalNew += _newFromOther[lt]; if(!_firstLt) _firstLt = lt; });

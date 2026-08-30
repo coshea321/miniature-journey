@@ -88,6 +88,33 @@ module.exports = {
          purgeTombs(getTombs("saved_meals"))[111] > 0,
          'got: ' + JSON.stringify(purgeTombs(getTombs("saved_meals"))));
 
+      // ── v445: restoring a backup must UNDO the tombstone, not trip over it ──
+      // v443 added the tombstones for the sync merge but left importBackupData
+      // alone, so a restored saved meal reappeared and was then filtered
+      // straight back out by the next pull -- visible for one screen, gone
+      // after a sync, which is worse than not restoring at all. Resurrecting is
+      // the deliberate choice here (Cathal, 30/08/2026): saved meals follow the
+      // list-item/recipe rule, NOT the medicine/growth "a delete of safety data
+      // must stick" rule. THE TRIPWIRE: if the second assertion below fails,
+      // someone has made the restore tomb-FILTER instead of tomb-CLEAR.
+      reset();
+      storeSet("fl4_saved_meals", [keep]);
+      addTomb("saved_meals", 111);
+      importBackupData({ saved_meals: [demo, keep] });
+      ok('a restored saved meal comes back even though it was deleted',
+         names().join(",") === "Demo usual breakfast,Real lunch", 'got: ' + names().join(","));
+      ok('TRIPWIRE the restore CLEARS its tombstone, so the next pull cannot re-delete it',
+         getTombs("saved_meals")[111] == null,
+         'tombstone still present: ' + JSON.stringify(getTombs("saved_meals")));
+      applyPersonal({ saved_meals: [keep] });
+      ok('and it survives that next pull',
+         names().indexOf("Demo usual breakfast") !== -1, 'got: ' + names().join(","));
+      ok('an unrelated tombstone is left alone by the restore',
+         (function(){ reset(); storeSet("fl4_saved_meals", [keep]); addTomb("saved_meals", 999);
+                      importBackupData({ saved_meals: [demo] });
+                      return getTombs("saved_meals")[999] > 0; })(),
+         'the restore cleared a tombstone it should not have touched');
+
       reset();
       return {pass:pass, fail:fail};
     })()`);
