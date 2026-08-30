@@ -8,11 +8,14 @@
 // What's worth pinning:
 //   1. exercise `id`s are FROZEN — they key SS.wEntries and, through the saved
 //      session, wktLastEntries' prefill. Renaming an id silently orphans
-//      history; renaming a `name` only orphans the prefill, which is why the
-//      two renames below went through `name`
-//   2. the two swaps actually happened — a plain 'Rows' (unsupported bent-over,
+//      history; renaming a `name` only orphans the prefill, which is why all
+//      three renames went through `name`
+//   2. the swaps actually happened — a plain 'Rows' (unsupported bent-over,
 //      loaded lumbar flexion) and a plain 'Dips' (highest intra-abdominal
-//      pressure move in either day) must never come back without a fresh call
+//      pressure move in either day) must never come back without a fresh call,
+//      and the vertical pull stays explicitly assisted
+//   2b. the cues name kit he OWNS — pull-up bar, rings, step ladder. The first
+//      cut of v446 cued an incline bench and a chair he does not have
 //   3. every exercise in both days AND in conditioning carries a cue, and the
 //      renderer shows it — a cue that exists but never reaches the screen is
 //      the same as no cue
@@ -52,10 +55,25 @@ module.exports = {
       // ── 2. The two swaps ────────────────────────────────────────────────
       var rows = exs('pull').filter(function(e){ return e.id === 'rows'; })[0];
       var dips = exs('push').filter(function(e){ return e.id === 'dips'; })[0];
-      ok('the row is chest-supported, not a bare "Rows"',
-        rows && rows.name !== 'Rows' && /supported/i.test(rows.name), rows && rows.name);
+      var pups = exs('pull').filter(function(e){ return e.id === 'pullups'; })[0];
+      ok('the row is a ring row, not a bare "Rows"',
+        rows && rows.name !== 'Rows' && /ring/i.test(rows.name), rows && rows.name);
       ok('the dip is a bench dip, not a bare "Dips"',
         dips && dips.name !== 'Dips' && /bench/i.test(dips.name), dips && dips.name);
+      ok('the vertical pull is assisted on purpose',
+        pups && /assisted/i.test(pups.name), pups && pups.name);
+
+      // ── 2b. The cues match the equipment he actually owns ───────────────
+      // v446 first shipped a chest-supported row (needs an incline bench) and a
+      // dip cued off "a bench or a sturdy chair". He has a pull-up bar, rings
+      // and a step ladder. A cue that names kit he does not own is not a cue.
+      ok('the row cue is written for the rings', /ring/i.test(rows.cue), rows.cue.slice(0, 80));
+      ok('the dip cue is written for the step ladder', /ladder/i.test(dips.cue), dips.cue.slice(0, 80));
+      ok('the dip cue still rules OUT ring dips - he owns the rings, so the temptation is real',
+        /ring dips/i.test(dips.cue), dips.cue.slice(0, 120));
+      var bulg = exs('pull').filter(function(e){ return e.id === 'bulgarian'; })[0];
+      ok('the split-squat cue calls for a LOW rung - a high rear foot arches the back and closes the foramen',
+        /low rung/i.test(bulg.cue), bulg.cue.slice(0, 90));
 
       // ── 3. Every exercise carries a cue, and it reaches the screen ──────
       var all = exs('pull').concat(exs('push')).concat(COND_TRAIN.exercises);
