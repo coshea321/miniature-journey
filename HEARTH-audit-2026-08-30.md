@@ -17,16 +17,65 @@ Base audited: `origin/main` at v443 (commit b0f17b3).
   (during section 3). Both are top-tier, so the sync/dosing areas stay in scope
   per the standing model-check rule; no section needs redoing because of it.
 
+## Summary — read this first
+
+**The app is in good shape.** Both mechanical gates are green at v443, and every
+rule the docs call load-bearing is genuinely holding in the code: training
+calories stay out of the TDEE, the dosing constants and the round-DOWN formula
+are correct, the v426 no-`addAll` service worker fix is intact, and the three
+multi-place field maps (trip bookings, plant scalars, inventory halves) have not
+drifted a single field. Nothing here is an emergency and nothing needs a hotfix.
+
+Six findings, none critical. In the order I'd fix them:
+
+| | Severity | What | Fix size |
+|---|---|---|---|
+| **F6** | MED → **HIGH at Cloudflare step 7** | SW's background shell refresh has no redirect guard, so an expired Access session can cache the Cloudflare login page *as the app* | ~2 lines + a test |
+| **F1** | MED | v443 gave saved meals tombstones for sync but not for backup restore — a restored saved meal silently vanishes on the next pull | ~3 lines + a test |
+| **F3** | MED | Watchlist / list-item / recipe link fields are scheme-gated on save but rendered raw; the appliance+plant fields gate at render too | 3 call sites, needs one design call |
+| **F4** | LOW | `secVisible` + `syncPrefs` are exported but never imported — section toggles don't survive the documented "delete site data" recovery | small, needs a design call |
+| **F5** | LOW | The EXPORT COVERAGE comment never mentions `appliances` | 1 comment line, piggyback |
+| **F2** | LOW | `fl4_notes_<lt>` is a dead store still riding sync/export/import with a lossy merge | cleanup, needs a decision |
+
+**Two things worth Cathal's attention beyond the fixes:**
+1. **F6 is timed.** It costs nothing today (nothing redirects on GitHub Pages)
+   and becomes a real wedged-phone risk the moment step 7 makes the gate the
+   family's way in. Worth landing *before* step 7, not after.
+2. **F3 and F1 are the same shape of bug** — a rule that was applied correctly
+   when it was written, and then not applied to the next thing added. That is
+   worth knowing about the codebase generally: the docs are excellent at saying
+   *why*, and the gap is that a new field or a new store doesn't automatically
+   inherit the rule. F5 is the same drift in the comment that exists to prevent it.
+
+**Suggested batching if these get built:** F1+F5 together (one small version,
+both touch the food/export area). F6 on its own (service worker ⇒ Fable/Opus,
+no split, wants its own test). F3 on its own after a design call about
+`mailto:`/`tel:`. F2 and F4 only if Cathal wants them.
+
 ## Status / what's left
 - [x] Baseline: `tests/checks.sh` — PASS (all green at v443)
 - [x] Baseline: `node tests/run.js` — PASS (all 54 cases + 4 sw-cases, exit 0)
 - [x] Section 1: Sync/merge layer — DONE, one finding (F1) + notes below
-- [ ] Section 2: Food journal / TDEE / autosuggest / saved-meal→recipe (v434–v443 — newest code, least reviewed)
+- [x] Section 2: Food journal / TDEE / autosuggest / saved-meal→recipe — DONE, clean (notes below)
 - [x] Section 3: Security pass — DONE, one finding (F3) + notes below
 - [x] Section 4: Service worker — DONE, one finding (F6) + notes below
 - [x] Section 5: Data-model consistency — DONE, two findings (F4, F5) + notes below
-- [ ] Section 6: Dosing safety pins (mostly covered by checks.sh — spot-verify wording sites)
-- [ ] Final: triage findings by severity, write summary at top
+- [x] Section 6: Dosing safety — DONE, clean (notes below)
+- [x] Final: triage findings by severity, write summary at top
+
+**All planned sections are done.** If you are a fresh session continuing this:
+the audit as scoped is COMPLETE — don't redo it. What is genuinely left, in
+descending value:
+1. **Build the fixes** (F6 first). Each needs its own version + PR per the
+   one-PR-per-version rule; none of them are audit work.
+2. **Areas this audit deliberately did NOT cover** (a single session can't read
+   21k lines properly): the Lists/Grocery rendering and history code, Train
+   session/timer logic, the recipe parser and tidy passes, Trips UI, Baby growth
+   centile maths, weather/sports, and a full app-wide XSS sweep. The older
+   sections have had five external reviews plus council passes — see the backlog
+   — so the newest code was the right place to spend this session.
+3. Nothing in this file needs re-verifying — every claim carries a `file:line`
+   anchor at v443. Re-grep before editing; line numbers rot with every version.
 
 ## Baseline (30/08/2026)
 - `tests/checks.sh`: **PASS** — all mechanical checks green, no pending piggyback
@@ -132,6 +181,52 @@ Read `sw.js` in full (123 lines). **The three hard-won rules are all intact:**
   `caches.open(CACHE).then(c => c.put(...))` calls at 94 and 117 are not held
   by `e.waitUntil`, so the browser may terminate the worker before the write
   lands. Self-heals on the next open; costs at most one extra open.
+
+### Section 2 — food journal / TDEE (v434–v443) (DONE 30/08) — no findings
+The newest and least-reviewed code, checked against the rules in
+`HEARTH-notes.md` § TDEE and § Food journal autosuggest.
+- **Training calories are nowhere in the TDEE or goal sums** ✓ — the one rule
+  that must not break. `measuredTDEE` (18471) uses mean intake and the weight
+  slope only; `tdeeGoal` (18540) reads `blendedTDEE` and `rate`. Nothing reads
+  workout kcal. Case 49's tripwire is genuinely guarding live behaviour.
+- Coverage floor, least-squares slope, plausibility band, blend weights all
+  match the documented constants (18385–18389) ✓. Missing days are excluded
+  from the mean rather than counted as zero (18490–18506) ✓ — the rule that
+  makes the estimate honest.
+- `tdeeGoal`'s two guards are both present and ordered correctly: deficit capped
+  at 25% first, then floored at 1500, and `Math.min(TDEE_FLOOR_KCAL, t.tdee)`
+  correctly refuses to propose a goal *above* TDEE for a very low TDEE ✓.
+- **The "a figure only travels if a human typed it" rule holds in all three
+  places** ✓ — `pickFoodSuggest` (12521) copies `it.cal` only into an empty
+  box, and `foodSuggestMatches` sources it from non-`calAuto` entries only.
+- v443 saved-meal delete: the tombstone is written on the one and only delete
+  path (12907–12917) ✓ — the sync half of v443 is right; only the backup half
+  is missing (F1).
+- `foodMealIndex` normalisation is called from `getFoodLog` **only** (12245,
+  12256) ✓ — the v435 rule about not spreading it across renderers holds.
+- Home calories card (16834): reads `fl4_cal_goal` with a `|| 2000` fallback, so
+  the divide at 16845 can't produce NaN ✓. Read-only, so the `setCalGoal` rule
+  doesn't apply.
+
+### Section 6 — dosing safety (DONE 30/08) — no findings
+`tests/checks.sh` pins the literals mechanically and passes; I verified the
+logic behind the pins rather than re-checking the strings.
+- Constants correct at the chip definitions (19873–19874): Calpol 15mg/kg,
+  120mg/5ml, cap 10, no floor; Nurofen 10mg/kg, 100mg/5ml, **floor 5kg**,
+  cap 10 ✓.
+- Formula `Math.floor((w*mgkg*5/mg5)*4)/4` (19954) — **rounds DOWN** to the
+  nearest 0.25ml as required ✓. Spot-checked: 10kg on Calpol → 6.25ml, on
+  Nurofen → 5ml, both correct against the product strengths.
+- Under-floor branch blanks the dose and says to check the GP/pharmacist rather
+  than proposing a reduced one ✓. Cap flagged as "(capped)" in the working ✓.
+- Working shown + "estimate only, check the leaflet" + field stays editable ✓.
+- v291 advisories (19854–19864): 4h/max 4 and 6h/max 3 correct; advisory only,
+  never disables logging; every line says "Last logged" ✓.
+- One observation, **believed deliberate, not filed as a finding**: the
+  "Based only on logged doses — check the leaflet" tail is appended only when
+  `warn` is true, so the neutral line ends at `gapText`. Reads as an
+  anti-banner-blindness choice and the calculator itself always carries the
+  wording. Worth one sentence of confirmation from Cathal, no more.
 
 ## Findings
 *(numbered F1, F2… as found; severity: HIGH = data loss/safety/security,
