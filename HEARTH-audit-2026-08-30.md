@@ -24,7 +24,7 @@ Base audited: `origin/main` at v443 (commit b0f17b3).
 - [ ] Section 2: Food journal / TDEE / autosuggest / saved-meal→recipe (v434–v443 — newest code, least reviewed)
 - [x] Section 3: Security pass — DONE, one finding (F3) + notes below
 - [ ] Section 4: Service worker (v426 best-effort install, v373 cache-first shell, /cdn-cgi passthrough)
-- [ ] Section 5: Data-model consistency — export/import field maps vs documented field lists (trip, plant, inventory); `buildTestSeed` coverage; `buildExportPayload` coverage
+- [x] Section 5: Data-model consistency — DONE, two findings (F4, F5) + notes below
 - [ ] Section 6: Dosing safety pins (mostly covered by checks.sh — spot-verify wording sites)
 - [ ] Final: triage findings by severity, write summary at top
 
@@ -97,6 +97,24 @@ escaping in the newest renderers (food autosuggest 12496, watchlist detail
   plant import gates photoLink (3431) ✓, trip import's `location` is
   encodeURIComponent'd at render ✓. `importBackupData` is the one ungated
   entry — which is exactly why F3's render-time gate matters.
+
+### Section 5 — data-model consistency (DONE 30/08)
+Mechanically diffed every hand-listed field map against its documented list.
+**The three multi-place field maps are all consistent at v443 — no drift:**
+- **Trip bookings (3 places):** export map (6180), `importTripFromJSON`
+  (5576–5586), `mergeBookingsIntoTrip` (5603) all carry the same 11 fields
+  (`type,title,start,end,location,ref,notes,connectsFrom,boarding,gate,seats`),
+  matching CLAUDE.md exactly. `id`/`updated` omitted as documented. ✓
+- **Plants (2 hand-listed scalars):** `plantExportObj` (3309) and
+  `plantApplyImport` (3417) both carry all 10 (`name,latin,room,emoji,
+  waterDays,feedDays,waterOff,feedPauseFrom,feedPauseTo,photoLink`); sections
+  flow through `PLANT_SECTIONS` in both. `photo`/`waterLog`/`feedLog` correctly
+  untouched by import. ✓
+- **Inventory (the file's two halves):** `inventoryExportObj` (4993) and
+  `inventoryRecordFrom` (5036) both carry all 14 fields; the `value: ""`-not-
+  missing-key rule is correctly implemented at 5059. ✓
+- **`buildTestSeed` vs `buildExportPayload`:** every top-level key in the seed
+  (22 of them) exists in the payload — no silently-dropped seed section. ✓
 
 ## Findings
 *(numbered F1, F2… as found; severity: HIGH = data loss/safety/security,
@@ -173,3 +191,41 @@ anchors at v443 — re-grep before editing, line numbers rot.)*
   as many words. `calLink` is separate and smaller: `esc()` the two date parts.
 - **Model note:** this touches a security gate, so per CLAUDE.md it wants a
   Fable/Opus session, not a plain-Sonnet build.
+
+### F4 (LOW) — `secVisible` and `syncPrefs` are exported and never restored
+- **Where:** `buildExportPayload` writes both (13175–13176); `importBackupData`
+  (13352–13521) reads neither. They are also **not** in either sync payload
+  (`pushPersonal` 14212–14251, `pushHousehold` 14596–14635 — checked, absent).
+- **What:** these two are the only exported keys with no import path, so they
+  are write-only: the backup file faithfully carries which sections you turned
+  on (`fl4_secVisible` — Plants, Watch, Appliances, Sports, Family Log are all
+  opt-in) and which lists you sync (`fl4_syncPrefs`), and a restore ignores both.
+- **Effect:** exactly the documented recovery path is where it bites. The
+  service-worker recovery ladder in `HEARTH-notes.md` ends at "delete the site's
+  data", which clears localStorage — and the same happens on the Cloudflare
+  origin move (step 7 explicitly warns of fresh `localStorage` per device).
+  After either, restoring the backup brings the data back but **not** the
+  section toggles or sync prefs, so opt-in sections silently vanish from the nav
+  and the user has to remember what they had enabled. `personal` defaults to
+  NOT synced (13820), so a restore also quietly resets that choice.
+- **Fix shape:** small, but a **design call, not a mechanical fix** — restoring
+  `syncPrefs` from a file changes what leaves the device, which is not obviously
+  right to do silently. Options: restore `secVisible` only (the safe half);
+  restore both; or leave as-is and document it. Ask Cathal. If built, extend
+  `tests/cases/07-backup-roundtrip.js`.
+
+### F5 (LOW, piggyback) — the EXPORT COVERAGE comment omits `appliances`
+- **Where:** the checklist comment above `exportData` (13130–13148).
+- **What:** the comment is the stated mechanism for catching export drift ("check
+  on each release that new data types are included") and lists plants and
+  watchlist by name, but **never mentions `appliances`** — added to the payload
+  in v424 and widened in v428 without the comment being updated. The code is
+  correct (13172); only the checklist is stale.
+- **Effect:** none at runtime. It weakens the one guardrail against the next
+  section being forgotten, and `HEARTH-notes.md` § Data & export *does* list
+  appliances, so the two disagree.
+- **Fix shape:** one comment line, in the next version that touches
+  `index.html`. Genuine piggyback-fix candidate — add it to
+  `HEARTH-backlog.md` § Piggyback fixes (both current entries there are struck
+  through as fixed in v442, so the list is empty and this would be its only
+  live item).
