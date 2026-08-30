@@ -19,7 +19,7 @@ Base audited: `origin/main` at v443 (commit b0f17b3).
 ## Status / what's left
 - [x] Baseline: `tests/checks.sh` — PASS (all green at v443)
 - [x] Baseline: `node tests/run.js` — PASS (all 54 cases + 4 sw-cases, exit 0)
-- [ ] Section 1: Sync/merge layer (push/apply personal + household, tombstones, stamps) — focus on v441–v443 additions (cal-goal/profile stamps, saved-meal tombstones)
+- [x] Section 1: Sync/merge layer — DONE, one finding (F1) + notes below
 - [ ] Section 2: Food journal / TDEE / autosuggest / saved-meal→recipe (v434–v443 — newest code, least reviewed)
 - [ ] Section 3: Security pass — esc()/innerHTML sites, URL gates (`applianceLinkUrl` coverage), import parsers (trip/plant/inventory/backup JSON)
 - [ ] Section 4: Service worker (v426 best-effort install, v373 cache-first shell, /cdn-cgi passthrough)
@@ -43,9 +43,58 @@ Base audited: `origin/main` at v443 (commit b0f17b3).
   notes/trips) — deliberate, on record, do not harmonise.
 - Recipe deletions don't propagate (accepted cost of the v242 newest-wins model).
 
+## Section notes
+
+### Section 1 — sync/merge layer (DONE 30/08)
+Read in full: `pushPersonal` (14204), `applyPersonal` (14294–14554),
+`pushHousehold` (14588), `applyHousehold` head + tail (18967, flush at 19144),
+`importBackupData` (13352–13521), `setCalGoal` (12272), `saveProfile` (18419).
+- **v441 cal-goal/profile stamps: correct at every site.** All writes stamped
+  (`setCalGoal`, `saveProfile`, restore carries the file's stamp, merge adopts
+  the incoming stamp); merge is strictly-newer-wins with the no-stamp=0 rule and
+  the empty-device adoption arm, exactly as `HEARTH-notes.md` describes. The
+  `if (d.cal_goal)` truthy gate is safe — the manual editor refuses ≤0 and
+  `tdeeGoal` floors at 1500, so a legitimate goal is never falsy.
+- **v443 saved-meal tombstones: sync side correct** (push carries
+  `saved_meals_deleted`, apply merges+purges tombs and filters the union; a
+  meal's id is Date.now() so a tomb can't block a new meal). **Backup-restore
+  side missed — finding F1 below.**
+- **Both `flushSyncRenders` calls (14552, 19144) omit `watchlist`** — this is
+  the already-known backlog item, re-confirmed at v443, still unfixed. Piggyback
+  candidate. (applyPersonal's also omits `dots`, applyHousehold's omits `train` —
+  both deliberate per the comments: dots are partner-facing/household, Train is
+  personal-channel-fed.)
+- `fl4_notes_<lt>` (per-list notes arrays) are **wholesale-replaced by incoming**
+  on both channels (14351, 19004) — but see F2: the store appears to be legacy
+  with no UI left, so nothing live can be lost. Worth confirming + tidying, not
+  urgent.
+- Tie-break asymmetry, recipe-deletes-don't-propagate, food_notes local-wins:
+  all as documented, deliberate, on record — not findings.
+
 ## Findings
 *(numbered F1, F2… as found; severity: HIGH = data loss/safety/security,
 MED = real bug, user-visible, LOW = polish/hygiene. Each carries file:line
 anchors at v443 — re-grep before editing, line numbers rot.)*
 
-*(none yet)*
+### F1 (MED) — v443 saved-meal tombstones: backup restore silently re-deletes a restored saved meal
+- **Where:** `importBackupData`, the `data.saved_meals` line (index.html:13409 at v443).
+- **What:** v443 added deletion tombstones for saved meals to the sync merge
+  (`fl4_tomb_saved_meals`, filtered in `applyPersonal` ~14419–14426) but did not
+  update the backup-restore path. Every other tombstoned collection in
+  `importBackupData` does one of two deliberate things: **resurrect + clear the
+  tombstone + stamp `updated=now`** (list items 13360–13364, recipebook 13416–13418,
+  plants, watchlist, appliances, trips) or **filter the incoming through local
+  tombstones so the delete sticks** (hist v323, medicine v329, growth/milestones
+  v371). The saved-meals line does neither — plain id-union concat.
+- **Effect:** restore a backup containing a saved meal deleted in the last 90
+  days → it reappears in the UI, then silently vanishes on the next personal-sync
+  pull (the tombstone is still live and `applyPersonal` filters it out). Worst
+  case is a confused user, not data loss beyond what was already deleted — but it
+  makes "restore my deleted saved meal from backup" quietly impossible for a
+  logged-in device, while working (misleadingly) for an offline one.
+- **Fix shape:** match the documented additive-restore contract (comment at
+  ~13343): for each restored meal whose id sits in `fl4_tomb_saved_meals`, delete
+  the tombstone entry (same 3-line pattern as recipebook/plants). Saved meals
+  have no `updated` field, so no stamping needed. One-line-ish; good piggyback
+  candidate for the next version touching the food-journal area + a small
+  extension to `tests/cases/53-saved-meal-delete-sync.js` or `07-backup-roundtrip`.
