@@ -12915,6 +12915,13 @@ function openSavedMealsManager() {
         storeSet("fl4_saved_meals", saved);
         pushPersonal();
         render();
+        // v445: render() rebuilds THIS overlay only. The saved-meal chips in the
+        // Food view underneath are painted by renderFoodView(), which until now
+        // ran only when the sheet was closed -- so a deleted meal sat there in
+        // the chip row until you navigated away and came back. Repaint both:
+        // the overlay is a separate element on <body>, so redrawing the view
+        // beneath it is safe and leaves the open sheet alone.
+        renderFoodView();
       });
     });
   }
@@ -13145,7 +13152,10 @@ function buildExportPayload() {
   //   watering/feeding logs, which all ride inside the plant records),
   //  watchlist (Watchlist section, v391 — incl. the watching/watched status,
   //   the season (v392), the ★ rating and any pasted link; the info links are
-  //   built from the title at render time and are deliberately never stored).
+  //   built from the title at render time and are deliberately never stored),
+  //  appliances (Home inventory, v424/v428 — every field is plain text on the
+  //   record, so one key covers it; the manual/photos/receipt are LINKS and
+  //   notes, never image bytes).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*, fl4_last_backup, fl4_backup_snooze,
   //  fl4_last_cloudbackup, fl4_tomb_* (sync deletion tombstones),
@@ -13351,7 +13361,14 @@ document.addEventListener("visibilitychange", function(){
 // (Edge case accepted: a restored copy of an item the partner edited under the
 // same id wins over their edit via the fresh stamp — rare, additive-only.)
 function importBackupData(data) {
-  var imported={lists:0,recipes:0,trips:0,notes:0};
+  // v445: every collection this function can ADD to must be counted here, or
+  // the toast reports "Nothing new to import" while the restore quietly worked
+  // -- Cathal hit exactly that restoring a saved meal and a food entry. If you
+  // add a new store to importBackupData, add its counter here AND a line in
+  // importedSummary; a restore that silently reports nothing reads as a broken
+  // backup file, which is the worst thing a backup can do.
+  var imported={lists:0,recipes:0,trips:0,notes:0,food:0,meals:0,plants:0,
+                watchlist:0,inventory:0,logEntries:0,medEntries:0,workouts:0,baby:0};
   if(data.lists){
     ["grocery","todo","travel","personal"].forEach(function(lt){
       if(!data.lists[lt]) return;
@@ -13374,6 +13391,7 @@ function importBackupData(data) {
   if(data.workouts&&typeof data.workouts==="object"){
     var wd=getWD(); var wIds={}; wd.workouts.forEach(function(w){wIds[w.id]=true;});
     var newW=(data.workouts.workouts||[]).filter(function(w){return w&&!wIds[w.id];});
+    imported.workouts=newW.length;
     wd.workouts=newW.concat(wd.workouts);
     // v352: bodyweight/bp were dropped on restore (fix-queue batch A, finding 1).
     // Additive union, keep-local on a same-date/same-ts collision (Cathal's call,
@@ -13395,19 +13413,41 @@ function importBackupData(data) {
     // data and must stick; list items still resurrect per v288). v371: growth
     // (by date) and milestones (by id) now get the same tombstone filter.
     var medT=getTombs("med"), growthT=getTombs("growth"), msT=getTombs("ms");
+    var _bBefore=(bd.growth||[]).length+(bd.medicine||[]).length+(bd.milestones||[]).length;
     bd.growth=mArr(bd.growth||[],(bd2.growth||[]).filter(function(g){return g&&!(growthT[g.date]!=null&&growthT[g.date]>=(g.updated||0));}),"date");
     bd.medicine=mArr(bd.medicine||[],(bd2.medicine||[]).filter(function(m){return m&&!(medT[m.id]!=null&&medT[m.id]>=medUpdatedTs(m));}),"id");
     bd.milestones=mArr(bd.milestones||[],(bd2.milestones||[]).filter(function(m){return m&&!(msT[m.id]!=null&&msT[m.id]>=medUpdatedTs(m));}),"id"); bd.teeth=Object.assign({},bd2.teeth||{},bd.teeth||{});
+    imported.baby=((bd.growth||[]).length+(bd.medicine||[]).length+(bd.milestones||[]).length)-_bBefore;
     bd.bottles=mergeBottles(bd.bottles||{},bd2.bottles||{});
     if(bd2.babySex && !bd.babySex) bd.babySex=bd2.babySex;
     if(Array.isArray(bd2.bags) && (!Array.isArray(bd.bags)||!bd.bags.length)) bd.bags=bd2.bags;
     saveBD(bd);
   }
-  if(Array.isArray(data.action_log)){var al=getActionLog(),alIds={};al.forEach(function(x){alIds[x.id]=true;});var newAl=data.action_log.filter(function(x){return x&&!alIds[x.id];});if(newAl.length)storeSet("fl4_action_log",newAl.concat(al));}
-  if(Array.isArray(data.track_med)){var tm=getTrackMed(),tmIds={};tm.forEach(function(x){tmIds[x.id]=true;});var newTm=data.track_med.filter(function(x){return x&&!tmIds[x.id];});if(newTm.length)storeSet("fl4_track_med",newTm.concat(tm));}
-  if(Array.isArray(data.food_log)){var fl=getFoodLog(),flIds={};fl.forEach(function(x){flIds[x.id]=true;});var newFl=data.food_log.filter(function(x){return x&&!flIds[x.id];});if(newFl.length)storeSet("fl4_food_log",newFl.concat(fl));}
+  if(Array.isArray(data.action_log)){var al=getActionLog(),alIds={};al.forEach(function(x){alIds[x.id]=true;});var newAl=data.action_log.filter(function(x){return x&&!alIds[x.id];});imported.logEntries=newAl.length;if(newAl.length)storeSet("fl4_action_log",newAl.concat(al));}
+  if(Array.isArray(data.track_med)){var tm=getTrackMed(),tmIds={};tm.forEach(function(x){tmIds[x.id]=true;});var newTm=data.track_med.filter(function(x){return x&&!tmIds[x.id];});imported.medEntries=newTm.length;if(newTm.length)storeSet("fl4_track_med",newTm.concat(tm));}
+  if(Array.isArray(data.food_log)){var fl=getFoodLog(),flIds={};fl.forEach(function(x){flIds[x.id]=true;});var newFl=data.food_log.filter(function(x){return x&&!flIds[x.id];});imported.food=newFl.length;if(newFl.length)storeSet("fl4_food_log",newFl.concat(fl));}
   if(data.food_notes){var fn=storeGet("fl4_food_notes")||{};Object.keys(data.food_notes).forEach(function(k){if(!fn[k])fn[k]=data.food_notes[k];});storeSet("fl4_food_notes",fn);}
-  if(Array.isArray(data.saved_meals)){var sm=storeGet("fl4_saved_meals")||[],smIds={};sm.forEach(function(m){smIds[m.id]=true;});storeSet("fl4_saved_meals",sm.concat(data.saved_meals.filter(function(m){return m&&!smIds[m.id];})));}
+  // Saved meals: additive only, and a restored meal CLEARS any matching
+  // tombstone — the same shape as the recipebook/plants/watchlist restores
+  // below. v443 gave saved meals deletion tombstones for the sync merge but
+  // left this line alone, so a restored meal reappeared and was then silently
+  // filtered straight back out by the next pull. Resurrecting is deliberate
+  // (Cathal, 30/08/2026) and matches its neighbours: a saved meal is a logging
+  // shortcut, not safety data like a dose, so it follows the list-item rule and
+  // NOT the medicine one. Note this still does not tomb-FILTER the incoming
+  // side, which v443 deliberately avoided so a test-build re-seed can restore
+  // the demo meals.
+  if(Array.isArray(data.saved_meals)){
+    var sm=storeGet("fl4_saved_meals")||[],smIds={};sm.forEach(function(m){if(m)smIds[m.id]=true;});
+    var newSm=data.saved_meals.filter(function(m){return m&&m.id!=null&&!smIds[m.id];});
+    if(newSm.length){
+      var smTombsR=getTombs("saved_meals"), smChanged=false;
+      newSm.forEach(function(m){ if(smTombsR[m.id]!==undefined){ delete smTombsR[m.id]; smChanged=true; } });
+      if(smChanged) storeSet("fl4_tomb_saved_meals", smTombsR);
+      storeSet("fl4_saved_meals", sm.concat(newSm));
+      imported.meals=newSm.length;
+    }
+  }
   if(Array.isArray(data.recipes)){var rc=storeGet("fl4_recipes")||[],rcN={};rc.forEach(function(m){if(m)rcN[m.name.toLowerCase()]=true;});storeSet("fl4_recipes",rc.concat(data.recipes.filter(function(m){return m&&m.name&&!rcN[m.name.toLowerCase()];})));}
   if(Array.isArray(data.travel_tags)){var tt=storeGet("fl4_travel_tags")||[];data.travel_tags.forEach(function(t){if(t&&!tt.some(function(x){return x.toLowerCase()===t.toLowerCase();}))tt.push(t);});storeSet("fl4_travel_tags",tt);}
   if(Array.isArray(data.recipebook)){
@@ -13434,6 +13474,7 @@ function importBackupData(data) {
       newPl.forEach(function(r){ r.updated=Date.now(); if(plTombsR[r.id]!==undefined){ delete plTombsR[r.id]; plChanged=true; } });
       if(plChanged) storeSet("fl4_tomb_plants", plTombsR);
       storeSet("fl4_plants", pl2.concat(newPl));
+      imported.plants=newPl.length;
     }
   }
   // Watchlist: additive only, same shape as the plants restore above — an entry
@@ -13449,6 +13490,7 @@ function importBackupData(data) {
       newWl.forEach(function(r){ r.updated=Date.now(); if(wlTombsR[r.id]!==undefined){ delete wlTombsR[r.id]; wlChanged=true; } });
       if(wlChanged) storeSet("fl4_tomb_watchlist", wlTombsR);
       storeSet("fl4_watchlist", wl2.concat(newWl));
+      imported.watchlist=newWl.length;
     }
   }
   // Appliances: additive only, same shape as the two restores above — a
@@ -13463,6 +13505,7 @@ function importBackupData(data) {
       newAp.forEach(function(r){ r.updated=Date.now(); if(apTombsR[r.id]!==undefined){ delete apTombsR[r.id]; apChanged=true; } });
       if(apChanged) storeSet("fl4_tomb_appliances", apTombsR);
       storeSet("fl4_appliances", ap2.concat(newAp));
+      imported.inventory=newAp.length;
     }
   }
   // Meal plan: same newest-wins-per-day merge as sync, so restoring an old
@@ -13520,12 +13563,35 @@ function importBackupData(data) {
   if(data.profile&&typeof data.profile==="object"&&Object.keys(data.profile).length&&!storeGet("fl4_profile")){storeSet("fl4_profile",data.profile);storeSet("fl4_profile_ts",+data.profile_ts||0);}
   return imported;
 }
+// v445: one line per counted collection. A restore that added something must
+// NEVER come back as "Nothing new to import" -- see the comment on `imported`.
+// Beyond three kinds the toast would run off the end of a phone screen, so it
+// falls back to the plain total; the toast is one short line on a 2.2s timer.
+var IMPORT_LABELS = [
+  ["lists",      "list item",      "list items"],
+  ["recipes",    "recipe",         "recipes"],
+  ["trips",      "trip",           "trips"],
+  ["notes",      "note",           "notes"],
+  ["food",       "food entry",     "food entries"],
+  ["meals",      "saved meal",     "saved meals"],
+  ["plants",     "plant",          "plants"],
+  ["watchlist",  "watchlist entry","watchlist entries"],
+  ["inventory",  "inventory item", "inventory items"],
+  ["logEntries", "log entry",      "log entries"],
+  ["medEntries", "medicine entry", "medicine entries"],
+  ["workouts",   "workout",        "workouts"],
+  ["baby",       "baby record",    "baby records"]
+];
 function importedSummary(n){
-  var parts=[];
-  if(n.lists)   parts.push(n.lists+" list item"+(n.lists!==1?"s":""));
-  if(n.recipes) parts.push(n.recipes+" recipe"+(n.recipes!==1?"s":""));
-  if(n.trips)   parts.push(n.trips+" trip"+(n.trips!==1?"s":""));
-  if(n.notes)   parts.push(n.notes+" note"+(n.notes!==1?"s":""));
+  var parts=[], total=0;
+  IMPORT_LABELS.forEach(function(L){
+    var c=+n[L[0]]||0;
+    if(!c) return;
+    total+=c;
+    parts.push(c+" "+(c===1?L[1]:L[2]));
+  });
+  if(!parts.length) return "";
+  if(parts.length>3) return total+" record"+(total!==1?"s":"");
   return parts.join(", ");
 }
 document.getElementById("importFile").addEventListener("change", function(e) {
@@ -13535,7 +13601,18 @@ document.getElementById("importFile").addEventListener("change", function(e) {
     try {
       var data=JSON.parse(ev.target.result); if(!data) throw new Error("Invalid file");
       var n=importBackupData(data);
-      renderList();
+      // v445: renderList() alone left every other section showing pre-import
+      // data until you navigated away and back -- and the import lives in
+      // Settings, so even the list repaint is on a screen you cannot see.
+      // flushSyncRenders is the existing "data changed underneath, repaint
+      // what is visible" helper and carries its own per-section guards, so
+      // this is one call rather than a pile of `if (currentSection ...)`.
+      // Track is not one of its branches (it is fed per sub-view), so the
+      // active Track tab is refreshed explicitly beside it.
+      flushSyncRenders({ recipes:true, trips:true, baby:true, appliances:true,
+                         plants:true, watchlist:true, list:true, dots:true,
+                         home:true, train:true });
+      if (currentSection === "track" && typeof renderTrackView === "function") renderTrackView();
       pushPersonal(); if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold();
       var s=importedSummary(n);
       toast(s ? "Imported: "+s : "Nothing new to import");
@@ -14551,7 +14628,7 @@ function applyPersonal(d) {
   } catch (err) { console.warn("applyPersonal error (sync continues):", err); }
   finally { syncPaused = false; }
   flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby, appliances:_rDirty.appliances,
-                     plants:_rDirty.plants, list:true, home:true, train:true });
+                     plants:_rDirty.plants, watchlist:_rDirty.watchlist, list:true, home:true, train:true });
 }
 function fetchPersonal(cb) {
   if (!isLoggedIn()) { if(cb)cb(); return; }
@@ -19178,7 +19255,7 @@ function applyHousehold(data) {
   // v375: one batched flush instead of renders scattered through the merge above.
   // No renderTrainView here — the Train view is fed by the personal channel only.
   flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby, appliances:_rDirty.appliances,
-                     plants:_rDirty.plants, list:true, dots:true, home:true });
+                     plants:_rDirty.plants, watchlist:_rDirty.watchlist, list:true, dots:true, home:true });
   // Gentle in-app toast if the partner added something while we're using the app
   var _totalNew = 0, _firstLt = null;
   Object.keys(_newFromOther).forEach(function(lt){ _totalNew += _newFromOther[lt]; if(!_firstLt) _firstLt = lt; });
