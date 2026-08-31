@@ -37,6 +37,66 @@ module.exports = {
       fail.push({ name: 'bottom-nav clicks', detail: 'no visible .bn-btn buttons found to click' });
     }
 
+    // ── Every nav button must actually NAVIGATE (added v450) ───────────────
+    //
+    // The sweep above clicked every button and only checked that nothing threw.
+    // A button wired to nothing at all passes that happily — which is exactly
+    // how v449 shipped a Health icon that did nothing when tapped. Two holes,
+    // both closed here:
+    //
+    //   1. It asserted no error, never that the click DID anything. Now each
+    //      click must land on the expected section.
+    //   2. It skipped display:none buttons — and the opt-in sections (Health,
+    //      Plants, Inventory, Sports, Family Log, Train) are hidden by default,
+    //      so the newest and least-exercised buttons were the ones never tested.
+    //      Now every button is clicked regardless of visibility.
+    //
+    // NAV_MAP is deliberately hand-written rather than read from the app: the
+    // coverage assertion below fails when a button is added to the bar without
+    // being added here, which is the prompt to think about whether the new
+    // button is wired at all.
+    const navResult = await page.evaluate(
+      '(function(){' +
+        'var NAV_MAP = {' +
+          'bnHome:"home", bnLife:"lists", bnTrain:"train", bnRecipes:"recipes",' +
+          'bnBaby:"baby", bnTrips:"trips", bnTrack:"track", bnPlants:"plants",' +
+          'bnWatch:"watch", bnAppliances:"appliances", bnSports:"sports",' +
+          'bnFamlog:"famlog", bnHealth:"health"' +
+        '};' +
+        'var out = { uncovered: [], dead: [], ok: [] };' +
+        'var ids = Array.prototype.map.call(document.querySelectorAll(".bottom-nav .bn-btn"), function(b){ return b.id; });' +
+        'ids.forEach(function(id){ if (!NAV_MAP[id]) out.uncovered.push(id); });' +
+        'Object.keys(NAV_MAP).forEach(function(id){' +
+          'var btn = document.getElementById(id);' +
+          'if (!btn) { out.dead.push(id + " (no such button)"); return; }' +
+          // Park somewhere else first, so "it was already there" can never be
+          // mistaken for "the click worked".
+          'switchSection(id === "bnHome" ? "lists" : "home");' +
+          'btn.click();' +
+          'if (currentSection === NAV_MAP[id]) out.ok.push(id);' +
+          'else out.dead.push(id + " -> " + currentSection + " (expected " + NAV_MAP[id] + ")");' +
+        '});' +
+        'switchSection("home");' +
+        'return out;' +
+        '})()'
+    );
+    if (navResult.uncovered.length) {
+      fail.push({
+        name: 'every bottom-nav button is covered by NAV_MAP',
+        detail: 'not in NAV_MAP (add it, and check it is wired): ' + navResult.uncovered.join(', '),
+      });
+    } else {
+      pass.push('every bottom-nav button is covered by NAV_MAP');
+    }
+    if (navResult.dead.length) {
+      fail.push({
+        name: 'every bottom-nav button navigates when tapped',
+        detail: 'these did not open their section: ' + navResult.dead.join('; '),
+      });
+    } else {
+      pass.push('every bottom-nav button navigates when tapped (' + navResult.ok.length + ' buttons)');
+    }
+
     return { pass, fail };
   },
 };
