@@ -172,23 +172,36 @@ module.exports = {
         getAppliances().some(function(a){ return /Sofa/.test(a.name || ''); }) &&
         getAppliances().some(function(a){ return /Bike/.test(a.name || ''); }),
         'got: ' + getAppliances().map(function(a){ return a.name; }).join(', '));
-      // v449: seven health records, and deliberately not seven interchangeable
-      // ones — three named people is what makes the person chip row appear on a
-      // test link, one future plus one past appointment is the only way both the
-      // Coming up group and the collapsed Past group get reviewed, and one record
-      // of every kind is what makes all five group headings render. Keep that
-      // shape if you edit them. The dates are relative for the usual reason: a
-      // hard-coded one slides into the past and the countdown stops being demoed.
-      ok('health records land', getHealth().length === 7, 'got: ' + getHealth().length);
-      ok('every health kind is represented, so every group heading is reviewable',
+      // v449: nine health records, and deliberately not nine interchangeable
+      // ones — three people is what makes the person chip row appear on a test
+      // link; one future visit plus one future test is what fills Coming up and
+      // the Home line; past visits, a diagnosis, a test with a result and a
+      // vaccination are what make the mixed History feed read as a history; and
+      // a condition plus a medication pin the two standing groups above it. Two
+      // records carry files so the paperclip cue and the links row are both
+      // reviewable. Keep that shape if you edit them. Dates are relative for the
+      // usual reason: a hard-coded one slides into the past and the countdown
+      // stops being demoed.
+      ok('health records land', getHealth().length === 9, 'got: ' + getHealth().length);
+      ok('every health kind is represented, so every group is reviewable',
         HEALTH_KINDS.every(function(k){ return getHealth().some(function(r){ return healthKindMeta(r.kind).key === k.key; }); }),
         'got: ' + getHealth().map(function(r){ return r.kind; }).join(','));
       ok('the demo covers three people, so the person chips appear',
         healthPeople(getHealth()).length === 3, 'got: ' + JSON.stringify(healthPeople(getHealth())));
-      ok('one demo appointment is upcoming and one is already past',
-        !!healthNextAppointment() &&
-        getHealth().some(function(r){ return healthKindMeta(r.kind).key === 'appointment' && !healthCountdownLabel(r); }),
-        'next: ' + JSON.stringify(healthNextAppointment()));
+      ok('one demo visit is upcoming and the Home line has something to show',
+        !!healthNextAppointment(), 'next: ' + JSON.stringify(healthNextAppointment()));
+      ok('the demo has real history — several past events across more than one kind',
+        (function(){
+          var past = getHealth().filter(function(r){
+            return healthKindIn(r, HEALTH_HISTORY_KINDS) && !healthCountdownLabel(r) && r.date;
+          });
+          var kinds = {}; past.forEach(function(r){ kinds[healthKindMeta(r.kind).key] = true; });
+          return past.length >= 4 && Object.keys(kinds).length >= 3;
+        })(), 'got: ' + getHealth().filter(function(r){ return healthKindIn(r, HEALTH_HISTORY_KINDS) && !healthCountdownLabel(r); }).length + ' past events');
+      ok('two demo records carry files, and every seeded file url passes the gate',
+        getHealth().filter(function(r){ return healthFileList(r).length; }).length === 2 &&
+        getHealth().every(function(r){ return healthFileList(r).length === ((r.files||[]).length); }),
+        'got: ' + JSON.stringify(getHealth().map(function(r){ return healthFileList(r).length; })));
       ok('a demo record carries a receipt note and a photos link',
         getAppliances().some(function(a){ return !!a.receipt; }) &&
         getAppliances().some(function(a){ return !!appliancePhotosUrl(a); }),

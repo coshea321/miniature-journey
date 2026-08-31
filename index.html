@@ -1301,11 +1301,11 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
 </div>
 
 <!-- ============================================================
-     HEALTH SECTION (v449) - the family's medical reference book
+     HEALTH SECTION (v449) - the family's medical history
      ============================================================ -->
 <div id="healthSection" style="display:none">
   <div style="display:flex;gap:4px;padding:8px 10px;background:#2F6E6E;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
-    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1FA7A; Health</span>
+    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1FA7A; Medical history</span>
     <button id="hlNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
   </div>
   <div id="healthContent" style="padding:14px 14px 100px"></div>
@@ -1677,7 +1677,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="appliances"><span class="toggle-slider"></span></label>
       </div>
       <div class="sync-toggle-row">
-        <span class="sync-toggle-label">&#x1FA7A; Health</span>
+        <span class="sync-toggle-label">&#x1FA7A; Medical history</span>
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="health"><span class="toggle-slider"></span></label>
       </div>
       <div class="sync-toggle-row">
@@ -4757,56 +4757,88 @@ function renderWatchEditor() {
 }
 
 // ============================================================
-// HEALTH (v449) — the family's medical REFERENCE BOOK.
+// HEALTH (v449) — the family's MEDICAL HISTORY, per person.
 //
-// Design confirmed 31/08/2026. What it holds: appointments, repeat
-// prescriptions, clinic contacts, vaccinations and conditions/allergies —
-// the things you go looking for, per person.
+// Design confirmed 31/08/2026, and REFRAMED the same day: the first cut of
+// this section was a forward-looking reference book (it led with "Coming up"
+// and its centre of gravity was the next appointment). Cathal's call before
+// it merged was that what he actually wants is a HISTORY — GP visits and
+// what was said, the conditions he has, diagnoses as they were made, test
+// results, and links to the letters and scans that go with them. So the
+// screen now leads with what IS and what HAPPENED, and the upcoming half is
+// a group at the top rather than the point of the section.
 //
-// What it deliberately is NOT: a second place to LOG anything. Track
-// already has the household medicine log (v380) and Body (weight/BP), and
-// Baby has the weight-based dosing calculator. A fourth surface onto that
-// same data is exactly how a feature gets rebuilt here by accident, so
-// nothing in this section logs, doses, or nags. It records.
+// What it deliberately still does NOT do: LOG anything. Track has the
+// household medicine log (v380) and Body; Baby has the weight-based dosing
+// calculator. A fourth surface onto that data is how a feature gets rebuilt
+// here by accident. This section records what happened; it does not track.
 //
-// ONE STORE, not five: every record carries a `kind` from HEALTH_KINDS,
-// the way a trip booking carries a TRIP_BOOKING_TYPES type. Five stores
-// would mean five merges, five tombstone sets and five halves of the
-// backup payload to keep in step forever — "the fields differ per kind"
-// is not worth that, and the kind table keeps them straight anyway.
+// ONE STORE, not seven: every record carries a `kind` from HEALTH_KINDS, the
+// way a trip booking carries a TRIP_BOOKING_TYPES type. Seven stores would
+// mean seven merges, seven tombstone sets and seven pieces of the backup
+// payload to keep in step forever.
 //
-// Storage contract is the Plants/Watchlist/Inventory one: one record is
-// one edit unit, so whole-record newest-wins by `updated` with tombstone
-// filtering and no nested merge. HOUSEHOLD-SHARED (confirmed 31/08/2026)
-// — both phones seeing the baby's next appointment is the entire point.
+// Storage contract is the Plants/Watchlist/Inventory one: one record is one
+// edit unit, so whole-record newest-wins by `updated` with tombstone
+// filtering and no nested merge. `files` rides INSIDE the record for exactly
+// that reason — the whole record is the unit, so a nested array needs no
+// merge of its own. HOUSEHOLD-SHARED (confirmed 31/08/2026), with the
+// standing caveat recorded in HEARTH-backlog.md: this is the most sensitive
+// data in the app and github.io still serves it ungated.
 // ============================================================
 var HEALTH_COLOR = "#2F6E6E";
 var HEALTH_KINDS = [
-  { key:"appointment",  label:"Appointment",  plural:"Appointments",  ico:"&#x1F4C5;" },
-  { key:"prescription", label:"Prescription", plural:"Prescriptions", ico:"&#x1F48A;" },
-  { key:"contact",      label:"Contact",      plural:"Contacts",      ico:"&#x1F3E5;" },
-  { key:"vaccination",  label:"Vaccination",  plural:"Vaccinations",  ico:"&#x1F489;" },
-  { key:"condition",    label:"Condition",    plural:"Conditions &amp; allergies", ico:"&#x26A0;&#xFE0F;" }
+  { key:"visit",       label:"Visit",       plural:"Visits",                 ico:"&#x1FA7A;" },
+  { key:"diagnosis",   label:"Diagnosis",   plural:"Diagnoses",              ico:"&#x1F52C;" },
+  { key:"condition",   label:"Condition",   plural:"Conditions &amp; allergies", ico:"&#x26A0;&#xFE0F;" },
+  { key:"test",        label:"Test",        plural:"Tests &amp; results",    ico:"&#x1F9EA;" },
+  { key:"medication",  label:"Medication",  plural:"Medication",             ico:"&#x1F48A;" },
+  { key:"vaccination", label:"Vaccination", plural:"Vaccinations",           ico:"&#x1F489;" },
+  { key:"contact",     label:"Contact",     plural:"Contacts",               ico:"&#x1F3E5;" }
 ];
+// The first cut of v449 called these two something else. Nothing shipped with
+// them, but a phone that opened a PR test link has records carrying the old
+// word, and reading one as an unknown kind would silently file a booked
+// appointment under Visits' fallback anyway — so name the rename instead of
+// relying on the fallback to be right by luck.
+var HEALTH_KIND_ALIASES = { appointment:"visit", prescription:"medication" };
 function healthKindMeta(k) {
-  for (var i = 0; i < HEALTH_KINDS.length; i++) if (HEALTH_KINDS[i].key === k) return HEALTH_KINDS[i];
-  return HEALTH_KINDS[0];   // unknown/missing kind reads as an appointment rather than throwing
+  var key = HEALTH_KIND_ALIASES[k] || k;
+  for (var i = 0; i < HEALTH_KINDS.length; i++) if (HEALTH_KINDS[i].key === key) return HEALTH_KINDS[i];
+  return HEALTH_KINDS[0];   // unknown/missing kind reads as a visit rather than throwing
 }
 
-// What each kind ASKS FOR, and what the shared `title`/`date`/`dose` fields
-// are called for that kind. "" means the field isn't shown for that kind.
+// Three roles, and they decide where a record lands on screen — NOT the kind
+// list's order. **Upcoming**: things you attend, so they can be in the future
+// (a booked GP appointment is simply a visit whose date hasn't come yet — when
+// the day arrives you open the same record and write what was said, which is
+// why "appointment" is not a separate kind). **Standing**: states rather than
+// events, so they are pinned above the history instead of buried in it by
+// date. **History**: the events, all kinds mixed into ONE reverse-chronological
+// feed — that feed is what makes this a medical history rather than a filing
+// cabinet, so do not split it back into a group per kind.
+var HEALTH_UPCOMING_KINDS = ["visit", "test"];
+var HEALTH_STANDING_KINDS = ["condition", "medication"];
+var HEALTH_HISTORY_KINDS  = ["visit", "diagnosis", "test", "vaccination"];
+// `contact` is in none of them on purpose: a directory, listed last.
+function healthKindIn(rec, list) { return list.indexOf(healthKindMeta(rec && rec.kind).key) !== -1; }
+
+// What each kind ASKS FOR, and what the shared fields are CALLED for it.
+// "" means the field isn't shown for that kind; `time` and `phone` are plain
+// booleans because they need no relabelling.
 //
 // Every record carries every field whatever its kind. A field the current
-// kind doesn't show KEEPS whatever is already in it — that is the v392
-// season lesson (never destroy something he typed just because a picker
-// moved), and it also means switching a record's kind by mistake and back
-// loses nothing.
+// kind doesn't show KEEPS its value — the v392 season rule: never destroy
+// something he typed because a picker moved. It also means mis-tapping a
+// kind and switching back loses nothing.
 var HEALTH_KIND_FIELDS = {
-  appointment:  { title:"What it&rsquo;s for", date:"Date",       time:true,  location:"Where",                   phone:true,  dose:"" },
-  prescription: { title:"Medicine",            date:"Renew by",   time:false, location:"Pharmacy or prescriber",  phone:true,  dose:"Dose" },
-  contact:      { title:"Name",                date:"",           time:false, location:"Address",                 phone:true,  dose:"" },
-  vaccination:  { title:"Vaccine",             date:"Date given", time:false, location:"Where",                   phone:false, dose:"" },
-  condition:    { title:"What it is",          date:"Diagnosed",  time:false, location:"",                        phone:false, dose:"" }
+  visit:       { title:"What it was for", date:"Date",       time:true,  who:"Who you saw",   dose:"",     outcome:"What was said", location:"Where",    phone:true  },
+  diagnosis:   { title:"Diagnosis",       date:"Date",       time:false, who:"Diagnosed by",  dose:"",     outcome:"",              location:"",         phone:false },
+  condition:   { title:"Condition",       date:"Since",      time:false, who:"",              dose:"",     outcome:"",              location:"",         phone:false },
+  test:        { title:"Test",            date:"Date",       time:true,  who:"Ordered by",    dose:"",     outcome:"Result",        location:"Where",    phone:false },
+  medication:  { title:"Medicine",        date:"Started",    time:false, who:"Prescribed by", dose:"Dose", outcome:"",              location:"Pharmacy", phone:true  },
+  vaccination: { title:"Vaccine",         date:"Date given", time:false, who:"",              dose:"",     outcome:"",              location:"Where",    phone:false },
+  contact:     { title:"Name",            date:"",           time:false, who:"Role",          dose:"",     outcome:"",              location:"Address",  phone:true  }
 };
 function healthFields(kind) { return HEALTH_KIND_FIELDS[healthKindMeta(kind).key]; }
 
@@ -4824,19 +4856,37 @@ function saveHealth(h) {
   if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold();
 }
 
-// `link` is the only field that becomes a tappable href, so it goes through
-// applianceLinkUrl — the shared http(s)-only gate — on save AND here at
-// render time. That is the 30/08 audit's F3 finding applied from the start
-// rather than retrofitted: esc() stops attribute-breakout but does nothing
-// about a scheme, and a record can reach this store from a sync or a
-// restored backup without ever passing through the editor. Never add a
-// second copy of that gate.
-function healthLinkUrl(rec) { return applianceLinkUrl(rec && rec.link); }
-
-// A phone number becomes a tel: link, so the href is REBUILT from a stripped
-// copy (digits and a leading +, nothing else) rather than emitted from the
-// raw field. Same reasoning as the link gate above — the displayed text is
-// still whatever he typed, esc()'d; only the href is reconstructed.
+// ── The two href gates ────────────────────────────────────────────────────
+// `files` and `phone` are the ONLY things in this section that become hrefs,
+// and both are rebuilt rather than emitted: every file url goes through
+// applianceLinkUrl — the shared http(s)-only gate — on save, on import AND
+// here at render, and a phone href is reconstructed from digits. That is the
+// 30/08 audit's F3 finding applied from the start rather than retrofitted:
+// esc() stops attribute-breakout but does nothing about a scheme, and a
+// record reaches this store from sync and from restored backups without ever
+// passing through the editor. Never add a second copy of either gate.
+//
+// Files are LINKS, never bytes — the v428 rule. Hearth does not hold a scan
+// or a consultant's letter; it holds a link to wherever that already lives,
+// which is also the only version worth having at full resolution.
+function healthFileList(rec) {
+  var out = [];
+  var raw = (rec && Array.isArray(rec.files)) ? rec.files : [];
+  raw.forEach(function(f){
+    if (!f || typeof f !== "object") return;
+    var url = applianceLinkUrl(f.url);
+    if (!url) return;                                   // refused scheme → the row simply isn't a link
+    out.push({ label: String(f.label || "").trim() || "Document", url: url });
+  });
+  // The first cut of v449 had a single unlabelled `link` field. It is read
+  // FORWARD here rather than migrated in storage — one place, no rewrite of
+  // records, and the editor writes only `files` from now on.
+  if (!out.length && rec && rec.link) {
+    var lu = applianceLinkUrl(rec.link);
+    if (lu) out.push({ label:"Link", url:lu });
+  }
+  return out;
+}
 function healthPhoneHref(rec) {
   var raw = String((rec && rec.phone) || "").trim();
   if (!raw) return "";
@@ -4858,12 +4908,12 @@ function healthPeople(list) {
   return out.sort(function(a, b){ return a.localeCompare(b); });
 }
 
-// Upcoming APPOINTMENTS only. Reuses tripDaysUntil (v298) rather than a
-// second date-difference helper. Returns "" for a non-appointment, for no
-// date, and for a date already past — so every caller can just test the
-// label instead of re-deriving "is this still ahead of us".
+// Only a kind you ATTEND can be upcoming, and only with a future date.
+// Reuses tripDaysUntil (v298) rather than a second date-difference helper.
+// Returns "" for everything else, so callers test the label instead of
+// re-deriving "is this still ahead of us".
 function healthCountdownLabel(rec) {
-  if (!rec || healthKindMeta(rec.kind).key !== "appointment") return "";
+  if (!rec || !healthKindIn(rec, HEALTH_UPCOMING_KINDS)) return "";
   var d = tripDaysUntil(rec.date);
   if (d === null || d < 0) return "";
   if (d === 0) return "Today";
@@ -4880,12 +4930,15 @@ function healthNextAppointment() {
 }
 
 // The haystack global search reads. Health needs its own for the same reason
-// appliances do: what you came looking for (a consultant's name, a pharmacy,
-// a dose) lives in fields a plain list item doesn't have.
+// appliances do: what you came looking for — a consultant's name, what was
+// said at a visit, a test result, the label on a letter — lives in fields a
+// plain list item doesn't have.
 function healthSearchText(rec) {
   if (!rec) return "";
-  return [rec.title, rec.person, rec.location, rec.phone, rec.dose, rec.notes,
-          healthKindMeta(rec.kind).label].join(" ").toLowerCase();
+  var parts = [rec.title, rec.person, rec.who, rec.outcome, rec.location, rec.phone,
+               rec.dose, rec.notes, healthKindMeta(rec.kind).label];
+  healthFileList(rec).forEach(function(f){ parts.push(f.label); });
+  return parts.join(" ").toLowerCase();
 }
 
 // Whole-record newest-wins by `updated`, tombstone-filtered. Returns
@@ -4911,8 +4964,8 @@ function mergeHealthData(localH, incomingH, tombs) {
     // v296 field-fill (the babySex incident class): a copy written by an
     // older build doesn't know about newer fields, so fill keys UNDEFINED on
     // the winner from the loser rather than letting them vanish. A field
-    // deliberately cleared is "" (defined) and stays cleared — which is why
-    // every write below stores "" and never drops a key.
+    // deliberately cleared is "" (or [] for files) and stays cleared — which
+    // is why every write below stores a value and never drops a key.
     Object.keys(loser).forEach(function(k){ if (winner[k] === undefined) winner[k] = loser[k]; });
     return winner;
   });
@@ -4950,23 +5003,26 @@ var _healthOpenId   = null;            // inline-expanded row
 var _healthPerson   = "";              // person filter — session only, never stored (v379 rule)
 var _healthEditing  = false;           // sync-render guard, same role as _watchEditing
 var _healthCancelFn = null;            // back-button discard closure (v345 pattern)
-var _healthPastOpen = false;           // past appointments start collapsed
-var _healthKindDraft = "appointment";
+var _healthKindDraft = "visit";
 
 // Returns HTML, so every part is esc()'d. The <input type="date"> can only
 // produce YYYY-MM-DD, but this field also arrives from sync, from a restored
 // backup and from a hand-edited file — none of which pass an input — and the
 // split-on-"-" still yields three parts for something like
 // `2020-01-01"><img src=x onerror=…>`. Same reasoning as the two href gates.
-function healthDateText(rec) {
+function healthDateText(rec, withTime) {
   var f = healthFields(rec.kind);
   if (!f.date || !rec.date) return "";
   var p = String(rec.date).split("-");
   if (p.length !== 3) return esc(String(rec.date));
   var out = esc(p[2]) + "/" + esc(p[1]) + "/" + esc(p[0]);
-  if (f.time && rec.time) out += " &middot; " + esc(rec.time);
+  if (withTime !== false && f.time && rec.time) out += " &middot; " + esc(rec.time);
   return out;
 }
+// Sort key for the history feed. A record with no date sorts to the bottom
+// rather than to 1970 — an undated diagnosis is "I don't know when", not
+// "before everything else".
+function healthSortDate(rec) { return String((rec && rec.date) || ""); }
 
 function healthDetailRow(label, valueHTML) {
   if (!valueHTML) return "";
@@ -4982,30 +5038,39 @@ function healthRowHTML(rec) {
   var person = String(rec.person || "").trim();
   var cd = healthCountdownLabel(rec);
   var dateTxt = healthDateText(rec);
+  var files = healthFileList(rec);
 
   var h = "<div style='background:#fff;border:1.5px solid #DDEAEA;border-radius:12px;margin-bottom:8px;overflow:hidden'>" +
     "<div class='health-body' data-hid='" + rec.id + "' style='display:flex;align-items:center;gap:9px;padding:11px 12px;cursor:pointer;touch-action:manipulation'>" +
       "<span style='flex-shrink:0;font-size:17px'>" + meta.ico + "</span>" +
       "<div style='flex:1;min-width:0'>" +
         "<div style='font-size:15px;font-weight:600;color:#1E2A2A;line-height:1.3'>" + esc(rec.title || "Untitled") + "</div>";
+  // Subtitle: who it's for, when, and who you saw — the three things that
+  // tell one row from another in a mixed history feed.
   var sub = [];
   if (person) sub.push(esc(person));
   if (dateTxt && !cd) sub.push(dateTxt);
+  if (f.who && rec.who) sub.push(esc(rec.who));
   if (sub.length) {
     h += "<div style='font-size:12px;color:#6E8888;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>" + sub.join(" &middot; ") + "</div>";
   }
   h += "</div>";
-  if (cd) {
-    h += "<span style='flex-shrink:0;background:#E2F0EF;color:" + HEALTH_COLOR + ";font-size:12px;font-weight:700;border-radius:20px;padding:5px 10px;white-space:nowrap'>" + cd + "</span>";
+  if (files.length) {
+    h += "<span title='" + files.length + " attached' style='flex-shrink:0;font-size:12px;color:#7A9494'>&#x1F4CE;" +
+      (files.length > 1 ? files.length : "") + "</span>";
   }
-  h += "<span style='flex-shrink:0;color:#A8C0C0;font-size:12px;padding-left:2px'>" + (open ? "&#x25B2;" : "&#x25BC;") + "</span>" +
+  if (cd) {
+    h += "<span style='flex-shrink:0;background:#E2F0EF;color:" + HEALTH_COLOR + ";font-size:12px;font-weight:700;border-radius:20px;padding:5px 10px;white-space:nowrap;margin-left:6px'>" + cd + "</span>";
+  }
+  h += "<span style='flex-shrink:0;color:#A8C0C0;font-size:12px;padding-left:4px'>" + (open ? "&#x25B2;" : "&#x25BC;") + "</span>" +
     "</div>";
 
   if (open) {
     h += "<div style='border-top:1px solid #EAF1F1;padding:6px 12px 12px;background:#F8FBFB'>";
     h += healthDetailRow("Type", meta.ico + " " + meta.label);
-    if (person)            h += healthDetailRow("Who", esc(person));
-    if (f.date && dateTxt) h += healthDetailRow(f.date, dateTxt);
+    if (person)                     h += healthDetailRow("Who for", esc(person));
+    if (f.date && dateTxt)          h += healthDetailRow(f.date, dateTxt);
+    if (f.who && rec.who)           h += healthDetailRow(f.who, esc(rec.who));
     if (f.dose && rec.dose)         h += healthDetailRow(f.dose, esc(rec.dose));
     if (f.location && rec.location) h += healthDetailRow(f.location, esc(rec.location));
     var tel = f.phone ? healthPhoneHref(rec) : "";
@@ -5014,13 +5079,27 @@ function healthRowHTML(rec) {
         ? "<a href='" + esc(tel) + "' style='color:" + HEALTH_COLOR + ";font-weight:600;text-decoration:none'>" + esc(rec.phone) + "</a>"
         : esc(rec.phone));
     }
-    var url = healthLinkUrl(rec);
-    if (url) {
-      h += healthDetailRow("Link", "<a href='" + esc(url) + "' target='_blank' rel='noopener' style='color:" + HEALTH_COLOR +
-        ";font-weight:600;text-decoration:none;word-break:break-all'>" + esc(rec.link) + " &#x2197;</a>");
+    // What was said / the result gets its own block rather than a table row:
+    // it is the substance of a visit, and it is the thing you came back to read.
+    if (f.outcome && rec.outcome) {
+      h += "<div style='padding:10px 0 2px'>" +
+        "<div style='font-size:11px;font-weight:700;color:#7A9494;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px'>" + f.outcome + "</div>" +
+        "<div style='font-size:14px;color:#2A3636;line-height:1.55;white-space:pre-wrap'>" + esc(rec.outcome) + "</div></div>";
+    }
+    if (files.length) {
+      h += "<div style='padding:10px 0 2px'>" +
+        "<div style='font-size:11px;font-weight:700;color:#7A9494;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px'>Files &amp; links</div>" +
+        "<div style='display:flex;flex-wrap:wrap;gap:6px'>";
+      files.forEach(function(fl){
+        h += "<a href='" + esc(fl.url) + "' target='_blank' rel='noopener' " +
+          "style='display:inline-flex;align-items:center;gap:5px;background:#fff;border:1.5px solid #CFE0E0;color:" + HEALTH_COLOR +
+          ";border-radius:20px;padding:7px 12px;font-size:12px;font-weight:700;text-decoration:none;touch-action:manipulation'>" +
+          "&#x1F4CE; " + esc(fl.label) + " &#x2197;</a>";
+      });
+      h += "</div></div>";
     }
     if (rec.notes) {
-      h += "<div style='padding:9px 0 2px;font-size:14px;color:#2A3636;line-height:1.55;white-space:pre-wrap'>" + esc(rec.notes) + "</div>";
+      h += "<div style='padding:10px 0 2px;font-size:14px;color:#2A3636;line-height:1.55;white-space:pre-wrap'>" + esc(rec.notes) + "</div>";
     }
     h += "<div style='display:flex;gap:8px;margin-top:12px'>" +
       "<button class='health-edit' data-hid='" + rec.id + "' style='flex:1;padding:10px;border:1.5px solid #CFE0E0;background:#fff;color:#3A5555;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>Edit</button>" +
@@ -5031,7 +5110,7 @@ function healthRowHTML(rec) {
 }
 
 function healthGroupHeader(text) {
-  return "<div style='font-size:11px;font-weight:700;color:#7A9494;text-transform:uppercase;letter-spacing:.5px;margin:10px 2px 7px'>" + text + "</div>";
+  return "<div style='font-size:11px;font-weight:700;color:#7A9494;text-transform:uppercase;letter-spacing:.5px;margin:12px 2px 7px'>" + text + "</div>";
 }
 
 function renderHealth() {
@@ -5046,8 +5125,8 @@ function renderHealth() {
   if (!all.length) {
     el.innerHTML = "<div style='text-align:center;color:#6E8888;padding:40px 20px'>" +
       "<div style='font-size:40px;margin-bottom:10px'>&#x1FA7A;</div>" +
-      "<div style='font-size:16px;font-weight:600;margin-bottom:4px;color:#1E2A2A'>Nothing recorded yet</div>" +
-      "<div style='font-size:13px;line-height:1.55'>Appointments, repeat prescriptions, your GP and dentist, vaccinations and allergies &mdash; the things you go looking for.</div></div>";
+      "<div style='font-size:16px;font-weight:600;margin-bottom:4px;color:#1E2A2A'>No history yet</div>" +
+      "<div style='font-size:13px;line-height:1.55'>GP visits and what was said, the conditions you have, diagnoses, test results, vaccinations and the letters that go with them.</div></div>";
     return;
   }
 
@@ -5067,7 +5146,7 @@ function renderHealth() {
 
   var html = "";
   if (showChips) {
-    html += "<div style='display:flex;gap:7px;padding:1px 1px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch'>";
+    html += "<div style='display:flex;gap:7px;padding:1px 1px 4px;overflow-x:auto;-webkit-overflow-scrolling:touch'>";
     [{ v:"", t:"All" }].concat(people.map(function(p){ return { v:p, t:p }; })).forEach(function(c){
       var on = _healthPerson.toLowerCase() === c.v.toLowerCase();
       html += "<button class='health-person-chip' data-person='" + esc(c.v) + "' " +
@@ -5078,40 +5157,61 @@ function renderHealth() {
     html += "</div>";
   }
 
-  // Upcoming appointments lead — "what's next" is the question this screen
-  // gets asked most. Appointments with no date or a past date drop into the
-  // collapsed Past group at the bottom instead, so the appointment KIND group
-  // itself never renders and nothing is listed twice.
+  // Four passes, and every record lands in exactly one of them: an upcoming
+  // visit/test, a standing state, a dated event, or the contacts directory.
   var upcoming = shown.filter(function(r){ return healthCountdownLabel(r); });
   upcoming.sort(function(a, b){
-    var c = String(a.date || "").localeCompare(String(b.date || ""));
+    var c = healthSortDate(a).localeCompare(healthSortDate(b));
     return c !== 0 ? c : String(a.time || "").localeCompare(String(b.time || ""));
   });
-  var past = shown.filter(function(r){
-    return healthKindMeta(r.kind).key === "appointment" && !healthCountdownLabel(r);
-  }).sort(function(a, b){ return String(b.date || "").localeCompare(String(a.date || "")); });
+  var upcomingIds = {};
+  upcoming.forEach(function(r){ upcomingIds[r.id] = true; });
+
+  // THE history feed: every event kind mixed together, newest first. This is
+  // the section's centre of gravity — do NOT split it back into a group per
+  // kind, which is what it was before the 31/08 reframe and what made it read
+  // as a filing cabinet rather than a history.
+  var history = shown.filter(function(r){
+    return !upcomingIds[r.id] && healthKindIn(r, HEALTH_HISTORY_KINDS);
+  }).sort(function(a, b){
+    var da = healthSortDate(a), db = healthSortDate(b);
+    if (!da && !db) return (b.updated || 0) - (a.updated || 0);
+    if (!da) return 1;                                  // undated sinks to the bottom
+    if (!db) return -1;
+    return db.localeCompare(da);
+  });
 
   if (upcoming.length) {
     html += healthGroupHeader("&#x1F4C5; Coming up &middot; " + upcoming.length);
     upcoming.forEach(function(r){ html += healthRowHTML(r); });
   }
 
-  var bodyCount = upcoming.length;
-  HEALTH_KINDS.forEach(function(k){
-    if (k.key === "appointment") return;              // handled by Coming up / Past
-    var group = shown.filter(function(r){ return healthKindMeta(r.kind).key === k.key; })
+  var bodyCount = upcoming.length + history.length;
+  // Conditions and medication are STATES, not events, so they are pinned
+  // above the history rather than sorted into it by date — "what do I have
+  // and what am I taking" is a question you ask now, not a thing that
+  // happened on a Tuesday.
+  HEALTH_STANDING_KINDS.forEach(function(kk){
+    var meta = healthKindMeta(kk);
+    var group = shown.filter(function(r){ return healthKindMeta(r.kind).key === kk; })
       .sort(function(a, b){ return String(a.title || "").localeCompare(String(b.title || "")); });
     if (!group.length) return;
     bodyCount += group.length;
-    html += healthGroupHeader(k.ico + " " + k.plural + " &middot; " + group.length);
+    html += healthGroupHeader(meta.ico + " " + meta.plural + " &middot; " + group.length);
     group.forEach(function(r){ html += healthRowHTML(r); });
   });
 
-  if (past.length) {
-    bodyCount += past.length;
-    html += "<button id='healthPastHdr' style='width:100%;text-align:left;border:none;background:none;padding:12px 2px 7px;font-family:inherit;font-size:11px;font-weight:700;color:#7A9494;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;touch-action:manipulation'>" +
-      (_healthPastOpen ? "&#x25B2;" : "&#x25BC;") + " Past appointments &middot; " + past.length + "</button>";
-    if (_healthPastOpen) past.forEach(function(r){ html += healthRowHTML(r); });
+  if (history.length) {
+    html += healthGroupHeader("&#x1F4D6; History &middot; " + history.length);
+    history.forEach(function(r){ html += healthRowHTML(r); });
+  }
+
+  var contacts = shown.filter(function(r){ return healthKindMeta(r.kind).key === "contact"; })
+    .sort(function(a, b){ return String(a.title || "").localeCompare(String(b.title || "")); });
+  if (contacts.length) {
+    bodyCount += contacts.length;
+    html += healthGroupHeader("&#x1F3E5; Contacts &middot; " + contacts.length);
+    contacts.forEach(function(r){ html += healthRowHTML(r); });
   }
 
   if (!bodyCount) {
@@ -5135,8 +5235,6 @@ function renderHealth() {
   el.querySelectorAll(".health-person-chip").forEach(function(b){
     b.addEventListener("click", function(){ _healthPerson = b.dataset.person || ""; renderHealth(); });
   });
-  var ph = document.getElementById("healthPastHdr");
-  if (ph) ph.addEventListener("click", function(){ _healthPastOpen = !_healthPastOpen; renderHealth(); });
 }
 
 function openHealthEditor(id) {
@@ -5148,20 +5246,19 @@ function openHealthEditor(id) {
 
 // Show/hide and relabel the kind-dependent rows IN PLACE. Deliberately not a
 // re-render of the editor: re-rendering would throw away everything already
-// typed into the fields above the picker (the v391 lesson from the TV/film
-// season row, generalised to five fields).
+// typed into the fields above the picker, and with seven kinds and eight
+// switchable rows that is a lot to lose to a mis-tap.
 function healthApplyKindToEditor() {
   var f = healthFields(_healthKindDraft);
   function row(id, on) { var e = document.getElementById(id); if (e) e.style.display = on ? "block" : "none"; }
   function lab(id, text) { var e = document.getElementById(id); if (e) e.innerHTML = text; }
   lab("hlEdTitleLbl", f.title);
-  row("hlEdDateRow", !!f.date);
-  if (f.date) lab("hlEdDateLbl", f.date);
+  row("hlEdDateRow", !!f.date);   if (f.date)    lab("hlEdDateLbl", f.date);
   row("hlEdTimeRow", !!f.time);
-  row("hlEdDoseRow", !!f.dose);
-  if (f.dose) lab("hlEdDoseLbl", f.dose);
-  row("hlEdLocRow", !!f.location);
-  if (f.location) lab("hlEdLocLbl", f.location);
+  row("hlEdWhoRow",  !!f.who);    if (f.who)     lab("hlEdWhoLbl", f.who);
+  row("hlEdDoseRow", !!f.dose);   if (f.dose)    lab("hlEdDoseLbl", f.dose);
+  row("hlEdOutRow",  !!f.outcome); if (f.outcome) lab("hlEdOutLbl", f.outcome);
+  row("hlEdLocRow",  !!f.location); if (f.location) lab("hlEdLocLbl", f.location);
   row("hlEdPhoneRow", !!f.phone);
   document.querySelectorAll(".health-kind-pick").forEach(function(x){
     var on = x.dataset.kind === _healthKindDraft;
@@ -5169,6 +5266,23 @@ function healthApplyKindToEditor() {
     x.style.color      = on ? "#fff" : "#3A5555";
     x.style.border     = "1.5px solid " + (on ? HEALTH_COLOR : "#CFE0E0");
   });
+}
+
+// One file row in the editor. Appended to the DOM rather than re-rendered,
+// for the same reason the kind picker relabels in place.
+function healthAddFileRow(label, url) {
+  var box = document.getElementById("hlEdFiles");
+  if (!box) return;
+  var inp = "box-sizing:border-box;padding:9px;border:1.5px solid #CFE0E0;border-radius:8px;font-family:inherit;font-size:14px;background:#fff;color:#1E2A2A";
+  var row = document.createElement("div");
+  row.className = "hl-file-row";
+  row.style.cssText = "display:flex;gap:6px;align-items:center;margin-bottom:6px";
+  row.innerHTML =
+    "<input class='hl-file-label' type='text' placeholder='Letter, scan, results&hellip;' style='" + inp + ";flex:0 0 34%;min-width:0' value='" + esc(label || "") + "'>" +
+    "<input class='hl-file-url' type='url' inputmode='url' placeholder='https://&hellip;' style='" + inp + ";flex:1;min-width:0' value='" + esc(url || "") + "'>" +
+    "<button type='button' class='hl-file-del' aria-label='Remove this file' style='flex:0 0 auto;width:34px;height:38px;border:1.5px solid #F0D0D0;background:#fff;color:#B03030;border-radius:8px;font-size:15px;cursor:pointer;touch-action:manipulation'>&#x2715;</button>";
+  box.appendChild(row);
+  row.querySelector(".hl-file-del").addEventListener("click", function(){ row.remove(); });
 }
 
 function renderHealthEditor() {
@@ -5184,7 +5298,7 @@ function renderHealthEditor() {
     rec = all[i];
   }
   _healthEditing = true;
-  _healthKindDraft = rec ? healthKindMeta(rec.kind).key : "appointment";
+  _healthKindDraft = rec ? healthKindMeta(rec.kind).key : "visit";
 
   function leave() {
     _healthEditing = false; _healthCancelFn = null;
@@ -5195,44 +5309,54 @@ function renderHealthEditor() {
 
   var lbl = "font-size:11px;font-weight:700;color:#7A9494;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px";
   var inp = "width:100%;box-sizing:border-box;padding:11px;border:1.5px solid #CFE0E0;border-radius:9px;font-family:inherit;font-size:15px;background:#fff;color:#1E2A2A";
+  var opt = "<span style='text-transform:none;font-weight:600;color:#9AB0B0'>(optional)</span>";
   var peopleOpts = healthPeople(getHealth()).map(function(p){ return "<option value='" + esc(p) + "'></option>"; }).join("");
 
   el.innerHTML =
     "<div style='" + lbl + "'>Type</div>" +
-    "<div style='display:flex;flex-wrap:wrap;gap:7px'>" +
+    "<div style='display:flex;flex-wrap:wrap;gap:6px'>" +
       HEALTH_KINDS.map(function(k){
         var on = _healthKindDraft === k.key;
-        return "<button class='health-kind-pick' data-kind='" + k.key + "' style='flex:1 1 30%;padding:10px 6px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;" +
+        return "<button class='health-kind-pick' data-kind='" + k.key + "' style='flex:1 1 30%;padding:10px 4px;border-radius:9px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;" +
           (on ? "background:" + HEALTH_COLOR + ";color:#fff;border:1.5px solid " + HEALTH_COLOR
               : "background:#fff;color:#3A5555;border:1.5px solid #CFE0E0") + "'>" + k.ico + " " + k.label + "</button>";
       }).join("") +
     "</div>" +
-    "<div id='hlEdTitleLbl' style='" + lbl + ";margin-top:14px'>What it&rsquo;s for</div>" +
-    "<input id='hlEdTitle' type='text' placeholder='e.g. Dentist check-up' style='" + inp + "' value='" + esc((rec && rec.title) || "") + "'>" +
-    "<div style='" + lbl + ";margin-top:14px'>Who it&rsquo;s for <span style='text-transform:none;font-weight:600;color:#9AB0B0'>(optional)</span></div>" +
+    "<div id='hlEdTitleLbl' style='" + lbl + ";margin-top:14px'>What it was for</div>" +
+    "<input id='hlEdTitle' type='text' placeholder='e.g. Chest infection' style='" + inp + "' value='" + esc((rec && rec.title) || "") + "'>" +
+    "<div style='" + lbl + ";margin-top:14px'>Who it&rsquo;s for " + opt + "</div>" +
     "<input id='hlEdPerson' type='text' list='hlEdPersonList' placeholder='e.g. Petra' style='" + inp + "' value='" + esc((rec && rec.person) || "") + "'>" +
     "<datalist id='hlEdPersonList'>" + peopleOpts + "</datalist>" +
     "<div id='hlEdDateRow'><div id='hlEdDateLbl' style='" + lbl + ";margin-top:14px'>Date</div>" +
       "<input id='hlEdDate' type='date' style='" + inp + "' value='" + esc((rec && rec.date) || "") + "'></div>" +
-    "<div id='hlEdTimeRow'><div style='" + lbl + ";margin-top:14px'>Time <span style='text-transform:none;font-weight:600;color:#9AB0B0'>(optional)</span></div>" +
+    "<div id='hlEdTimeRow'><div style='" + lbl + ";margin-top:14px'>Time " + opt + "</div>" +
       "<input id='hlEdTime' type='time' style='" + inp + "' value='" + esc((rec && rec.time) || "") + "'></div>" +
+    "<div id='hlEdWhoRow'><div id='hlEdWhoLbl' style='" + lbl + ";margin-top:14px'>Who you saw</div>" +
+      "<input id='hlEdWho' type='text' placeholder='e.g. Dr Murphy' style='" + inp + "' value='" + esc((rec && rec.who) || "") + "'></div>" +
     "<div id='hlEdDoseRow'><div id='hlEdDoseLbl' style='" + lbl + ";margin-top:14px'>Dose</div>" +
-      "<input id='hlEdDose' type='text' placeholder='e.g. 10 mg, one tablet at night' style='" + inp + "' value='" + esc((rec && rec.dose) || "") + "'></div>" +
+      "<input id='hlEdDose' type='text' placeholder='e.g. 10 mg, one at night' style='" + inp + "' value='" + esc((rec && rec.dose) || "") + "'></div>" +
+    "<div id='hlEdOutRow'><div id='hlEdOutLbl' style='" + lbl + ";margin-top:14px'>What was said</div>" +
+      "<textarea id='hlEdOut' rows='3' placeholder='What they found, what they advised, what happens next&hellip;' style='" + inp + ";resize:vertical'>" + esc((rec && rec.outcome) || "") + "</textarea></div>" +
     "<div id='hlEdLocRow'><div id='hlEdLocLbl' style='" + lbl + ";margin-top:14px'>Where</div>" +
-      "<input id='hlEdLoc' type='text' placeholder='Clinic, surgery or address' style='" + inp + "' value='" + esc((rec && rec.location) || "") + "'></div>" +
-    "<div id='hlEdPhoneRow'><div style='" + lbl + ";margin-top:14px'>Phone <span style='text-transform:none;font-weight:600;color:#9AB0B0'>(optional)</span></div>" +
+      "<input id='hlEdLoc' type='text' placeholder='Surgery, hospital or address' style='" + inp + "' value='" + esc((rec && rec.location) || "") + "'></div>" +
+    "<div id='hlEdPhoneRow'><div style='" + lbl + ";margin-top:14px'>Phone " + opt + "</div>" +
       "<input id='hlEdPhone' type='tel' inputmode='tel' placeholder='e.g. 021 123 4567' style='" + inp + "' value='" + esc((rec && rec.phone) || "") + "'></div>" +
-    "<div style='" + lbl + ";margin-top:14px'>Link <span style='text-transform:none;font-weight:600;color:#9AB0B0'>(optional)</span></div>" +
-    "<input id='hlEdLink' type='url' inputmode='url' placeholder='https://&hellip;' style='" + inp + "' value='" + esc((rec && rec.link) || "") + "'>" +
-    "<div style='font-size:11px;color:#9AB0B0;margin-top:5px;line-height:1.5'>A booking page or a results portal. Web addresses only.</div>" +
-    "<div style='" + lbl + ";margin-top:14px'>Notes <span style='text-transform:none;font-weight:600;color:#9AB0B0'>(optional)</span></div>" +
-    "<textarea id='hlEdNotes' rows='3' placeholder='What was said, what to bring, what to ask next time&hellip;' style='" + inp + ";resize:vertical'>" + esc((rec && rec.notes) || "") + "</textarea>" +
+    "<div id='hlEdFilesRow'><div style='" + lbl + ";margin-top:14px'>Files &amp; links " + opt + "</div>" +
+      "<div id='hlEdFiles'></div>" +
+      "<button type='button' id='hlEdAddFile' style='width:100%;padding:10px;border:1.5px dashed #CFE0E0;background:#fff;color:" + HEALTH_COLOR + ";border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation'>+ Add a file or link</button>" +
+      "<div style='font-size:11px;color:#9AB0B0;margin-top:5px;line-height:1.5'>Links only &mdash; a OneDrive or Drive link to the letter, scan or results. Hearth never holds the file itself, and a web address is the only thing it will accept here.</div></div>" +
+    "<div style='" + lbl + ";margin-top:14px'>Notes " + opt + "</div>" +
+    "<textarea id='hlEdNotes' rows='3' placeholder='Anything else worth remembering&hellip;' style='" + inp + ";resize:vertical'>" + esc((rec && rec.notes) || "") + "</textarea>" +
     "<div style='display:flex;gap:8px;margin-top:18px'>" +
       "<button id='hlEdCancel' style='flex:1;padding:13px;border:1.5px solid #CFE0E0;background:#fff;color:#3A5555;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Cancel</button>" +
       "<button id='hlEdSave' style='flex:2;padding:13px;border:none;background:" + HEALTH_COLOR + ";color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Save</button>" +
     "</div>";
 
   healthApplyKindToEditor();
+  // Existing files come back through healthFileList, so a url that would be
+  // refused at render is not silently re-offered for saving either.
+  healthFileList(rec).forEach(function(f){ healthAddFileRow(f.label === "Document" ? "" : f.label, f.url); });
+  document.getElementById("hlEdAddFile").addEventListener("click", function(){ healthAddFileRow("", ""); });
 
   el.querySelectorAll(".health-kind-pick").forEach(function(b){
     b.addEventListener("click", function(){
@@ -5244,34 +5368,43 @@ function renderHealthEditor() {
   document.getElementById("hlEdSave").addEventListener("click", function(){
     var title = document.getElementById("hlEdTitle").value.trim();
     if (!title) { toast("Give it a title first"); return; }
-    var linkRaw = document.getElementById("hlEdLink").value.trim();
-    var linkVal = "";
-    if (linkRaw) {
-      // Same gate as the appliance manual/photos links and the plant photo
-      // link, reused rather than copied. A refusal is a toast, not a silent
-      // drop — a link that vanishes on save reads as the app losing data.
-      linkVal = applianceLinkUrl(linkRaw);
-      if (!linkVal) { toast("Link must be a http(s) web address"); return; }
-    }
-    // Every field is written, always, even when empty: "" is DEFINED and
-    // survives mergeHealthData's v296 field-fill, whereas a dropped key gets
-    // refilled from the other device's older copy on the next sync. Clearing
-    // a field has to stick (the v428 inventory `value` rule).
+
+    // Files: same gate as the appliance manual/photos links and the plant
+    // photo link, reused rather than copied. A refusal is a toast naming the
+    // row, never a silent drop — a link that vanishes on save reads as the
+    // app losing data, which for a consultant's letter is the worst outcome.
+    var files = [], bad = null;
+    document.querySelectorAll("#hlEdFiles .hl-file-row").forEach(function(row){
+      var lv = row.querySelector(".hl-file-label").value.trim();
+      var uv = row.querySelector(".hl-file-url").value.trim();
+      if (!uv) return;                                   // a blank row is just an unused row
+      var gated = applianceLinkUrl(uv);
+      if (!gated) { if (!bad) bad = lv || uv; return; }
+      files.push({ label: lv, url: gated });
+    });
+    if (bad) { toast("“" + bad + "” needs a http(s) web address"); return; }
+
+    // Every field is written, always, even when empty: "" and [] are DEFINED
+    // and survive mergeHealthData's v296 field-fill, whereas a dropped key
+    // gets refilled from the other device's older copy on the next sync.
+    // Clearing a field has to stick (the v428 inventory `value` rule).
     var vals = {
       kind:     _healthKindDraft,
       person:   document.getElementById("hlEdPerson").value.trim(),
       title:    title,
       date:     document.getElementById("hlEdDate").value.trim(),
       time:     document.getElementById("hlEdTime").value.trim(),
+      who:      document.getElementById("hlEdWho").value.trim(),
       dose:     document.getElementById("hlEdDose").value.trim(),
+      outcome:  document.getElementById("hlEdOut").value,
       location: document.getElementById("hlEdLoc").value.trim(),
       phone:    document.getElementById("hlEdPhone").value.trim(),
-      link:     linkVal,
+      files:    files,
+      link:     "",                                      // superseded by `files`; cleared, never dropped
       notes:    document.getElementById("hlEdNotes").value
     };
     var cur = getHealth();
-    var wasEdit = _healthEditId != null;
-    if (wasEdit) {
+    if (_healthEditId != null) {
       var j = cur.findIndex(function(r){ return r && r.id === _healthEditId; });
       if (j < 0) { toast("That entry is no longer here"); leave(); return; }
       Object.keys(vals).forEach(function(k){ cur[j][k] = vals[k]; });
@@ -13731,9 +13864,11 @@ function buildExportPayload() {
   //  appliances (Home inventory, v424/v428 — every field is plain text on the
   //   record, so one key covers it; the manual/photos/receipt are LINKS and
   //   notes, never image bytes),
-  //  health (Health section, v449 — every kind lives in the one array with a
-  //   `kind` field, so one key covers appointments, prescriptions, contacts,
-  //   vaccinations and conditions alike; all plain text, no attachments).
+  //  health (Health section, v449 — the medical history. Every kind lives in
+  //   the one array with a `kind` field, so one key covers visits, diagnoses,
+  //   conditions, tests, medication, vaccinations and contacts alike. The
+  //   per-record `files` array rides inside the record; it holds LINKS to
+  //   letters and scans, never the documents themselves).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*, fl4_last_backup, fl4_backup_snooze,
   //  fl4_last_cloudbackup, fl4_tomb_* (sync deletion tombstones),
@@ -14065,10 +14200,19 @@ function importBackupData(data) {
     var newHl=data.health.filter(function(m){return m&&m.id!=null&&!hlIds[m.id];});
     if(newHl.length){
       var hlTombsR=getTombs("health"), hlChanged=false;
-      // The link is re-gated on the way in, not just on the way out: a
+      // Every url is re-gated on the way IN, not just on the way out: a
       // hand-edited backup file is exactly the path that reaches the store
-      // without passing an editor (audit finding F3).
-      newHl.forEach(function(r){ r.updated=Date.now(); r.link=applianceLinkUrl(r.link); if(hlTombsR[r.id]!==undefined){ delete hlTombsR[r.id]; hlChanged=true; } });
+      // without passing an editor (audit finding F3). healthFileList does the
+      // same gating at render, so a file that slips past here still cannot
+      // become an href — this keeps the stored record clean as well.
+      newHl.forEach(function(r){
+        r.updated=Date.now();
+        r.link=applianceLinkUrl(r.link);
+        if(Array.isArray(r.files)) r.files=r.files.filter(function(f){ return f&&typeof f==="object"&&applianceLinkUrl(f.url); })
+          .map(function(f){ return { label:String(f.label||"").trim(), url:applianceLinkUrl(f.url) }; });
+        else r.files=[];
+        if(hlTombsR[r.id]!==undefined){ delete hlTombsR[r.id]; hlChanged=true; }
+      });
       if(hlChanged) storeSet("fl4_tomb_health", hlTombsR);
       storeSet("fl4_health", hl2.concat(newHl));
       imported.health=newHl.length;
@@ -15791,7 +15935,7 @@ function switchSection(section) {
     renderAppliances();
   } else if (section === "health") {
     document.getElementById("themeColor").setAttribute("content", "#2F6E6E");
-    document.getElementById("appTitle").innerHTML = "&#x1FA7A; Health";
+    document.getElementById("appTitle").innerHTML = "&#x1FA7A; Medical history";
     document.getElementById("hdrBadge").style.display = "none";
     renderHealth();
   }
@@ -17492,10 +17636,11 @@ function renderTodayCard() {
     rows.push({ ico:"&#x1F4A7;", text: pText, act:"plants", id: pWater.length === 1 ? pWater[0].id : null });
   }
   // Health (v449): the ONE thing this section puts on Home, and only ever a
-  // future-dated appointment — healthCountdownLabel returns "" for anything
-  // past, undated or of another kind, so the line self-suppresses like the
-  // rest of the card. Deliberately no prescription-renewal nudge: the
-  // confirmed scope was the appointment countdown alone.
+  // future-dated VISIT or TEST — healthCountdownLabel returns "" for anything
+  // past, undated or of a kind you don't attend, so the line self-suppresses
+  // like the rest of the card. Deliberately no medication-renewal nudge and
+  // nothing from the history itself: the confirmed Home scope is this one
+  // countdown, and a medical history has no business nagging.
   var hlNext = healthNextAppointment();
   if (hlNext) {
     var hlWho = String(hlNext.person || "").trim();
@@ -21426,43 +21571,69 @@ function buildTestSeed() {
         addedBy:"Cathal", added:_tsTs(-8, 12, 0), updated:_tsTs(-8, 12, 0) }
     ],
 
-    // ── Health (v449) ────────────────────────────────────
-    // One record per kind at least, across three people, so the person chips,
-    // every kind group, the Coming up group, the collapsed Past group and the
-    // Home "next appointment" line all have something to show. The dates are
-    // RELATIVE (_tsDay) on purpose: a hard-coded date would quietly slide into
-    // the past and stop exercising the countdown.
+    // ── Health — the medical history (v449) ─────────────
+    // Nine records across three people, and deliberately not nine
+    // interchangeable ones — three people is what makes the person chips
+    // appear on a test link; one future visit plus one future test is what
+    // fills "Coming up" and the Home line; past visits, a diagnosis, a test
+    // with a result and a vaccination are what make the mixed History feed
+    // actually read as a history rather than one row; and a condition plus a
+    // medication are what pin the two standing groups above it. Two records
+    // carry FILES so the 📎 chip and the links row are both reviewable.
+    // Keep that shape if you edit them. Dates are relative (_tsDay) for the
+    // usual reason: a hard-coded one slides into the past and the countdown
+    // stops being demoed.
     health:[
-      { id:_tsId(), kind:"appointment", person:"Cathal", title:"Demo dentist check-up",
-        date:_tsDay(6), time:"09:20", dose:"", location:"Demo Dental, Carrigaline",
-        phone:"021 000 0000", link:"", notes:"Ask about the chipped molar.",
+      { id:_tsId(), kind:"visit", person:"Cathal", title:"Demo GP appointment",
+        date:_tsDay(6), time:"09:20", who:"Dr Demo", dose:"", outcome:"",
+        location:"Demo Family Practice", phone:"021 000 0001", link:"", files:[],
+        notes:"Bring the letter from the physio.",
         addedBy:"Cathal", added:_tsTs(-11, 10, 0), updated:_tsTs(-11, 10, 0) },
-      { id:_tsId(), kind:"appointment", person:"Petra", title:"Demo GP review",
-        date:_tsDay(19), time:"14:45", dose:"", location:"Demo Family Practice",
-        phone:"021 000 0001", link:"", notes:"",
-        addedBy:"Petra", added:_tsTs(-6, 10, 0), updated:_tsTs(-6, 10, 0) },
-      { id:_tsId(), kind:"appointment", person:"Baby", title:"Demo 12-month check",
-        date:_tsDay(-24), time:"11:00", dose:"", location:"Demo Health Centre",
-        phone:"", link:"", notes:"All fine. Next check at two years.",
-        addedBy:"Petra", added:_tsTs(-30, 10, 0), updated:_tsTs(-30, 10, 0) },
-      { id:_tsId(), kind:"prescription", person:"Cathal", title:"Demo Antihistamine",
-        date:_tsDay(41), time:"", dose:"10 mg, one tablet in the morning",
-        location:"Demo Pharmacy, Carrigaline", phone:"021 000 0002", link:"",
-        notes:"Repeat - phone ahead a few days before it runs out.",
-        addedBy:"Cathal", added:_tsTs(-22, 10, 0), updated:_tsTs(-22, 10, 0) },
-      { id:_tsId(), kind:"contact", person:"", title:"Demo Family Practice",
-        date:"", time:"", dose:"", location:"1 Demo Street, Carrigaline",
-        phone:"021 000 0001", link:"https://example.com/demo-practice",
-        notes:"Open 08:30-17:00. Out of hours goes to the demo co-op line.",
-        addedBy:"Cathal", added:_tsTs(-60, 10, 0), updated:_tsTs(-60, 10, 0) },
+      { id:_tsId(), kind:"test", person:"Petra", title:"Demo blood test",
+        date:_tsDay(12), time:"08:15", who:"Dr Demo", dose:"", outcome:"",
+        location:"Demo Family Practice", phone:"", link:"", files:[],
+        notes:"Fasting from midnight.",
+        addedBy:"Petra", added:_tsTs(-4, 10, 0), updated:_tsTs(-4, 10, 0) },
+      { id:_tsId(), kind:"visit", person:"Cathal", title:"Demo back pain review",
+        date:_tsDay(-38), time:"11:30", who:"Dr Demo", dose:"",
+        outcome:"Examined the lower back. Sent for an MRI and said to keep moving \u2014 no bed rest. Physio referral to follow.",
+        location:"Demo Family Practice", phone:"021 000 0001", link:"",
+        files:[{ label:"Referral letter", url:"https://example.com/demo-referral" }],
+        notes:"",
+        addedBy:"Cathal", added:_tsTs(-38, 12, 0), updated:_tsTs(-38, 12, 0) },
+      { id:_tsId(), kind:"test", person:"Cathal", title:"Demo MRI, lower back",
+        date:_tsDay(-24), time:"", who:"Dr Demo", dose:"",
+        outcome:"Disc bulge at L4/L5 and mild narrowing at L5/S1. Nothing needing surgery.",
+        location:"Demo Imaging Centre", phone:"", link:"",
+        files:[{ label:"MRI report", url:"https://example.com/demo-mri" },
+               { label:"Images", url:"https://example.com/demo-mri-images" }],
+        notes:"",
+        addedBy:"Cathal", added:_tsTs(-24, 12, 0), updated:_tsTs(-24, 12, 0) },
+      { id:_tsId(), kind:"diagnosis", person:"Cathal", title:"Demo disc bulge, L4/L5",
+        date:_tsDay(-22), time:"", who:"Dr Demo", dose:"", outcome:"",
+        location:"", phone:"", link:"", files:[],
+        notes:"Managed with physio rather than anything surgical.",
+        addedBy:"Cathal", added:_tsTs(-22, 12, 0), updated:_tsTs(-22, 12, 0) },
       { id:_tsId(), kind:"vaccination", person:"Baby", title:"Demo MMR, first dose",
-        date:_tsDay(-52), time:"", dose:"", location:"Demo Health Centre",
-        phone:"", link:"", notes:"",
+        date:_tsDay(-52), time:"", who:"", dose:"", outcome:"",
+        location:"Demo Health Centre", phone:"", link:"", files:[], notes:"",
         addedBy:"Petra", added:_tsTs(-52, 10, 0), updated:_tsTs(-52, 10, 0) },
       { id:_tsId(), kind:"condition", person:"Cathal", title:"Demo penicillin allergy",
-        date:_tsDay(-2200), time:"", dose:"", location:"", phone:"", link:"",
+        date:_tsDay(-2200), time:"", who:"", dose:"", outcome:"",
+        location:"", phone:"", link:"", files:[],
         notes:"Rash as a child. Tell any new doctor or dentist.",
-        addedBy:"Cathal", added:_tsTs(-70, 10, 0), updated:_tsTs(-70, 10, 0) }
+        addedBy:"Cathal", added:_tsTs(-70, 10, 0), updated:_tsTs(-70, 10, 0) },
+      { id:_tsId(), kind:"medication", person:"Cathal", title:"Demo Antihistamine",
+        date:_tsDay(-90), time:"", who:"Dr Demo", dose:"10 mg, one tablet in the morning",
+        outcome:"", location:"Demo Pharmacy, Carrigaline", phone:"021 000 0002",
+        link:"", files:[],
+        notes:"Repeat \u2014 phone ahead a few days before it runs out.",
+        addedBy:"Cathal", added:_tsTs(-22, 10, 0), updated:_tsTs(-22, 10, 0) },
+      { id:_tsId(), kind:"contact", person:"", title:"Demo Family Practice",
+        date:"", time:"", who:"GP", dose:"", outcome:"",
+        location:"1 Demo Street, Carrigaline", phone:"021 000 0001", link:"", files:[],
+        notes:"Open 08:30-17:00. Out of hours goes to the demo co-op line.",
+        addedBy:"Cathal", added:_tsTs(-60, 10, 0), updated:_tsTs(-60, 10, 0) }
     ],
 
     // ── Train / Track ────────────────────────────────────
