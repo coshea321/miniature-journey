@@ -64,7 +64,7 @@ module.exports = {
       function collect(arr){ (arr||[]).forEach(function(x){ if (x && x.id != null) ids.push(x.id); }); }
       ['grocery','todo','travel','personal'].forEach(function(lt){ collect(seed.lists[lt].items); });
       collect(seed.recipebook); collect(seed.plants); collect(seed.watchlist); collect(seed.trips);
-      collect(seed.appliances);
+      collect(seed.appliances); collect(seed.health);
       collect(seed.baby.medicine); collect(seed.baby.milestones);
       collect(seed.action_log); collect(seed.track_med); collect(seed.food_log);
       (seed.trips || []).forEach(function(t){ collect(t.bookings); });
@@ -92,7 +92,7 @@ module.exports = {
 
       // ── Through the real import path ─────────────────────────────────────
       var savedKeys = ['fl4_grocery','fl4_todo','fl4_travel','fl4_personal','fl4_recipebook','fl4_mealplan',
-                       'fl4_trips','fl4_plants','fl4_watchlist','fl4_appliances','fl4_baby','fl4_workouts','fl4_action_log',
+                       'fl4_trips','fl4_plants','fl4_watchlist','fl4_appliances','fl4_health','fl4_baby','fl4_workouts','fl4_action_log',
                        'fl4_track_med','fl4_food_log','fl4_saved_meals','fl4_recipes','fl4_travel_tags',
                        'fl4_notes_global','fl4_notes_global_work','fl4_cal_goal','fl4_profile'];
       var savedState = {};
@@ -172,6 +172,23 @@ module.exports = {
         getAppliances().some(function(a){ return /Sofa/.test(a.name || ''); }) &&
         getAppliances().some(function(a){ return /Bike/.test(a.name || ''); }),
         'got: ' + getAppliances().map(function(a){ return a.name; }).join(', '));
+      // v449: seven health records, and deliberately not seven interchangeable
+      // ones — three named people is what makes the person chip row appear on a
+      // test link, one future plus one past appointment is the only way both the
+      // Coming up group and the collapsed Past group get reviewed, and one record
+      // of every kind is what makes all five group headings render. Keep that
+      // shape if you edit them. The dates are relative for the usual reason: a
+      // hard-coded one slides into the past and the countdown stops being demoed.
+      ok('health records land', getHealth().length === 7, 'got: ' + getHealth().length);
+      ok('every health kind is represented, so every group heading is reviewable',
+        HEALTH_KINDS.every(function(k){ return getHealth().some(function(r){ return healthKindMeta(r.kind).key === k.key; }); }),
+        'got: ' + getHealth().map(function(r){ return r.kind; }).join(','));
+      ok('the demo covers three people, so the person chips appear',
+        healthPeople(getHealth()).length === 3, 'got: ' + JSON.stringify(healthPeople(getHealth())));
+      ok('one demo appointment is upcoming and one is already past',
+        !!healthNextAppointment() &&
+        getHealth().some(function(r){ return healthKindMeta(r.kind).key === 'appointment' && !healthCountdownLabel(r); }),
+        'next: ' + JSON.stringify(healthNextAppointment()));
       ok('a demo record carries a receipt note and a photos link',
         getAppliances().some(function(a){ return !!a.receipt; }) &&
         getAppliances().some(function(a){ return !!appliancePhotosUrl(a); }),
@@ -213,7 +230,7 @@ module.exports = {
       savedKeys.forEach(function(k){
         if (savedState[k] == null) localStorage.removeItem(k); else storeSet(k, savedState[k]);
       });
-      ['fl4_notes_grocery','fl4_notes_travel','fl4_tomb_recipes','fl4_tomb_plants','fl4_tomb_watchlist','fl4_tomb_appliances',
+      ['fl4_notes_grocery','fl4_notes_travel','fl4_tomb_recipes','fl4_tomb_plants','fl4_tomb_watchlist','fl4_tomb_appliances','fl4_tomb_health',
        'fl4_tomb_trips','fl4_tomb_bookings','fl4_food_notes'].forEach(function(k){ localStorage.removeItem(k); });
       listData = savedListData;
 
