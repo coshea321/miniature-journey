@@ -53,7 +53,13 @@ attacker currently gets *both* people's everything, including every stored backu
 account's.
 
 This is **hardening, not a hole.** It was not urgent before v449 and it is not an emergency now.
-It is written down so the decision is deliberate rather than forgotten.
+
+**DECIDED 31/08/2026 — deferred, not pending.** Cathal's call: leave this recorded and do Cloudflare
+step 7 (§ 4) first. So this section is **not an open question waiting on an answer** — do not re-ask
+it, and do not apply it uninvited. It is here so that if it is ever wanted, nobody has to re-derive
+the rules, the test plan or the reason households are left alone. Raise it again only if Cathal
+does, or if something changes the picture — a third account, a device that cannot sign in, or a
+password known to have leaked.
 
 ### The proposed replacement
 
