@@ -53,7 +53,13 @@ attacker currently gets *both* people's everything, including every stored backu
 account's.
 
 This is **hardening, not a hole.** It was not urgent before v449 and it is not an emergency now.
-It is written down so the decision is deliberate rather than forgotten.
+
+**DECIDED 31/08/2026 — deferred, not pending.** Cathal's call: leave this recorded and do Cloudflare
+step 7 (§ 4) first. So this section is **not an open question waiting on an answer** — do not re-ask
+it, and do not apply it uninvited. It is here so that if it is ever wanted, nobody has to re-derive
+the rules, the test plan or the reason households are left alone. Raise it again only if Cathal
+does, or if something changes the picture — a third account, a device that cannot sign in, or a
+password known to have leaked.
 
 ### The proposed replacement
 
@@ -138,15 +144,32 @@ direction.
 
 ---
 
-## 4. Cloudflare step 7 is a different door, and still open
+## 4. Cloudflare step 7 — DONE 31/08/2026
 
-Step 7 is two things, and neither is "make the repo private" — that is a **decision on record
+**Done on 31/08/2026.** The family's phones are on the Pages URL and GitHub Pages is switched off,
+so `coshea321.github.io` no longer serves Hearth and the Cloudflare Access gate is now the only way
+in. The repo stayed public, so every `raw.githack` PR test link still works. **This section is kept
+as the record of how it was done** — the steps and traps below are what to repeat if the site ever
+moves again.
+
+Step 7 was two things, and neither was "make the repo private" — that is a **decision on record
 against** (`HEARTH-backlog.md`): githack serves public repos only, so every "👉 Try this version"
 link in every PR would break, and those are how Cathal reviews.
 
 1. **Repoint the family's phones** to `https://miniature-journey-b9p.pages.dev`, through the
    Cloudflare PIN, then Add to Home Screen and delete the old icon.
-2. **Turn GitHub Pages off**: repo → Settings → Pages → Source: **None**. The repo stays public.
+2. **Turn GitHub Pages off**: repo → **Settings → Pages**, then in the **Branch** dropdown (the one
+   showing `main`) choose **None** and press **Save**. The repo stays public.
+
+   **The `None` is in the BRANCH dropdown, not the Source one** — Source only offers *Deploy from a
+   branch* and *GitHub Actions*, and there is no way to disable Pages from it. This write-up said
+   "Source: None" first time round and Cathal hit the dead end on 31/08/2026. Leave Custom domain,
+   Enforce HTTPS and the Enterprise "Visibility" upsell alone; none of them matter once Pages is off.
+
+   Verify with the URL in a **private window or on mobile data, on a device that has never opened
+   it** — it should 404. Your own phone keeps serving the old app from the service-worker cache and
+   will look exactly like nothing happened (see the first trap below). Unpublishing is not always
+   instant; give it a couple of minutes.
 
 In that order — Pages off first would strand the family until the new app was set up.
 

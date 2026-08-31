@@ -306,6 +306,7 @@ body.home-mode .bn-btn.home-active{color:#C2691A}
 .bn-btn.plants-active{color:#2E7D4F}
 .bn-btn.watch-active{color:#4A3F7A}
 .bn-btn.appliances-active{color:#3E5C6B}
+.bn-btn.health-active{color:#2F6E6E}
 .notes-tab-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .notes-tab-btn.active{color:#fff;background:rgba(255,255,255,.2)}
 
@@ -938,7 +939,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v449 · 31/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v450 · 31/08/2026</div>
 
   </div>
 </div>
@@ -17102,6 +17103,12 @@ document.getElementById("bnFamlog").addEventListener("click", function(){ switch
 document.getElementById("bnPlants").addEventListener("click", function(){ _plantView = "list"; _plantOpenId = null; _plantImporting = false; _plantImportParsed = null; switchSection("plants"); });
 document.getElementById("bnWatch").addEventListener("click", function(){ _watchView = "list"; _watchEditId = null; _watchOpenId = null; switchSection("watch"); });
 document.getElementById("bnAppliances").addEventListener("click", function(){ _applView = "list"; _applEditId = null; _applOpenId = null; _applImportParsed = null; switchSection("appliances"); });
+// v450: v449 shipped the Health section with a nav button, a visibility toggle,
+// a switchSection branch and a title branch — and no click handler, so the icon
+// appeared and did nothing. Every other button in the bar had one; this is the
+// line that was missing. See tests/cases/01-boot-smoke.js for the assertion that
+// now makes a dead nav button impossible to ship again.
+document.getElementById("bnHealth").addEventListener("click", function(){ _healthView = "list"; _healthEditId = null; _healthOpenId = null; switchSection("health"); });
 document.getElementById("applNewBtn").addEventListener("click", function(){ openApplianceEditor(null); });
 document.getElementById("watchNewBtn").addEventListener("click", function(){ openWatchEditor(null); });
 document.getElementById("hlNewBtn").addEventListener("click", function(){ openHealthEditor(null); });
