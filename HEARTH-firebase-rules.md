@@ -144,9 +144,15 @@ direction.
 
 ---
 
-## 4. Cloudflare step 7 is a different door, and still open
+## 4. Cloudflare step 7 — DONE 31/08/2026
 
-Step 7 is two things, and neither is "make the repo private" — that is a **decision on record
+**Done on 31/08/2026.** The family's phones are on the Pages URL and GitHub Pages is switched off,
+so `coshea321.github.io` no longer serves Hearth and the Cloudflare Access gate is now the only way
+in. The repo stayed public, so every `raw.githack` PR test link still works. **This section is kept
+as the record of how it was done** — the steps and traps below are what to repeat if the site ever
+moves again.
+
+Step 7 was two things, and neither was "make the repo private" — that is a **decision on record
 against** (`HEARTH-backlog.md`): githack serves public repos only, so every "👉 Try this version"
 link in every PR would break, and those are how Cathal reviews.
 
