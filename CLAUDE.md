@@ -71,6 +71,37 @@ Plus **`buildTestSeed`**, per the section below.
 
 Current fields: `name`, `area`, `brand`, `model`, `serial`, `fd` (v431, the factory-date code on Bosch/Siemens rating plates), `bought`, `warranty`, `boughtFrom`, `value` (v428, number or `""`), `receipt` (v428), `manual`, `photos` (v428, a link — never image bytes), `notes`. Intentionally omitted from the file: `id` (regenerated on import), `updated` (set to now), `addedBy`/`added`. **A cleared field stores `""`, never a dropped key** — `mergeApplianceData` refills `undefined` keys from the other device (the v296 rule), so an absent field comes back on the next sync.
 
+## Health data model — one store, one record type, seven kinds
+The Health section (v449) is the family's **medical history**: GP visits and what was said, conditions, diagnoses, test results, medication, vaccinations and clinic contacts. It is a **record, not a log** — see `HEARTH-notes.md` § Sections for why nothing here logs medicine, doses or weight, and do not add any of those to it.
+
+Every record lives in **one** array (`fl4_health`) and carries a **`kind`** from **`HEALTH_KINDS`** (`visit`, `diagnosis`, `condition`, `test`, `medication`, `vaccination`, `contact`), the way a trip booking carries a type. **Do NOT split it into a store per kind** — that would be seven merges, seven tombstone sets and seven pieces of the backup payload to keep in step forever.
+
+**Three role lists decide where a record lands on screen — not the order of `HEALTH_KINDS`:**
+- **`HEALTH_UPCOMING_KINDS`** (`visit`, `test`) — things you attend, so they can be future-dated. **A booked appointment is simply a visit whose date hasn't come yet**; when the day arrives you open the same record and fill in what was said. That is why there is no separate "appointment" kind, and why `healthCountdownLabel` returns `""` for every other kind — the Home Today line is driven straight off it.
+- **`HEALTH_STANDING_KINDS`** (`condition`, `medication`) — states, not events, so they are pinned *above* the history rather than sorted into it by date.
+- **`HEALTH_HISTORY_KINDS`** (`visit`, `diagnosis`, `test`, `vaccination`) — the events, rendered as **ONE mixed reverse-chronological feed**. That feed is what makes this a medical history rather than a filing cabinet; **do NOT split it back into a group per kind** — that was the pre-reframe shape and it was replaced deliberately on 31/08/2026. An undated event sinks to the bottom, never to the top.
+- `contact` is in none of the three on purpose: a directory, listed last.
+
+**`HEALTH_KIND_FIELDS` is the table**: which fields a kind asks for, and what the shared `title`/`date`/`who`/`dose`/`outcome`/`location` fields are *called* for that kind. Adding a kind means one row there, one entry in `HEALTH_KINDS`, and adding it to whichever role list it belongs in — nothing else. Adding a **field** is hand-listed in five places and all five must change together:
+1. **`renderHealthEditor`** — the markup AND the save handler's `vals` object.
+2. **`healthApplyKindToEditor`** — only if the field is kind-dependent (show/hide + relabel).
+3. **`healthRowHTML`** — the detail row.
+4. **`healthSearchText`** — if it is worth searching for.
+5. **`buildTestSeed`**, per the section below.
+The backup file needs no per-field edit — `fl4_health` goes out and comes back as whole records — but **a cleared field must store `""` (or `[]`), never a dropped key**: `mergeHealthData` refills `undefined` keys from the other device (the v296 rule), so an absent field comes back on the next sync.
+
+Current fields: `kind`, `person`, `title`, `date`, `time`, `who`, `dose`, `outcome`, `location`, `phone`, `files`, `notes` (plus `link`, retained only so an early v449 record still reads — see below). Intentionally omitted from a file: `id` (regenerated on import), `updated` (set to now), `addedBy`/`added`.
+
+**`files` and `phone` are the only two things that become hrefs.** `files` is an array of `{label, url}`; **every url goes through `applianceLinkUrl`** — the shared http(s)-only gate — on save, on import AND at render (`healthFileList`). `phone` never emits the raw field at all: `healthPhoneHref` rebuilds a `tel:` href from digits and a leading `+`. **Never add a second copy of either gate** (the v428 lesson: two copies of a security check is how one of them drifts), and never emit either into an `href` without its helper — `esc()` stops attribute-breakout but does nothing about a scheme. `healthDateText` escapes its parts for the same reason: `date` also arrives from sync and restored backups, and junk still splits into three parts on `-`.
+
+**Files are LINKS, never bytes** (the v428 rule). Hearth does not hold a scan or a consultant's letter — it holds a link to wherever that already lives. Do not add uploads.
+
+**`healthFileList` reads the old single `link` field forward** as one unlabelled file when a record has no `files`. That is a read-time fallback, not a stored migration: the editor writes `link: ""` and only ever populates `files`. Don't "tidy" it away without checking no early record still relies on it.
+
+**`person` is free text with a datalist, never an enum** — `healthPeople` derives the list from the records in use. Do not convert it to a fixed set of family members; it would need a code change every time the family changes, and "Mum" is as valid an answer as a name.
+
+**Three separate things in `index.html` are called "health" and none are each other**: this section (`sectionVisible.health`), a pre-existing always-true `syncPrefs.health` key with no UI toggle, and the grocery **category** id `health`. Commented at the `syncPrefs` line; do not tidy them together.
+
 ## Test-build demo data (v407) — add to it when you add a section
 Test builds (any host that isn't `coshea321.github.io`, i.e. every raw.githack PR link) wipe the `fl4_*` store and reseed a fixed demo household **once per version** — the version string is stored in `fl4_testseed`, so a reload of the same version keeps whatever you were doing, and the next PR's link starts clean. The orange banner is the manual reset.
 
