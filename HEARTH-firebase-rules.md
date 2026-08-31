@@ -152,7 +152,18 @@ link in every PR would break, and those are how Cathal reviews.
 
 1. **Repoint the family's phones** to `https://miniature-journey-b9p.pages.dev`, through the
    Cloudflare PIN, then Add to Home Screen and delete the old icon.
-2. **Turn GitHub Pages off**: repo → Settings → Pages → Source: **None**. The repo stays public.
+2. **Turn GitHub Pages off**: repo → **Settings → Pages**, then in the **Branch** dropdown (the one
+   showing `main`) choose **None** and press **Save**. The repo stays public.
+
+   **The `None` is in the BRANCH dropdown, not the Source one** — Source only offers *Deploy from a
+   branch* and *GitHub Actions*, and there is no way to disable Pages from it. This write-up said
+   "Source: None" first time round and Cathal hit the dead end on 31/08/2026. Leave Custom domain,
+   Enforce HTTPS and the Enterprise "Visibility" upsell alone; none of them matter once Pages is off.
+
+   Verify with the URL in a **private window or on mobile data, on a device that has never opened
+   it** — it should 404. Your own phone keeps serving the old app from the service-worker cache and
+   will look exactly like nothing happened (see the first trap below). Unpublishing is not always
+   instant; give it a couple of minutes.
 
 In that order — Pages off first would strand the family until the new app was set up.
 
