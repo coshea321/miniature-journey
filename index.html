@@ -307,12 +307,18 @@ body.home-mode .bn-btn.home-active{color:#C2691A}
 .bn-btn.watch-active{color:#4A3F7A}
 .bn-btn.appliances-active{color:#3E5C6B}
 .bn-btn.health-active{color:#2F6E6E}
+.bn-btn.more-active{color:#7A6A55}
 .notes-tab-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .notes-tab-btn.active{color:#fff;background:rgba(255,255,255,.2)}
 
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;display:flex;background:#fff;border-top:1px solid #E0DCD4;z-index:350;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -2px 12px rgba(0,0,0,.08)}
 .bn-btn{flex:1;padding:8px 4px 6px;border:none;background:none;font-family:inherit;font-size:10px;font-weight:700;color:#AAA090;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color .2s}
 .bn-btn .bn-ico{font-size:22px;line-height:1}
+/* More sheet (v452): the overflow rows, one per section pushed off the bar */
+.more-row{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;margin-bottom:6px;border:none;border-radius:10px;background:#F7F5F0;font-family:inherit;font-size:15px;font-weight:600;color:#2A2620;cursor:pointer;text-align:left;touch-action:manipulation}
+.more-row.current{background:#EDE7DC}
+.more-row .more-ico{font-size:22px;line-height:1}
+.more-row .more-name{flex:1}
 body .content{padding-bottom:90px}
 
 /* ============================================================
@@ -939,7 +945,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v451 · 01/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v452 · 01/09/2026</div>
 
   </div>
 </div>
@@ -1648,7 +1654,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     <div id="customCatsList"></div>
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <div class="sync-section-title" style="margin-bottom:8px">Visible sections</div>
-    <div style="font-size:12px;color:#7A8772;margin-bottom:10px;line-height:1.5">Choose what shows on the bottom bar. Lists and Baby cannot be hidden. Train stays reachable from the Home Training strip either way.</div>
+    <div style="font-size:12px;color:#7A8772;margin-bottom:10px;line-height:1.5">Choose what shows on the bottom bar. Lists, Recipes and Baby cannot be hidden. The bar holds five &mdash; anything past that moves into a &ldquo;More&rdquo; button at the end of it. Train stays reachable from the Home Training strip either way.</div>
     <div id="sectionToggles">
       <div class="sync-toggle-row">
         <span class="sync-toggle-label">&#x1F3E0; Home dashboard</span>
@@ -1761,7 +1767,23 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
   <button class="bn-btn" id="bnHealth" aria-label="Health" style="display:none">
     <span class="bn-ico">&#x1FA7A;</span>Health
   </button>
+  <!-- v452: overflow button. Hidden unless more than NAV_BAR_MAX sections are
+       on the bar; applySectionVisibility() decides. Kept LAST in the nav so it
+       always sits on the right, whichever sections are hidden. -->
+  <button class="bn-btn" id="bnMore" aria-label="More sections" style="display:none">
+    <span class="bn-ico" style="font-size:18px;letter-spacing:1px">&#x2022;&#x2022;&#x2022;</span>More
+  </button>
 </nav>
+
+<!-- MORE SECTIONS SHEET (v452) -->
+<div class="overlay" id="moreOverlay">
+  <div class="modal-box" style="position:relative">
+    <button class="modal-close" id="moreClose" aria-label="Close">&#x2715;</button>
+    <div class="modal-title">More</div>
+    <div id="moreList"></div>
+    <div style="font-size:12px;color:#7A8772;text-align:center;margin-top:14px;line-height:1.5">The bottom bar holds five sections &mdash; the rest live here. Change what&rsquo;s on it in Settings.</div>
+  </div>
+</div>
 
 <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <div id="updateBanner" style="display:none;position:fixed;bottom:70px;left:12px;right:12px;z-index:800;background:#1C3A5C;border:1px solid #3A6A9C;border-radius:12px;padding:12px 16px;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.4)">
@@ -13765,13 +13787,77 @@ if (!storeGet("fl4_trainNavMigrated")) {
   storeSet("fl4_trainNavMigrated", true);
 }
 
-function applySectionVisibility() {
-  var navIds = { home:"bnHome", lists:"bnLife", train:"bnTrain", baby:"bnBaby", trips:"bnTrips", track:"bnTrack", sports:"bnSports", famlog:"bnFamlog", plants:"bnPlants", watch:"bnWatch", appliances:"bnAppliances", health:"bnHealth" };
-  HIDEABLE_SECTIONS.forEach(function(sec) {
-    var btn = document.getElementById(navIds[sec]);
-    if (btn) btn.style.display = sectionVisible[sec] ? "" : "none";
-  });
+// v452: the bottom bar in DOM order, INCLUDING the three sections that have no
+// Settings toggle (lists, recipes, baby — always on). This is the full bar, not
+// just the hideable half, because the "More" overflow counts everything the user
+// can actually see down there.
+var NAV_ITEMS = [
+  { sec:"home",   id:"bnHome"   }, { sec:"lists",  id:"bnLife"    }, { sec:"train",      id:"bnTrain"      },
+  { sec:"recipes",id:"bnRecipes"}, { sec:"baby",   id:"bnBaby"    }, { sec:"trips",      id:"bnTrips"      },
+  { sec:"track",  id:"bnTrack"  }, { sec:"plants", id:"bnPlants"  }, { sec:"watch",      id:"bnWatch"      },
+  { sec:"appliances", id:"bnAppliances" }, { sec:"sports", id:"bnSports" }, { sec:"famlog", id:"bnFamlog"  },
+  { sec:"health", id:"bnHealth" }
+];
+// Five icons is what fits comfortably on a phone bar; a sixth slot is the More
+// button itself. Raising this doesn't widen the bar, it just crams it.
+var NAV_BAR_MAX = 5;
+// Section keys currently pushed off the bar and into the More sheet. Empty
+// whenever five or fewer sections are on — the More button is hidden then.
+var navOverflow = [];
+
+// A section is on the bar if it has no Settings toggle at all (lists, recipes,
+// baby) or its toggle is on.
+function navSectionOn(sec) {
+  return HIDEABLE_SECTIONS.indexOf(sec) === -1 || !!sectionVisible[sec];
 }
+
+function navIdForSection(sec) {
+  var item = NAV_ITEMS.find(function(i) { return i.sec === sec; });
+  return item ? item.id : "";
+}
+
+function applySectionVisibility() {
+  var shown = NAV_ITEMS.filter(function(it) { return navSectionOn(it.sec); });
+  var overflowing = shown.length > NAV_BAR_MAX;
+  var onBar = overflowing ? shown.slice(0, NAV_BAR_MAX) : shown;
+  navOverflow = overflowing ? shown.slice(NAV_BAR_MAX).map(function(it) { return it.sec; }) : [];
+  NAV_ITEMS.forEach(function(it) {
+    var btn = document.getElementById(it.id);
+    if (btn) btn.style.display = onBar.indexOf(it) === -1 ? "none" : "";
+  });
+  var more = document.getElementById("bnMore");
+  if (more) more.style.display = overflowing ? "" : "none";
+  syncMoreActive();
+}
+
+// switchSection() rewrites every bn-btn className from scratch, so the More
+// button's highlight is set the same way — it lights up while the section you
+// are looking at is one of the overflow ones.
+function syncMoreActive() {
+  var more = document.getElementById("bnMore");
+  if (more) more.className = "bn-btn" + (navOverflow.indexOf(currentSection) !== -1 ? " more-active" : "");
+}
+
+// Built from the nav buttons themselves (icon + aria-label) so the sheet can
+// never drift from the bar. Top-level, per the renderer-helper rule.
+function renderMoreSheet() {
+  var el = document.getElementById("moreList");
+  if (!el) return;
+  var html = "";
+  navOverflow.forEach(function(sec) {
+    var btn = document.getElementById(navIdForSection(sec));
+    if (!btn) return;
+    var icoEl = btn.querySelector(".bn-ico");
+    html += "<button class='more-row" + (sec === currentSection ? " current" : "") + "' data-sec='" + esc(sec) + "'>" +
+      "<span class='more-ico'>" + esc(icoEl ? icoEl.textContent : "") + "</span>" +
+      "<span class='more-name'>" + esc(btn.getAttribute("aria-label") || sec) + "</span>" +
+      "</button>";
+  });
+  if (!html) html = "<div style='text-align:center;color:#7A8772;padding:16px;font-size:14px'>Nothing here right now.</div>";
+  el.innerHTML = html;
+}
+
+function closeMoreSheet() { document.getElementById("moreOverlay").classList.remove("open"); }
 
 // Wire section toggles in settings
 document.getElementById("settingsBtn").addEventListener("click", function() {
@@ -15905,6 +15991,7 @@ function switchSection(section) {
   document.getElementById("bnWatch").className = "bn-btn" + (section === "watch" ? " watch-active" : "");
   document.getElementById("bnAppliances").className = "bn-btn" + (section === "appliances" ? " appliances-active" : "");
   document.getElementById("bnHealth").className = "bn-btn" + (section === "health" ? " health-active" : "");
+  syncMoreActive(); // v452: the More button owns the highlight for overflow sections
   if (section === "sports" && typeof renderSports === "function") renderSports();
 
   document.body.classList.toggle("home-mode",  section === "home");
@@ -17088,6 +17175,24 @@ function fmtDate(ts) {
 
 document.getElementById("bnHome").addEventListener("click",  function(){ switchSection("home");  });
 document.getElementById("bnLife").addEventListener("click",  function(){ switchSection("lists"); });
+
+// ── More sheet (v452) ─────────────────────────────────────
+document.getElementById("bnMore").addEventListener("click", function(){
+  renderMoreSheet();
+  document.getElementById("moreOverlay").classList.add("open");
+});
+document.getElementById("moreClose").addEventListener("click", closeMoreSheet);
+document.getElementById("moreOverlay").addEventListener("click", function(e){ if (e.target === this) closeMoreSheet(); });
+document.getElementById("moreList").addEventListener("click", function(e){
+  var row = e.target.closest(".more-row");
+  if (!row) return;
+  closeMoreSheet();
+  // Click the section's OWN nav button rather than calling switchSection here:
+  // several of them reset view state first (bnWatch clears _watchView, bnHealth
+  // clears _healthView, ...) and reimplementing that is how the two drift.
+  var btn = document.getElementById(navIdForSection(row.dataset.sec));
+  if (btn) btn.click();
+});
 document.getElementById("bnTrain").addEventListener("click", function(){ switchSection("train"); });
 document.getElementById("bnRecipes").addEventListener("click", function(){ switchSection("recipes"); });
 document.getElementById("recipeNewBtn").addEventListener("click", function(){ _recipeView="detail"; openRecipeEditor(null); });

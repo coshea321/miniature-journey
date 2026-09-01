@@ -26,6 +26,9 @@ module.exports = {
         '  .filter(function(b){ return b.style.display !== "none"; });' +
         'var clicked = [];' +
         'btns.forEach(function(b){ b.click(); clicked.push(b.id); });' +
+        // v452: bnMore opens the overflow sheet rather than a section, so the
+        // sweep above leaves it open. Close it before the next assertion runs.
+        'closeMoreSheet();' +
         'return clicked;' +
         '})()'
     );
@@ -63,9 +66,14 @@ module.exports = {
           'bnWatch:"watch", bnAppliances:"appliances", bnSports:"sports",' +
           'bnFamlog:"famlog", bnHealth:"health"' +
         '};' +
+        // v452: bnMore is the one bar button that is NOT a section — it opens
+        // the overflow sheet. Exempt it by name (never by class or by "any id
+        // not in the map"), so a genuinely unwired new button still trips the
+        // coverage assertion below. tests/cases/59-nav-more.js covers it.
+        'var NOT_A_SECTION = ["bnMore"];' +
         'var out = { uncovered: [], dead: [], ok: [] };' +
         'var ids = Array.prototype.map.call(document.querySelectorAll(".bottom-nav .bn-btn"), function(b){ return b.id; });' +
-        'ids.forEach(function(id){ if (!NAV_MAP[id]) out.uncovered.push(id); });' +
+        'ids.forEach(function(id){ if (!NAV_MAP[id] && NOT_A_SECTION.indexOf(id) === -1) out.uncovered.push(id); });' +
         'Object.keys(NAV_MAP).forEach(function(id){' +
           'var btn = document.getElementById(id);' +
           'if (!btn) { out.dead.push(id + " (no such button)"); return; }' +
