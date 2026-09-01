@@ -939,7 +939,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v450 · 31/08/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v451 · 01/09/2026</div>
 
   </div>
 </div>
@@ -1285,6 +1285,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
 <div id="watchSection" style="display:none">
   <div style="display:flex;gap:4px;padding:8px 10px;background:#4A3F7A;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
     <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F37F; Watchlist</span>
+    <button id="watchRandomBtn" aria-label="Pick something to watch at random" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F3B2;</button>
     <button id="watchNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ Add</button>
   </div>
   <div id="watchContent" style="padding:14px 14px 100px"></div>
@@ -4426,6 +4427,11 @@ var _watchView    = "list";   // "list" | "editor"
 var _watchEditId  = null;     // id being edited; null in the editor = a new entry
 var _watchOpenId  = null;     // inline-expanded row
 var _watchFilter  = "all";    // "all" | "film" | "tv" — session only, never stored
+// Unlike the kind filter above, this one IS persisted (device-local key,
+// never synced or exported — same "hearth_" namespace as the auth fields,
+// so a test-build wipe leaves it alone too): Cathal asked for the
+// last-picked status to be the default next time the section opens.
+var _watchStatusFilter = storeGet("hearth_watchStatusFilter") || "all"; // "all" | "todo" | "watching" | "watched"
 var _watchEditing = false;    // sync-render guard, same role as _plantEditing
 var _watchCancelFn = null;    // back-button discard closure (v345 pattern)
 var _watchDoneOpen = false;   // the Watched group starts collapsed
@@ -4565,8 +4571,25 @@ function renderWatchlist() {
   if (_watchFilter === "film" && !hasFilm) _watchFilter = "all";
   if (_watchFilter === "tv"   && !hasTv)   _watchFilter = "all";
 
-  var shown = all.filter(function(w){
+  var shownByKind = all.filter(function(w){
     return _watchFilter === "all" || watchKindMeta(w.kind).key === _watchFilter;
+  });
+  // Status chips follow the same v379 "only show a real choice" rule, judged
+  // against what the kind filter already left on screen.
+  var hasWatchingS = shownByKind.some(function(w){ return watchStatusOf(w) === "watching"; });
+  var hasTodoS     = shownByKind.some(function(w){ return watchStatusOf(w) === "todo"; });
+  var hasWatchedS  = shownByKind.some(function(w){ return watchStatusOf(w) === "watched"; });
+  var showStatusChips = (hasWatchingS?1:0) + (hasTodoS?1:0) + (hasWatchedS?1:0) > 1;
+  if (!showStatusChips) _watchStatusFilter = "all";
+  // Same vanish-fallback as the kind filter above — don't persist the reset,
+  // only the in-memory copy, so a genuine prior choice survives once the
+  // status reappears.
+  if (_watchStatusFilter === "watching" && !hasWatchingS) _watchStatusFilter = "all";
+  if (_watchStatusFilter === "todo"     && !hasTodoS)     _watchStatusFilter = "all";
+  if (_watchStatusFilter === "watched"  && !hasWatchedS)  _watchStatusFilter = "all";
+
+  var shown = shownByKind.filter(function(w){
+    return _watchStatusFilter === "all" || watchStatusOf(w) === _watchStatusFilter;
   });
   // Watching first — "what are we in the middle of" is the question this
   // screen gets asked most. Most recently touched first within that group.
@@ -4589,6 +4612,17 @@ function renderWatchlist() {
     });
     html += "</div>";
   }
+  if (showStatusChips) {
+    html += "<div style='display:flex;gap:6px;padding:0 1px 10px'>";
+    [{ v:"all", t:"All" }, { v:"watching", t:"Watching" }, { v:"todo", t:"To watch" }, { v:"watched", t:"Watched" }].forEach(function(c){
+      var on = _watchStatusFilter === c.v;
+      html += "<button class='watch-status-chip' data-status='" + c.v + "' " +
+        "style='flex:1;border-radius:20px;padding:7px 4px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation;" +
+        (on ? "background:" + WATCH_COLOR + ";color:#fff;border:1.5px solid " + WATCH_COLOR
+            : "background:#fff;color:#5A5470;border:1.5px solid #DCD6EA") + "'>" + c.t + "</button>";
+    });
+    html += "</div>";
+  }
 
   if (!watchingNow.length && !toWatch.length && !watched.length) {
     html += "<div style='text-align:center;color:#8A84A0;padding:30px 20px;font-size:13px'>Nothing here under this filter.</div>";
@@ -4602,9 +4636,16 @@ function renderWatchlist() {
     toWatch.forEach(function(w){ html += watchRowHTML(w); });
   }
   if (watched.length) {
-    html += "<button id='watchDoneHdr' style='width:100%;text-align:left;border:none;background:none;padding:10px 2px 7px;font-family:inherit;font-size:11px;font-weight:700;color:#8A84A0;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;touch-action:manipulation'>" +
-      (_watchDoneOpen ? "&#x25B2;" : "&#x25BC;") + " Watched &middot; " + watched.length + "</button>";
-    if (_watchDoneOpen) watched.forEach(function(w){ html += watchRowHTML(w); });
+    // Filtering the chip straight to Watched is itself the "show me" — force
+    // the group open rather than making him tap the collapse toggle too.
+    var watchedForcedOpen = _watchStatusFilter === "watched";
+    if (watchedForcedOpen) {
+      html += "<div style='padding:10px 2px 7px;font-size:11px;font-weight:700;color:#8A84A0;text-transform:uppercase;letter-spacing:.5px'>Watched &middot; " + watched.length + "</div>";
+    } else {
+      html += "<button id='watchDoneHdr' style='width:100%;text-align:left;border:none;background:none;padding:10px 2px 7px;font-family:inherit;font-size:11px;font-weight:700;color:#8A84A0;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;touch-action:manipulation'>" +
+        (_watchDoneOpen ? "&#x25B2;" : "&#x25BC;") + " Watched &middot; " + watched.length + "</button>";
+    }
+    if (watchedForcedOpen || _watchDoneOpen) watched.forEach(function(w){ html += watchRowHTML(w); });
   }
   el.innerHTML = html;
 
@@ -4633,8 +4674,34 @@ function renderWatchlist() {
   el.querySelectorAll(".watch-kind-chip").forEach(function(b){
     b.addEventListener("click", function(){ _watchFilter = b.dataset.kind || "all"; renderWatchlist(); });
   });
+  el.querySelectorAll(".watch-status-chip").forEach(function(b){
+    b.addEventListener("click", function(){
+      _watchStatusFilter = b.dataset.status || "all";
+      storeSet("hearth_watchStatusFilter", _watchStatusFilter);
+      renderWatchlist();
+    });
+  });
   var dh = document.getElementById("watchDoneHdr");
   if (dh) dh.addEventListener("click", function(){ _watchDoneOpen = !_watchDoneOpen; renderWatchlist(); });
+}
+
+// Picks uniformly from everything not marked watched (todo + watching both
+// count — "watching" just means already started, not decided against).
+// Resets both filters to All so the pick is always the one row actually
+// visible on screen, rather than landing behind whatever filter was active.
+function watchRandomPick() {
+  var candidates = getWatchlist().filter(function(w){ return watchStatusOf(w) !== "watched"; });
+  if (!candidates.length) { toast("Nothing left to pick &mdash; everything's watched!"); return; }
+  var pick = candidates[Math.floor(Math.random() * candidates.length)];
+  _watchFilter = "all";
+  _watchStatusFilter = "all";
+  storeSet("hearth_watchStatusFilter", "all");
+  _watchView = "list";
+  _watchOpenId = pick.id;
+  renderWatchlist();
+  var row = document.querySelector(".watch-body[data-wid='" + pick.id + "']");
+  if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
+  toast("&#x1F3B2; Tonight's pick: " + esc(pick.title || "Untitled"));
 }
 
 function openWatchEditor(id) {
@@ -17111,6 +17178,7 @@ document.getElementById("bnAppliances").addEventListener("click", function(){ _a
 document.getElementById("bnHealth").addEventListener("click", function(){ _healthView = "list"; _healthEditId = null; _healthOpenId = null; switchSection("health"); });
 document.getElementById("applNewBtn").addEventListener("click", function(){ openApplianceEditor(null); });
 document.getElementById("watchNewBtn").addEventListener("click", function(){ openWatchEditor(null); });
+document.getElementById("watchRandomBtn").addEventListener("click", watchRandomPick);
 document.getElementById("hlNewBtn").addEventListener("click", function(){ openHealthEditor(null); });
 document.getElementById("plantNewBtn").addEventListener("click", function(){ openPlantEditor(null); window.scrollTo(0, 0); });
 document.getElementById("plantImportBtn").addEventListener("click", function(){

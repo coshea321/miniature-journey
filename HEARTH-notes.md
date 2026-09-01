@@ -20,7 +20,7 @@
 3. **`HEARTH-backlog.md`** — strike through anything the version closed, and add anything it opened.
 
 ## Current version
-**v450 · 31/08/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
+**v451 · 01/09/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
 
 ## Train programme safety content (v415, re-reviewed v446, merged v447) — four rules
 The Train programmes carry Cathal's clinical constraints as on-screen text. The precise history, as of 30/08/2026: **a 4 cm hiatus hernia, mild bilateral L5/S1 _foraminal_ stenosis and an L4/L5 disc bulge.** Foraminal (not central canal) narrowing closes on **extension, side-bending and rotation**; the L4/L5 bulge is loaded by **end-range and loaded flexion**. So the target is the **middle of the range in both directions** — the generic "flexion opens the spinal canal" advice is written for central canal stenosis and only half applies here. Three rules:
