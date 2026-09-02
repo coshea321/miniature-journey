@@ -5544,9 +5544,17 @@ function renderHealthEditor() {
       "<input id='hlEdWho' type='text' placeholder='e.g. Dr Murphy' style='" + inp + "' value='" + esc((rec && rec.who) || "") + "'></div>" +
     "<div id='hlEdDoseRow'><div id='hlEdDoseLbl' style='" + lbl + ";margin-top:14px'>Dose</div>" +
       "<input id='hlEdDose' type='text' placeholder='e.g. 10 mg, one at night' style='" + inp + "' value='" + esc((rec && rec.dose) || "") + "'></div>" +
+    // Paired with a Clear button, the grocery due-date / item-sheet pattern:
+    // an <input type="date"> has NO reliable clear affordance on a phone, so
+    // an optional date without one can be set but never unset. The date row
+    // above has none because a record's own date is effectively required;
+    // this one is optional, and it is the field that puts a line on Home.
     "<div id='hlEdExpiryRow'><div id='hlEdExpiryLbl' style='" + lbl + ";margin-top:14px'>Prescription runs out</div>" +
-      "<input id='hlEdExpiry' type='date' style='" + inp + "' value='" + esc((rec && rec.expiry) || "") + "'>" +
-      "<div style='font-size:11px;color:#9AB0B0;margin-top:5px;line-height:1.5'>Optional \u2014 the last day it covers. Hearth puts a line on Home " + HEALTH_EXPIRY_SOON_DAYS + " days beforehand, and keeps it there until you clear the date.</div></div>" +
+      "<div style='display:flex;gap:8px;align-items:center'>" +
+        "<input id='hlEdExpiry' type='date' style='" + inp + ";flex:1;min-width:0' value='" + esc((rec && rec.expiry) || "") + "'>" +
+        "<button type='button' id='hlEdExpiryClear' style='flex:0 0 auto;padding:11px 14px;border:1.5px solid #CFE0E0;background:#fff;color:#3A5555;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>Clear</button>" +
+      "</div>" +
+      "<div style='font-size:11px;color:#9AB0B0;margin-top:5px;line-height:1.5'>Optional \u2014 the last day it covers. Hearth puts a line on Home " + HEALTH_EXPIRY_SOON_DAYS + " days beforehand, and keeps it there until you Clear the date or change it.</div></div>" +
     "<div id='hlEdOutRow'><div id='hlEdOutLbl' style='" + lbl + ";margin-top:14px'>What was said</div>" +
       "<textarea id='hlEdOut' rows='3' placeholder='What they found, what they advised, what happens next&hellip;' style='" + inp + ";resize:vertical'>" + esc((rec && rec.outcome) || "") + "</textarea></div>" +
     "<div id='hlEdLocRow'><div id='hlEdLocLbl' style='" + lbl + ";margin-top:14px'>Where</div>" +
@@ -5569,6 +5577,12 @@ function renderHealthEditor() {
   // refused at render is not silently re-offered for saving either.
   healthFileList(rec).forEach(function(f){ healthAddFileRow(f.label === "Document" ? "" : f.label, f.url); });
   document.getElementById("hlEdAddFile").addEventListener("click", function(){ healthAddFileRow("", ""); });
+  // Clearing is a real edit, not a no-op: "" is what stops the Home line, and
+  // it SAVES as "" rather than dropping the key (the v296 rule), so the other
+  // phone doesn't refill it on the next sync.
+  document.getElementById("hlEdExpiryClear").addEventListener("click", function(){
+    document.getElementById("hlEdExpiry").value = "";
+  });
 
   el.querySelectorAll(".health-kind-pick").forEach(function(b){
     b.addEventListener("click", function(){

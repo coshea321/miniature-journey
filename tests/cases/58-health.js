@@ -537,11 +537,21 @@ module.exports = {
       ok('and hidden for a visit',
         document.getElementById('hlEdExpiryRow').style.display === 'none',
         'got: ' + document.getElementById('hlEdExpiryRow').style.display);
+      // An <input type="date"> has no reliable clear affordance on a phone, so
+      // an optional date NEEDS its Clear button or it can be set and never
+      // unset — and this is the field that puts a line on Home. Pinned end to
+      // end: tap Clear, save, and the record must come back with "".
+      _healthKindDraft = 'medication'; healthApplyKindToEditor();
+      document.getElementById('hlEdExpiry').value = day(5);
+      ok('the expiry date has a Clear button, the optional-date pattern',
+        document.getElementById('hlEdExpiryClear') !== null, 'no clear button');
+      document.getElementById('hlEdExpiryClear').click();
+      ok('tapping Clear empties the date rather than needing a keyboard',
+        document.getElementById('hlEdExpiry').value === '',
+        'got: ' + document.getElementById('hlEdExpiry').value);
       // The v296 rule: a cleared field must STORE "", never drop the key, or
       // the other device refills it on the next sync.
       document.getElementById('hlEdTitle').value = 'Saved repeat';
-      _healthKindDraft = 'medication'; healthApplyKindToEditor();
-      document.getElementById('hlEdExpiry').value = '';
       document.getElementById('hlEdSave').click();
       var savedRec = getHealth().filter(function(r){ return r.title === 'Saved repeat'; })[0];
       ok('saving with a blank expiry stores "" rather than dropping the key',
