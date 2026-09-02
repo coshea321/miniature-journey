@@ -61,6 +61,15 @@ Items **1, 3(b), 5, 8** together as one version: all UI/local-write only, no syn
 
 Second PR: **2 + 4** (season bump, global search).
 
+## Colour scheme (Cathal's follow-up question, 02/09, with a screenshot of the live list)
+Problem seen: one purple everywhere; state is only a 19px glyph, kind is only a same-size emoji, and the two chip rows look identical. Four hues total, no more: purple = section brand, green = done, teal = TV, amber = Film.
+- **State on the card, not just the icon.** Left edge stripe (4px) + faint tint: Watching = purple stripe, pale lavender bg (#F4F1FA); To watch = no stripe, white (the bulk of the list stays quiet); Watched = green stripe (#3E8E5A), light grey bg (#F5F4F7), title opacity .6 as now. Darken the To-watch circle from #BEB6D0 to ~#9A92B8 (currently near-invisible on white).
+- **Kind as a text pill, not an emoji.** Replace the row emoji with a small uppercase pill: `TV` teal (#2F6E6E on #E4F0F0), `FILM` amber (#B5651D on #FBEEDF). Emojis render differently per phone and both read as the same dark blob at 15px. Keep the emoji in the filter chips only.
+- **Chip rows.** Selected chip takes the colour of what it selects: Films amber, TV teal, Watching purple, Watched green, To watch dark grey; unselected stays white/#DCD6EA. Both "All" chips stay purple. Then the two rows are distinguishable without reading them.
+- **Group headers** take the same state colours as the stripes (Watching purple already; To watch dark grey; Watched green) instead of all-grey.
+- **Double header**: green app bar "🍿 Watchlist" + purple section bar "🍿 Watchlist" repeat each other; ~60px of phone screen. Worth dropping the section bar's title (keep 🎲 and + Add) or folding those two buttons into the app bar, like Plants/other sections if they do it.
+- Build cost: all inside `watchRowHTML`, `renderWatchlist` chip loops, `WATCH_STATUS_UI`/`WATCH_KINDS` (add a `color`/`bg` per kind). No data change. Could ship with the first PR above.
+
 ## Session log
 - 02/09 start: read HEARTH-notes § Watchlist, backlog § Watchlist follow-ups, changelog v391/v392/v451, `index.html` lines 1291–1297 (header), 4284–4830 (helpers, `watchRowHTML`, `renderWatchlist`, `watchRandomPick`, editor). No code edited.
-- 02/09 end: notes complete and pushed. Nothing built; no version bump; no PR opened (review-only ask).
+- 02/09 end: notes complete and pushed. Colour-scheme section added after Cathal sent a screenshot. Nothing built; no version bump; no PR opened (review-only ask).
