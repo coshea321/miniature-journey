@@ -190,6 +190,17 @@ module.exports = {
         healthPeople(getHealth()).length === 3, 'got: ' + JSON.stringify(healthPeople(getHealth())));
       ok('one demo visit is upcoming and the Home line has something to show',
         !!healthNextAppointment(), 'next: ' + JSON.stringify(healthNextAppointment()));
+      // v454: the demo repeat expires inside the window, so the second Health
+      // Home line and the amber pill are both visible on a PR test link
+      // without editing anything. A relative date for the usual reason.
+      ok('the demo prescription is running out, so the v454 Home line demos itself',
+        healthExpiringSoon().length === 1 &&
+        healthExpirySoonLabel(healthExpiringSoon()[0]).indexOf('Runs out in') === 0,
+        'got: ' + JSON.stringify(healthExpiringSoon().map(function(r){ return [r.title, r.expiry]; })));
+      ok('every seeded health record STORES expiry, so a sync merge cannot refill it',
+        getHealth().every(function(r){ return r.hasOwnProperty('expiry'); }),
+        'missing on: ' + getHealth().filter(function(r){ return !r.hasOwnProperty('expiry'); })
+          .map(function(r){ return r.title; }).join(','));
       ok('the demo has real history — several past events across more than one kind',
         (function(){
           var past = getHealth().filter(function(r){
