@@ -945,7 +945,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v453 · 02/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v454 · 02/09/2026</div>
 
   </div>
 </div>
@@ -4968,13 +4968,13 @@ function healthKindIn(rec, list) { return list.indexOf(healthKindMeta(rec && rec
 // something he typed because a picker moved. It also means mis-tapping a
 // kind and switching back loses nothing.
 var HEALTH_KIND_FIELDS = {
-  visit:       { title:"What it was for", date:"Date",       time:true,  who:"Who you saw",   dose:"",     outcome:"What was said", location:"Where",    phone:true  },
-  diagnosis:   { title:"Diagnosis",       date:"Date",       time:false, who:"Diagnosed by",  dose:"",     outcome:"",              location:"",         phone:false },
-  condition:   { title:"Condition",       date:"Since",      time:false, who:"",              dose:"",     outcome:"",              location:"",         phone:false },
-  test:        { title:"Test",            date:"Date",       time:true,  who:"Ordered by",    dose:"",     outcome:"Result",        location:"Where",    phone:false },
-  medication:  { title:"Medicine",        date:"Started",    time:false, who:"Prescribed by", dose:"Dose", outcome:"",              location:"Pharmacy", phone:true  },
-  vaccination: { title:"Vaccine",         date:"Date given", time:false, who:"",              dose:"",     outcome:"",              location:"Where",    phone:false },
-  contact:     { title:"Name",            date:"",           time:false, who:"Role",          dose:"",     outcome:"",              location:"Address",  phone:true  }
+  visit:       { title:"What it was for", date:"Date",       time:true,  who:"Who you saw",   dose:"",     expiry:"",                     outcome:"What was said", location:"Where",    phone:true  },
+  diagnosis:   { title:"Diagnosis",       date:"Date",       time:false, who:"Diagnosed by",  dose:"",     expiry:"",                     outcome:"",              location:"",         phone:false },
+  condition:   { title:"Condition",       date:"Since",      time:false, who:"",              dose:"",     expiry:"",                     outcome:"",              location:"",         phone:false },
+  test:        { title:"Test",            date:"Date",       time:true,  who:"Ordered by",    dose:"",     expiry:"",                     outcome:"Result",        location:"Where",    phone:false },
+  medication:  { title:"Medicine",        date:"Started",    time:false, who:"Prescribed by", dose:"Dose", expiry:"Prescription runs out", outcome:"",              location:"Pharmacy", phone:true  },
+  vaccination: { title:"Vaccine",         date:"Date given", time:false, who:"",              dose:"",     expiry:"",                     outcome:"",              location:"Where",    phone:false },
+  contact:     { title:"Name",            date:"",           time:false, who:"Role",          dose:"",     expiry:"",                     outcome:"",              location:"Address",  phone:true  }
 };
 function healthFields(kind) { return HEALTH_KIND_FIELDS[healthKindMeta(kind).key]; }
 
@@ -5065,6 +5065,57 @@ function healthNextAppointment() {
   return up.length ? up[0] : null;
 }
 
+// ── Prescription expiry (v454) ────────────────────────────────────────────
+// A repeat prescription RUNS OUT, and unlike an appliance warranty that is
+// actionable: you have to ring the surgery before the last one is gone. That
+// is the whole reason this exists, and it is the deliberate reversal of the
+// v449 note on Home that said no medication-renewal nudge — the backlog
+// asked for "a fresh call rather than a quiet yes", and Cathal made it on
+// 02/09/2026. It is still not a reminder or an alert: no push, no
+// notification, just a self-suppressing line on a card he already reads.
+//
+// Only a kind whose HEALTH_KIND_FIELDS row NAMES the field can carry one, so
+// this is medication-only by the same route every other kind-dependent field
+// takes — do not add a second "is this a medication" test anywhere.
+// Every record still STORES `expiry` whatever its kind (the v296 rule):
+// switching kind hides the field, it never destroys what he typed.
+var HEALTH_EXPIRY_SOON_DAYS = 14;   // confirmed 02/09/2026: two weeks' notice
+
+// Days until it runs out — negative once past, null when the kind doesn't
+// have one, the field is empty, or the stored value is junk. Reuses
+// tripDaysUntil (v298) rather than a second date-difference helper.
+function healthExpiryDays(rec) {
+  if (!rec || !healthFields(rec.kind).expiry || !rec.expiry) return null;
+  return tripDaysUntil(rec.expiry);
+}
+// The phrase, at any distance. Callers that only want it when it MATTERS use
+// healthExpirySoonLabel below and test the label, the healthCountdownLabel way.
+function healthExpiryLabel(rec) {
+  var d = healthExpiryDays(rec);
+  if (d === null) return "";
+  if (d < -1)   return "Ran out " + (-d) + " days ago";
+  if (d === -1) return "Ran out yesterday";
+  if (d === 0)  return "Runs out today";
+  if (d === 1)  return "Runs out tomorrow";
+  return "Runs out in " + d + " days";
+}
+// Inside the window, or already past. Past deliberately STAYS: a repeat that
+// has already run out is the most actionable state, not the least, so it
+// never goes quiet on its own (confirmed 02/09/2026).
+function healthExpirySoonLabel(rec) {
+  var d = healthExpiryDays(rec);
+  return (d !== null && d <= HEALTH_EXPIRY_SOON_DAYS) ? healthExpiryLabel(rec) : "";
+}
+function healthExpiryPast(rec) {
+  var d = healthExpiryDays(rec);
+  return d !== null && d < 0;
+}
+// Soonest (so: most overdue) first — what Home reads.
+function healthExpiringSoon() {
+  return getHealth().filter(function(r){ return healthExpirySoonLabel(r); })
+    .sort(function(a, b){ return String(a.expiry || "").localeCompare(String(b.expiry || "")); });
+}
+
 // The haystack global search reads. Health needs its own for the same reason
 // appliances do: what you came looking for — a consultant's name, what was
 // said at a visit, a test result, the label on a letter — lives in fields a
@@ -5146,12 +5197,20 @@ var _healthKindDraft = "visit";
 // backup and from a hand-edited file — none of which pass an input — and the
 // split-on-"-" still yields three parts for something like
 // `2020-01-01"><img src=x onerror=…>`. Same reasoning as the two href gates.
+// Split out at v454 so `expiry` formats through the SAME escaping as `date`
+// rather than a second copy of it — expiry arrives from sync and from a
+// restored backup too, and junk still splits into three parts on "-".
+function healthDMY(v) {
+  var s = String(v || "");
+  if (!s) return "";
+  var p = s.split("-");
+  if (p.length !== 3) return esc(s);
+  return esc(p[2]) + "/" + esc(p[1]) + "/" + esc(p[0]);
+}
 function healthDateText(rec, withTime) {
   var f = healthFields(rec.kind);
   if (!f.date || !rec.date) return "";
-  var p = String(rec.date).split("-");
-  if (p.length !== 3) return esc(String(rec.date));
-  var out = esc(p[2]) + "/" + esc(p[1]) + "/" + esc(p[0]);
+  var out = healthDMY(rec.date);
   if (withTime !== false && f.time && rec.time) out += " &middot; " + esc(rec.time);
   return out;
 }
@@ -5173,6 +5232,8 @@ function healthRowHTML(rec) {
   var open = _healthOpenId === rec.id;
   var person = String(rec.person || "").trim();
   var cd = healthCountdownLabel(rec);
+  var xp = healthExpirySoonLabel(rec);      // "" unless it is close or past
+  var xpPast = healthExpiryPast(rec);
   var dateTxt = healthDateText(rec);
   var files = healthFileList(rec);
 
@@ -5197,6 +5258,13 @@ function healthRowHTML(rec) {
   }
   if (cd) {
     h += "<span style='flex-shrink:0;background:#E2F0EF;color:" + HEALTH_COLOR + ";font-size:12px;font-weight:700;border-radius:20px;padding:5px 10px;white-space:nowrap;margin-left:6px'>" + cd + "</span>";
+  } else if (xp) {
+    // Same pill, amber while there is still time and red once it has run
+    // out. Medication is a STANDING kind so it never has a countdown of its
+    // own — but this is an else-if rather than a second pill on purpose: two
+    // pills on one row is how a title gets squeezed off the screen.
+    h += "<span style='flex-shrink:0;background:" + (xpPast ? "#FBE9E9" : "#FDF1DE") + ";color:" + (xpPast ? "#B03030" : "#8A5A10") +
+      ";font-size:12px;font-weight:700;border-radius:20px;padding:5px 10px;white-space:nowrap;margin-left:6px'>" + xp + "</span>";
   }
   h += "<span style='flex-shrink:0;color:#A8C0C0;font-size:12px;padding-left:4px'>" + (open ? "&#x25B2;" : "&#x25BC;") + "</span>" +
     "</div>";
@@ -5208,6 +5276,10 @@ function healthRowHTML(rec) {
     if (f.date && dateTxt)          h += healthDetailRow(f.date, dateTxt);
     if (f.who && rec.who)           h += healthDetailRow(f.who, esc(rec.who));
     if (f.dose && rec.dose)         h += healthDetailRow(f.dose, esc(rec.dose));
+    if (f.expiry && rec.expiry) {
+      h += healthDetailRow(f.expiry, healthDMY(rec.expiry) + (xp
+        ? " &middot; <b style='color:" + (xpPast ? "#B03030" : "#8A5A10") + "'>" + xp + "</b>" : ""));
+    }
     if (f.location && rec.location) h += healthDetailRow(f.location, esc(rec.location));
     var tel = f.phone ? healthPhoneHref(rec) : "";
     if (f.phone && rec.phone) {
@@ -5393,6 +5465,7 @@ function healthApplyKindToEditor() {
   row("hlEdTimeRow", !!f.time);
   row("hlEdWhoRow",  !!f.who);    if (f.who)     lab("hlEdWhoLbl", f.who);
   row("hlEdDoseRow", !!f.dose);   if (f.dose)    lab("hlEdDoseLbl", f.dose);
+  row("hlEdExpiryRow", !!f.expiry); if (f.expiry) lab("hlEdExpiryLbl", f.expiry);
   row("hlEdOutRow",  !!f.outcome); if (f.outcome) lab("hlEdOutLbl", f.outcome);
   row("hlEdLocRow",  !!f.location); if (f.location) lab("hlEdLocLbl", f.location);
   row("hlEdPhoneRow", !!f.phone);
@@ -5471,6 +5544,9 @@ function renderHealthEditor() {
       "<input id='hlEdWho' type='text' placeholder='e.g. Dr Murphy' style='" + inp + "' value='" + esc((rec && rec.who) || "") + "'></div>" +
     "<div id='hlEdDoseRow'><div id='hlEdDoseLbl' style='" + lbl + ";margin-top:14px'>Dose</div>" +
       "<input id='hlEdDose' type='text' placeholder='e.g. 10 mg, one at night' style='" + inp + "' value='" + esc((rec && rec.dose) || "") + "'></div>" +
+    "<div id='hlEdExpiryRow'><div id='hlEdExpiryLbl' style='" + lbl + ";margin-top:14px'>Prescription runs out</div>" +
+      "<input id='hlEdExpiry' type='date' style='" + inp + "' value='" + esc((rec && rec.expiry) || "") + "'>" +
+      "<div style='font-size:11px;color:#9AB0B0;margin-top:5px;line-height:1.5'>Optional \u2014 the last day it covers. Hearth puts a line on Home " + HEALTH_EXPIRY_SOON_DAYS + " days beforehand, and keeps it there until you clear the date.</div></div>" +
     "<div id='hlEdOutRow'><div id='hlEdOutLbl' style='" + lbl + ";margin-top:14px'>What was said</div>" +
       "<textarea id='hlEdOut' rows='3' placeholder='What they found, what they advised, what happens next&hellip;' style='" + inp + ";resize:vertical'>" + esc((rec && rec.outcome) || "") + "</textarea></div>" +
     "<div id='hlEdLocRow'><div id='hlEdLocLbl' style='" + lbl + ";margin-top:14px'>Where</div>" +
@@ -5532,6 +5608,7 @@ function renderHealthEditor() {
       time:     document.getElementById("hlEdTime").value.trim(),
       who:      document.getElementById("hlEdWho").value.trim(),
       dose:     document.getElementById("hlEdDose").value.trim(),
+      expiry:   document.getElementById("hlEdExpiry").value.trim(),
       outcome:  document.getElementById("hlEdOut").value,
       location: document.getElementById("hlEdLoc").value.trim(),
       phone:    document.getElementById("hlEdPhone").value.trim(),
@@ -17861,12 +17938,11 @@ function renderTodayCard() {
       : (pWater.length + " plants need watering");
     rows.push({ ico:"&#x1F4A7;", text: pText, act:"plants", id: pWater.length === 1 ? pWater[0].id : null });
   }
-  // Health (v449): the ONE thing this section puts on Home, and only ever a
+  // Health (v449, widened v454): TWO lines, and only two. The first is a
   // future-dated VISIT or TEST — healthCountdownLabel returns "" for anything
-  // past, undated or of a kind you don't attend, so the line self-suppresses
-  // like the rest of the card. Deliberately no medication-renewal nudge and
-  // nothing from the history itself: the confirmed Home scope is this one
-  // countdown, and a medical history has no business nagging.
+  // past, undated or of a kind you don't attend, so it self-suppresses like
+  // the rest of the card. Still nothing from the HISTORY itself: a medical
+  // history has no business nagging, and that part of the v449 note stands.
   var hlNext = healthNextAppointment();
   if (hlNext) {
     var hlWho = String(hlNext.person || "").trim();
@@ -17874,6 +17950,29 @@ function renderTodayCard() {
                 text: esc(hlNext.title || "Appointment") + (hlWho ? " (" + esc(hlWho) + ")" : "") +
                       " " + healthCountdownLabel(hlNext).toLowerCase(),
                 act:"health", id: hlNext.id });
+  }
+  // The second (v454): a prescription running out. This is the one v449
+  // offered and did NOT build — the backlog asked for a fresh call rather
+  // than a quiet yes, and Cathal made it on 02/09/2026. A repeat is
+  // actionable in a way an appliance warranty isn't: you have to ring the
+  // surgery before the last one is gone. Self-suppressing on the same
+  // pattern — healthExpiringSoon() is empty until something is inside the
+  // 14-day window — and it STAYS, in red, once past, because a repeat that
+  // has already run out is the most actionable state, not the least.
+  // Collapses to a count above one, the plants rule: a family on four
+  // repeats must not lose the whole card to them.
+  var hlRx = healthExpiringSoon();
+  if (hlRx.length) {
+    var rx0 = hlRx[0], rxWho = String(rx0.person || "").trim();
+    var rxText = hlRx.length === 1
+      ? (esc(rx0.title || "A prescription") + (rxWho ? " (" + esc(rxWho) + ")" : "") +
+         " " + healthExpiryLabel(rx0).toLowerCase())
+      : (hlRx.length + " prescriptions running out");
+    // Sorted soonest-first, so hlRx[0] is the most overdue: if it has run
+    // out, the line goes red whether it is naming one or counting several.
+    rows.push({ ico:"&#x1F48A;",
+                text: healthExpiryPast(rx0) ? "<span style='color:#B03030'>" + rxText + "</span>" : rxText,
+                act:"health", id: hlRx.length === 1 ? rx0.id : null });
   }
   var sportCand = [];
   (getSportsTeams()||[]).forEach(function(t){
@@ -21811,24 +21910,24 @@ function buildTestSeed() {
     // stops being demoed.
     health:[
       { id:_tsId(), kind:"visit", person:"Cathal", title:"Demo GP appointment",
-        date:_tsDay(6), time:"09:20", who:"Dr Demo", dose:"", outcome:"",
+        date:_tsDay(6), time:"09:20", who:"Dr Demo", dose:"", expiry:"", outcome:"",
         location:"Demo Family Practice", phone:"021 000 0001", link:"", files:[],
         notes:"Bring the letter from the physio.",
         addedBy:"Cathal", added:_tsTs(-11, 10, 0), updated:_tsTs(-11, 10, 0) },
       { id:_tsId(), kind:"test", person:"Petra", title:"Demo blood test",
-        date:_tsDay(12), time:"08:15", who:"Dr Demo", dose:"", outcome:"",
+        date:_tsDay(12), time:"08:15", who:"Dr Demo", dose:"", expiry:"", outcome:"",
         location:"Demo Family Practice", phone:"", link:"", files:[],
         notes:"Fasting from midnight.",
         addedBy:"Petra", added:_tsTs(-4, 10, 0), updated:_tsTs(-4, 10, 0) },
       { id:_tsId(), kind:"visit", person:"Cathal", title:"Demo back pain review",
-        date:_tsDay(-38), time:"11:30", who:"Dr Demo", dose:"",
+        date:_tsDay(-38), time:"11:30", who:"Dr Demo", dose:"", expiry:"",
         outcome:"Examined the lower back. Sent for an MRI and said to keep moving \u2014 no bed rest. Physio referral to follow.",
         location:"Demo Family Practice", phone:"021 000 0001", link:"",
         files:[{ label:"Referral letter", url:"https://example.com/demo-referral" }],
         notes:"",
         addedBy:"Cathal", added:_tsTs(-38, 12, 0), updated:_tsTs(-38, 12, 0) },
       { id:_tsId(), kind:"test", person:"Cathal", title:"Demo MRI, lower back",
-        date:_tsDay(-24), time:"", who:"Dr Demo", dose:"",
+        date:_tsDay(-24), time:"", who:"Dr Demo", dose:"", expiry:"",
         outcome:"Disc bulge at L4/L5 and mild narrowing at L5/S1. Nothing needing surgery.",
         location:"Demo Imaging Centre", phone:"", link:"",
         files:[{ label:"MRI report", url:"https://example.com/demo-mri" },
@@ -21836,27 +21935,28 @@ function buildTestSeed() {
         notes:"",
         addedBy:"Cathal", added:_tsTs(-24, 12, 0), updated:_tsTs(-24, 12, 0) },
       { id:_tsId(), kind:"diagnosis", person:"Cathal", title:"Demo disc bulge, L4/L5",
-        date:_tsDay(-22), time:"", who:"Dr Demo", dose:"", outcome:"",
+        date:_tsDay(-22), time:"", who:"Dr Demo", dose:"", expiry:"", outcome:"",
         location:"", phone:"", link:"", files:[],
         notes:"Managed with physio rather than anything surgical.",
         addedBy:"Cathal", added:_tsTs(-22, 12, 0), updated:_tsTs(-22, 12, 0) },
       { id:_tsId(), kind:"vaccination", person:"Baby", title:"Demo MMR, first dose",
-        date:_tsDay(-52), time:"", who:"", dose:"", outcome:"",
+        date:_tsDay(-52), time:"", who:"", dose:"", expiry:"", outcome:"",
         location:"Demo Health Centre", phone:"", link:"", files:[], notes:"",
         addedBy:"Petra", added:_tsTs(-52, 10, 0), updated:_tsTs(-52, 10, 0) },
       { id:_tsId(), kind:"condition", person:"Cathal", title:"Demo penicillin allergy",
-        date:_tsDay(-2200), time:"", who:"", dose:"", outcome:"",
+        date:_tsDay(-2200), time:"", who:"", dose:"", expiry:"", outcome:"",
         location:"", phone:"", link:"", files:[],
         notes:"Rash as a child. Tell any new doctor or dentist.",
         addedBy:"Cathal", added:_tsTs(-70, 10, 0), updated:_tsTs(-70, 10, 0) },
       { id:_tsId(), kind:"medication", person:"Cathal", title:"Demo Antihistamine",
         date:_tsDay(-90), time:"", who:"Dr Demo", dose:"10 mg, one tablet in the morning",
+        expiry:_tsDay(9),
         outcome:"", location:"Demo Pharmacy, Carrigaline", phone:"021 000 0002",
         link:"", files:[],
         notes:"Repeat \u2014 phone ahead a few days before it runs out.",
         addedBy:"Cathal", added:_tsTs(-22, 10, 0), updated:_tsTs(-22, 10, 0) },
       { id:_tsId(), kind:"contact", person:"", title:"Demo Family Practice",
-        date:"", time:"", who:"GP", dose:"", outcome:"",
+        date:"", time:"", who:"GP", dose:"", expiry:"", outcome:"",
         location:"1 Demo Street, Carrigaline", phone:"021 000 0001", link:"", files:[],
         notes:"Open 08:30-17:00. Out of hours goes to the demo co-op line.",
         addedBy:"Cathal", added:_tsTs(-60, 10, 0), updated:_tsTs(-60, 10, 0) }

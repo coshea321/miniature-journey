@@ -466,6 +466,88 @@ module.exports = {
         document.querySelectorAll('#hlEdFiles .hl-file-url')[0].value === 'https://example.com/g',
         'got: ' + Array.prototype.map.call(document.querySelectorAll('#hlEdFiles .hl-file-url'), function(i){ return i.value; }).join(' | '));
 
+      // ── Prescription expiry (v454) ───────────────────────────────────────
+      // The field is medication-only BY THE FIELD TABLE, and the countdown is
+      // the thing Home reads, so both are pinned here rather than trusted.
+      ok('only medication is asked for a prescription expiry',
+        HEALTH_KINDS.filter(function(k){ return !!HEALTH_KIND_FIELDS[k.key].expiry; })
+          .map(function(k){ return k.key; }).join(',') === 'medication',
+        'got: ' + HEALTH_KINDS.filter(function(k){ return !!HEALTH_KIND_FIELDS[k.key].expiry; })
+          .map(function(k){ return k.key; }).join(','));
+      function rx(off, kind){ return { id:9018, kind:kind || 'medication', title:'Repeat', notes:'',
+                                       updated:1, files:[], expiry: off === null ? '' : day(off) }; }
+      ok('a kind that has no expiry field never gets a countdown, whatever is stored',
+        healthExpiryDays(rx(3, 'visit')) === null && healthExpirySoonLabel(rx(3, 'visit')) === '',
+        'got: ' + healthExpiryDays(rx(3, 'visit')));
+      ok('an empty expiry is silent', healthExpiryDays(rx(null)) === null, 'got: ' + healthExpiryDays(rx(null)));
+      ok('junk in expiry is silent rather than throwing',
+        healthExpiryDays({ kind:'medication', expiry:'not-a-date' }) === null &&
+        healthExpirySoonLabel({ kind:'medication', expiry:'2020-01-01"><img src=x>' }) !== undefined,
+        'got: ' + healthExpiryDays({ kind:'medication', expiry:'not-a-date' }));
+      ok('outside the 14-day window it stays off Home',
+        healthExpirySoonLabel(rx(HEALTH_EXPIRY_SOON_DAYS + 1)) === '',
+        'got: ' + healthExpirySoonLabel(rx(HEALTH_EXPIRY_SOON_DAYS + 1)));
+      ok('the window boundary itself is INSIDE it',
+        healthExpirySoonLabel(rx(HEALTH_EXPIRY_SOON_DAYS)) === 'Runs out in ' + HEALTH_EXPIRY_SOON_DAYS + ' days',
+        'got: ' + healthExpirySoonLabel(rx(HEALTH_EXPIRY_SOON_DAYS)));
+      ok('today, tomorrow and yesterday each read as words',
+        healthExpiryLabel(rx(0)) === 'Runs out today' &&
+        healthExpiryLabel(rx(1)) === 'Runs out tomorrow' &&
+        healthExpiryLabel(rx(-1)) === 'Ran out yesterday',
+        'got: ' + [healthExpiryLabel(rx(0)), healthExpiryLabel(rx(1)), healthExpiryLabel(rx(-1))].join(' / '));
+      // The confirmed rule, and the one most likely to be "tidied" back into
+      // self-suppression by someone copying healthCountdownLabel: an expired
+      // repeat is the MOST actionable state, so it never goes quiet.
+      ok('an expired repeat STAYS on Home rather than self-suppressing',
+        healthExpirySoonLabel(rx(-40)) === 'Ran out 40 days ago' && healthExpiryPast(rx(-40)) === true,
+        'got: ' + healthExpirySoonLabel(rx(-40)));
+      ok('one still in date is not flagged as past', healthExpiryPast(rx(5)) === false, 'got: ' + healthExpiryPast(rx(5)));
+
+      storeSet('fl4_health', [
+        { id:9101, kind:'medication', title:'Far off',  notes:'', updated:1, files:[], expiry:day(90) },
+        { id:9102, kind:'medication', title:'Overdue',  notes:'', updated:1, files:[], expiry:day(-6) },
+        { id:9103, kind:'medication', title:'Due soon', notes:'', updated:1, files:[], expiry:day(4) },
+        { id:9104, kind:'visit',      title:'Not a med', notes:'', updated:1, files:[], expiry:day(1) }
+      ]);
+      var soon = healthExpiringSoon();
+      ok('healthExpiringSoon picks up only the in-window medication, most overdue first',
+        soon.length === 2 && soon[0].title === 'Overdue' && soon[1].title === 'Due soon',
+        'got: ' + soon.map(function(r){ return r.title; }).join(','));
+
+      // The pill shares the countdown slot, so a record must never show both.
+      _healthOpenId = 9102;
+      var rowHTML = healthRowHTML(getHealth()[1]);
+      ok('an expired repeat renders its pill in red', rowHTML.indexOf('#B03030') > -1, 'no red pill');
+      ok('the expiry detail row shows the date as well as the phrase',
+        rowHTML.indexOf('Prescription runs out') > -1 && rowHTML.indexOf('Ran out 6 days ago') > -1,
+        'no expiry detail row');
+      ok('a medication never renders a countdown pill and an expiry pill at once',
+        healthCountdownLabel(getHealth()[1]) === '', 'medication got a countdown');
+      _healthOpenId = null;
+
+      // The editor row follows the field table, like every other kind-dependent row.
+      _healthEditId = null; _healthKindDraft = 'medication';
+      renderHealthEditor();
+      _healthKindDraft = 'medication'; healthApplyKindToEditor();
+      ok('the expiry row is offered for medication',
+        document.getElementById('hlEdExpiryRow').style.display !== 'none' &&
+        document.getElementById('hlEdExpiryLbl').textContent.indexOf('runs out') > -1,
+        'got: ' + document.getElementById('hlEdExpiryRow').style.display);
+      _healthKindDraft = 'visit'; healthApplyKindToEditor();
+      ok('and hidden for a visit',
+        document.getElementById('hlEdExpiryRow').style.display === 'none',
+        'got: ' + document.getElementById('hlEdExpiryRow').style.display);
+      // The v296 rule: a cleared field must STORE "", never drop the key, or
+      // the other device refills it on the next sync.
+      document.getElementById('hlEdTitle').value = 'Saved repeat';
+      _healthKindDraft = 'medication'; healthApplyKindToEditor();
+      document.getElementById('hlEdExpiry').value = '';
+      document.getElementById('hlEdSave').click();
+      var savedRec = getHealth().filter(function(r){ return r.title === 'Saved repeat'; })[0];
+      ok('saving with a blank expiry stores "" rather than dropping the key',
+        !!savedRec && savedRec.expiry === '' && savedRec.hasOwnProperty('expiry'),
+        'got: ' + JSON.stringify(savedRec && savedRec.expiry));
+
       // Cleanup
       _healthView = 'list'; _healthOpenId = null; _healthEditId = null; _healthPerson = '';
       _healthEditing = false; _healthCancelFn = null; _healthKindDraft = 'visit';
