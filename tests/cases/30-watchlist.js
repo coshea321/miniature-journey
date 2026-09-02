@@ -118,7 +118,10 @@ module.exports = {
       watchCycleStatus(900101);
       after = getWatchlist().find(function(w){ return w.id === 900101; });
       ok('a third tap returns it to the to-watch list', watchStatusOf(after) === 'todo', 'got: ' + JSON.stringify(after));
-      ok('leaving watched clears watchedAt', after.watchedAt === 0, 'got: ' + after.watchedAt);
+      // v453: the date SURVIVES leaving watched — a stray tap on the cycling
+      // tick followed by a corrective tap must lose nothing (the rating rule,
+      // now applied to the timestamp too).
+      ok('leaving watched keeps watchedAt (v453 — a mis-tap must not wipe the date)', after.watchedAt > 0, 'got: ' + after.watchedAt);
 
       watchSetStatus(900101, 'watched');
       after = getWatchlist().find(function(w){ return w.id === 900101; });
@@ -230,7 +233,26 @@ module.exports = {
       _watchDoneOpen = true;
       renderWatchlist();
       ok('opening the watched group reveals it', el.textContent.indexOf('Watched Show') > -1, 'got: ' + el.textContent.slice(0, 300));
+      // v453: the watched date is shown on the row (watchedAt:2000 = 1 Jan 1970,
+      // so the year is appended); a to-watch row never says "Watched".
+      ok('a watched row shows the date it was watched', el.textContent.indexOf('Watched 1 Jan 1970') > -1, 'got: ' + el.textContent.slice(0, 600));
+      ok('watchDateText returns "" for 0/junk', watchDateText(0) === '' && watchDateText('abc') === '', 'got: ' + JSON.stringify([watchDateText(0), watchDateText('abc')]));
       _watchDoneOpen = false;
+      // v453: kind is a coloured text pill, not a same-sized emoji.
+      ok('rows carry a FILM / TV text pill for the kind',
+        el.textContent.indexOf('FILM') > -1 && el.textContent.indexOf('TV') > -1, 'got: ' + el.textContent.slice(0, 300));
+      // v453: the random pick respects the kind chip and only resets the status chip.
+      _watchFilter = 'tv';
+      var _toastBak = window.toast, _lastToast = '';
+      window.toast = function(m){ _lastToast = String(m); };
+      var picks = {};
+      for (var pi = 0; pi < 12; pi++) { watchRandomPick(); picks[_watchOpenId] = true; }
+      window.toast = _toastBak;
+      ok('random pick with the TV chip on never picks the film',
+        !picks[900201] && picks[900203] && _watchFilter === 'tv', 'got: ' + JSON.stringify(picks) + ' filter=' + _watchFilter);
+      ok('the pick toast names the kind', _lastToast.indexOf("Tonight's show") > -1, 'got: ' + _lastToast);
+      _watchFilter = 'all'; _watchOpenId = null;
+      renderWatchlist();
 
       // Info links appear only in the expanded row, and are real links out.
       ok('info links are not on every collapsed row (they would swamp the list)',

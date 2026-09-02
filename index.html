@@ -945,7 +945,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v452 · 01/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v453 · 02/09/2026</div>
 
   </div>
 </div>
@@ -4281,9 +4281,12 @@ function openPlantEditor(id) {
 // newest-wins by `updated`, exactly like Plants (v377) — one title is one
 // edit unit, so no nested per-field merge is needed.
 // ============================================================
+// v453: each kind carries its own hue (Film amber, TV teal) so the two are
+// told apart by colour, not by two same-sized emoji that render differently on
+// every phone. `tag` is the pill text on a row; `ico` stays on the filter chips.
 var WATCH_KINDS = [
-  { key:"film", label:"Film", ico:"&#x1F3AC;" },
-  { key:"tv",   label:"TV",   ico:"&#x1F4FA;" }
+  { key:"film", label:"Film", ico:"&#x1F3AC;", tag:"FILM", color:"#B5651D", bg:"#FBEEDF" },
+  { key:"tv",   label:"TV",   ico:"&#x1F4FA;", tag:"TV",   color:"#2F6E6E", bg:"#E4F0F0" }
 ];
 function watchKindMeta(k) {
   for (var i = 0; i < WATCH_KINDS.length; i++) if (WATCH_KINDS[i].key === k) return WATCH_KINDS[i];
@@ -4380,9 +4383,14 @@ function watchSetStatus(id, status) {
   var all = getWatchlist();
   var i = all.findIndex(function(w){ return w && w.id === id; });
   if (i < 0) return;                                   // -1 guard (CLAUDE.md)
+  // watchedAt is stamped on ARRIVAL at watched and otherwise left alone (v453):
+  // the cycling tick makes a stray tap on a watched row move it back to
+  // To watch, and before v453 that also wiped the date. Now a mis-tap and a
+  // re-tap lose nothing — the same rule the rating has always had. Re-marking
+  // something already watched keeps the original date too.
+  if (status === "watched" && !all[i].watched) all[i].watchedAt = Date.now();
   all[i].watching  = (status === "watching");
   all[i].watched   = (status === "watched");
-  all[i].watchedAt = (status === "watched") ? Date.now() : 0;
   // An existing rating is deliberately KEPT when moving back out of watched:
   // a mis-tap must not silently destroy something he typed, and returning to
   // watched brings it back.
@@ -4458,10 +4466,15 @@ var _watchEditing = false;    // sync-render guard, same role as _plantEditing
 var _watchCancelFn = null;    // back-button discard closure (v345 pattern)
 var _watchDoneOpen = false;   // the Watched group starts collapsed
 // Icon, colour, and what a tap on the tick control does next, per status.
+// v453: `stripe`/`bg` colour the card itself (left edge + tint) so state reads
+// at a glance, not only from the 19px tick glyph. To watch is the bulk of the
+// list, so it stays plain white with no stripe. `chip` is the selected-chip
+// colour on the status filter row — To watch gets a dark grey there, not
+// its faint tick colour, so a selected chip is never near-invisible.
 var WATCH_STATUS_UI = {
-  todo:     { ico:"&#x25CB;", color:"#BEB6D0", next:"Mark as watching" },
-  watching: { ico:"&#x25B6;", color:"#4A3F7A", next:"Mark as watched" },
-  watched:  { ico:"&#x2714;", color:"#3E8E5A", next:"Move back to the to-watch list" }
+  todo:     { ico:"&#x25CB;", color:"#9A92B8", stripe:"",        bg:"#fff",    chip:"#6A6480", next:"Mark as watching" },
+  watching: { ico:"&#x25B6;", color:"#4A3F7A", stripe:"#4A3F7A", bg:"#F4F1FA", chip:"#4A3F7A", next:"Mark as watched" },
+  watched:  { ico:"&#x2714;", color:"#3E8E5A", stripe:"#3E8E5A", bg:"#F5F4F7", chip:"#3E8E5A", next:"Move back to the to-watch list" }
 };
 var WATCH_STATUS_LABELS = [
   { key:"todo",     label:"To watch" },
@@ -4469,6 +4482,18 @@ var WATCH_STATUS_LABELS = [
   { key:"watched",  label:"Watched"  }
 ];
 var _watchKindDraft = "film";
+
+// "14 Aug", or "14 Aug 2025" when it wasn't this year. Day-level only — the
+// time of night a film finished is noise. Returns "" for 0/junk.
+var WATCH_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function watchDateText(ts) {
+  var n = +ts || 0;
+  if (n <= 0) return "";
+  var d = new Date(n), now = new Date();
+  var out = d.getDate() + " " + WATCH_MONTHS[d.getMonth()];
+  if (d.getFullYear() !== now.getFullYear()) out += " " + d.getFullYear();
+  return out;
+}
 
 function watchStarsHTML(n, interactive, id) {
   var out = "";
@@ -4497,7 +4522,9 @@ function watchRowHTML(w) {
   // Season is TV-only on screen. A value left behind by switching a show to a
   // film stays in the record (never destroy something he typed) but stays hidden.
   var seasonN = (meta.key === "tv") ? watchSeasonOf(w) : 0;
-  var h = "<div style='background:#fff;border:1.5px solid #E4E0EE;border-radius:12px;margin-bottom:8px;overflow:hidden'>" +
+  var h = "<div style='background:" + sUI.bg + ";border:1.5px solid #E4E0EE;" +
+      (sUI.stripe ? "border-left:4px solid " + sUI.stripe + ";" : "") +
+      "border-radius:12px;margin-bottom:8px;overflow:hidden'>" +
     "<div style='display:flex;align-items:center;gap:2px;padding:2px'>" +
       "<button class='watch-tick' data-wid='" + w.id + "' aria-label='" + sUI.next + "' " +
         "style='flex-shrink:0;width:44px;height:46px;border:none;background:none;cursor:pointer;font-size:19px;line-height:1;touch-action:manipulation;color:" +
@@ -4505,7 +4532,9 @@ function watchRowHTML(w) {
       "<div class='watch-body' data-wid='" + w.id + "' style='flex:1;min-width:0;padding:8px 8px 8px 0;cursor:pointer'>" +
         "<div style='font-size:15px;font-weight:600;color:#2A2010;line-height:1.3;" +
           (status === "watched" ? "opacity:.6" : "") + "'>" +
-          "<span style='margin-right:5px'>" + meta.ico + "</span>" + esc(w.title || "Untitled") + "</div>";
+          "<span style='display:inline-block;vertical-align:1px;margin-right:7px;background:" + meta.bg + ";color:" + meta.color +
+          ";border-radius:4px;padding:1px 5px;font-size:10px;font-weight:800;letter-spacing:.5px'>" + meta.tag + "</span>" +
+          esc(w.title || "Untitled") + "</div>";
   if (seasonN) {
     h += "<div style='margin-top:4px'><span style='display:inline-block;background:#EFECF6;color:" + WATCH_COLOR +
       ";border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700'>Season " + seasonN + "</span></div>";
@@ -4514,7 +4543,15 @@ function watchRowHTML(w) {
     h += "<div style='font-size:12px;color:#6A6480;margin-top:2px;" +
       (open ? "" : "white-space:nowrap;overflow:hidden;text-overflow:ellipsis") + "'>" + esc(note) + "</div>";
   }
-  if (status === "watched" && rating) h += "<div style='margin-top:3px'>" + watchStarsHTML(rating, false, w.id) + "</div>";
+  if (status === "watched") {
+    var when = watchDateText(w.watchedAt);
+    if (rating || when) {
+      h += "<div style='margin-top:3px;display:flex;align-items:center;gap:8px'>" +
+        (rating ? "<span>" + watchStarsHTML(rating, false, w.id) + "</span>" : "") +
+        (when ? "<span style='font-size:11px;color:#8A84A0'>Watched " + when + "</span>" : "") +
+        "</div>";
+    }
+  }
   h += "</div>" +
       "<span style='flex-shrink:0;padding:0 10px 0 2px;color:#BEB6D0;font-size:12px'>" + (open ? "&#x25B2;" : "&#x25BC;") + "</span>" +
     "</div>";
@@ -4625,22 +4662,24 @@ function renderWatchlist() {
   var html = "";
   if (showChips) {
     html += "<div style='display:flex;gap:7px;padding:1px 1px 10px'>";
-    [{ v:"all", t:"All" }, { v:"film", t:"&#x1F3AC; Films" }, { v:"tv", t:"&#x1F4FA; TV" }].forEach(function(c){
+    // A selected chip takes the colour of what it selects (v453), so the kind
+    // row and the status row below stop looking like the same control twice.
+    [{ v:"all", t:"All", c:WATCH_COLOR }, { v:"film", t:"&#x1F3AC; Films", c:watchKindMeta("film").color }, { v:"tv", t:"&#x1F4FA; TV", c:watchKindMeta("tv").color }].forEach(function(c){
       var on = _watchFilter === c.v;
       html += "<button class='watch-kind-chip' data-kind='" + c.v + "' " +
         "style='flex:1;border-radius:20px;padding:8px 6px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation;" +
-        (on ? "background:" + WATCH_COLOR + ";color:#fff;border:1.5px solid " + WATCH_COLOR
+        (on ? "background:" + c.c + ";color:#fff;border:1.5px solid " + c.c
             : "background:#fff;color:#5A5470;border:1.5px solid #DCD6EA") + "'>" + c.t + "</button>";
     });
     html += "</div>";
   }
   if (showStatusChips) {
     html += "<div style='display:flex;gap:6px;padding:0 1px 10px'>";
-    [{ v:"all", t:"All" }, { v:"watching", t:"Watching" }, { v:"todo", t:"To watch" }, { v:"watched", t:"Watched" }].forEach(function(c){
+    [{ v:"all", t:"All", c:WATCH_COLOR }, { v:"watching", t:"Watching", c:WATCH_STATUS_UI.watching.chip }, { v:"todo", t:"To watch", c:WATCH_STATUS_UI.todo.chip }, { v:"watched", t:"Watched", c:WATCH_STATUS_UI.watched.chip }].forEach(function(c){
       var on = _watchStatusFilter === c.v;
       html += "<button class='watch-status-chip' data-status='" + c.v + "' " +
         "style='flex:1;border-radius:20px;padding:7px 4px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation;" +
-        (on ? "background:" + WATCH_COLOR + ";color:#fff;border:1.5px solid " + WATCH_COLOR
+        (on ? "background:" + c.c + ";color:#fff;border:1.5px solid " + c.c
             : "background:#fff;color:#5A5470;border:1.5px solid #DCD6EA") + "'>" + c.t + "</button>";
     });
     html += "</div>";
@@ -4654,7 +4693,7 @@ function renderWatchlist() {
     watchingNow.forEach(function(w){ html += watchRowHTML(w); });
   }
   if (toWatch.length) {
-    html += "<div style='font-size:11px;font-weight:700;color:#8A84A0;text-transform:uppercase;letter-spacing:.5px;margin:2px 2px 7px'>To watch &middot; " + toWatch.length + "</div>";
+    html += "<div style='font-size:11px;font-weight:700;color:#8A84A0;text-transform:uppercase;letter-spacing:.5px;margin:2px 2px 7px;color:" + WATCH_STATUS_UI.todo.chip + "'>To watch &middot; " + toWatch.length + "</div>";
     toWatch.forEach(function(w){ html += watchRowHTML(w); });
   }
   if (watched.length) {
@@ -4662,9 +4701,9 @@ function renderWatchlist() {
     // the group open rather than making him tap the collapse toggle too.
     var watchedForcedOpen = _watchStatusFilter === "watched";
     if (watchedForcedOpen) {
-      html += "<div style='padding:10px 2px 7px;font-size:11px;font-weight:700;color:#8A84A0;text-transform:uppercase;letter-spacing:.5px'>Watched &middot; " + watched.length + "</div>";
+      html += "<div style='padding:10px 2px 7px;font-size:11px;font-weight:700;color:" + WATCH_STATUS_UI.watched.chip + ";text-transform:uppercase;letter-spacing:.5px'>Watched &middot; " + watched.length + "</div>";
     } else {
-      html += "<button id='watchDoneHdr' style='width:100%;text-align:left;border:none;background:none;padding:10px 2px 7px;font-family:inherit;font-size:11px;font-weight:700;color:#8A84A0;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;touch-action:manipulation'>" +
+      html += "<button id='watchDoneHdr' style='width:100%;text-align:left;border:none;background:none;padding:10px 2px 7px;font-family:inherit;font-size:11px;font-weight:700;color:" + WATCH_STATUS_UI.watched.chip + ";text-transform:uppercase;letter-spacing:.5px;cursor:pointer;touch-action:manipulation'>" +
         (_watchDoneOpen ? "&#x25B2;" : "&#x25BC;") + " Watched &middot; " + watched.length + "</button>";
     }
     if (watchedForcedOpen || _watchDoneOpen) watched.forEach(function(w){ html += watchRowHTML(w); });
@@ -4709,13 +4748,16 @@ function renderWatchlist() {
 
 // Picks uniformly from everything not marked watched (todo + watching both
 // count — "watching" just means already started, not decided against).
-// Resets both filters to All so the pick is always the one row actually
-// visible on screen, rather than landing behind whatever filter was active.
+// v453: the KIND chip is respected — "pick a film" is the actual Friday-night
+// ask, so with Films selected the pick comes from films. Only the status
+// filter is reset to All, so the pick is still the one row visible on screen
+// (it is inside the selected kind by construction).
 function watchRandomPick() {
-  var candidates = getWatchlist().filter(function(w){ return watchStatusOf(w) !== "watched"; });
+  var candidates = getWatchlist().filter(function(w){
+    return watchStatusOf(w) !== "watched" && (_watchFilter === "all" || watchKindMeta(w.kind).key === _watchFilter);
+  });
   if (!candidates.length) { toast("Nothing left to pick &mdash; everything's watched!"); return; }
   var pick = candidates[Math.floor(Math.random() * candidates.length)];
-  _watchFilter = "all";
   _watchStatusFilter = "all";
   storeSet("hearth_watchStatusFilter", "all");
   _watchView = "list";
@@ -4723,7 +4765,7 @@ function watchRandomPick() {
   renderWatchlist();
   var row = document.querySelector(".watch-body[data-wid='" + pick.id + "']");
   if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
-  toast("&#x1F3B2; Tonight's pick: " + esc(pick.title || "Untitled"));
+  toast("&#x1F3B2; Tonight's " + (watchKindMeta(pick.kind).key === "tv" ? "show" : "film") + ": " + esc(pick.title || "Untitled"));
 }
 
 function openWatchEditor(id) {
@@ -4759,7 +4801,7 @@ function renderWatchEditor() {
   var inp = "width:100%;box-sizing:border-box;padding:11px;border:1.5px solid #DCD6EA;border-radius:9px;font-family:inherit;font-size:15px;background:#fff;color:#2A2010";
   el.innerHTML =
     "<div style='" + lbl + "'>Title</div>" +
-    "<input id='wEdTitle' type='text' placeholder='e.g. The Banshees of Inisherin' style='" + inp + "' value='" + esc((rec && rec.title) || "") + "'>" +
+    "<input id='wEdTitle' type='text' autocapitalize='words' enterkeyhint='done' placeholder='e.g. The Banshees of Inisherin' style='" + inp + "' value='" + esc((rec && rec.title) || "") + "'>" +
     "<div style='" + lbl + ";margin-top:14px'>Type</div>" +
     "<div style='display:flex;gap:8px'>" +
       WATCH_KINDS.map(function(k){
@@ -4777,7 +4819,7 @@ function renderWatchEditor() {
         esc(watchSeasonOf(rec) || "") + "'>" +
     "</div>" +
     "<div style='" + lbl + ";margin-top:14px'>Note <span style='text-transform:none;font-weight:600;color:#A8A2B8'>(optional)</span></div>" +
-    "<textarea id='wEdNote' rows='2' placeholder='Where it is, who picked it, what season you&rsquo;re on&hellip;' style='" + inp + ";resize:vertical'>" + esc((rec && rec.note) || "") + "</textarea>" +
+    "<textarea id='wEdNote' rows='2' placeholder='Where it is, who picked it&hellip;' style='" + inp + ";resize:vertical'>" + esc((rec && rec.note) || "") + "</textarea>" +
     "<div style='" + lbl + ";margin-top:14px'>Your own link <span style='text-transform:none;font-weight:600;color:#A8A2B8'>(optional)</span></div>" +
     "<input id='wEdLink' type='url' inputmode='url' placeholder='https://&hellip;' style='" + inp + "' value='" + esc((rec && rec.link) || "") + "'>" +
     "<div style='font-size:11px;color:#A8A2B8;margin-top:5px;line-height:1.5'>Only if you want a specific page. Every entry already gets Where&nbsp;to&nbsp;watch, Wikipedia and IMDb search links built from its title.</div>" +
@@ -4843,6 +4885,10 @@ function renderWatchEditor() {
     toast(_watchEditId == null ? "Saved" : "Saved");
   });
   var t = document.getElementById("wEdTitle");
+  // Enter in the title saves (v453) — the same shortcut the list add box has.
+  if (t) t.addEventListener("keydown", function(e){
+    if (e.key === "Enter") { e.preventDefault(); document.getElementById("wEdSave").click(); }
+  });
   if (t && !rec) t.focus();
 }
 
