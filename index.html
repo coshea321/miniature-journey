@@ -945,7 +945,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v454 · 02/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v455 · 03/09/2026</div>
 
   </div>
 </div>
@@ -11326,6 +11326,109 @@ function recipesFromCSV(text) {
   }
   return { recipes: recipes, skipped: skipped, tidied: tidied };
 }
+
+var RECIPE_FILE_TAG = "recipe-v1";
+
+// The template Cathal hands to an AI chat (a photo, a page, or pasted text of
+// a recipe) to get back JSON the paste box below accepts. ingredients stays a
+// single "amount unit name per line" string, same shape as the editor's own
+// textarea, so it goes through the same parseIngredients() as everything else.
+function recipeAIPrompt() {
+  return "Here is a recipe (as text, a photo, or a link) — turn it into JSON for my Hearth app.\n\n" +
+    "Reply with ONLY this JSON — no code fences, no commentary before or after:\n\n" +
+    "{\n" +
+    "  \"hearth\": \"" + RECIPE_FILE_TAG + "\",\n" +
+    "  \"name\": \"\",\n" +
+    "  \"servings\": 1,\n" +
+    "  \"category\": \"\",\n" +
+    "  \"ingredients\": \"\",\n" +
+    "  \"prep\": \"\",\n" +
+    "  \"method\": \"\",\n" +
+    "  \"notes\": \"\",\n" +
+    "  \"kcal\": 0,\n" +
+    "  \"url\": \"\"\n" +
+    "}\n\n" +
+    "Field notes:\n" +
+    "- name: the recipe's title. servings: a whole number — however many it says it serves, or 1 if it doesn't say.\n" +
+    "- category: one word if obvious (\"Breakfast\", \"Dinner\", \"Dessert\"), else \"\".\n" +
+    "- ingredients: one per line, as \"amount unit name\" — e.g. \"200 g flour\", \"2 eggs\", \"a pinch salt\". Plain text, no bullets or dashes.\n" +
+    "- prep: only steps done before cooking starts (chopping, marinating, preheating oven), as separate lines — leave \"\" if the recipe doesn't call these out separately.\n" +
+    "- method: the numbered steps, as plain lines — no numbering needed, Hearth adds its own.\n" +
+    "- notes: anything else worth keeping (serving suggestions, storage, a source note), else \"\".\n" +
+    "- kcal: calories per serving if the recipe states them, else 0.\n" +
+    "- url: the page's own URL if you were given a link, else \"\".\n" +
+    "- Leave a field \"\" (or 0) if you genuinely don't know — don't guess or pad it out.\n" +
+    "- For several recipes at once, reply {\"hearth\":\"" + RECIPE_FILE_TAG + "\",\"recipes\":[ {...}, {...} ]}.";
+}
+
+// Clipboard with an execCommand fallback, same shape as plantCopyPrompt —
+// writeText needs a user gesture and a secure context, neither guaranteed here.
+function recipeCopyPrompt() {
+  var text = recipeAIPrompt();
+  function fallback() {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      var ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      toast(ok ? "&#x1F4CB; Prompt copied" : "Couldn't copy — select the prompt below by hand");
+    } catch (e) { toast("Couldn't copy — select the prompt below by hand"); }
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function(){ toast("&#x1F4CB; Prompt copied"); }, fallback);
+  } else { fallback(); }
+}
+
+// Build recipe objects from an AI chat's recipe-v1 JSON reply. Accepts a bare
+// recipe object as well as a {recipes:[...]} list, mirroring parsePlantFile —
+// a one-recipe reply and a multi-recipe reply both come through the same door.
+function recipesFromAIJSON(raw) {
+  var obj;
+  try { obj = JSON.parse(raw); } catch (e) { return { recipes: [], error: "Couldn't parse JSON — check the format and try again." }; }
+  if (!obj || obj.hearth !== RECIPE_FILE_TAG) return { recipes: [], error: "Not a Hearth recipe file. Make sure the JSON includes \"hearth\":\"" + RECIPE_FILE_TAG + "\"." };
+  var list = Array.isArray(obj.recipes) ? obj.recipes : [obj];
+  var takenIds = recipeIdMap(getRecipeBook());
+  var recipes = [], tidied = 0;
+  list.forEach(function(o, i){
+    if (!o || typeof o !== "object") return;
+    var name = String(o.name || "").trim();
+    if (!name) return;
+    var ingredients = parseIngredients(String(o.ingredients || ""), true).map(function(ing){
+      var t = tidyIngredient(ing);
+      if (t.ok && t.changed) tidied++;
+      return t.ok ? t.ing : ing;
+    });
+    recipes.push({
+      id: nextRecipeId(takenIds),
+      name: name,
+      servings: parseInt(o.servings, 10) || 1,
+      kcal: parseInt(o.kcal, 10) || 0,
+      category: String(o.category || "").trim(),
+      ingredients: ingredients,
+      prep: String(o.prep || "").trim(),
+      method: String(o.method || "").trim(),
+      notes: String(o.notes || "").trim(),
+      url: normalizeRecipeUrl(o.url || ""),
+      fav: false, inRotation: false,
+      updated: Date.now() + i, addedBy: hearthUser
+    });
+  });
+  return { recipes: recipes, tidied: tidied, error: recipes.length ? null : "No recipes with a name found." };
+}
+
+// The paste box takes either a CSV export or an AI chat's recipe-v1 JSON reply
+// — dispatch on shape so recipeImportText stays a single box. Chats love to
+// wrap JSON in ```json fences even when told not to.
+function recipesFromImportText(text) {
+  var t = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  if (t.charAt(0) === "{") return recipesFromAIJSON(t);
+  return recipesFromCSV(text);
+}
 function cleanText(s) {
   s = (s||"").trim();
   if (!s || s.toLowerCase() === "nan") return "";
@@ -17354,10 +17457,13 @@ function closeRecipeImport(){
   if (importBtn) importBtn.addEventListener("click", function(){
     var t = document.getElementById("recipeImportText"); if (t) t.value = "";
     var p = document.getElementById("recipeImportPreview"); if (p) p.textContent = "";
+    var pt = document.getElementById("recipePromptText"); if (pt) pt.value = recipeAIPrompt();
     var sh = document.getElementById("recipeImportSheet"); if (sh) sh.style.display = "block";
     var bd = document.getElementById("recipeImportBackdrop"); if (bd) bd.style.display = "block";
     document.body.style.overflow = "hidden";
   });
+  var copyBtn = document.getElementById("recipeCopyPrompt");
+  if (copyBtn) copyBtn.addEventListener("click", recipeCopyPrompt);
   var closeBtn = document.getElementById("recipeImportClose");
   if (closeBtn) closeBtn.addEventListener("click", closeRecipeImport);
   var cancelBtn = document.getElementById("recipeImportCancel");
@@ -17371,21 +17477,23 @@ function closeRecipeImport(){
     if (!prev) return;
     if (!txt) { prev.textContent = ""; return; }
     try {
-      var res = recipesFromCSV(txt);
+      var res = recipesFromImportText(txt);
+      if (res.error) { prev.textContent = res.error; return; }
       prev.textContent = res.recipes.length + " recipe" + (res.recipes.length!==1?"s":"") + " found" +
         (res.tidied ? " · " + res.tidied + " ingredient line" + (res.tidied!==1?"s":"") + " tidied" : "") +
         (res.skipped ? ", " + res.skipped + " row(s) skipped" : "");
-    } catch(e) { prev.textContent = "Couldn't read that — check it's CSV text."; }
+    } catch(e) { prev.textContent = "Couldn't read that — check it's CSV or the AI's JSON reply."; }
   });
   var doBtn = document.getElementById("recipeImportDo");
   if (doBtn) doBtn.addEventListener("click", function(){
     var ta2 = document.getElementById("recipeImportText");
     var txt = ta2 ? ta2.value.trim() : "";
-    if (!txt) { toast("Paste some CSV first"); return; }
+    if (!txt) { toast("Paste some CSV or the AI's reply first"); return; }
     var res;
-    try { res = recipesFromCSV(txt); }
-    catch(e) { toast("Couldn't parse the CSV"); return; }
-    if (!res.recipes.length) { toast("No recipes with ingredients found"); return; }
+    try { res = recipesFromImportText(txt); }
+    catch(e) { toast("Couldn't parse that"); return; }
+    if (res.error) { toast(res.error); return; }
+    if (!res.recipes.length) { toast("No importable recipes found"); return; }
     var rb = getRecipeBook();
     var have = {};
     rb.forEach(function(r){ if(r) have[r.name.toLowerCase()] = true; });
@@ -22523,11 +22631,21 @@ if (_isTestBuild) (function() {
 <div id="recipeImportBackdrop" style="display:none;position:fixed;inset:0;z-index:719;background:rgba(0,0,0,.5)"></div>
 <div id="recipeImportSheet" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:720;background:#fff;border-top:1.5px solid #E0DCD4;box-shadow:0 -4px 20px rgba(0,0,0,.12);border-radius:18px 18px 0 0;padding:18px 16px 24px;max-width:480px;margin:0 auto;max-height:85vh;overflow-y:auto">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-    <div style="flex:1;font-size:13px;font-weight:700;color:#5A6455;text-transform:uppercase;letter-spacing:.5px">Import recipes (CSV)</div>
+    <div style="flex:1;font-size:13px;font-weight:700;color:#5A6455;text-transform:uppercase;letter-spacing:.5px">Import recipes</div>
     <button id="recipeImportClose" aria-label="Close" style="border:none;background:none;color:#8A7A5A;font-size:20px;cursor:pointer;padding:0 4px">&#x2715;</button>
   </div>
-  <div style="font-size:13px;color:#8A7A5A;margin-bottom:10px;line-height:1.5">Paste the full contents of a recipe CSV export (including the header row). Recipes with ingredients will be added; article-only rows are skipped.</div>
-  <textarea id="recipeImportText" rows="9" placeholder="title,description,...,ingredients,instructions,..." style="width:100%;box-sizing:border-box;padding:11px 13px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:13px;resize:vertical;outline:none;line-height:1.5"></textarea>
+  <div style="font-size:13px;color:#8A7A5A;margin-bottom:10px;line-height:1.5">Paste a recipe CSV export (including the header row), or an AI chat's reply to the prompt below.</div>
+  <div style="font-size:12px;color:#7A5A30;background:#FBF4E8;border:1px solid #E4D3B0;border-radius:10px;padding:10px 12px;margin-bottom:10px;line-height:1.6">
+    <b>No CSV? Ask an AI chat to convert one.</b>
+    <div style="margin-top:4px">1. Copy the prompt below.</div>
+    <div>2. Paste it into an AI chat along with the recipe — text, a photo, or a link.</div>
+    <div>3. Paste its JSON reply into the box below and hit Import.</div>
+  </div>
+  <button id="recipeCopyPrompt" style="width:100%;padding:11px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px">&#x1F4CB; Copy the prompt</button>
+  <details style="margin-bottom:12px"><summary style="font-size:12px;color:#8A7A5A;cursor:pointer;padding:4px 2px">See the prompt</summary>
+    <textarea id="recipePromptText" readonly rows="10" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:monospace;font-size:11px;outline:none;margin-top:8px;resize:vertical;line-height:1.5"></textarea>
+  </details>
+  <textarea id="recipeImportText" rows="9" placeholder="Paste CSV or the AI's JSON reply here&hellip;" style="width:100%;box-sizing:border-box;padding:11px 13px;border:1.5px solid #D8D0C0;border-radius:10px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:13px;resize:vertical;outline:none;line-height:1.5"></textarea>
   <div id="recipeImportPreview" style="font-size:13px;color:#7A5A30;margin-top:8px"></div>
   <div style="display:flex;gap:8px;margin-top:12px">
     <button id="recipeImportDo" style="flex:1;padding:12px;background:#B5651D;border:none;border-radius:10px;color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer">Import</button>
