@@ -961,7 +961,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v456 · 03/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v457 · 03/09/2026</div>
 
   </div>
 </div>
@@ -1203,7 +1203,11 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
       <div style="display:flex;gap:6px;margin-bottom:6px">
         <input id="foodItemInput" type="text" placeholder="What did you eat?" autocomplete="off" autocorrect="off"
           style="flex:1;border:2px solid #E0D0B0;border-radius:9px;padding:10px 12px;font-family:inherit;font-size:15px;outline:none;background:#FDFAF3;color:#2A2010">
-        <button id="foodMealToggle" style="padding:10px 10px;background:#F5E8D8;border:1.5px solid #C4A07A;border-radius:9px;color:#7A3A05;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;white-space:nowrap">&#x1F31E; Lunch</button>
+        <!-- Meal picker (v457). Options are built from MEAL_TYPES in renderFoodView,
+           so adding a meal type needs no edit here. Deliberately a native
+           <select>: the phone's own picker shows all four at once, where the
+           button it replaced had to be tapped up to three times to reach one. -->
+        <select id="foodMealSelect" aria-label="Meal" style="padding:10px 8px;background:#F5E8D8;border:1.5px solid #C4A07A;border-radius:9px;color:#7A3A05;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation"></select>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:4px">
         <input id="foodCalInput" type="number" min="0" max="5000" placeholder="kcal (auto-estimated)" inputmode="numeric"
@@ -13278,7 +13282,11 @@ var MEAL_TYPES = [
   { label:"Dinner",    icon:"&#x1F319;" },
   { label:"Snack",     icon:"&#x1F370;" }
 ];
-var currentFoodMeal = 1; // default Lunch
+// The meal the add form logs to, mirrored by #foodMealSelect. Its value is
+// re-derived per day by foodDefaultMeal() below; foodMealPicked records that
+// the user chose one by hand, which wins until the date nav moves.
+var currentFoodMeal = 0;
+var foodMealPicked  = false;
 var foodDate = (function(){
   var d = new Date();
   return d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1)+"-"+(d.getDate()<10?"0":"")+d.getDate();
@@ -13310,6 +13318,22 @@ function getFoodLog() {
   });
 }
 function saveFoodLog(e) { storeSet("fl4_food_log", e); pushPersonal(); }
+
+// What the meal dropdown should start on for a given day: Breakfast for the
+// first entry of the day, otherwise the meal last logged on it. Derived from
+// the log rather than remembered in a variable, so it is right for whichever
+// DAY the date nav is showing -- a variable would carry today's last meal
+// back to an empty Tuesday. Newest = highest id (ids are Date.now()-based),
+// not last in the array: the array is insertion order, and a recipe or saved
+// meal logged to a past date lands at the end of it either way.
+function foodDefaultMeal(date) {
+  var last = null;
+  getFoodLog().forEach(function(e) {
+    if (e.date !== date) return;
+    if (!last || (e.id || 0) > (last.id || 0)) last = e;
+  });
+  return last ? last.meal : 0; // getFoodLog has already normalised meal to an index
+}
 
 // ── Calorie goal: stamped on every local write (v441) ────────────────────
 // The goal is a bare scalar, so the personal-sync merge has no per-record
@@ -13717,9 +13741,22 @@ function renderFoodView() {
   var manageBtn = document.getElementById("manageSavedMealsBtn");
   if (manageBtn) manageBtn.addEventListener("click", openSavedMealsManager);
 
-  // Update meal toggle button
-  var mt = MEAL_TYPES[currentFoodMeal];
-  document.getElementById("foodMealToggle").innerHTML = mt.icon + " " + mt.label;
+  // Meal dropdown: options once, then the day's default -- unless the user
+  // has picked a meal by hand, which must survive a re-render (deleting an
+  // entry would otherwise silently move their next log to an earlier meal).
+  var msel = document.getElementById("foodMealSelect");
+  if (!msel._wired) {
+    msel._wired = true;
+    msel.innerHTML = MEAL_TYPES.map(function(m, i) {
+      return "<option value='" + i + "'>" + m.icon + " " + m.label + "</option>";
+    }).join("");
+    msel.addEventListener("change", function() {
+      currentFoodMeal = foodMealIndex(msel.value);
+      foodMealPicked  = true;
+    });
+  }
+  if (!foodMealPicked) currentFoodMeal = foodDefaultMeal(foodDate);
+  msel.value = String(currentFoodMeal);
 
   // Auto-estimate + autosuggest as user types
   var fi = document.getElementById("foodItemInput");
@@ -13739,18 +13776,11 @@ function renderFoodView() {
 
 // Date nav
 document.getElementById("foodPrevDay").addEventListener("click", function() {
-  foodDate = foodShiftDay(foodDate, -1); renderFoodView();
+  foodDate = foodShiftDay(foodDate, -1); foodMealPicked = false; renderFoodView();
 });
 document.getElementById("foodNextDay").addEventListener("click", function() {
   var today = (function(){ var d=new Date(); return d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1)+"-"+(d.getDate()<10?"0":"")+d.getDate(); })();
-  if (foodDate < today) { foodDate = foodShiftDay(foodDate, 1); renderFoodView(); }
-});
-
-// Meal toggle
-document.getElementById("foodMealToggle").addEventListener("click", function() {
-  currentFoodMeal = (currentFoodMeal + 1) % MEAL_TYPES.length;
-  var mt = MEAL_TYPES[currentFoodMeal];
-  this.innerHTML = mt.icon + " " + mt.label;
+  if (foodDate < today) { foodDate = foodShiftDay(foodDate, 1); foodMealPicked = false; renderFoodView(); }
 });
 
 // Add food entry
