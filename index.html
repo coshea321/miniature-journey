@@ -507,6 +507,19 @@ body.train-mode #toast{background:#3A3328}
 .whi-row{font-size:14px;color:#4A4030;padding:3px 0;border-bottom:1px solid #fff;display:flex;justify-content:space-between}
 .whi-row:last-child{border-bottom:none}
 .whi-sets{font-size:12px;color:#8A7A5A;font-weight:600}
+.whi-toggle{cursor:pointer;align-items:center}
+.whi-chev{font-size:10px;color:#B8AE9C;margin-left:8px}
+.whi-detail{border-top:1px solid #F0EBE0;margin-top:9px;padding-top:9px}
+.whd-meta{font-size:12px;color:#8A7A5A;font-weight:600;margin-bottom:9px}
+.whd-ex{margin-bottom:11px}
+.whd-ex:last-child{margin-bottom:0}
+.whd-ex-name{font-size:13px;font-weight:700;color:#2A2010;display:flex;justify-content:space-between;gap:8px}
+.whd-ex-vol{font-size:11px;color:#8A7A5A;font-weight:600;white-space:nowrap}
+.whd-sets{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.whd-set{display:flex;align-items:center;gap:5px;background:#FDFAF3;border:1px solid #F0EBE0;border-radius:7px;padding:4px 8px;font-size:12px;color:#4A4030}
+.whd-set-num{font-size:10px;font-weight:700;color:#B8AE9C}
+.whd-set-none{color:#B8AE9C}
+.whd-note{font-size:12px;color:#4A4030;line-height:1.5;margin-top:6px;padding:6px 9px;background:#FDFAF3;border-left:2px solid #3B6FE0;border-radius:0 7px 7px 0;white-space:pre-wrap}
 
 /* Body weight */
 .bw-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:13px;border:1px solid #E0DCD4}
@@ -675,6 +688,9 @@ body.train-mode #toast{background:#3A3328}
 .ss-field-label{font-size:10px;color:#8A7A5A;margin-bottom:4px;font-weight:700;text-transform:uppercase}
 .ss-input{width:100%;padding:9px 6px;border:1.5px solid #F0EBE0;border-radius:8px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:16px;text-align:center;outline:none}
 .ss-input:focus{border-color:#3B6FE0}
+.ss-note{width:100%;box-sizing:border-box;margin-top:8px;padding:8px 10px;border:1.5px solid #F0EBE0;border-radius:8px;background:#FDFAF3;color:#2A2010;font-family:inherit;font-size:14px;line-height:1.45;resize:vertical;outline:none}
+.ss-note:focus{border-color:#3B6FE0}
+.ss-note::placeholder{color:#B8AE9C}
 .ss-done-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:block;width:calc(100% - 28px);margin:12px 14px 14px;padding:14px;border:none;background:#3B6FE0;color:#fff;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer}
 
 /* Cond option + done screen */
@@ -945,7 +961,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v455 · 03/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v456 · 03/09/2026</div>
 
   </div>
 </div>
@@ -19381,7 +19397,7 @@ function finishPhysio() {
 // BODYWEIGHT WORKOUT SESSION
 // ============================================================
 function openWorkoutSession(wType) {
-  SS = { type:"workout", wType:wType, wSsIdx:0, wRound:1, wPhase:"intro", wRestTime:0, wRestDur:0, wCondRound:1, wEntries:{}, wTyped:{}, wLast:wktLastEntries(wType) };
+  SS = { type:"workout", wType:wType, wSsIdx:0, wRound:1, wPhase:"intro", wRestTime:0, wRestDur:0, wCondRound:1, wEntries:{}, wTyped:{}, wNotes:{}, wLast:wktLastEntries(wType) };
   var wk = WK_TRAIN[wType];
   openSessionOverlay(wk.name);
   document.getElementById("sesProgFill").style.background = wk.color;
@@ -19479,6 +19495,7 @@ function renderWorkoutSession() {
   }
 
   // Log phase: show current superset
+  if (!SS.wNotes) SS.wNotes = {};   // a session object built elsewhere may predate notes (v456)
   var ss2 = wk.supersets[SS.wSsIdx];
   var total = wk.supersets.reduce(function(t,s){ return t+s.rounds; }, 0);
   var done  = wk.supersets.slice(0,SS.wSsIdx).reduce(function(t,s){ return t+s.rounds; },0) + (SS.wRound-1);
@@ -19487,9 +19504,13 @@ function renderWorkoutSession() {
   var exHtml2 = ss2.exercises.map(function(ex){
     var key = ss2.id+"_"+SS.wRound+"_"+ex.id;
     var val = wktFillEntry(ss2.id, SS.wRound, ex);
+    // The note (v456) is per EXERCISE, not per round: its key has no round in it,
+    // so the same text shows on all three rounds and saves once with the exercise.
+    var nKey = wktNoteKey(ss2.id, ex);
     return "<div class='ss-ex'>" +
       "<div class='ss-ex-name'>"+esc(ex.name)+"</div>" + (ex.cue ? "<div class='ss-ex-cue'>"+esc(ex.cue)+"</div>" : "") +
       "<div class='ss-inputs'>" + inputsHtml(ex, key, val) + "</div>" +
+      "<textarea class='ss-note' rows='2' placeholder='Notes (optional)' data-nkey='"+nKey+"'>"+esc(SS.wNotes[nKey]||"")+"</textarea>" +
     "</div>";
   }).join("");
 
@@ -19570,7 +19591,18 @@ function wireInputs() {
       SS.wTyped[key+"."+field] = true;
     });
   });
+  // Notes (v456): "input", not "change" — a round can advance from the Done
+  // button while the box still has focus, and change wouldn't have fired yet.
+  document.querySelectorAll(".ss-note").forEach(function(ta) {
+    ta.addEventListener("input", function() { if (!SS.wNotes) SS.wNotes = {}; SS.wNotes[ta.dataset.nkey] = ta.value; });
+  });
 }
+
+// One note per exercise per session. Deliberately NOT prefilled from last time
+// the way the numbers are (wktLastEntries): last week's "left shoulder twinged"
+// is a fact about last week, and a stale note re-saved as today's is worse than
+// no note at all.
+function wktNoteKey(ssId, ex) { return ssId+"_"+ex.id; }
 
 function beginWorkout() {
   SS.wPhase = "log";
@@ -19635,7 +19667,7 @@ function finishWorkoutSession(withCond) {
         var v = SS.wEntries[ss2.id+"_"+r+"_"+ex.id]||{};
         sets.push({ reps:+v.reps||0, weight:+v.weight||0, duration:+v.duration||0 });
       }
-      exercises.push({ name:ex.name, sets:sets });
+      exercises.push({ name:ex.name, sets:sets, notes:((SS.wNotes||{})[wktNoteKey(ss2.id, ex)]||"").trim() });
     });
   });
   var _wSets = exercises.reduce(function(s,ex){ return s + (ex.sets?ex.sets.length:0); }, 0);
@@ -19785,6 +19817,50 @@ function wireWorkoutLog() {
 }
 
 // ── History ───────────────────────────────────────────────
+// A history card opens (v456) to show every set as it was logged plus the
+// per-exercise note typed during the session. Everything here is read-only and
+// every part of it goes through esc() — workouts arrive from sync and from a
+// restored backup, so a name or a note is no more trusted than any other field.
+function wktSetText(s) {
+  if (!s) return "";
+  var parts = [];
+  if (+s.reps)     parts.push(s.reps + " rep" + (+s.reps === 1 ? "" : "s"));
+  if (+s.weight)   parts.push(s.weight + " kg");
+  if (+s.duration) parts.push(s.duration + "s");
+  return parts.join(" · ");
+}
+
+function wktHistoryDetailHTML(w) {
+  var meta = [];
+  if (w.sessionName) meta.push(esc(w.sessionName));
+  if (w.duration)    meta.push(esc(String(w.duration)) + " min");
+  if (w.poses)       meta.push(esc(String(w.poses)) + " poses");
+  if (w.calories)    meta.push(esc(String(w.calories)) + " kcal");
+  else if (w.kcal)   meta.push("~" + esc(String(w.kcal)) + " kcal");
+
+  var rows = "";
+  (w.exercises || []).forEach(function(ex) {
+    if (!ex) return;
+    var sets = ex.sets || [], setHtml = "", vol = 0;
+    sets.forEach(function(st, i) {
+      var txt = wktSetText(st);
+      if (!txt) return;                                  // an unlogged set is left out, not shown as a blank
+      vol += (+st.weight || 0) * (+st.reps || 0);
+      setHtml += "<div class='whd-set'><span class='whd-set-num'>" + (i+1) + "</span><span>" + esc(txt) + "</span></div>";
+    });
+    if (!setHtml) setHtml = "<div class='whd-set whd-set-none'>Nothing logged</div>";
+    rows += "<div class='whd-ex'>" +
+      "<div class='whd-ex-name'><span>" + esc(ex.name || "Exercise") + "</span>" +
+        (vol > 0 ? "<span class='whd-ex-vol'>" + vol.toLocaleString() + " kg vol</span>" : "") + "</div>" +
+      "<div class='whd-sets'>" + setHtml + "</div>" +
+      (ex.notes ? "<div class='whd-note'>" + esc(ex.notes) + "</div>" : "") +
+    "</div>";
+  });
+
+  if (!rows && !meta.length) return "<div class='whd-meta'>No details recorded.</div>";
+  return (meta.length ? "<div class='whd-meta'>" + meta.join(" · ") + "</div>" : "") + rows;
+}
+
 function renderWorkoutHistory() {
   var data = getWD(), el = document.getElementById("trainHistoryContent");
   var sessions = (data.workouts||[]).slice();
@@ -19814,10 +19890,25 @@ function renderWorkoutHistory() {
         "<div class='whi-date wh-date-edit' data-wid='"+w.id+"' style='cursor:pointer;text-decoration:underline dotted;flex:1'>"+trainFmtDateLong(w.date)+"</div>"+
         "<button class='wh-del-btn' data-wid='"+w.id+"' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;opacity:.5;padding:0 4px'>&#x2715;</button>"+
       "</div>"+
-      "<div class='whi-row'><span>"+icon+" "+esc(name)+"</span><span class='whi-sets'>"+sub+"</span></div>"+
+      "<div class='whi-row whi-toggle' data-wid='"+w.id+"'><span>"+icon+" "+esc(name)+"</span>"+
+        "<span class='whi-sets'>"+sub+"<span class='whi-chev'>&#x25BC;</span></span></div>"+
+      "<div class='whi-detail' data-wid='"+w.id+"' style='display:none'>"+wktHistoryDetailHTML(w)+"</div>"+
     "</div>";
   });
   el.innerHTML = html;
+
+  // Tap the summary row to open the session (v456). The date span and the delete
+  // button sit on their own row, so this never steals either of their taps.
+  el.querySelectorAll(".whi-toggle").forEach(function(row) {
+    row.addEventListener("click", function() {
+      var det = row.parentNode.querySelector(".whi-detail");
+      if (!det) return;
+      var open = det.style.display === "none";
+      det.style.display = open ? "" : "none";
+      var chev = row.querySelector(".whi-chev");
+      if (chev) chev.innerHTML = open ? "&#x25B2;" : "&#x25BC;";
+    });
+  });
 
   // Delete with confirmation
   el.querySelectorAll(".wh-del-btn").forEach(function(btn) {
@@ -22088,11 +22179,11 @@ function buildTestSeed() {
     workouts:{
       workouts:[
         { id:_tsId(), date:_tsDay(-2), exercises:[
-          { name:"Squat",      sets:[{weight:60,reps:8},{weight:60,reps:8},{weight:65,reps:6}] },
-          { name:"Bench press",sets:[{weight:45,reps:8},{weight:45,reps:8}] }
+          { name:"Squat",      sets:[{weight:60,reps:8},{weight:60,reps:8},{weight:65,reps:6}], notes:"Felt strong — go up 5kg next time." },
+          { name:"Bench press",sets:[{weight:45,reps:8},{weight:45,reps:8}], notes:"" }
         ]},
         { id:_tsId(), date:_tsDay(-5), exercises:[
-          { name:"Deadlift",   sets:[{weight:80,reps:5},{weight:85,reps:5}] }
+          { name:"Deadlift",   sets:[{weight:80,reps:5},{weight:85,reps:5}], notes:"Lower back a bit tight on the second set." }
         ]}
       ],
       bodyweight:[
