@@ -961,7 +961,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v457 · 03/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v462 · 05/09/2026</div>
 
   </div>
 </div>
@@ -2259,6 +2259,11 @@ function saveCurrentList() {
 function getTombs(lt){ var t = storeGet("fl4_tomb_" + lt); return (t && typeof t === "object") ? t : {}; }
 function addTomb(lt, id){ if (id == null) return; var t = getTombs(lt); t[id] = Date.now(); storeSet("fl4_tomb_" + lt, t); }
 function purgeTombs(t){ var cut = Date.now() - 90*24*3600*1000, o = {}; Object.keys(t||{}).forEach(function(k){ if (t[k] > cut) o[k] = t[k]; }); return o; } // 90d (7d→30d in v289, →90d in v295): a device offline longer than the purge window can resurrect deleted items — 90d covers a drawer-bound tablet; tombstones are tiny, so the cost is nil
+// v462: a personal record's revival stamp. action_log / food_log / saved_meals
+// were created without an `updated` field, so creation id (Date.now()) is the
+// fallback -- the same rule medUpdatedTs uses for doses. This is what lets a
+// RESTORED record out-rank a tombstone: see the three filters in applyPersonal.
+function personalTs(e){ return (e && (e.updated || e.id)) || 0; }
 function mergeTombs(a, b){ var o = {}; [a,b].forEach(function(t){ Object.keys(t||{}).forEach(function(k){ if (!(k in o) || t[k] > o[k]) o[k] = t[k]; }); }); return o; }
 
 // ── History-entry deletion tombstones (v323) — keyed by lowercase item name ──
@@ -14522,7 +14527,12 @@ function importBackupData(data) {
   // importedSummary; a restore that silently reports nothing reads as a broken
   // backup file, which is the worst thing a backup can do.
   var imported={lists:0,recipes:0,trips:0,notes:0,food:0,meals:0,plants:0,
-                watchlist:0,inventory:0,health:0,logEntries:0,medEntries:0,workouts:0,baby:0};
+                watchlist:0,inventory:0,health:0,logEntries:0,medEntries:0,workouts:0,baby:0,
+                // v462: records the file held that were deliberately NOT restored
+                // because they are deleted medical data. Counted separately and
+                // kept OUT of IMPORT_LABELS on purpose -- it is not a record type,
+                // it is the honest other half of the count.
+                skipped:0};
   if(data.lists){
     ["grocery","todo","travel","personal"].forEach(function(lt){
       if(!data.lists[lt]) return;
@@ -14577,9 +14587,29 @@ function importBackupData(data) {
     if(Array.isArray(bd2.bags) && (!Array.isArray(bd.bags)||!bd.bags.length)) bd.bags=bd2.bags;
     saveBD(bd);
   }
-  if(Array.isArray(data.action_log)){var al=getActionLog(),alIds={};al.forEach(function(x){alIds[x.id]=true;});var newAl=data.action_log.filter(function(x){return x&&!alIds[x.id];});imported.logEntries=newAl.length;if(newAl.length)storeSet("fl4_action_log",newAl.concat(al));}
-  if(Array.isArray(data.track_med)){var tm=getTrackMed(),tmIds={};tm.forEach(function(x){tmIds[x.id]=true;});var newTm=data.track_med.filter(function(x){return x&&!tmIds[x.id];});imported.medEntries=newTm.length;if(newTm.length)storeSet("fl4_track_med",newTm.concat(tm));}
-  if(Array.isArray(data.food_log)){var fl=getFoodLog(),flIds={};fl.forEach(function(x){flIds[x.id]=true;});var newFl=data.food_log.filter(function(x){return x&&!flIds[x.id];});imported.food=newFl.length;if(newFl.length)storeSet("fl4_food_log",newFl.concat(fl));}
+  // v462: a restored entry is stamped updated=now so it out-ranks any tombstone
+  // held by this device OR another one -- the applyPersonal filters compare the
+  // two (personalTs). Clearing only the local tombstone, as this used to rely on,
+  // could never work: mergeTombs pulls the other device's copy straight back in.
+  if(Array.isArray(data.action_log)){var al=getActionLog(),alIds={};al.forEach(function(x){alIds[x.id]=true;});var newAl=data.action_log.filter(function(x){return x&&!alIds[x.id];});newAl.forEach(function(x){x.updated=Date.now();});imported.logEntries=newAl.length;if(newAl.length)storeSet("fl4_action_log",newAl.concat(al));}
+  // v462: the one collection here that does NOT come back. A deleted medicine
+  // record is medical data, so the deletion stands (Cathal, 05/09/2026) -- the
+  // same rule baby growth/medicine/milestones already follow. It used to be
+  // restored and counted as imported, then filtered straight back out by the
+  // next sync, so the count was a promise the app could not keep. Now it is
+  // skipped and reported. Do NOT "fix" this by clearing the tombstone.
+  if(Array.isArray(data.track_med)){
+    var tm=getTrackMed(),tmIds={};tm.forEach(function(x){tmIds[x.id]=true;});
+    var tmTombs=getTombs("track_med"), newTm=[];
+    data.track_med.forEach(function(x){
+      if(!x||tmIds[x.id]) return;
+      if(tmTombs[x.id]!==undefined){ imported.skipped++; return; }
+      newTm.push(x);
+    });
+    imported.medEntries=newTm.length;
+    if(newTm.length)storeSet("fl4_track_med",newTm.concat(tm));
+  }
+  if(Array.isArray(data.food_log)){var fl=getFoodLog(),flIds={};fl.forEach(function(x){flIds[x.id]=true;});var newFl=data.food_log.filter(function(x){return x&&!flIds[x.id];});newFl.forEach(function(x){x.updated=Date.now();});imported.food=newFl.length;if(newFl.length)storeSet("fl4_food_log",newFl.concat(fl));}  // v462: stamped, see action_log above
   if(data.food_notes){var fn=storeGet("fl4_food_notes")||{};Object.keys(data.food_notes).forEach(function(k){if(!fn[k])fn[k]=data.food_notes[k];});storeSet("fl4_food_notes",fn);}
   // Saved meals: additive only, and a restored meal CLEARS any matching
   // tombstone — the same shape as the recipebook/plants/watchlist restores
@@ -14596,7 +14626,9 @@ function importBackupData(data) {
     var newSm=data.saved_meals.filter(function(m){return m&&m.id!=null&&!smIds[m.id];});
     if(newSm.length){
       var smTombsR=getTombs("saved_meals"), smChanged=false;
-      newSm.forEach(function(m){ if(smTombsR[m.id]!==undefined){ delete smTombsR[m.id]; smChanged=true; } });
+      // v462: the updated stamp is what actually revives it across devices;
+      // the local clear below is kept so THIS device is right immediately.
+      newSm.forEach(function(m){ m.updated=Date.now(); if(smTombsR[m.id]!==undefined){ delete smTombsR[m.id]; smChanged=true; } });
       if(smChanged) storeSet("fl4_tomb_saved_meals", smTombsR);
       storeSet("fl4_saved_meals", sm.concat(newSm));
       imported.meals=newSm.length;
@@ -14764,6 +14796,15 @@ var IMPORT_LABELS = [
   ["workouts",   "workout",        "workouts"],
   ["baby",       "baby record",    "baby records"]
 ];
+// v462: the skipped tally in plain English, matching the wording the plant
+// importer already uses ("deleted on another device"). ONE builder for both
+// report sites -- a manual import and a cloud restore must never disagree
+// about what happened.
+function importedSkippedText(n){
+  var k=+(n&&n.skipped)||0;
+  if(!k) return "";
+  return k+" medicine record"+(k!==1?"s":"")+" deleted on another device "+(k!==1?"were":"was")+" not restored";
+}
 function importedSummary(n){
   var parts=[], total=0;
   IMPORT_LABELS.forEach(function(L){
@@ -14797,7 +14838,8 @@ document.getElementById("importFile").addEventListener("change", function(e) {
       if (currentSection === "track" && typeof renderTrackView === "function") renderTrackView();
       pushPersonal(); if (typeof isHouseholdSet === "function" && isHouseholdSet()) pushHousehold();
       var s=importedSummary(n);
-      toast(s ? "Imported: "+s : "Nothing new to import");
+      var sk=importedSkippedText(n);
+      toast(s ? ("Imported: "+s+(sk?" \u00b7 "+sk:"")) : (sk ? sk : "Nothing new to import"));
     } catch(err){ toast("Import failed: "+err.message); }
     e.target.value="";
   };
@@ -14821,7 +14863,7 @@ function openCloudBackupsSheet() {
   ov.innerHTML =
     "<div style='background:#fff;border-radius:16px;padding:20px;width:100%;max-width:340px;max-height:70vh;overflow-y:auto'>" +
       "<div style='font-size:16px;font-weight:800;color:#4A3A20;margin-bottom:4px'>&#x2601;&#xFE0F; Cloud backups</div>" +
-      "<div style='font-size:12px;color:#8A7A5A;line-height:1.45;margin-bottom:12px'>Restoring adds anything missing back into your data &#8212; nothing is deleted, and the change syncs to both of you.</div>" +
+      "<div style='font-size:12px;color:#8A7A5A;line-height:1.45;margin-bottom:12px'>Restoring adds anything missing back into your data &#8212; nothing is deleted, and the change syncs to both of you. Deleted medicine records are not brought back, and which sections you show and share is left as you have it here.</div>" +
       "<div id='cbList' style='font-size:13px;color:#8A7A5A'>Loading&#8230;</div>" +
       "<button id='cbClose' data-bbclose style='width:100%;margin-top:12px;padding:11px;border:none;background:none;color:#7A8772;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Close</button>" +
     "</div>";
@@ -14867,7 +14909,8 @@ function restoreCloudBackup(dateKey, token, closeOv) {
         if (currentSection === "home"    && typeof renderHomeScreen === "function") renderHomeScreen();
         if (closeOv) closeOv();
         var s = importedSummary(n);
-        toast(s ? "Restored: " + s : "Nothing to restore — you already have everything in that backup");
+        var sk2=importedSkippedText(n);
+        toast(s ? ("Restored: " + s + (sk2?" \u00b7 "+sk2:"")) : (sk2 ? sk2 : "Nothing to restore — you already have everything in that backup"));
       })
       .catch(function(e){ toast("Restore failed: " + e.message); });
   });
@@ -15652,7 +15695,11 @@ function applyPersonal(d) {
     var localLog = getActionLog(), logIndex = {};
     localLog.forEach(function(e){ if(e) logIndex[e.id]=e; });
     d.action_log.filter(Boolean).forEach(function(e){ logIndex[e.id]=e; });
-    var alOut = Object.values(logIndex).filter(function(e){ return e && _alTombs[e.id] == null; });
+    // v462: a tombstone only wins over a record it is NEWER than -- the rule
+    // plants, trips, notes, recipes, workouts, inventory and health all already
+    // use. Was unconditional, so a restored entry was deleted again by the
+    // other device's tombstone no matter how freshly it had been restored.
+    var alOut = Object.values(logIndex).filter(function(e){ return e && !(_alTombs[e.id] >= personalTs(e)); });
     storeSet("fl4_action_log", alOut.sort(function(a,b){return b.ts-a.ts;}));
   }
 
@@ -15663,6 +15710,11 @@ function applyPersonal(d) {
     var localTm = getTrackMed(), tmIndex = {};
     localTm.forEach(function(e){ if(e) tmIndex[e.id]=e; });
     d.track_med.filter(Boolean).forEach(function(e){ tmIndex[e.id]=e; });
+    // v462: this filter stays UNCONDITIONAL on purpose, unlike its three
+    // neighbours. Cathal's call, 05/09/2026: a deleted medicine record is
+    // medical data and a deletion of it must stick -- it is never revived by a
+    // restore, and importBackupData reports it as skipped instead of silently
+    // counting it as imported. Do NOT "make this consistent" with the others.
     var tmOut = Object.values(tmIndex).filter(function(e){ return e && _tmTombs[e.id] == null; });
     storeSet("fl4_track_med", tmOut.sort(function(a,b){return b.ts-a.ts;}));
   }
@@ -15674,7 +15726,7 @@ function applyPersonal(d) {
     var localFood = getFoodLog(), foodIndex = {};
     localFood.forEach(function(e){ if(e) foodIndex[e.id]=e; });
     d.food_log.filter(Boolean).forEach(function(e){ foodIndex[e.id]=e; });
-    var flOut = Object.values(foodIndex).filter(function(e){ return e && _flTombs[e.id] == null; });
+    var flOut = Object.values(foodIndex).filter(function(e){ return e && !(_flTombs[e.id] >= personalTs(e)); });  // v462: see action_log above
     storeSet("fl4_food_log", flOut.sort(function(a,b){return b.id-a.id;}));
   }
 
@@ -15695,7 +15747,7 @@ function applyPersonal(d) {
     var localSM = storeGet("fl4_saved_meals") || [], smIndex = {};
     localSM.forEach(function(m){ if(m) smIndex[m.id]=m; });
     d.saved_meals.filter(Boolean).forEach(function(m){ smIndex[m.id]=m; });
-    storeSet("fl4_saved_meals", Object.values(smIndex).filter(function(m){ return m && _smTombs[m.id] == null; }));
+    storeSet("fl4_saved_meals", Object.values(smIndex).filter(function(m){ return m && !(_smTombs[m.id] >= personalTs(m)); }));  // v462: see action_log above
   }
   // ── Calorie goal + TDEE profile: newest-wins by stamp (v441) ─────────────
   // Both used to be taken from the incoming payload unconditionally, which is
