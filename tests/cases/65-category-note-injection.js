@@ -1,12 +1,12 @@
 'use strict';
 
 // v463: custom categories arrive UNVALIDATED from three inbound paths (backup
-// import, household sync, personal sync) and were rendered raw at eight sites
-// -- name/emoji via string concatenation instead of esc(), bg/fg dropped
-// straight into a style='...' attribute. A category name/emoji/colour crafted
-// to break out of that markup could inject a live element or attribute.
-// Notes carry the same shape of bug: n.id was interpolated into single-quoted
-// data-noteid attributes with no escaping.
+// import, household sync, personal sync) and were rendered raw at eleven
+// sites -- name/emoji via string concatenation instead of esc(), bg/fg
+// dropped straight into a style='...' attribute. A category name/emoji/
+// colour crafted to break out of that markup could inject a live element or
+// attribute. Notes carry the same shape of bug: n.id was interpolated into
+// single-quoted data-noteid attributes with no escaping.
 //
 // This case feeds a hostile category through the real importBackupData() path
 // (not a direct storeSet) and a hostile note id through the real notes store,
@@ -14,6 +14,18 @@
 // no injected <img>/<svg> element, no script ever ran, and every colour that
 // reaches a style attribute is a safe hex value from catColorSafe(), never
 // the raw attacker string.
+//
+// It ALSO renders a normal item under a real BUILT-IN category alongside the
+// hostile one. First-cut fix wrapped emoji in esc() like name -- but every
+// real category emoji (built-in and custom alike, since the picker only ever
+// assigns from the fixed CAT_EMOJIS list) is stored as ONE HTML numeric
+// entity ("&#x1F966;") and rendered RAW so the browser decodes it. esc()'ing
+// it turns "&" into "&amp;" and shows the literal entity text on screen
+// instead of the emoji -- a real regression Cathal caught from a screenshot
+// that the injection assertions above never would have (they only prove
+// nothing executable landed, not that legitimate emoji still render). Do NOT
+// go back to esc() for the emoji field -- use catEmojiSafe(), which accepts
+// only that exact entity shape.
 
 module.exports = {
   name: '65-category-note-injection',
@@ -42,7 +54,10 @@ module.exports = {
 
       currentList = 'grocery';
       listData.grocery = {
-        items: [{ id: 900901, name: 'Evil item', catId: 'custom_evil', done: false }],
+        items: [
+          { id: 900901, name: 'Evil item', catId: 'custom_evil', done: false },
+          { id: 900903, name: 'Normal item', catId: 'produce', done: false }
+        ],
         hist:  [{ name: 'Evil item', catId: 'custom_evil', count: 1 }]
       };
 
@@ -92,6 +107,26 @@ module.exports = {
       ok('catColorSafe rejects an attribute-breakout string', catColorSafe("red' onmouseover='x", '#DEFAULT') === '#DEFAULT', 'got: ' + catColorSafe("red' onmouseover='x", '#DEFAULT'));
       ok('catColorSafe rejects a non-string', catColorSafe(null, '#DEFAULT') === '#DEFAULT', 'got: ' + catColorSafe(null, '#DEFAULT'));
       ok('catColorSafe falls back to its own default with none given', catColorSafe('nonsense') === '#EDEAE4', 'got: ' + catColorSafe('nonsense'));
+
+      // catEmojiSafe() unit checks -- the field esc() would have broken.
+      ok('catEmojiSafe accepts a real category entity unchanged', catEmojiSafe('&#x1F966;') === '&#x1F966;', 'got: ' + catEmojiSafe('&#x1F966;'));
+      ok('catEmojiSafe rejects a hostile emoji value', catEmojiSafe('<svg onload=x>', '&#xDEF;') === '&#xDEF;', 'got: ' + catEmojiSafe('<svg onload=x>', '&#xDEF;'));
+      ok('catEmojiSafe rejects a non-string', catEmojiSafe(null, '&#xDEF;') === '&#xDEF;', 'got: ' + catEmojiSafe(null, '&#xDEF;'));
+      ok('catEmojiSafe falls back to its own default with none given', catEmojiSafe('nonsense') === '&#x1F4E6;', 'got: ' + catEmojiSafe('nonsense'));
+
+      // The regression itself: a NORMAL item under a real built-in category
+      // (produce, "&#x1F966;") must render as the DECODED emoji character on
+      // screen, never as literal "&#x1F966;" text (which is what esc()'ing
+      // the entity produces -- "&" becomes "&amp;" and the browser shows the
+      // escaped text instead of decoding it).
+      var normalPill = Array.prototype.slice.call(document.querySelectorAll('#listContent .item-pill'))
+        .filter(function(el){ return el.textContent.indexOf('Produce') !== -1; })[0];
+      ok('a real category emoji renders as the decoded character, not literal entity text',
+        !!normalPill && normalPill.textContent.indexOf('&#x') === -1 && normalPill.textContent.indexOf('\\uD83E\\uDD66') !== -1,
+        'got: ' + (normalPill ? JSON.stringify(normalPill.textContent) : 'no produce pill found'));
+      var anyLiteralEntityText = containers.some(function(el){ return el.textContent.indexOf('&#x') !== -1; });
+      ok('no container shows literal "&#x" entity text anywhere (the esc()-on-emoji regression)',
+        !anyLiteralEntityText, 'got: ' + containers.map(function(el){ return el.textContent.indexOf('&#x'); }).join(','));
 
       // Note ids: same shape of bug, a different store. A hostile id must not
       // break out of the single-quoted data-noteid attribute.

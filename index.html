@@ -2429,6 +2429,15 @@ function getCat(id) {
 function catColorSafe(v, dflt) {
   return (typeof v === "string" && /^#[0-9a-f]{3,8}$/i.test(v)) ? v : (dflt || "#EDEAE4");
 }
+// v463 hotfix: every real category emoji (built-in AND custom -- the picker
+// only ever assigns from the fixed CAT_EMOJIS list) is stored as ONE HTML
+// numeric entity like "&#x1F966;" and rendered RAW so the browser decodes
+// it -- esc()'ing it turns "&" into "&amp;" and shows the literal entity
+// text instead of the emoji. So emoji gets its own gate, not esc(): accept
+// only that exact entity shape, else fall back to a safe default.
+function catEmojiSafe(v, dflt) {
+  return (typeof v === "string" && /^&#x[0-9a-f]{1,8};$/i.test(v)) ? v : (dflt || "&#x1F4E6;");
+}
 
 // ============================================================
 // STATE
@@ -2538,7 +2547,7 @@ elCatChip.addEventListener("click", function(){ openPicker(null); });
 
 function showCatRow(catId, isAuto) {
   var c = getCat(catId);
-  elCatChip.innerHTML = esc(c.emoji) + " " + esc(c.name);
+  elCatChip.innerHTML = catEmojiSafe(c.emoji) + " " + esc(c.name);
   elCatChip.style.background = catColorSafe(c.bg,"#EDEAE4");
   elCatChip.style.color = catColorSafe(c.fg,"#4A4A3A");
   elCatHint.style.display = isAuto ? "inline" : "none";
@@ -2584,7 +2593,7 @@ function showAC(query) {
       : "<span class='ac-times'>"+(h.count||1)+"x</span>";
     html += "<div class='ac-item' data-name='"+esc(h.name)+"' data-cat='"+c.id+"'>" +
       "<span class='ac-name'>"+hl+"</span>" +
-      "<span class='ac-badge' style='background:"+catColorSafe(c.bg,"#EDEAE4")+";color:"+catColorSafe(c.fg,"#4A4A3A")+"'>"+esc(c.emoji)+" "+esc(c.name)+"</span>" +
+      "<span class='ac-badge' style='background:"+catColorSafe(c.bg,"#EDEAE4")+";color:"+catColorSafe(c.fg,"#4A4A3A")+"'>"+catEmojiSafe(c.emoji)+" "+esc(c.name)+"</span>" +
       trailer + "</div>";
   }
   elAc.innerHTML = html; elAc.style.display = "block";
@@ -11937,7 +11946,7 @@ function renderList() {
     if (_listSearchQuery) catOpen = true; // always expand while searching
     html+="<div class='sec-hdr cat-toggle' data-catkey='"+catKey+"' style='cursor:pointer'>" +
       "<span class='done-toggle-arrow"+(catOpen?"":" collapsed")+"' style='margin-right:4px'>&#9660;</span>" +
-      "<span>"+esc(c.emoji)+"&ensp;<span class='sec-name'>"+esc(c.name)+"</span></span>" +
+      "<span>"+catEmojiSafe(c.emoji)+"&ensp;<span class='sec-name'>"+esc(c.name)+"</span></span>" +
       "<div class='sec-line'></div><span class='sec-count'>"+gi.length+"</span></div>";
     html+="<div class='cat-items' style='display:"+(catOpen?"block":"none")+"'>";
     for (var ii=0;ii<gi.length;ii++) html+=cardHTML(gi[ii],c);
@@ -12211,7 +12220,7 @@ function cardHTML(item, c) {
 
       noteSnip + linkChip +
     "</div>" +
-    "<span class='item-pill' style='background:" + catColorSafe(c.bg,"#EDEAE4") + ";color:" + catColorSafe(c.fg,"#4A4A3A") + "' title='Tap to change category'>" + esc(c.emoji) + " " + esc(c.name) + "</span>" +
+    "<span class='item-pill' style='background:" + catColorSafe(c.bg,"#EDEAE4") + ";color:" + catColorSafe(c.fg,"#4A4A3A") + "' title='Tap to change category'>" + catEmojiSafe(c.emoji) + " " + esc(c.name) + "</span>" +
     starBtn +
     "<button class='del-btn'>&#x2715;</button></div>";
 }
@@ -12375,7 +12384,7 @@ function renderHistory() {
     for (var j=0;j<items.length;j++) { if (!items[j].done&&items[j].name.toLowerCase()===h.name.toLowerCase()) { inList=true; break; } }
     var sel = !!_histSelected[h.name.toLowerCase()];
     html+="<div class='hist-item' data-name='"+esc(h.name)+"' data-cat='"+c.id+"'>" +
-      "<span class='hist-emoji'>"+esc(c.emoji)+"</span>" +
+      "<span class='hist-emoji'>"+catEmojiSafe(c.emoji)+"</span>" +
       "<div class='hist-body'><div class='hist-name'>"+esc(h.name)+"</div>" +
       "<div class='hist-meta'><span class='hist-cat' style='background:"+catColorSafe(c.bg,"#EDEAE4")+";color:"+catColorSafe(c.fg,"#4A4A3A")+"'>"+esc(c.name)+"</span>" +
       "<span class='hist-count'>Added "+(h.count||1)+"x</span></div></div>" +
@@ -12452,7 +12461,7 @@ function renderPickerGrid() {
   for (var i=0;i<cats.length;i++) {
     var c=cats[i];
     html+="<div class='picker-opt"+(activeCatId===c.id?" sel":"")+"' style='background:"+catColorSafe(c.bg,"#EDEAE4")+";color:"+catColorSafe(c.fg,"#4A4A3A")+"' data-id='"+esc(c.id)+"'>"+
-      "<span style='font-size:20px'>"+esc(c.emoji)+"</span><span>"+esc(c.name)+"</span></div>";
+      "<span style='font-size:20px'>"+catEmojiSafe(c.emoji)+"</span><span>"+esc(c.name)+"</span></div>";
   }
   document.getElementById("pickerGrid").innerHTML = html;
   document.getElementById("pickerGrid").querySelectorAll(".picker-opt").forEach(function(opt) {
@@ -14237,7 +14246,7 @@ function renderCustomCatsList() {
     html += "<div style='font-size:12px;font-weight:700;color:#7A8772;margin-bottom:6px;margin-top:12px;text-transform:uppercase'>"+lt+"</div>";
     cc.forEach(function(c, idx) {
       html += "<div style='display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border-radius:9px;margin-bottom:5px;box-shadow:0 1px 4px rgba(0,0,0,.07)'>" +
-        "<span style='font-size:20px'>"+esc(c.emoji)+"</span>" +
+        "<span style='font-size:20px'>"+catEmojiSafe(c.emoji)+"</span>" +
         "<span style='flex:1;font-size:15px;font-weight:500'>"+esc(c.name)+"</span>" +
         "<span style='font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:"+catColorSafe(c.bg,"#EDEAE4")+";color:"+catColorSafe(c.fg,"#4A4A3A")+"'>"+esc(c.name)+"</span>" +
         "<button class='del-btn' style='opacity:.5' data-lt='"+lt+"' data-idx='"+idx+"'>&#x2715;</button>" +
@@ -17191,7 +17200,7 @@ window.addEventListener("DOMContentLoaded", function() {
     cats.forEach(function(c){
       var gi = groups[c.id];
       if (!gi || !gi.length) return;
-      body += "<h2>" + esc(c.emoji) + " " + esc(c.name) + "</h2><ul>";
+      body += "<h2>" + catEmojiSafe(c.emoji) + " " + esc(c.name) + "</h2><ul>";
       gi.forEach(function(it){
         var due = (isTask && it.dueDate) ? " <span class='due'>(due " + it.dueDate + ")</span>" : "";
         var note = it.notes ? "<div class='note'>" + esc(it.notes) + "</div>" : "";
@@ -18522,7 +18531,7 @@ function renderSpotlight(elId, lt, maxItems, todayOnly) {
     var item = items[j];
     var cat  = catMap[item.catId] || catMap["other"] || { emoji:"&#x1F4E6;", name:"Other", bg:"#EDEAE4", fg:"#4A4A3A" };
     html += "<div class='home-item'>" +
-      "<span class='home-item-emoji'>"+esc(cat.emoji)+"</span>" +
+      "<span class='home-item-emoji'>"+catEmojiSafe(cat.emoji)+"</span>" +
       "<span class='home-item-name'>"+esc(item.name)+"</span>" +
       "<span class='home-item-cat' style='background:"+catColorSafe(cat.bg,"#EDEAE4")+";color:"+catColorSafe(cat.fg,"#4A4A3A")+"'>"+esc(cat.name)+"</span>" +
     "</div>";
