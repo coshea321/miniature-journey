@@ -961,7 +961,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v459 · 05/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v461 · 05/09/2026</div>
 
   </div>
 </div>
@@ -13326,6 +13326,27 @@ function getFoodLog() {
 }
 function saveFoodLog(e) { storeSet("fl4_food_log", e); pushPersonal(); }
 
+// v461: food-log ids were Date.now(), so two entries added inside the SAME
+// millisecond got the same id -- and every "newest id wins" read then picked
+// arbitrarily. Re-opening a day could default to Breakfast when Dinner was
+// what you logged last, and it is what made 61-food-meal-dropdown.js fail on
+// roughly half of all runs. One of the three creation sites had already been
+// patched with Date.now()+Math.random(); the other two had not, which is
+// exactly why the bug survived that patch.
+//
+// This is now the ONLY way a food-log id is made: strictly increasing even
+// within a single tick, so a tie cannot be created. Do NOT return a bare
+// Date.now() at any call site -- the id is also the entry's identity for sync
+// dedup and for deletion tombstones, so a collision is not just a sorting
+// nuisance, it can make two entries the same record.
+var _foodIdLast = 0;
+function nextFoodId() {
+  var t = Date.now();
+  if (t <= _foodIdLast) t = _foodIdLast + 1;
+  _foodIdLast = t;
+  return t;
+}
+
 // What the meal dropdown should start on for a given day: Breakfast for the
 // first entry of the day, otherwise the meal last logged on it. Derived from
 // the log rather than remembered in a variable, so it is right for whichever
@@ -13337,7 +13358,13 @@ function foodDefaultMeal(date) {
   var last = null;
   getFoodLog().forEach(function(e) {
     if (e.date !== date) return;
-    if (!last || (e.id || 0) > (last.id || 0)) last = e;
+    // v461: nextFoodId() stops NEW ties being created, but entries already
+    // stored -- or logged on the other phone in the same millisecond -- can
+    // still share an id, and this read must not be arbitrary for them. Break a
+    // tie toward the later meal: a day runs breakfast to supper, so the higher
+    // meal index is the likelier "last logged" of the two.
+    var lid = last ? (last.id || 0) : -1, eid = e.id || 0;
+    if (!last || eid > lid || (eid === lid && (e.meal || 0) > (last.meal || 0))) last = e;
   });
   return last ? last.meal : 0; // getFoodLog has already normalised meal to an index
 }
@@ -13418,7 +13445,7 @@ function openRecipeFoodLogSheet(id) {
     var total = Math.round(r.kcal * portions);
     var text  = r.name + (portions === 1 ? "" : " (" + fmtPortions(portions) + " portions)");
     var log = getFoodLog();
-    log.push({ id: Date.now(), date: foodTodayStr(), meal: mealIdx, text: text, cal: total, calAuto: false });
+    log.push({ id: nextFoodId(), date: foodTodayStr(), meal: mealIdx, text: text, cal: total, calAuto: false });
     saveFoodLog(log);
     close();
     toast("&#x1F373; " + MEAL_TYPES[mealIdx].label + ": " + text + " (" + total + " kcal)");
@@ -13737,7 +13764,7 @@ function renderFoodView() {
       if (!meal) return;
       var entries2 = getFoodLog();
       meal.items.forEach(function(it) {
-        entries2.push({ id:Date.now() + Math.random(), date:foodDate, meal:currentFoodMeal, text:it.text, cal:it.cal, calAuto:it.calAuto });
+        entries2.push({ id:nextFoodId(), date:foodDate, meal:currentFoodMeal, text:it.text, cal:it.cal, calAuto:it.calAuto });  // v461: was Date.now()+Math.random()
       });
       saveFoodLog(entries2);
       renderFoodView();
@@ -13801,7 +13828,7 @@ document.getElementById("foodAddBtn").addEventListener("click", function() {
   var calAuto = !manualCal && !!autoCal;
 
   var entries = getFoodLog();
-  entries.push({ id:Date.now(), date:foodDate, meal:currentFoodMeal, text:text, cal:cal, calAuto:calAuto });
+  entries.push({ id:nextFoodId(), date:foodDate, meal:currentFoodMeal, text:text, cal:cal, calAuto:calAuto });
   saveFoodLog(entries);
 
   document.getElementById("foodItemInput").value = "";
