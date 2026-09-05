@@ -33,9 +33,14 @@ async function runCases(page, dir, caseFiles, beforeEach, annotations) {
     const file = caseFiles[i];
     const caseModule = require(path.join(dir, file));
 
+    // Baseline captured BEFORE beforeEach's reset/reload runs (v464) — the
+    // reset navigates a fresh page load, and a startup failure during THAT
+    // load must fail this case, not get silently absorbed into the "before"
+    // count the way it was when the baseline was taken after beforeEach.
+    const errsBefore = page.pageErrors.length;
+
     await beforeEach(file, i);
 
-    const errsBefore = page.pageErrors.length;
     let result;
     try {
       result = await caseModule.run(page);
