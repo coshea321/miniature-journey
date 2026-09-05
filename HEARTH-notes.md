@@ -20,7 +20,7 @@
 3. **`HEARTH-backlog.md`** — strike through anything the version closed, and add anything it opened.
 
 ## Current version
-**v462 · 05/09/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
+**v463 · 05/09/2026** — last shipped build (version label is **date-only**, sourced from `sw.js` VERSION constant — but since v382 **only when the announced SW version is not NEWER than the loaded page**; see the v382 entry in `HEARTH-changelog.md`).
 
 ## Train programme safety content (v415, re-reviewed v446, merged v447) — four rules
 The Train programmes carry Cathal's clinical constraints as on-screen text. The precise history, as of 30/08/2026: **a 4 cm hiatus hernia, mild bilateral L5/S1 _foraminal_ stenosis and an L4/L5 disc bulge.** Foraminal (not central canal) narrowing closes on **extension, side-bending and rotation**; the L4/L5 bulge is loaded by **end-range and loaded flexion**. So the target is the **middle of the range in both directions** — the generic "flexion opens the spinal canal" advice is written for central canal stenosis and only half applies here. Three rules:
@@ -138,6 +138,8 @@ Home · Lists · Recipes · Baby · Trips · Track · Watch (+ Train, Sports, Fa
     {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
     {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"maskable"}
     ```
+
+14. **Custom category name/emoji/bg/fg arrive unvalidated from three inbound paths (backup import, household sync, personal sync) — the same shape of bug as appliance/health links, fixed the same way (v463).** Every render site must `esc()` the name/emoji and pass bg/fg through the one top-level **`catColorSafe(v, dflt)`** (accepts only `/^#[0-9a-f]{3,8}$/i`, else `dflt`) before it reaches a `style='...'` attribute or an `.innerHTML =` assignment. **Never add a second colour-validation gate** (the v428 lesson). A property assignment via `.style.background = x` is not itself an injection risk (the CSSOM setter can't execute HTML/JS), but it still goes through `catColorSafe` for consistency and to stop a malformed value quietly breaking the UI. **When adding a new category render site, grep past the exact `"+c.X+"` shape** — v463's own fix pass, done exactly that way, still missed three real sites on the first grep: `cardHTML`'s `c.fg`-derived `leftColor` (parenthesized, not a plain `+`), the add-item chip's direct `elCatChip.innerHTML = c.emoji+" "+c.name`, and the Home spotlight card's `cat.*` fields — all only surfaced by actually running the injection test against the rendered DOM, not by re-reading the grep output.
 
 ## Data & export
 - Export auto-includes anything nested in `getWD()` (workouts incl. bodyweight/bp), `getBD()` (baby incl. growth/medicine/milestones/teeth/bags/babySex), `getActionLog()` (incl. cardio), plus list items themselves (incl. per-item `amount`, `tags`, `today`, `recipe`, `added` (v325), `checks` (v326) fields).

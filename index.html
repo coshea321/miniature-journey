@@ -961,7 +961,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v462 · 05/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v463 · 05/09/2026</div>
 
   </div>
 </div>
@@ -2423,6 +2423,12 @@ function getCat(id) {
   for (var i = 0; i < cats.length; i++) { if (cats[i].id === id) return cats[i]; }
   return cats[cats.length-1];
 }
+// v463: custom categories arrive unvalidated from backup import, household
+// sync and personal sync, so bg/fg must be gated before hitting a style
+// attribute — one gate, used at every category render site.
+function catColorSafe(v, dflt) {
+  return (typeof v === "string" && /^#[0-9a-f]{3,8}$/i.test(v)) ? v : (dflt || "#EDEAE4");
+}
 
 // ============================================================
 // STATE
@@ -2532,9 +2538,9 @@ elCatChip.addEventListener("click", function(){ openPicker(null); });
 
 function showCatRow(catId, isAuto) {
   var c = getCat(catId);
-  elCatChip.innerHTML = c.emoji + " " + c.name;
-  elCatChip.style.background = c.bg;
-  elCatChip.style.color = c.fg;
+  elCatChip.innerHTML = esc(c.emoji) + " " + esc(c.name);
+  elCatChip.style.background = catColorSafe(c.bg,"#EDEAE4");
+  elCatChip.style.color = catColorSafe(c.fg,"#4A4A3A");
   elCatHint.style.display = isAuto ? "inline" : "none";
   elCatRow.style.display = "flex";
 }
@@ -2578,7 +2584,7 @@ function showAC(query) {
       : "<span class='ac-times'>"+(h.count||1)+"x</span>";
     html += "<div class='ac-item' data-name='"+esc(h.name)+"' data-cat='"+c.id+"'>" +
       "<span class='ac-name'>"+hl+"</span>" +
-      "<span class='ac-badge' style='background:"+c.bg+";color:"+c.fg+"'>"+c.emoji+" "+c.name+"</span>" +
+      "<span class='ac-badge' style='background:"+catColorSafe(c.bg,"#EDEAE4")+";color:"+catColorSafe(c.fg,"#4A4A3A")+"'>"+esc(c.emoji)+" "+esc(c.name)+"</span>" +
       trailer + "</div>";
   }
   elAc.innerHTML = html; elAc.style.display = "block";
@@ -11931,7 +11937,7 @@ function renderList() {
     if (_listSearchQuery) catOpen = true; // always expand while searching
     html+="<div class='sec-hdr cat-toggle' data-catkey='"+catKey+"' style='cursor:pointer'>" +
       "<span class='done-toggle-arrow"+(catOpen?"":" collapsed")+"' style='margin-right:4px'>&#9660;</span>" +
-      "<span>"+c.emoji+"&ensp;<span class='sec-name'>"+c.name+"</span></span>" +
+      "<span>"+esc(c.emoji)+"&ensp;<span class='sec-name'>"+esc(c.name)+"</span></span>" +
       "<div class='sec-line'></div><span class='sec-count'>"+gi.length+"</span></div>";
     html+="<div class='cat-items' style='display:"+(catOpen?"block":"none")+"'>";
     for (var ii=0;ii<gi.length;ii++) html+=cardHTML(gi[ii],c);
@@ -12181,7 +12187,7 @@ function cardHTML(item, c) {
   var dupBadge = isDup
     ? "<span style='display:inline-block;font-size:10px;font-weight:700;background:#FCE4C4;color:#A85A10;padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle'>DUPLICATE</span>"
     : "";
-  var leftColor = isDup ? "#E8A030" : (isNew ? "#E0703C" : (c.fg + "33"));
+  var leftColor = isDup ? "#E8A030" : (isNew ? "#E0703C" : (catColorSafe(c.fg,"#4A4A3A") + "33"));
   var starBtn = (currentList === "todo")
     ? "<button class='star-btn' title='Pick for today' style='width:34px;height:40px;flex-shrink:0;border:none;background:none;font-size:18px;line-height:1;cursor:pointer;padding:0;color:" + (item.today?"#E8A030":"#D0C8B8") + "'>" + (item.today?"&#x2605;":"&#x2606;") + "</button>"
     : "";
@@ -12205,7 +12211,7 @@ function cardHTML(item, c) {
 
       noteSnip + linkChip +
     "</div>" +
-    "<span class='item-pill' style='background:" + c.bg + ";color:" + c.fg + "' title='Tap to change category'>" + c.emoji + " " + c.name + "</span>" +
+    "<span class='item-pill' style='background:" + catColorSafe(c.bg,"#EDEAE4") + ";color:" + catColorSafe(c.fg,"#4A4A3A") + "' title='Tap to change category'>" + esc(c.emoji) + " " + esc(c.name) + "</span>" +
     starBtn +
     "<button class='del-btn'>&#x2715;</button></div>";
 }
@@ -12369,9 +12375,9 @@ function renderHistory() {
     for (var j=0;j<items.length;j++) { if (!items[j].done&&items[j].name.toLowerCase()===h.name.toLowerCase()) { inList=true; break; } }
     var sel = !!_histSelected[h.name.toLowerCase()];
     html+="<div class='hist-item' data-name='"+esc(h.name)+"' data-cat='"+c.id+"'>" +
-      "<span class='hist-emoji'>"+c.emoji+"</span>" +
+      "<span class='hist-emoji'>"+esc(c.emoji)+"</span>" +
       "<div class='hist-body'><div class='hist-name'>"+esc(h.name)+"</div>" +
-      "<div class='hist-meta'><span class='hist-cat' style='background:"+c.bg+";color:"+c.fg+"'>"+c.name+"</span>" +
+      "<div class='hist-meta'><span class='hist-cat' style='background:"+catColorSafe(c.bg,"#EDEAE4")+";color:"+catColorSafe(c.fg,"#4A4A3A")+"'>"+esc(c.name)+"</span>" +
       "<span class='hist-count'>Added "+(h.count||1)+"x</span></div></div>" +
       (_histSelectMode
         ? "<span class='hist-check"+(sel?" sel":"")+"'>"+(sel?"&#10003;":"")+"</span>"
@@ -12445,8 +12451,8 @@ function renderPickerGrid() {
   var html = "";
   for (var i=0;i<cats.length;i++) {
     var c=cats[i];
-    html+="<div class='picker-opt"+(activeCatId===c.id?" sel":"")+"' style='background:"+c.bg+";color:"+c.fg+"' data-id='"+c.id+"'>"+
-      "<span style='font-size:20px'>"+c.emoji+"</span><span>"+c.name+"</span></div>";
+    html+="<div class='picker-opt"+(activeCatId===c.id?" sel":"")+"' style='background:"+catColorSafe(c.bg,"#EDEAE4")+";color:"+catColorSafe(c.fg,"#4A4A3A")+"' data-id='"+esc(c.id)+"'>"+
+      "<span style='font-size:20px'>"+esc(c.emoji)+"</span><span>"+esc(c.name)+"</span></div>";
   }
   document.getElementById("pickerGrid").innerHTML = html;
   document.getElementById("pickerGrid").querySelectorAll(".picker-opt").forEach(function(opt) {
@@ -12620,17 +12626,17 @@ function renderNotesSection() {
       ? "Created " + new Date(n.createdAt).toLocaleDateString("en-IE",{day:"numeric",month:"short"}) : "";
     var dtStr = dtMod ? (dtCreate ? dtCreate + " · " : "") + "Modified " + dtMod : dtCreate;
     var isHL = !!n.highlighted;
-    return "<div style='background:" + (isHL ? "#FFF8E8" : "#fff") + ";border-radius:11px;padding:13px 14px;margin:0 12px 8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.07);touch-action:manipulation;border:" + (isHL ? "2px solid #F5A623" : "2px solid transparent") + "' data-action='openNote' data-noteid='" + n.id + "'>" +
+    return "<div style='background:" + (isHL ? "#FFF8E8" : "#fff") + ";border-radius:11px;padding:13px 14px;margin:0 12px 8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.07);touch-action:manipulation;border:" + (isHL ? "2px solid #F5A623" : "2px solid transparent") + "' data-action='openNote' data-noteid='" + esc(n.id) + "'>" +
       "<div style='display:flex;align-items:flex-start;gap:6px'>" +
         "<div style='flex:1'>" +
           "<div style='font-size:15px;font-weight:700;color:#2A2010;margin-bottom:3px'>" + esc(n.title||"Untitled") + "</div>" +
           "<div style='font-size:13px;color:#8A7A60;margin-bottom:4px'>" + esc(preview) + "</div>" +
         "</div>" +
-        "<button data-action='highlightNote' data-noteid='" + n.id + "' style='border:none;background:none;font-size:18px;cursor:pointer;touch-action:manipulation;padding:0 0 0 4px;flex-shrink:0;opacity:" + (isHL ? "1" : "0.25") + "'>" + (isHL ? "&#x2B50;" : "&#x2606;") + "</button>" +
+        "<button data-action='highlightNote' data-noteid='" + esc(n.id) + "' style='border:none;background:none;font-size:18px;cursor:pointer;touch-action:manipulation;padding:0 0 0 4px;flex-shrink:0;opacity:" + (isHL ? "1" : "0.25") + "'>" + (isHL ? "&#x2B50;" : "&#x2606;") + "</button>" +
       "</div>" +
       "<div style='display:flex;align-items:center;justify-content:space-between;margin-top:4px'>" +
         "<span style='font-size:11px;color:#B8A880'>" + dtStr + "</span>" +
-        "<button data-action='deleteNote' data-noteid='" + n.id + "' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation'>&#x2715;</button>" +
+        "<button data-action='deleteNote' data-noteid='" + esc(n.id) + "' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation'>&#x2715;</button>" +
       "</div></div>";
   }).join("");
 
@@ -14231,9 +14237,9 @@ function renderCustomCatsList() {
     html += "<div style='font-size:12px;font-weight:700;color:#7A8772;margin-bottom:6px;margin-top:12px;text-transform:uppercase'>"+lt+"</div>";
     cc.forEach(function(c, idx) {
       html += "<div style='display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border-radius:9px;margin-bottom:5px;box-shadow:0 1px 4px rgba(0,0,0,.07)'>" +
-        "<span style='font-size:20px'>"+c.emoji+"</span>" +
+        "<span style='font-size:20px'>"+esc(c.emoji)+"</span>" +
         "<span style='flex:1;font-size:15px;font-weight:500'>"+esc(c.name)+"</span>" +
-        "<span style='font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:"+c.bg+";color:"+c.fg+"'>"+c.name+"</span>" +
+        "<span style='font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:"+catColorSafe(c.bg,"#EDEAE4")+";color:"+catColorSafe(c.fg,"#4A4A3A")+"'>"+esc(c.name)+"</span>" +
         "<button class='del-btn' style='opacity:.5' data-lt='"+lt+"' data-idx='"+idx+"'>&#x2715;</button>" +
         "</div>";
     });
@@ -15212,6 +15218,7 @@ function fetchWithTimeout(url, options, timeoutMs) {
 // ── Firebase Auth REST API ────────────────────────────────
 function getAuthToken(cb) {
   if (_isTestBuild) { cb(null); return; } // test builds never get a token, so Firebase denies every read/write
+  if (!isLoggedIn()) { cb(null); return; } // v463: a logged-out device must never hand back a still-live cached token
   // Return cached token if still valid (with 5-min buffer)
   if (hearthIdToken && Date.now() < hearthTokenExpiry - 300000) {
     cb(hearthIdToken); return;
@@ -15561,8 +15568,10 @@ function logout(silent) {
   if (hearthSyncES)   { hearthSyncES.close();   hearthSyncES = null; }
   if (hearthHealthES) { hearthHealthES.close();  hearthHealthES = null; }
   hearthUser = ""; hearthToken = ""; hearthHouse = "";
+  hearthIdToken = ""; hearthTokenExpiry = 0; // v463: a cached id token must not outlive logout
   _personalFetchOk = false; _householdFetchOk = false; // v419: a new session must read before it pushes
   storeSet("hearth_user",""); storeSet("hearth_token",""); storeSet("hearth_household","");
+  storeSet("hearth_refresh_token",""); // v463: leaving this behind let a logged-out device keep refreshing auth
   if (!silent) showLoginOverlay();
   updateSyncStatus();
 }
@@ -17182,7 +17191,7 @@ window.addEventListener("DOMContentLoaded", function() {
     cats.forEach(function(c){
       var gi = groups[c.id];
       if (!gi || !gi.length) return;
-      body += "<h2>" + c.emoji + " " + esc(c.name) + "</h2><ul>";
+      body += "<h2>" + esc(c.emoji) + " " + esc(c.name) + "</h2><ul>";
       gi.forEach(function(it){
         var due = (isTask && it.dueDate) ? " <span class='due'>(due " + it.dueDate + ")</span>" : "";
         var note = it.notes ? "<div class='note'>" + esc(it.notes) + "</div>" : "";
@@ -18513,9 +18522,9 @@ function renderSpotlight(elId, lt, maxItems, todayOnly) {
     var item = items[j];
     var cat  = catMap[item.catId] || catMap["other"] || { emoji:"&#x1F4E6;", name:"Other", bg:"#EDEAE4", fg:"#4A4A3A" };
     html += "<div class='home-item'>" +
-      "<span class='home-item-emoji'>"+cat.emoji+"</span>" +
+      "<span class='home-item-emoji'>"+esc(cat.emoji)+"</span>" +
       "<span class='home-item-name'>"+esc(item.name)+"</span>" +
-      "<span class='home-item-cat' style='background:"+cat.bg+";color:"+cat.fg+"'>"+cat.name+"</span>" +
+      "<span class='home-item-cat' style='background:"+catColorSafe(cat.bg,"#EDEAE4")+";color:"+catColorSafe(cat.fg,"#4A4A3A")+"'>"+esc(cat.name)+"</span>" +
     "</div>";
   }
   el.innerHTML = html;
