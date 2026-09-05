@@ -961,7 +961,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v457 · 03/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v458 · 05/09/2026</div>
 
   </div>
 </div>
@@ -15553,7 +15553,16 @@ function flushSyncRenders(dirty) {
   // v449: same guard shape again — an incoming sync must not redraw a
   // half-typed health record away.
   if (dirty.health && currentSection === "health" && !_healthEditing) safeRender("health", renderHealth);
-  if (dirty.baby    && currentSection === "baby")                       safeRender("baby",    renderBabyView);
+  // v458: Baby gets the same guard, with a twist — the Log-medicine form is
+  // always on screen, so there is no "editor open" flag to test and the dirty
+  // check has to be the form's own contents. Without this, another device's
+  // Baby update rebuilt renderMedicine and wiped a half-typed dose.
+  // Skipping the refresh is SAFE and must NOT be rebuilt as a save/restore of
+  // the field values: the interval speed-bump re-reads getBD() live inside the
+  // Log click handler (medHistoryFor), so the advisory is computed when Log is
+  // pressed and is never stale — only the displayed panel is, and it refreshes
+  // on the next sync after logging.
+  if (dirty.baby    && currentSection === "baby" && !medDraftOpen())     safeRender("baby",    renderBabyView);
   // Lists: unchanged except for the section guard. switchSection() re-renders
   // the list on entry, so skipping it while hidden can't leave a stale view.
   if (dirty.list    && currentSection === "lists")                      safeRender("list",    renderList);
@@ -21488,6 +21497,18 @@ function openAddBottleOverlay(onSave) {
   document.getElementById("_bSave").addEventListener("click", doSave);
   document.getElementById("_bCancel").addEventListener("click", function(){ document.body.removeChild(ov); });
   inp.addEventListener("keydown", function(e){ if (e.key === "Enter") doSave(); });
+}
+
+// v458: true when the Log-medicine form is on screen holding something he
+// typed but has not logged yet. medTime is deliberately EXCLUDED — it is
+// pre-filled with "now" on every render, so counting it would make the form
+// permanently dirty and Baby would never refresh from sync at all.
+function medDraftOpen() {
+  if (currentBabyView !== "medicine") return false;
+  return ["medName","medDose","medNotes"].some(function(id){
+    var el = document.getElementById(id);
+    return !!(el && el.value.trim());
+  });
 }
 
 function renderMedicine() {
