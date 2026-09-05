@@ -21647,11 +21647,15 @@ function medDraftOpen() {
   });
 }
 
+function medNewestFirst(a,b) {
+  return (b.ts||0)-(a.ts||0) || (b.id||0)-(a.id||0);
+}
+
 function renderMedicine() {
   var bd = getBD();
   // Show the administration chronology, not the order records were created.
   // A backfilled or corrected time can disagree with the id indefinitely.
-  var meds = (bd.medicine||[]).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0) || (b.id||0)-(a.id||0); });
+  var meds = (bd.medicine||[]).slice().sort(medNewestFirst);
   var el = document.getElementById("babyMedicineView");
   var now3=new Date(), p3=function(x){return x<10?"0"+x:""+x;};
   var dtStr=now3.getFullYear()+"-"+p3(now3.getMonth()+1)+"-"+p3(now3.getDate())+"T"+p3(now3.getHours())+":"+p3(now3.getMinutes());
@@ -21810,7 +21814,10 @@ function renderMedicine() {
       picker.querySelector("._mSave").addEventListener("click", function(){
         var val = picker.querySelector("input").value;
         var newTs = val ? new Date(val).getTime() : m.ts;
-        if (!isNaN(newTs)) { m.ts = newTs; m.updated = Date.now(); bd2.medicine.sort(function(a,b){ return b.id-a.id; }); saveBD(bd2); }
+        if (!isNaN(newTs)) {
+          m.ts = newTs; m.updated = Date.now(); bd2.medicine.sort(medNewestFirst);
+          saveBD(bd2);
+        }
         renderMedicine();
       });
       picker.querySelector("._mCancel").addEventListener("click", function(){ picker.remove(); });

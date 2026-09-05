@@ -1,8 +1,9 @@
 'use strict';
 
 // v465: the Baby medicine history follows the entered administration time,
-// not the record id (which records when the entry itself was created). A
-// backfilled dose or an edited time can make those two orders disagree.
+// not the record id (which records when the entry itself was created). Drive
+// the real datetime editor too: its save path once re-sorted the stored array
+// by id, contradicting the renderer after a correction.
 
 module.exports = {
   name: '68-medicine-history-order',
@@ -17,29 +18,57 @@ module.exports = {
     const r = await page.evaluate(`(function(){
       var bd = getBD();
       bd.medicine = [
-        {id:200, name:'Created later, administered earlier', dose:'1ml', ts:1000, updated:200},
-        {id:100, name:'Created earlier, administered later', dose:'2ml', ts:2000, updated:100},
+        {id:200, name:'Calpol newer administration', dose:'1ml', ts:new Date('2026-09-05T02:30').getTime(), updated:200},
+        {id:100, name:'Nurofen older administration', dose:'2ml', ts:new Date('2026-09-04T21:00').getTime(), updated:100},
         {id:300, name:'No administration time', dose:'3ml', ts:0, updated:300}
       ];
       saveBD(bd);
       switchSection('baby');
       currentBabyView = 'medicine';
       renderBabyView();
-      return Array.from(document.querySelectorAll('#babyMedicineView .med-row')).map(function(row){
-        return {
-          id: Number(row.querySelector('.med-del-btn').dataset.medid),
-          text: row.textContent
-        };
-      });
+      function rows(){
+        return Array.from(document.querySelectorAll('#babyMedicineView .med-row')).map(function(row){
+          return {
+            id: Number(row.querySelector('.med-del-btn').dataset.medid),
+            text: row.textContent
+          };
+        });
+      }
+      var initial = rows();
+      var trigger = document.querySelector(".med-dt-edit-trigger[data-medid='100']");
+      trigger.click();
+      var picker = trigger.closest('.med-row').querySelector('.med-dt-edit');
+      picker.querySelector('input').value = '2026-09-05T03:30';
+      picker.querySelector('._mSave').click();
+      return {
+        initial:initial,
+        immediate:rows(),
+        stored:(getBD().medicine||[]).map(function(m){ return m.id; })
+      };
     })()`);
 
-    ok('all medicine records render', r.length === 3, JSON.stringify(r));
+    ok('all medicine records render', r.initial.length === 3, JSON.stringify(r));
     ok('newest administration time renders first',
-      r[0] && r[0].id === 100 && /administered later/.test(r[0].text), JSON.stringify(r));
-    ok('older administration time renders second despite newer id',
-      r[1] && r[1].id === 200 && /administered earlier/.test(r[1].text), JSON.stringify(r));
+      r.initial[0] && r.initial[0].id === 200 && /newer administration/.test(r.initial[0].text), JSON.stringify(r));
+    ok('older administration time renders second',
+      r.initial[1] && r.initial[1].id === 100 && /older administration/.test(r.initial[1].text), JSON.stringify(r));
     ok('missing administration time sinks below timed records',
-      r[2] && r[2].id === 300 && /No administration time/.test(r[2].text), JSON.stringify(r));
+      r.initial[2] && r.initial[2].id === 300 && /No administration time/.test(r.initial[2].text), JSON.stringify(r));
+    ok('edited dose immediately moves above the previously newer dose',
+      r.immediate[0] && r.immediate[0].id === 100 && r.immediate[1] && r.immediate[1].id === 200, JSON.stringify(r));
+    ok('datetime save persists the same administration-time order',
+      JSON.stringify(r.stored) === JSON.stringify([100,200,300]), JSON.stringify(r));
+
+    await page.navigate(page.appUrl);
+    const reloaded = await page.evaluate(`(function(){
+      switchSection('baby');
+      currentBabyView = 'medicine';
+      renderBabyView();
+      return Array.from(document.querySelectorAll('#babyMedicineView .med-row .med-del-btn'))
+        .map(function(btn){ return Number(btn.dataset.medid); });
+    })()`);
+    ok('edited order survives a full reload',
+      JSON.stringify(reloaded) === JSON.stringify([100,200,300]), JSON.stringify(reloaded));
 
     return { pass, fail };
   },
