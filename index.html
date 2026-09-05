@@ -14587,11 +14587,25 @@ function importBackupData(data) {
     if(Array.isArray(bd2.bags) && (!Array.isArray(bd.bags)||!bd.bags.length)) bd.bags=bd2.bags;
     saveBD(bd);
   }
-  // v462: a restored entry is stamped updated=now so it out-ranks any tombstone
-  // held by this device OR another one -- the applyPersonal filters compare the
-  // two (personalTs). Clearing only the local tombstone, as this used to rely on,
-  // could never work: mergeTombs pulls the other device's copy straight back in.
-  if(Array.isArray(data.action_log)){var al=getActionLog(),alIds={};al.forEach(function(x){alIds[x.id]=true;});var newAl=data.action_log.filter(function(x){return x&&!alIds[x.id];});newAl.forEach(function(x){x.updated=Date.now();});imported.logEntries=newAl.length;if(newAl.length)storeSet("fl4_action_log",newAl.concat(al));}
+  // v462: reviving a restored entry takes BOTH halves, and each covers a case
+  // the other cannot. The updated=now stamp out-ranks the tombstone the OTHER
+  // device holds (mergeTombs pulls that copy back in on the next pull, so
+  // deleting it locally could never work -- the v443 saved-meals repair failed
+  // for exactly that reason). Clearing THIS device's tombstone covers the tie:
+  // the filters use `tomb >= record`, so a tombstone written in the same
+  // millisecond as the restore would otherwise still win. Both, or neither
+  // works -- this is the shape saved_meals and recipebook already use.
+  if(Array.isArray(data.action_log)){
+    var al=getActionLog(),alIds={};al.forEach(function(x){alIds[x.id]=true;});
+    var newAl=data.action_log.filter(function(x){return x&&!alIds[x.id];});
+    if(newAl.length){
+      var alTombsR=getTombs("action_log"), alChanged=false;
+      newAl.forEach(function(x){ x.updated=Date.now(); if(alTombsR[x.id]!==undefined){ delete alTombsR[x.id]; alChanged=true; } });
+      if(alChanged) storeSet("fl4_tomb_action_log", alTombsR);
+      storeSet("fl4_action_log",newAl.concat(al));
+    }
+    imported.logEntries=newAl.length;
+  }
   // v462: the one collection here that does NOT come back. A deleted medicine
   // record is medical data, so the deletion stands (Cathal, 05/09/2026) -- the
   // same rule baby growth/medicine/milestones already follow. It used to be
@@ -14609,7 +14623,17 @@ function importBackupData(data) {
     imported.medEntries=newTm.length;
     if(newTm.length)storeSet("fl4_track_med",newTm.concat(tm));
   }
-  if(Array.isArray(data.food_log)){var fl=getFoodLog(),flIds={};fl.forEach(function(x){flIds[x.id]=true;});var newFl=data.food_log.filter(function(x){return x&&!flIds[x.id];});newFl.forEach(function(x){x.updated=Date.now();});imported.food=newFl.length;if(newFl.length)storeSet("fl4_food_log",newFl.concat(fl));}  // v462: stamped, see action_log above
+  if(Array.isArray(data.food_log)){
+    var fl=getFoodLog(),flIds={};fl.forEach(function(x){flIds[x.id]=true;});
+    var newFl=data.food_log.filter(function(x){return x&&!flIds[x.id];});
+    if(newFl.length){
+      var flTombsR=getTombs("food_log"), flChanged=false;
+      newFl.forEach(function(x){ x.updated=Date.now(); if(flTombsR[x.id]!==undefined){ delete flTombsR[x.id]; flChanged=true; } });
+      if(flChanged) storeSet("fl4_tomb_food_log", flTombsR);
+      storeSet("fl4_food_log",newFl.concat(fl));
+    }
+    imported.food=newFl.length;
+  }
   if(data.food_notes){var fn=storeGet("fl4_food_notes")||{};Object.keys(data.food_notes).forEach(function(k){if(!fn[k])fn[k]=data.food_notes[k];});storeSet("fl4_food_notes",fn);}
   // Saved meals: additive only, and a restored meal CLEARS any matching
   // tombstone — the same shape as the recipebook/plants/watchlist restores
