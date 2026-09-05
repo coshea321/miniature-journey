@@ -961,7 +961,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v463 · 05/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v464 · 05/09/2026</div>
 
   </div>
 </div>
@@ -3813,9 +3813,7 @@ function renderPlantImport() {
     document.getElementById("plImpCancel").addEventListener("click", leave);
     document.getElementById("plCopyPrompt").addEventListener("click", plantCopyPrompt);
     document.getElementById("plImportGo").addEventListener("click", function(){
-      var raw = (document.getElementById("plImportJson").value || "").trim();
-      // Chats love to wrap JSON in ```json fences even when told not to.
-      raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+      var raw = stripPasteFence(document.getElementById("plImportJson").value);
       if (!raw) { toast("Paste the JSON first"); return; }
       var parsed = parsePlantFile(raw);
       if (parsed.error) { toast(parsed.error); return; }
@@ -6180,9 +6178,7 @@ function renderInventoryImport() {
       "<button id='invImpGo' style='width:100%;padding:13px;border:none;background:" + APPL_COLOR + ";color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation'>Next &rsaquo;</button>";
     document.getElementById("invImpCancel").addEventListener("click", leave);
     document.getElementById("invImpGo").addEventListener("click", function(){
-      var raw = (document.getElementById("invImpJson").value || "").trim();
-      // Chats and text editors love to wrap JSON in ```json fences.
-      raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+      var raw = stripPasteFence(document.getElementById("invImpJson").value);
       if (!raw) { toast("Paste the file first"); return; }
       var parsed = parseInventoryFile(raw);
       if (parsed.error) { toast(parsed.error); return; }
@@ -9743,7 +9739,7 @@ function parsePrepReply(raw) {
   // A chat reply arrives wrapped in a ``` fence about as often as not, and
   // sometimes with a sentence either side of it. Take the outermost {...}
   // rather than demanding a surgically clean paste.
-  s = s.replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/, "").trim();
+  s = stripPasteFence(s);
   var a = s.indexOf("{"), b = s.lastIndexOf("}");
   if (a !== -1 && b > a) s = s.slice(a, b + 1);
   var obj;
@@ -11473,9 +11469,9 @@ function recipesFromAIJSON(raw) {
 // — dispatch on shape so recipeImportText stays a single box. Chats love to
 // wrap JSON in ```json fences even when told not to.
 function recipesFromImportText(text) {
-  var t = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  var t = stripPasteFence(text);
   if (t.charAt(0) === "{") return recipesFromAIJSON(t);
-  return recipesFromCSV(text);
+  return recipesFromCSV(t);
 }
 function cleanText(s) {
   s = (s||"").trim();
@@ -16067,6 +16063,16 @@ function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").rep
 
 function escNl(s) {
   return esc(s).replace(/\n/g, "<br>");
+}
+
+// v464: shared paste-dispatch helper (plants/inventory/prep/recipes imports).
+// A chat reply routinely arrives with a leading blank line before its ```
+// fence; stripping the fence BEFORE trimming leaves it in place because the
+// strip regex is anchored at the true start of the string, not the start of
+// its content. Trim, strip, trim again — one copy, so a future paste-import
+// site can't independently get the order wrong.
+function stripPasteFence(s) {
+  return String(s || "").trim().replace(/^```(?:[a-z]*)?\s*/i, "").replace(/\s*```$/, "").trim();
 }
 
 function toast(msg) {
