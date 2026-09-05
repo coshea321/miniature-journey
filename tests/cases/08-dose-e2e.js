@@ -49,9 +49,22 @@ module.exports = {
     ok('4.5kg Nurofen dose empty (under floor)', r5.dose === '', JSON.stringify(r5));
     ok('4.5kg Nurofen note flags under 5kg', /under 5kg/.test(r5.note), JSON.stringify(r5));
 
+    // v459: with no weight there is NO suggested dose. This assertion used to
+    // pin the opposite ('falls back to 5ml') -- the v457 council review found
+    // that presenting a guess as a standard dose is the defect, not the
+    // behaviour to protect. Do NOT "restore" the fallback to make this pass.
     const r6 = await doseFor(page, null, 'Calpol');
-    ok('no weight logged: Calpol falls back to 5ml', r6.dose === '5ml', JSON.stringify(r6));
-    ok('no weight logged note', /No weight logged/.test(r6.note), JSON.stringify(r6));
+    ok('no weight logged: Calpol suggests no dose', r6.dose === '', JSON.stringify(r6));
+    ok('no weight logged note explains + keeps leaflet wording',
+      /No weight logged/.test(r6.note) && /check the leaflet/.test(r6.note), JSON.stringify(r6));
+
+    // The under-5kg Nurofen block must not be silently skipped by the
+    // no-weight path: without a weight it cannot be evaluated, so the note has
+    // to say so rather than suggest a number.
+    const r7 = await doseFor(page, null, 'Nurofen');
+    ok('no weight logged: Nurofen suggests no dose', r7.dose === '', JSON.stringify(r7));
+    ok('no weight logged: Nurofen note flags the 5kg minimum is unchecked',
+      /5kg minimum/.test(r7.note), JSON.stringify(r7));
 
     return { pass, fail };
   },
