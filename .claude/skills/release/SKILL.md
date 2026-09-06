@@ -1,13 +1,21 @@
 ---
-description: Hearth release tail — bump version, verify, commit, push, open the PR
-argument-hint: [one-line summary of the change]
+name: release
+description: >
+  Run Hearth's release sequence: bump the version, update documentation,
+  verify, commit, push, and open the pull request. Use only when explicitly
+  invoked.
+disable-model-invocation: true
 ---
 
-Run the fixed Hearth release sequence for the change currently in the
-working tree. The one-line summary of the change: $ARGUMENTS
-(if empty, derive it from the diff).
+# Hearth release
 
-Steps, in order — stop at the first failure and report it instead of
+Run the fixed Hearth release sequence for the change currently in the
+working tree.
+
+If the invoking message includes a one-line summary after `/release`, use it
+as the change summary. Otherwise derive the summary from the diff.
+
+Run these steps in order. Stop at the first failure and report it instead of
 continuing:
 
 1. **Determine the new version.** Read the `VERSION` constant in `sw.js`
@@ -36,11 +44,11 @@ continuing:
 5. **Commit** everything with message `vNNN: <summary>`.
 6. **Push** with `git push -u origin <current-branch>`; on network errors
    retry up to 4 times with backoff (2s/4s/8s/16s). Never push to `main`.
-7. **Open the PR immediately** (GitHub MCP `create_pull_request`, base
-   `main`) — never wait to be asked. Title `vNNN: <summary>`. Body: fill in
+7. **Open the PR immediately** with the available pull-request tool, base
+   `main` — never wait to be asked. Title `vNNN: <summary>`. Body: fill in
    `.github/pull_request_template.md` section for section — that file is the
-   canonical PR shape, and the API does not apply it automatically, so you
-   have to reproduce it. In order:
+   canonical PR shape, and APIs do not apply it automatically, so reproduce
+   it. In order:
    - **👉 Try this version** — first line of the body, the test link for
      this branch (v324 test mode: sync/login blocked, data sandboxed;
      v407 demo data: the link opens with a fixed sample household already
