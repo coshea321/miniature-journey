@@ -43,6 +43,35 @@ module.exports = {
         watchInfoLinks({ title: '' }).length === 0 && watchInfoLinks({}).length === 0 && watchInfoLinks(null).length === 0,
         'got: ' + watchInfoLinks({ title: '' }).length);
 
+      // v466: the Wikipedia search carries Wikipedia's own disambiguation
+      // suffix so an ambiguous title resolves to the show/film, not the
+      // famous other thing. JustWatch and IMDb match on the title itself, so
+      // they must NOT get it.
+      function _wikiHref(it) {
+        var m = watchInfoLinks(it).filter(function(l){ return l.href.indexOf('wikipedia.org') > -1; });
+        return m.length ? m[0].href : '';
+      }
+      function _otherHrefs(it) {
+        return watchInfoLinks(it).filter(function(l){ return l.href.indexOf('wikipedia.org') === -1; })
+          .map(function(l){ return l.href; }).join(' | ');
+      }
+      ok('a TV entry searches Wikipedia for "(TV series)"',
+        _wikiHref({ title: 'FBI', kind: 'tv' }).indexOf('FBI%20(TV%20series)') > -1,
+        'got: ' + _wikiHref({ title: 'FBI', kind: 'tv' }));
+      ok('a film entry searches Wikipedia for "(film)"',
+        _wikiHref({ title: 'Dune', kind: 'film' }).indexOf('Dune%20(film)') > -1,
+        'got: ' + _wikiHref({ title: 'Dune', kind: 'film' }));
+      ok('a missing kind reads as film rather than dropping the term',
+        _wikiHref({ title: 'Dune' }).indexOf('Dune%20(film)') > -1,
+        'got: ' + _wikiHref({ title: 'Dune' }));
+      ok('the term never reaches JustWatch or IMDb (they match on the title)',
+        _otherHrefs({ title: 'FBI', kind: 'tv' }).indexOf('TV%20series') === -1 &&
+        _otherHrefs({ title: 'Dune', kind: 'film' }).indexOf('film') === -1,
+        'got: ' + _otherHrefs({ title: 'FBI', kind: 'tv' }));
+      ok('the term is appended, not substituted — the title still encodes cleanly',
+        _wikiHref({ title: 'Tom & Jerry?', kind: 'film' }).indexOf('Tom%20%26%20Jerry%3F%20(film)') > -1,
+        'got: ' + _wikiHref({ title: 'Tom & Jerry?', kind: 'film' }));
+
       // ── watchRatingOf: clamped, never NaN ────────────────────────────────
       ok('an unrated entry reads 0', watchRatingOf({}) === 0 && watchRatingOf({ rating: 0 }) === 0, 'got: ' + watchRatingOf({}));
       ok('a valid rating passes through', watchRatingOf({ rating: 4 }) === 4, 'got: ' + watchRatingOf({ rating: 4 }));
