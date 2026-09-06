@@ -86,6 +86,56 @@ module.exports = {
         _wikiHref({ title: 'Tom & Jerry?', kind: 'film' }).indexOf('Tom%20%26%20Jerry%3F%20film') > -1,
         'got: ' + _wikiHref({ title: 'Tom & Jerry?', kind: 'film' }));
 
+      // ── v467 summary: the pure helpers. The fetch itself is not exercised
+      // here on purpose — a test that hits Wikipedia would be a flake with a
+      // network cable attached. What is pinned is everything around it: the
+      // query the API is given, the truncation, and the disambiguation refusal.
+      ok('the summary asks Wikipedia the SAME question as the link',
+        watchWikiQuery({ title: 'FBI', kind: 'tv' }) === 'FBI TV series' &&
+        _wikiHref({ title: 'FBI', kind: 'tv' }).indexOf(encodeURIComponent('FBI TV series')) > -1,
+        'got: ' + watchWikiQuery({ title: 'FBI', kind: 'tv' }));
+      ok('a title-less entry produces no query at all (nothing to ask)',
+        watchWikiQuery({ title: '' }) === '' && watchWikiQuery(null) === '',
+        'got: ' + JSON.stringify(watchWikiQuery({ title: '' })));
+      ok('the api url is a keyless en.wikipedia call carrying that query',
+        watchSummaryApiUrl({ title: 'Dune', kind: 'film' }).indexOf('en.wikipedia.org/w/api.php') > -1 &&
+        watchSummaryApiUrl({ title: 'Dune', kind: 'film' }).indexOf(encodeURIComponent('Dune film')) > -1,
+        'got: ' + watchSummaryApiUrl({ title: 'Dune', kind: 'film' }));
+      // origin=* is what makes an anonymous browser request CORS-legal. If this
+      // fails the fetch dies silently in the browser with a CORS error.
+      ok('the api url keeps origin=* literal, never encoded',
+        watchSummaryApiUrl({ title: 'Dune', kind: 'film' }).indexOf('origin=*') > -1,
+        'got: ' + watchSummaryApiUrl({ title: 'Dune', kind: 'film' }));
+      ok('a short extract is kept whole, whitespace collapsed',
+        watchSummaryClean('  A   film\\nabout sand. ') === 'A film about sand.',
+        'got: ' + JSON.stringify(watchSummaryClean('  A   film\\nabout sand. ')));
+      ok('a null or missing extract cleans to an empty string, never "null"',
+        watchSummaryClean(null) === '' && watchSummaryClean(undefined) === '',
+        'got: ' + JSON.stringify(watchSummaryClean(null)));
+      var _long = new Array(60).join('Sand dunes stretch out. ');
+      ok('a long extract is truncated before storing, not at render',
+        watchSummaryClean(_long).length <= WATCH_SUMMARY_MAX,
+        'got: ' + watchSummaryClean(_long).length + ' chars');
+      ok('truncation prefers a sentence end so it does not stop mid-clause',
+        /\\.$/.test(watchSummaryClean(_long)),
+        'got tail: ' + JSON.stringify(watchSummaryClean(_long).slice(-30)));
+      var _noStop = new Array(200).join('sand ');
+      ok('an extract with no sentence end still truncates, with an ellipsis',
+        watchSummaryClean(_noStop).length <= WATCH_SUMMARY_MAX + 1 &&
+        watchSummaryClean(_noStop).slice(-1) === '\\u2026',
+        'got: ' + JSON.stringify(watchSummaryClean(_noStop).slice(-10)));
+      // v466's lesson as a guard — a disambiguation page is a worse summary
+      // than none, and it is exactly what an ambiguous title returns.
+      ok('a "(disambiguation)" article is refused by title',
+        watchIsDisambig('Dune (disambiguation)', 'Dune is a hill of sand.') === true,
+        'got: ' + watchIsDisambig('Dune (disambiguation)', 'Dune is a hill of sand.'));
+      ok('a "may refer to" extract is refused even when the title looks fine',
+        watchIsDisambig('Dune', 'Dune or dunes may refer to:') === true,
+        'got: ' + watchIsDisambig('Dune', 'Dune or dunes may refer to:'));
+      ok('a real article is not refused',
+        watchIsDisambig('Dune (2021 film)', 'Dune is a 2021 epic science fiction film.') === false,
+        'got: ' + watchIsDisambig('Dune (2021 film)', 'Dune is a 2021 epic science fiction film.'));
+
       // ── watchRatingOf: clamped, never NaN ────────────────────────────────
       ok('an unrated entry reads 0', watchRatingOf({}) === 0 && watchRatingOf({ rating: 0 }) === 0, 'got: ' + watchRatingOf({}));
       ok('a valid rating passes through', watchRatingOf({ rating: 4 }) === 4, 'got: ' + watchRatingOf({ rating: 4 }));
