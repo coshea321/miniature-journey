@@ -961,7 +961,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v465 · 05/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v466 · 06/09/2026</div>
 
   </div>
 </div>
@@ -4344,16 +4344,42 @@ function watchKindMeta(k) {
 // stale, and no network traffic at all until he actually taps one. They are
 // SEARCH urls rather than deep links because resolving a title to a real id
 // would need exactly the API dependency this design avoids.
+// v466: `kindTerm` adds the media type to the Wikipedia search — "film" or
+// "TV series" — so a title that collides with something famous stops landing on
+// the wrong article ("FBI" opened the government agency).
+//
+// It is PLAIN WORDS plus `fulltext=1`, deliberately, and the first cut of v466
+// got this wrong: it sent Wikipedia's own parenthetical page title ("Dune
+// (film)") to ride the exact-title jump. That works only when such an article
+// really exists — "FBI (TV series)" does — but whenever a title has more than
+// one film or show of that name, which is exactly the ambiguous case this is
+// for, "X (film)" is a REDIRECT TO THE DISAMBIGUATION PAGE. Cathal hit it
+// immediately on Dune and Wall Street: both jumped straight to "(disambiguation)",
+// a worse landing than before the change. `fulltext=1` skips the jump entirely
+// and always returns a ranked results list, where a title carrying both the name
+// and the media type sorts to the top and disambiguation pages are demoted.
+// **Do NOT "improve" this back into a parenthetical or drop `fulltext=1`** to win
+// a one-hop landing for the handful of titles where the bare "(film)" article
+// exists — that trade breaks the many to speed up the few.
+//
+// Deliberately Wikipedia-only: JustWatch and IMDb match on the title itself, so
+// a term there turns a good search into a bad one. A source with no `kindTerm`
+// row for the kind gets the bare title, exactly as before.
 var WATCH_INFO_SOURCES = [
   { label:"Where to watch", ico:"&#x1F37F;", base:"https://www.justwatch.com/ie/search?q=" },
-  { label:"Wikipedia",      ico:"&#x1F4D6;", base:"https://en.wikipedia.org/w/index.php?search=" },
+  { label:"Wikipedia",      ico:"&#x1F4D6;", base:"https://en.wikipedia.org/w/index.php?fulltext=1&search=",
+    kindTerm:{ film:"film", tv:"TV series" } },
   { label:"IMDb",           ico:"&#x2B50;",  base:"https://www.imdb.com/find/?q=" }
 ];
 function watchInfoLinks(item) {
   var title = String((item && item.title) || "").trim();
   if (!title) return [];
-  var q = encodeURIComponent(title);
-  return WATCH_INFO_SOURCES.map(function(s){ return { label:s.label, ico:s.ico, href:s.base + q }; });
+  // Via watchKindMeta so a missing or junk kind reads as Film, not undefined.
+  var kind = watchKindMeta(item && item.kind).key;
+  return WATCH_INFO_SOURCES.map(function(s){
+    var term = (s.kindTerm && s.kindTerm[kind]) || "";
+    return { label:s.label, ico:s.ico, href:s.base + encodeURIComponent(term ? title + " " + term : title) };
+  });
 }
 
 function getWatchlist() {
