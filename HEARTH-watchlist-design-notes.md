@@ -72,4 +72,4 @@ Problem seen: one purple everywhere; state is only a 19px glyph, kind is only a 
 
 ## Session log
 - 02/09 start: read HEARTH-notes § Watchlist, backlog § Watchlist follow-ups, changelog v391/v392/v451, `index.html` lines 1291–1297 (header), 4284–4830 (helpers, `watchRowHTML`, `renderWatchlist`, `watchRandomPick`, editor). No code edited.
-- 02/09 end: notes complete and pushed. Colour-scheme section added after Cathal sent a screenshot. Nothing built; no version bump; no PR opened (review-only ask).
+- 02/09 end: notes complete and pushed. Colour-scheme section added after Cathal sent a screenshot. The doubled-header suggestion was implemented in v467; the other suggestions remain unbuilt unless requested.
