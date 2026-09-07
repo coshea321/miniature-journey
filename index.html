@@ -961,7 +961,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v466 · 06/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v467 · 06/09/2026</div>
 
   </div>
 </div>
@@ -4365,10 +4365,14 @@ function watchKindMeta(k) {
 // Deliberately Wikipedia-only: JustWatch and IMDb match on the title itself, so
 // a term there turns a good search into a bad one. A source with no `kindTerm`
 // row for the kind gets the bare title, exactly as before.
+// One definition, referenced twice on purpose (v467): the Wikipedia LINK and
+// the Wikipedia SUMMARY fetch must ask the same question, or the summary can
+// describe a different article than the link opens.
+var WATCH_WIKI_KIND_TERM = { film:"film", tv:"TV series" };
 var WATCH_INFO_SOURCES = [
   { label:"Where to watch", ico:"&#x1F37F;", base:"https://www.justwatch.com/ie/search?q=" },
   { label:"Wikipedia",      ico:"&#x1F4D6;", base:"https://en.wikipedia.org/w/index.php?fulltext=1&search=",
-    kindTerm:{ film:"film", tv:"TV series" } },
+    kindTerm:WATCH_WIKI_KIND_TERM },
   { label:"IMDb",           ico:"&#x2B50;",  base:"https://www.imdb.com/find/?q=" }
 ];
 function watchInfoLinks(item) {
@@ -4380,6 +4384,142 @@ function watchInfoLinks(item) {
     var term = (s.kindTerm && s.kindTerm[kind]) || "";
     return { label:s.label, ico:s.ico, href:s.base + encodeURIComponent(term ? title + " " + term : title) };
   });
+}
+
+// v467: the exact words the Wikipedia SEARCH is given — title plus the kind
+// term. `watchSummaryApiUrl` asks Wikipedia's API the SAME question the
+// Wikipedia link asks, so the summary and the link can never quietly disagree
+// about which article an entry means. Returns "" for a title-less entry.
+function watchWikiQuery(item) {
+  var title = String((item && item.title) || "").trim();
+  if (!title) return "";
+  var term = WATCH_WIKI_KIND_TERM[watchKindMeta(item && item.kind).key] || "";
+  return term ? title + " " + term : title;
+}
+
+// ── The summary (v467) ────────────────────────────────────────────────────
+// An optional plot summary per entry, FETCHED ON DEMAND from Wikipedia and
+// then STORED on the record. Three things make that acceptable here when the
+// three info links deliberately fetch nothing:
+//   · Wikipedia's API needs NO API KEY. This repo is public, so a key in
+//     index.html is a published key — that is the constraint, not "no network"
+//     (Sports and Weather already call keyless APIs the same way).
+//   · It only runs when he taps the button. Nothing fetches on load, on sync
+//     or on render, so an offline open is untouched.
+//   · The text is stored, so it syncs to the other phone through the ordinary
+//     whole-record merge and still reads with no signal.
+// `summary` and `summarySrc` are plain strings, "" when empty and NEVER a
+// dropped key — mergeWatchData refills `undefined` from the other device
+// (the v296 rule), so an absent field would come back on the next sync.
+var WATCH_SUMMARY_MAX = 400;   // characters kept; the API's intro can run to thousands
+var _watchSumBusy = 0;         // id currently fetching, 0 = none (one at a time)
+
+// The API is asked the SAME query as the link, via watchWikiQuery. `origin=*`
+// is what makes an anonymous browser request CORS-legal and must stay literal,
+// never encoded. gsrlimit=1 takes Wikipedia's own top hit rather than
+// re-implementing a ranking here.
+function watchSummaryApiUrl(item) {
+  return "https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*" +
+    "&prop=extracts&exintro=1&explaintext=1&generator=search&gsrnamespace=0&gsrlimit=1" +
+    "&gsrsearch=" + encodeURIComponent(watchWikiQuery(item));
+}
+
+// Collapse whitespace and cut to WATCH_SUMMARY_MAX, preferring a sentence end
+// so the stored text doesn't stop mid-clause. Truncated BEFORE storing, not at
+// render: this rides in every sync payload and every backup file.
+function watchSummaryClean(s) {
+  var t = String(s == null ? "" : s).replace(/\s+/g, " ").trim();
+  if (t.length <= WATCH_SUMMARY_MAX) return t;
+  var cut = t.slice(0, WATCH_SUMMARY_MAX);
+  var stop = cut.lastIndexOf(". ");
+  if (stop > WATCH_SUMMARY_MAX / 2) return cut.slice(0, stop + 1);
+  var sp = cut.lastIndexOf(" ");
+  return (sp > 0 ? cut.slice(0, sp) : cut) + "\u2026";
+}
+
+// v466's lesson as a guard: Wikipedia's top hit for an ambiguous name can be
+// the disambiguation page, and "Dune may refer to:" is a worse summary than
+// none. Refused rather than stored, with a message that says what to do.
+function watchIsDisambig(title, extract) {
+  if (/\(disambiguation\)\s*$/i.test(String(title || ""))) return true;
+  return /\bmay (also )?refer to\b/i.test(String(extract || ""));
+}
+
+function watchFetchSummary(id) {
+  if (_watchSumBusy) return;                      // one at a time; the button reads "Fetching…"
+  var all = getWatchlist();
+  var i = all.findIndex(function(w){ return w && w.id === id; });
+  if (i < 0) return;                              // guarded, never all[-1]
+  if (!watchWikiQuery(all[i])) return;            // no title, nothing to ask
+  _watchSumBusy = id;
+  renderWatchlist();
+  fetchWithTimeout(watchSummaryApiUrl(all[i]), null, 9000)
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      var pages = (j && j.query && j.query.pages) || {};
+      var keys  = Object.keys(pages);
+      var page  = keys.length ? pages[keys[0]] : null;
+      var text  = watchSummaryClean(page && page.extract);
+      var src   = String((page && page.title) || "");
+      _watchSumBusy = 0;
+      if (!text) { renderWatchlist(); toast("&#x1F4D6; Wikipedia had nothing for that title"); return; }
+      if (watchIsDisambig(src, text)) {
+        renderWatchlist();
+        toast("&#x1F4D6; Only found a disambiguation page &mdash; try a more exact title");
+        return;
+      }
+      // Re-read the store: the fetch is async, and a sync or an edit may have
+      // landed while it was in flight.
+      var cur = getWatchlist();
+      var k = cur.findIndex(function(w){ return w && w.id === id; });
+      if (k < 0) { renderWatchlist(); return; }
+      cur[k].summary    = text;
+      cur[k].summarySrc = src;
+      cur[k].updated    = Date.now();
+      saveWatchlist(cur);
+      renderWatchlist();
+      toast("&#x1F4D6; Summary added");
+    })
+    .catch(function(){
+      _watchSumBusy = 0;
+      renderWatchlist();
+      toast("&#x1F4D6; Couldn't reach Wikipedia");
+    });
+}
+
+function watchClearSummary(id) {
+  var all = getWatchlist();
+  var i = all.findIndex(function(w){ return w && w.id === id; });
+  if (i < 0) return;
+  all[i].summary    = "";     // "", never delete — see the v296 note above
+  all[i].summarySrc = "";
+  all[i].updated    = Date.now();
+  saveWatchlist(all);
+  renderWatchlist();
+}
+
+// Top-level because a renderer calls it (the locally-scoped-helper trap).
+function watchSummaryBlockHTML(w) {
+  var lbl = "font-size:11px;font-weight:700;color:#8A84A0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px";
+  var text = String((w && w.summary) || "").trim();
+  var busy = (_watchSumBusy === w.id);
+  var h = "<div style='" + lbl + "'>Summary</div>";
+  if (text) {
+    h += "<div style='background:#fff;border:1.5px solid #E4E0EE;border-radius:9px;padding:9px 10px;font-size:13px;" +
+        "line-height:1.5;color:#3A3450;margin-bottom:5px'>" + esc(text) + "</div>" +
+      "<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px'>" +
+        "<span style='flex:1;min-width:0;font-size:11px;color:#A8A2B8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" +
+          "From Wikipedia &middot; " + esc(String((w && w.summarySrc) || "")) + "</span>" +
+        "<button class='watch-sum-get' data-wid='" + w.id + "' style='flex-shrink:0;padding:5px 10px;border:1.5px solid #DCD6EA;background:#fff;color:#5A5470;border-radius:16px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation'>" +
+          (busy ? "Fetching&hellip;" : "&#x21BB; Refresh") + "</button>" +
+        "<button class='watch-sum-clear' data-wid='" + w.id + "' style='flex-shrink:0;padding:5px 10px;border:1.5px solid #DCD6EA;background:#fff;color:#8A84A0;border-radius:16px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation'>Clear</button>" +
+      "</div>";
+  } else {
+    h += "<button class='watch-sum-get' data-wid='" + w.id + "' style='width:100%;padding:10px;border:1.5px solid #DCD6EA;background:#fff;color:" + WATCH_COLOR +
+      ";border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px;touch-action:manipulation'>" +
+      (busy ? "Fetching&hellip;" : "&#x1F4C4; Get a summary from Wikipedia") + "</button>";
+  }
+  return h;
 }
 
 function getWatchlist() {
@@ -4643,6 +4783,9 @@ function watchRowHTML(w) {
             : "background:#fff;color:#5A5470;border:1.5px solid #DCD6EA") + "'>" + s.label + "</button>";
     });
     h += "</div>";
+    // Summary (v467) — above the links because it is the thing he came to read;
+    // the links are what you tap when the summary isn't enough.
+    h += watchSummaryBlockHTML(w);
     // Info links: always available, built from the title, nothing stored.
     var links = watchInfoLinks(w);
     if (links.length) {
@@ -4798,6 +4941,12 @@ function renderWatchlist() {
   el.querySelectorAll(".watch-star").forEach(function(b){
     b.addEventListener("click", function(){ watchSetRating(+b.dataset.wid, +b.dataset.star); });
   });
+  el.querySelectorAll(".watch-sum-get").forEach(function(b){
+    b.addEventListener("click", function(){ watchFetchSummary(+b.dataset.wid); });
+  });
+  el.querySelectorAll(".watch-sum-clear").forEach(function(b){
+    b.addEventListener("click", function(){ watchClearSummary(+b.dataset.wid); });
+  });
   el.querySelectorAll(".watch-edit").forEach(function(b){
     b.addEventListener("click", function(){ openWatchEditor(+b.dataset.wid); });
   });
@@ -4936,6 +5085,10 @@ function renderWatchEditor() {
     if (_watchEditId != null) {
       var j = cur.findIndex(function(w){ return w && w.id === _watchEditId; });
       if (j < 0) { toast("That entry is no longer here"); leave(); return; }
+      // v467: the stored summary belongs to the OLD title. Retitling makes it
+      // someone else's plot, so it is cleared rather than left to describe the
+      // wrong film — re-fetching is one tap, a wrong summary is invisible.
+      if (String(cur[j].title || "") !== title) { cur[j].summary = ""; cur[j].summarySrc = ""; }
       cur[j].title  = title;
       cur[j].kind   = _watchKindDraft;
       cur[j].note   = note;
@@ -4946,6 +5099,7 @@ function renderWatchEditor() {
       cur.unshift({
         id: Date.now() + Math.floor(Math.random() * 1000),
         title: title, kind: _watchKindDraft, note: note, link: linkVal, season: seasonVal,
+        summary: "", summarySrc: "",
         watching: false, watched: false, watchedAt: 0, rating: 0,
         addedBy: hearthUser, added: Date.now(), updated: Date.now()
       });
@@ -22303,10 +22457,13 @@ function buildTestSeed() {
     // ── Watchlist ────────────────────────────────────────
     watchlist:[
       { id:_tsId(), title:"Demo Film One", kind:"film", note:"Recommended by Dave.", link:"", season:"",
+        summary:"A demo entry that already carries a summary, so the summary box is on screen without waiting for a fetch.", summarySrc:"Demo Film One (film)",
         watching:false, watched:false, watchedAt:0, rating:0, addedBy:"Cathal", added:_tsTs(-12, 20, 0), updated:_tsTs(-12, 20, 0) },
       { id:_tsId(), title:"Demo Series Two", kind:"tv", note:"", link:"", season:"2",
+        summary:"", summarySrc:"",
         watching:true, watched:false, watchedAt:0, rating:0, addedBy:"Petra", added:_tsTs(-6, 20, 0), updated:_tsTs(-6, 20, 0) },
       { id:_tsId(), title:"Demo Film Three", kind:"film", note:"Watched on the plane.", link:"", season:"",
+        summary:"", summarySrc:"",
         watching:false, watched:true, watchedAt:_tsTs(-2, 21, 0), rating:4, addedBy:"Cathal", added:_tsTs(-25, 20, 0), updated:_tsTs(-2, 21, 0) }
     ],
 
