@@ -961,7 +961,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v467 · 06/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v468 · 09/09/2026</div>
 
   </div>
 </div>
@@ -14453,8 +14453,8 @@ document.getElementById("logoutBtn").addEventListener("click", function() {
 document.getElementById("leaveHouseholdBtn").addEventListener("click", function() {
   confirmDialog("Leave this household?", function() {
     if (hearthSyncES) { hearthSyncES.close(); hearthSyncES = null; }
-    fetch(authUrl(houseUrl("/members/" + hearthUser)), { method:"DELETE" }).catch(function(){});
-    fetch(authUrl(userUrl("/household")), { method:"DELETE" }).catch(function(){});
+    firebaseFetch(houseUrl("/members/" + hearthUser), { method:"DELETE" }).catch(function(){});
+    firebaseFetch(userUrl("/household"), { method:"DELETE" }).catch(function(){});
     hearthHouse = ""; storeSet("hearth_household","");
     _householdFetchOk = false; // v419: the next household must be read before we push to it
     renderSyncModal(); updateSyncStatus(); toast("Left household");
@@ -14467,8 +14467,8 @@ document.getElementById("joinHouseholdBtn").addEventListener("click", function()
   var code = document.getElementById("joinHouseholdInput").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
   if (code.length < 4) { toast("Enter a valid code"); return; }
   hearthHouse = code; storeSet("hearth_household", code);
-  fetch(authUrl(houseUrl("/members/"+hearthUser)), {method:"PUT",body:JSON.stringify(true),headers:{"Content-Type":"application/json"}}).catch(function(){});
-  fetch(authUrl(userUrl("/household")), {method:"PUT",body:JSON.stringify(code),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  firebaseFetch(houseUrl("/members/"+hearthUser), {method:"PUT",body:JSON.stringify(true),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  firebaseFetch(userUrl("/household"), {method:"PUT",body:JSON.stringify(code),headers:{"Content-Type":"application/json"}}).catch(function(){});
   fetchHousehold(function(){ pushHousehold(); startListening(); });
   renderSyncModal(); toast("Joined: " + code);
 });
@@ -14479,8 +14479,8 @@ document.getElementById("createHouseholdBtn").addEventListener("click", function
   var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", code = "";
   for (var i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
   hearthHouse = code; storeSet("hearth_household", code);
-  fetch(authUrl(houseUrl("/members/"+hearthUser)), {method:"PUT",body:JSON.stringify(true),headers:{"Content-Type":"application/json"}}).catch(function(){});
-  fetch(authUrl(userUrl("/household")), {method:"PUT",body:JSON.stringify(code),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  firebaseFetch(houseUrl("/members/"+hearthUser), {method:"PUT",body:JSON.stringify(true),headers:{"Content-Type":"application/json"}}).catch(function(){});
+  firebaseFetch(userUrl("/household"), {method:"PUT",body:JSON.stringify(code),headers:{"Content-Type":"application/json"}}).catch(function(){});
   // v419: a household we just invented has nothing to read, so open the push
   // guard explicitly — without this the creating device could never push and
   // would sit silently receive-only in its own new household.
@@ -14700,29 +14700,25 @@ function maybeCloudBackup(){
     if (!isLoggedIn() || navigator.onLine === false) return;
     var last = storeGet("fl4_last_cloudbackup") || 0;
     if (last && cloudBackupDateKey(last) === cloudBackupDateKey(Date.now())) return; // already done today
-    getAuthToken(function(token){
-      var payload;
-      try { payload = buildExportPayload(); } catch(e){ return; }
-      var key = cloudBackupDateKey(Date.now());
-      var url = userUrl("/backups/" + key) + (token ? "?auth=" + token : "");
-      fetch(url, { method:"PUT", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) })
-        .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); })
-        .then(function(){
-          storeSet("fl4_last_cloudbackup", Date.now());
-          updateCloudBackupInfo();
-          pruneCloudBackups(token);
-        })
-        .catch(function(e){ console.log("cloud backup skipped (will retry next open): " + (e&&e.message)); });
-    });
+    var payload;
+    try { payload = buildExportPayload(); } catch(e){ return; }
+    var key = cloudBackupDateKey(Date.now());
+    firebaseFetch(userUrl("/backups/" + key), { method:"PUT", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) })
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); })
+      .then(function(){
+        storeSet("fl4_last_cloudbackup", Date.now());
+        updateCloudBackupInfo();
+        pruneCloudBackups();
+      })
+      .catch(function(e){ console.log("cloud backup skipped (will retry next open): " + (e&&e.message)); });
   } catch(e){}
 }
-function pruneCloudBackups(token){
-  var url = userUrl("/backups") + "?shallow=true" + (token ? "&auth=" + token : "");
-  fetch(url).then(function(r){ return r.json(); }).then(function(keys){
+function pruneCloudBackups(){
+  firebaseFetch(userUrl("/backups") + "?shallow=true").then(function(r){ return r.json(); }).then(function(keys){
     if (!keys || typeof keys !== "object") return;
     var names = Object.keys(keys).sort(); // YYYY-MM-DD keys sort chronologically
     for (var i = 0; i < names.length - CLOUD_BACKUP_KEEP; i++) {
-      fetch(userUrl("/backups/" + names[i]) + (token ? "?auth=" + token : ""), { method:"DELETE" });
+      firebaseFetch(userUrl("/backups/" + names[i]), { method:"DELETE" }).catch(function(){});
     }
   }).catch(function(){});
 }
@@ -15121,33 +15117,31 @@ function openCloudBackupsSheet() {
   function closeOv(){ if (ov.parentNode) ov.parentNode.removeChild(ov); }
   ov.querySelector("#cbClose").addEventListener("click", closeOv);
   ov.addEventListener("click", function(e){ if (e.target === ov) closeOv(); });
-  getAuthToken(function(token){
-    fetch(userUrl("/backups") + "?shallow=true" + (token ? "&auth="+token : ""))
-      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
-      .then(function(keys){
-        var list = ov.querySelector("#cbList"); if (!list) return;
-        var names = Object.keys(keys || {}).sort().reverse();
-        if (!names.length) { list.textContent = "No cloud backups yet — the first one is saved automatically shortly after opening the app."; return; }
-        list.innerHTML = "";
-        names.forEach(function(k){
-          var row = document.createElement("div");
-          row.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid #EEE9E0";
-          var lbl = document.createElement("span");
-          lbl.style.cssText = "font-size:14px;color:#4A3A20;font-weight:600";
-          lbl.textContent = fmtBackupDateKey(k);
-          var btn = document.createElement("button");
-          btn.style.cssText = "padding:8px 14px;border:1.5px solid #C4833A;background:none;color:#C4833A;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation";
-          btn.textContent = "Restore";
-          btn.addEventListener("click", function(){ restoreCloudBackup(k, token, closeOv); });
-          row.appendChild(lbl); row.appendChild(btn); list.appendChild(row);
-        });
-      })
-      .catch(function(){ var list = ov.querySelector("#cbList"); if (list) list.textContent = "Couldn't load backups — check your connection and try again."; });
-  });
+  firebaseFetch(userUrl("/backups") + "?shallow=true")
+    .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+    .then(function(keys){
+      var list = ov.querySelector("#cbList"); if (!list) return;
+      var names = Object.keys(keys || {}).sort().reverse();
+      if (!names.length) { list.textContent = "No cloud backups yet — the first one is saved automatically shortly after opening the app."; return; }
+      list.innerHTML = "";
+      names.forEach(function(k){
+        var row = document.createElement("div");
+        row.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid #EEE9E0";
+        var lbl = document.createElement("span");
+        lbl.style.cssText = "font-size:14px;color:#4A3A20;font-weight:600";
+        lbl.textContent = fmtBackupDateKey(k);
+        var btn = document.createElement("button");
+        btn.style.cssText = "padding:8px 14px;border:1.5px solid #C4833A;background:none;color:#C4833A;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation";
+        btn.textContent = "Restore";
+        btn.addEventListener("click", function(){ restoreCloudBackup(k, closeOv); });
+        row.appendChild(lbl); row.appendChild(btn); list.appendChild(row);
+      });
+    })
+    .catch(function(){ var list = ov.querySelector("#cbList"); if (list) list.textContent = "Couldn't load backups — check your connection and try again."; });
 }
-function restoreCloudBackup(dateKey, token, closeOv) {
+function restoreCloudBackup(dateKey, closeOv) {
   confirmDialog("Restore the cloud backup from " + fmtBackupDateKey(dateKey) + "? Anything missing is added back (nothing is deleted). The change will sync to both of you.", function(){
-    fetch(userUrl("/backups/" + dateKey) + (token ? "?auth="+token : ""))
+    firebaseFetch(userUrl("/backups/" + dateKey))
       .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
       .then(function(data){
         if (!data || typeof data !== "object") throw new Error("empty snapshot");
@@ -15280,7 +15274,7 @@ document.getElementById("clearAllBtn").addEventListener("click", function() {
     storeSet("fl4_notes_global", []);
     // Clear cloud personal data
     if (isLoggedIn()) {
-      fetch(authUrl(userUrl("/data")), { method:"DELETE" }).catch(function(){});
+      firebaseFetch(userUrl("/data"), { method:"DELETE" }).catch(function(){});
     }
     document.body.removeChild(ov);
     document.getElementById("settingsOverlay").classList.remove("open");
@@ -15401,36 +15395,50 @@ function fetchWithTimeout(url, options, timeoutMs) {
 }
 
 // ── Firebase Auth REST API ────────────────────────────────
+var _authRefreshRunning = false;
+var _authRefreshWaiters = [];
+function finishAuthRefresh(token, reason) {
+  var waiters = _authRefreshWaiters.slice();
+  _authRefreshWaiters = [];
+  _authRefreshRunning = false;
+  waiters.forEach(function(cb){ try { cb(token, reason || ""); } catch(e){} });
+}
 function getAuthToken(cb) {
-  if (_isTestBuild) { cb(null); return; } // test builds never get a token, so Firebase denies every read/write
-  if (!isLoggedIn()) { cb(null); return; } // v463: a logged-out device must never hand back a still-live cached token
+  if (_isTestBuild) { cb(null, "disabled"); return; } // test builds never get a token, so Firebase denies every read/write
+  if (!isLoggedIn()) { cb(null, "logged-out"); return; } // v463: a logged-out device must never hand back a still-live cached token
+  if (!hearthApiKey) { cb(null, ""); return; } // legacy mode: Firebase rules may deliberately allow unauthenticated REST
   // Return cached token if still valid (with 5-min buffer)
   if (hearthIdToken && Date.now() < hearthTokenExpiry - 300000) {
-    cb(hearthIdToken); return;
+    cb(hearthIdToken, ""); return;
   }
-  // Re-authenticate using stored credentials
-  if (!hearthApiKey || !hearthUser || !hearthToken) { cb(null); return; }
-  // hearthToken stores the password hash — we need the actual password
-  // Since we can't reverse the hash, we use a refresh token approach
-  // Fall back to storing refresh token
   var rt = storeGet("hearth_refresh_token");
-  if (rt) {
-    fetchWithTimeout("https://securetoken.googleapis.com/v1/token?key=" + hearthApiKey, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: "grant_type=refresh_token&refresh_token=" + encodeURIComponent(rt)
-    }).then(function(r){ return r.json(); })
-    .then(function(d) {
-      if (d.id_token) {
-        hearthIdToken = d.id_token;
-        hearthTokenExpiry = Date.now() + (parseInt(d.expires_in)||3600) * 1000;
-        storeSet("hearth_refresh_token", d.refresh_token);
-        cb(hearthIdToken);
-      } else { cb(null); }
-    }).catch(function(){ cb(null); });
-  } else {
-    cb(null);
-  }
+  if (!rt) { cb(null, "missing"); return; }
+
+  // One refresh in flight for every caller. Personal fetch, household fetch
+  // and both SSE listeners can all notice expiry together; refreshing once
+  // avoids races over Firebase's rotated refresh-token response.
+  _authRefreshWaiters.push(cb);
+  if (_authRefreshRunning) return;
+  _authRefreshRunning = true;
+  fetchWithTimeout("https://securetoken.googleapis.com/v1/token?key=" + hearthApiKey, {
+    method: "POST",
+    headers: { "Content-Type":"application/x-www-form-urlencoded" },
+    body: "grant_type=refresh_token&refresh_token=" + encodeURIComponent(rt)
+  }).then(function(r){ return r.json(); })
+  .then(function(d) {
+    // Logout may have happened while the request was in flight. Never restore
+    // credentials after v463 deliberately cleared them.
+    if (!isLoggedIn()) { finishAuthRefresh(null, "logged-out"); return; }
+    if (d.id_token) {
+      hearthIdToken = d.id_token;
+      hearthTokenExpiry = Date.now() + (parseInt(d.expires_in)||3600) * 1000;
+      if (d.refresh_token) storeSet("hearth_refresh_token", d.refresh_token);
+      finishAuthRefresh(hearthIdToken, "");
+    } else {
+      hearthIdToken = ""; hearthTokenExpiry = 0;
+      finishAuthRefresh(null, "rejected");
+    }
+  }).catch(function(){ finishAuthRefresh(null, "network"); });
 }
 
 function firebaseSignIn(email, password, cb) {
@@ -15479,6 +15487,31 @@ function authUrl(url) {
   if (!hearthIdToken) return url;
   var sep = url.indexOf("?") >= 0 ? "&" : "?";
   return url + sep + "auth=" + hearthIdToken;
+}
+
+// Every Firebase Database REST request goes through this gate. It refreshes
+// before sending, retries once if Firebase rejects a cached token, and exposes
+// why no request could be made so transient network trouble is never presented
+// as "log back in".
+function firebaseFetch(url, options, retried) {
+  return new Promise(function(resolve, reject) {
+    getAuthToken(function(token, reason) {
+      if (hearthApiKey && !token) {
+        var authErr = new Error("Firebase auth unavailable");
+        authErr.hearthAuth = reason || "missing";
+        reject(authErr);
+        return;
+      }
+      fetchWithTimeout(authUrl(url), options).then(function(r) {
+        if (hearthApiKey && !retried && (r.status === 401 || r.status === 403)) {
+          hearthIdToken = ""; hearthTokenExpiry = 0;
+          firebaseFetch(url, options, true).then(resolve, reject);
+          return;
+        }
+        resolve(r);
+      }).catch(reject);
+    });
+  });
 }
 
 // ── Login overlay functions ───────────────────────────────
@@ -15610,7 +15643,7 @@ function doCreateAccount(username, password) {
       hearthUser = username; hearthToken = data.idToken;
       storeSet("hearth_user", hearthUser); storeSet("hearth_token", hearthToken);
       // Write username record so verifySession works
-      fetchWithTimeout(authUrl(hearthBase() + "/hearth/users/" + username + "/auth.json"), {
+      firebaseFetch(hearthBase() + "/hearth/users/" + username + "/auth.json", {
         method:"PUT", body:JSON.stringify({ uid:data.localId, createdAt:Date.now() }),
         headers:{"Content-Type":"application/json"}
       }).catch(function(){});
@@ -15700,12 +15733,9 @@ function onLoginSuccess() {
   // still honour it for any future flow that sets it.
   switchSection("home");
 
-  // Sync kick-off — the ONLY part of entry allowed to wait on the network.
-  // fetchPersonal sends the auth token on the URL, so on a cold start it
-  // must run AFTER the background token refresh or it 401s and wrongly
-  // shows the stale-data/"re-login" banner. A hung refresh is capped by
-  // the 6s watchdog (v290's timer, moved here in v373 — it used to gate
-  // the whole UI, now it caps only how late the first sync can start).
+  // Sync kick-off. Each Firebase REST request now obtains a current token
+  // itself, so entry stays local-first without a separate startup watchdog
+  // racing the token refresh.
   var _syncStarted = false;
   function startSync() {
     if (_syncStarted) return;
@@ -15722,7 +15752,7 @@ function onLoginSuccess() {
 
     // Load household code from user profile if not stored locally
     if (!hearthHouse) {
-      fetchWithTimeout(authUrl(userUrl("/household"))).then(function(r){ return r.json(); }).then(function(code) {
+      firebaseFetch(userUrl("/household")).then(function(r){ return r.json(); }).then(function(code) {
         if (code && typeof code === "string") {
           hearthHouse = code; storeSet("hearth_household", hearthHouse);
           fetchHousehold(function() {
@@ -15741,12 +15771,7 @@ function onLoginSuccess() {
     updateSyncStatus();
   }
 
-  if (hearthApiKey && storeGet("hearth_refresh_token")) {
-    setTimeout(startSync, 6000);
-    getAuthToken(function() { startSync(); });
-  } else {
-    startSync();
-  }
+  startSync();
 }
 
 function logout(silent) {
@@ -15815,7 +15840,7 @@ var d = {};
   d.appliances_deleted = purgeTombs(getTombs("appliances"));
   d.health      = storeGet("fl4_health") || [];
   d.health_deleted = purgeTombs(getTombs("health"));
-  fetchWithTimeout(authUrl(userUrl("/data")), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastPersonalPush = Date.now(); }).catch(function(){});
+  firebaseFetch(userUrl("/data"), { method:"PUT", body:JSON.stringify(d), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastPersonalPush = Date.now(); }).catch(function(){});
   }, 800);
 }
 
@@ -16149,19 +16174,24 @@ function applyPersonal(d) {
   flushSyncRenders({ recipes:_rDirty.recipes, trips:_rDirty.trips, baby:_rDirty.baby, appliances:_rDirty.appliances,
                      plants:_rDirty.plants, watchlist:_rDirty.watchlist, health:_rDirty.health, list:true, home:true, train:true });
 }
+function setSyncLoginNeeded(on) {
+  var banner = document.getElementById("staleDataBanner");
+  var wasOn = !!(banner && banner.style.display === "block");
+  if (banner) banner.style.display = on ? "block" : "none";
+  if (on && !wasOn) toast("Sync needs re-login — please log out and back in");
+}
 function fetchPersonal(cb) {
   if (!isLoggedIn()) { if(cb)cb(); return; }
   // Show subtle loading indicator on sync button
   var btn = document.getElementById("syncBtn");
   if (btn) { btn._origColor = btn.style.color; btn.style.opacity = "0.5"; }
-  fetchWithTimeout(authUrl(userUrl("/data")))
+  firebaseFetch(userUrl("/data"))
     .then(function(r){
       if (btn) { btn.style.opacity = ""; }
       if (r.status === 401 || r.status === 403) {
-        // Auth failed — token likely expired. Don't mark fetch OK (prevents stale push)
-        var banner = document.getElementById("staleDataBanner");
-        if (banner) banner.style.display = "block";
-        toast("Sync needs re-login — please log out and back in");
+        // firebaseFetch already refreshed and retried once. A second denial is
+        // rules/configuration trouble, not an expired session.
+        toast("Sync access denied — check Firebase rules");
         if (cb) cb();
         return _FETCH_AUTH_FAIL;
       }
@@ -16170,13 +16200,14 @@ function fetchPersonal(cb) {
     .then(function(d) {
       if (d === _FETCH_AUTH_FAIL) return; // v411: was `d === null`, which also caught an empty remote
       _personalFetchOk = true;
-      var sb = document.getElementById("staleDataBanner");
-      if (sb) sb.style.display = "none";
+      setSyncLoginNeeded(false);
       if (d && typeof d === "object") applyPersonal(d);
       if (cb) cb();
-    })
-    .catch(function(){
+    }).catch(function(err){
       if (btn) { btn.style.opacity = ""; }
+      // Only a missing or rejected refresh credential needs a human login.
+      // Timeouts/offline failures remain quiet and retry through SSE fallback.
+      if (err && (err.hearthAuth === "missing" || err.hearthAuth === "rejected")) setSyncLoginNeeded(true);
       if(cb)cb();
     });
 }
@@ -16235,7 +16266,7 @@ var data = {};
   data["health"] = storeGet("fl4_health") || [];
   data["health_deleted"] = purgeTombs(getTombs("health"));
   lastPushTs = Date.now();
-  fetchWithTimeout(authUrl(houseUrl("/shared")), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastHouseholdPush = Date.now(); }).catch(function(){});
+  firebaseFetch(houseUrl("/shared"), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} }).then(function(r){ if (r && r.ok) _syncStats.lastHouseholdPush = Date.now(); }).catch(function(){});
   }, 800);
 }
 
@@ -16955,20 +16986,27 @@ function startSSEFallback() {
 }
 
 var _personalReconnectPending = false;
+function schedulePersonalReconnect() {
+  if (_personalReconnectPending) return;
+  _personalReconnectPending = true;
+  setTimeout(function(){ _personalReconnectPending = false; if (isLoggedIn()) startPersonalListening(); }, 5000);
+}
 function startPersonalListening() {
   if (_isTestBuild) return;
   if (!isLoggedIn()) return;
   if (hearthHealthES) { hearthHealthES.close(); hearthHealthES = null; }
-  getAuthToken(function(token) {
+  getAuthToken(function(token, reason) {
+    if (hearthApiKey && !token) {
+      if (reason === "missing" || reason === "rejected") setSyncLoginNeeded(true);
+      else if (reason === "network") schedulePersonalReconnect();
+      return;
+    }
     var url = userUrl("/data") + (token ? "?auth=" + token : "");
     hearthHealthES = new EventSource(url);
     hearthHealthES.addEventListener("put",   handlePersonalEvent);
     hearthHealthES.addEventListener("patch", handlePersonalEvent);
     hearthHealthES.onerror = function() {
-      if (hearthHealthES && hearthHealthES.readyState === 2 && !_personalReconnectPending) {
-        _personalReconnectPending = true;
-        setTimeout(function(){ _personalReconnectPending = false; if (isLoggedIn()) startPersonalListening(); }, 5000);
-      }
+      if (hearthHealthES && hearthHealthES.readyState === 2) schedulePersonalReconnect();
     };
   });
 }
@@ -16985,7 +17023,7 @@ function handlePersonalEvent(e) {
     // is false, the stream never called fetchPersonal again (startSSEFallback
     // only re-fetches when SSE is STALE), and nothing else set the flag.
     // Set before the p.data guard below — an empty remote is still a real read.
-    if (e.type === "put") _personalFetchOk = true;
+    if (e.type === "put") { _personalFetchOk = true; setSyncLoginNeeded(false); }
     if (e.type === "put" && p.data && typeof p.data === "object") {
       syncPaused = false;
       applyPersonal(p.data);
@@ -16998,20 +17036,27 @@ function handlePersonalEvent(e) {
 // ── SSE: household sync listener ──────────────────────────
 var hearthSyncES = null;
 var _householdReconnectPending = false;
+function scheduleHouseholdReconnect() {
+  if (_householdReconnectPending) return;
+  _householdReconnectPending = true;
+  setTimeout(function(){ _householdReconnectPending = false; if (isHouseholdSet()) startListening(); }, 5000);
+}
 function startListening() {
   if (_isTestBuild) return;
   if (!isHouseholdSet()) return;
   if (hearthSyncES) { hearthSyncES.close(); hearthSyncES = null; }
-  getAuthToken(function(token) {
+  getAuthToken(function(token, reason) {
+    if (hearthApiKey && !token) {
+      if (reason === "missing" || reason === "rejected") setSyncLoginNeeded(true);
+      else if (reason === "network") scheduleHouseholdReconnect();
+      return;
+    }
     var url = houseUrl("/shared") + (token ? "?auth=" + token : "");
     hearthSyncES = new EventSource(url);
     hearthSyncES.addEventListener("put",   handleHouseholdEvent);
     hearthSyncES.addEventListener("patch", handleHouseholdEvent);
     hearthSyncES.onerror = function() {
-      if (hearthSyncES && hearthSyncES.readyState === 2 && !_householdReconnectPending) {
-        _householdReconnectPending = true;
-        setTimeout(function(){ _householdReconnectPending = false; if (isHouseholdSet()) startListening(); }, 5000);
-      }
+      if (hearthSyncES && hearthSyncES.readyState === 2) scheduleHouseholdReconnect();
     };
   });
 }
@@ -20906,7 +20951,7 @@ function saveBD(data) { var ok = storeSet("fl4_baby", data); pushPersonal(); if 
 // ── Household fetch/apply ─────────────────────────────────
 function fetchHousehold(cb) {
   if (!isHouseholdSet()) { if(cb)cb(); return; }
-  fetchWithTimeout(authUrl(houseUrl("/shared")))
+  firebaseFetch(houseUrl("/shared"))
     .then(function(r){
       if (r.status === 401 || r.status === 403) {
         // v419: auth failed — leave the push guard closed. Both callers of this

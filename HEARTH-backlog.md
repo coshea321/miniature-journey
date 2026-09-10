@@ -6,6 +6,9 @@ Pending work, triaged review findings, and decisions that must not be re-litigat
 
 **Struck-through items are shipped.** They are kept because the reasoning behind them still matters — a struck item is a "do not re-chase", not a to-do.
 
+## Sync report (09/09/2026)
+- ~~**Repeated “sync needs re-login” warning.**~~ **Shipped v468.** The warning was often false: `fetchPersonal()` appended any in-memory ID token without checking its one-hour expiry, while the cold-start watchdog could begin sync after 6 seconds even though token refresh had an 8-second timeout. Train/Track navigation, Sync now, an SSE patch or the five-minute fallback could therefore turn a valid refreshable session into a 401 and tell Cathal to log out. All Database REST now goes through one refresh-before-fetch/retry-once gate; only a missing or rejected refresh credential asks for login, and transient network failures do not.
+
 ## External review triage (05/09/2026 — Cathal supplied a seven-expert council review of v457; every claim verified against code before triage)
 The review is in `Hearthv457councilreview1.md`. It reviewed commit `8b7f6b22` — **exactly the then-current `main`** — so every line anchor in it resolves correctly. **All eight of its priority findings were verified as real; none was a false positive.** That is unusual and worth recording: it labels what it *reproduced* versus what it only *read*, and it declines to overreach (no breach claimed, no rewrite proposed, no claim that a named exercise is unsuitable). Treat its anchors as trustworthy — but note the two places it was wrong below, and the one thing it missed that matters more than anything it found.
 
