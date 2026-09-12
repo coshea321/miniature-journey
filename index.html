@@ -109,6 +109,15 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 .overlay{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.45);z-index:400;align-items:flex-end}
 .overlay.open{display:flex}
 .modal-box{background:#fff;width:100%;border-radius:14px 14px 0 0;padding:18px 14px 32px;max-height:82vh;overflow-y:auto}
+/* Keep bottom sheets above the Android keyboard. JS adds the offset class
+   only to the sheet currently holding focus; the inset is device-local. */
+:root{--keyboard-inset:0px}
+.overlay.keyboard-sheet-offset{padding-bottom:var(--keyboard-inset)}
+.overlay.keyboard-sheet-offset .modal-box{max-height:min(82vh,calc(100dvh - var(--keyboard-inset) - 16px))}
+.keyboard-sheet-offset:not(.overlay){bottom:var(--keyboard-inset)!important;max-height:calc(85vh - var(--keyboard-inset))!important}
+/* A right-edge fade tells a one-handed phone user that a chip row scrolls. */
+.chip-scroll{scrollbar-width:none;-webkit-mask-image:linear-gradient(to right,#000 0,#000 calc(100% - 24px),transparent 100%);mask-image:linear-gradient(to right,#000 0,#000 calc(100% - 24px),transparent 100%)}
+.chip-scroll::-webkit-scrollbar{display:none}
 .modal-title{font-family:Georgia,serif;font-size:18px;text-align:center;margin-bottom:14px}
 .modal-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border:none;background:#F0EDE8;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .picker-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
@@ -961,7 +970,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v468 · 09/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v469 · 12/09/2026</div>
 
   </div>
 </div>
@@ -1199,7 +1208,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
            floats the panel directly above the add form instead of the page. -->
       <div id="foodSuggestBox" style="display:none;position:absolute;left:12px;right:12px;bottom:100%;margin-bottom:6px;background:#fff;border:1.5px solid #C4A07A;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.18);overflow:hidden;overflow-y:auto;max-height:212px;z-index:10"></div>
       <!-- Saved meals row -->
-      <div style="display:flex;gap:5px;margin-bottom:7px;overflow-x:auto;padding-bottom:2px" id="savedMealsRow"></div>
+      <div class="chip-scroll" style="display:flex;gap:5px;margin-bottom:7px;overflow-x:auto;padding:0 24px 2px 0" id="savedMealsRow"></div>
       <div style="display:flex;gap:6px;margin-bottom:6px">
         <input id="foodItemInput" type="text" placeholder="What did you eat?" autocomplete="off" autocorrect="off"
           style="flex:1;border:2px solid #E0D0B0;border-radius:9px;padding:10px 12px;font-family:inherit;font-size:15px;outline:none;background:#FDFAF3;color:#2A2010">
@@ -1266,9 +1275,8 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
      RECIPES SECTION
      ============================================================ -->
 <div id="recipesSection" style="display:none">
-  <div style="display:flex;gap:4px;padding:8px 10px;background:#B5651D;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
-    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F37D; Recipes</span>
-    <button id="recipeImportBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-right:6px">&#x2B07; Import</button>
+      <div style="display:flex;gap:4px;padding:8px 10px;background:#B5651D;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Recipe actions">
+    <button id="recipeImportBtn" style="margin-left:auto;border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-right:6px">&#x2B07; Import</button>
     <button id="recipeNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
   </div>
   <div style="display:flex;justify-content:flex-end;padding:6px 14px 0">
@@ -1287,9 +1295,8 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
      TRIPS SECTION
      ============================================================ -->
 <div id="tripsSection" style="display:none">
-  <div style="display:flex;gap:4px;padding:8px 10px;background:#0F8A8A;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
-    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F9F3; Trips</span>
-    <button id="tripPackingBtn" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x2708;&#xFE0F; Packing</button>
+      <div style="display:flex;gap:4px;padding:8px 10px;background:#0F8A8A;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Trip actions">
+    <button id="tripPackingBtn" style="margin-left:auto;border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x2708;&#xFE0F; Packing</button>
     <button id="tripImportBtn" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F4E5;</button>
     <button id="tripNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New trip</button>
   </div>
@@ -1300,18 +1307,16 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
      PLANTS SECTION (v377)
      ============================================================ -->
 <div id="plantsSection" style="display:none">
-  <div style="display:flex;gap:4px;padding:8px 10px;background:#2E7D4F;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
-    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1FAB4; Plants</span>
-    <button id="plantImportBtn" aria-label="Import plant" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F4E5;</button>
+  <div style="display:flex;gap:4px;padding:8px 10px;background:#2E7D4F;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Plant actions">
+    <button id="plantImportBtn" aria-label="Import plant" style="margin-left:auto;border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F4E5;</button>
     <button id="plantNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
   </div>
   <div id="plantsContent" style="padding:14px 14px 100px"></div>
 </div>
 
 <div id="watchSection" style="display:none">
-  <div style="display:flex;gap:4px;padding:8px 10px;background:#4A3F7A;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
-    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F37F; Watchlist</span>
-    <button id="watchRandomBtn" aria-label="Pick something to watch at random" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F3B2;</button>
+  <div style="display:flex;gap:4px;padding:8px 10px;background:#4A3F7A;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Watchlist actions">
+    <button id="watchRandomBtn" aria-label="Pick something to watch at random" style="margin-left:auto;border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F3B2;</button>
     <button id="watchNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ Add</button>
   </div>
   <div id="watchContent" style="padding:14px 14px 100px"></div>
@@ -1321,9 +1326,8 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
      HOME INVENTORY SECTION (v424 as Appliances, widened v428)
      ============================================================ -->
 <div id="appliancesSection" style="display:none">
-  <div style="display:flex;gap:4px;padding:8px 10px;background:#3E5C6B;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
-    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1F4E6; Home inventory</span>
-    <button id="applNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
+  <div style="display:flex;gap:4px;padding:8px 10px;background:#3E5C6B;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Inventory actions">
+    <button id="applNewBtn" style="margin-left:auto;border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
   </div>
   <div id="appliancesContent" style="padding:14px 14px 100px"></div>
 </div>
@@ -1332,9 +1336,8 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
      HEALTH SECTION (v449) - the family's medical history
      ============================================================ -->
 <div id="healthSection" style="display:none">
-  <div style="display:flex;gap:4px;padding:8px 10px;background:#2F6E6E;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center">
-    <span style="flex:1;color:#fff;font-size:15px;font-weight:700">&#x1FA7A; Medical history</span>
-    <button id="hlNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
+  <div style="display:flex;gap:4px;padding:8px 10px;background:#2F6E6E;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Medical history actions">
+    <button id="hlNewBtn" style="margin-left:auto;border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
   </div>
   <div id="healthContent" style="padding:14px 14px 100px"></div>
 </div>
@@ -3732,7 +3735,7 @@ function renderPlants() {
 
   var html = "";
   if (showChips) {
-    html += "<div style='display:flex;gap:7px;overflow-x:auto;padding:1px 1px 10px;-webkit-overflow-scrolling:touch'>";
+    html += "<div class='chip-scroll' style='display:flex;gap:7px;overflow-x:auto;padding:1px 24px 10px 1px;-webkit-overflow-scrolling:touch'>";
     var chips = [{ kind:"all", v:"", t:"All" }];
     areas.forEach(function(a){ chips.push({ kind:"area", v:a, t:a }); });
     if (untagged) chips.push({ kind:"none", v:"", t:"No area" });
@@ -3753,6 +3756,12 @@ function renderPlants() {
   if (due.length) {
     html += "<div style='background:#FBE4E4;color:#B03030;border-radius:10px;padding:10px 13px;margin-bottom:12px;font-size:13px;font-weight:700'>&#x1F4A7; " +
       due.length + " plant" + (due.length === 1 ? "" : "s") + " need" + (due.length === 1 ? "s" : "") + " watering</div>";
+  }
+  if (!shown.length) {
+    html += "<div style='text-align:center;color:#7A8A6A;padding:30px 20px;font-size:13px'>" +
+      "<div style='font-size:34px;margin-bottom:8px'>&#x1F50D;</div>" +
+      "<div style='font-size:15px;font-weight:600;margin-bottom:4px'>No plants in this area</div>" +
+      "<div>Tap <b>All</b> above to see every plant.</div></div>";
   }
   shown.forEach(function(p){ html += plantCardHTML(p); });
   html += "<button id='plExportAll' style='width:100%;padding:12px;border:1.5px solid #DCE4D2;background:#fff;color:#5A6A4A;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;touch-action:manipulation'>&#x1F4E4; Export all plants (JSON)</button>" +
@@ -4901,7 +4910,12 @@ function renderWatchlist() {
   }
 
   if (!watchingNow.length && !toWatch.length && !watched.length) {
-    html += "<div style='text-align:center;color:#8A84A0;padding:30px 20px;font-size:13px'>Nothing here under this filter.</div>";
+    var _watchEmptyParts = [];
+    if (_watchFilter !== "all") _watchEmptyParts.push(_watchFilter === "tv" ? "TV" : "films");
+    if (_watchStatusFilter !== "all") _watchEmptyParts.push(_watchStatusFilter === "todo" ? "To watch" : (_watchStatusFilter === "watching" ? "Watching" : "Watched"));
+    html += "<div style='text-align:center;color:#8A84A0;padding:30px 20px;font-size:13px'>" +
+      (_watchEmptyParts.length ? "Nothing matches " + esc(_watchEmptyParts.join(" · ")) + "." : "Nothing matches the current filters.") +
+      "<br><span style='display:inline-block;margin-top:5px'>Choose another chip above.</span></div>";
   }
   if (watchingNow.length) {
     html += "<div style='font-size:11px;font-weight:700;color:" + WATCH_COLOR + ";text-transform:uppercase;letter-spacing:.5px;margin:2px 2px 7px'>&#x25B6; Watching &middot; " + watchingNow.length + "</div>";
@@ -5580,7 +5594,7 @@ function renderHealth() {
 
   var html = "";
   if (showChips) {
-    html += "<div style='display:flex;gap:7px;padding:1px 1px 4px;overflow-x:auto;-webkit-overflow-scrolling:touch'>";
+    html += "<div class='chip-scroll' style='display:flex;gap:7px;padding:1px 24px 4px 1px;overflow-x:auto;-webkit-overflow-scrolling:touch'>";
     [{ v:"", t:"All" }].concat(people.map(function(p){ return { v:p, t:p }; })).forEach(function(c){
       var on = _healthPerson.toLowerCase() === c.v.toLowerCase();
       html += "<button class='health-person-chip' data-person='" + esc(c.v) + "' " +
@@ -6438,7 +6452,7 @@ function renderAppliances() {
 
   var html = "";
   if (showChips) {
-    html += "<div style='display:flex;gap:7px;overflow-x:auto;padding:1px 1px 10px;-webkit-overflow-scrolling:touch'>";
+    html += "<div class='chip-scroll' style='display:flex;gap:7px;overflow-x:auto;padding:1px 24px 10px 1px;-webkit-overflow-scrolling:touch'>";
     var chips = [{ kind:"all", v:"", t:"All" }];
     areas.forEach(function(a){ chips.push({ kind:"area", v:a, t:a }); });
     if (untagged) chips.push({ kind:"none", v:"", t:"No area" });
@@ -6457,7 +6471,9 @@ function renderAppliances() {
   html += inventorySummaryHTML(shown, _applArea);
 
   if (!shown.length) {
-    html += "<div style='text-align:center;color:#7A8A94;padding:30px 20px;font-size:13px'>Nothing here under this filter.</div>";
+    html += "<div style='text-align:center;color:#7A8A94;padding:30px 20px;font-size:13px'>" +
+      (_applArea ? "No inventory records in " + esc(_applArea) + "." : "No inventory records match this filter.") +
+      "<br><span style='display:inline-block;margin-top:5px'>Choose another area above.</span></div>";
   }
   shown.forEach(function(a){ html += applianceCardHTML(a); });
   html += inventoryFileButtonsHTML(true);
@@ -12056,7 +12072,39 @@ function renderList() {
   // here so it also shows above the empty-list state (when it's most useful).
   var suggHtml = (currentList === "grocery" && !_listSearchQuery) ? buildSuggestionsStrip() : "";
   if (!items.length) {
-    elListC.innerHTML = suggHtml + "<div class='empty'><div class='empty-ico'>"+lt.emptyIco+"</div><div class='empty-title'>"+lt.emptyTitle+"</div><div class='empty-sub'>"+lt.emptySub+"</div></div>";
+    var _listEmptyTitle = lt.emptyTitle;
+    var _listEmptySub = lt.emptySub;
+    var _listHasFilter = false;
+    if (_listSearchQuery) {
+      _listEmptyTitle = "No matches for &quot;" + esc(_listSearchQuery) + "&quot;";
+      _listEmptySub = "Try a different search, or use Clear to see everything again.";
+      _listHasFilter = true;
+    } else if (currentList === "travel" && _travelFilter.length) {
+      _listEmptyTitle = "No items match these tags";
+      _listEmptySub = "Selected: " + esc(_travelFilter.join(", ")) + ". Clear the filter to see every travel item.";
+      _listHasFilter = true;
+    } else if (currentList === "todo" && _todayFilter) {
+      _listEmptyTitle = "No tasks marked for Today";
+      _listEmptySub = "Star a task for Today, or clear the filter to see every task.";
+      _listHasFilter = true;
+    } else if (_recentFilter) {
+      _listEmptyTitle = "No recently added items";
+      _listEmptySub = "Clear the Recent filter to see the full list.";
+      _listHasFilter = true;
+    }
+    var _listClearHtml = _listHasFilter
+      ? "<button id='listEmptyClearBtn' style='margin-top:12px;padding:9px 14px;border:1.5px solid #D8D0C0;border-radius:9px;background:#fff;color:#5A6455;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>Clear filters</button>"
+      : "";
+    elListC.innerHTML = suggHtml + "<div class='empty'><div class='empty-ico'>"+lt.emptyIco+"</div><div class='empty-title'>"+_listEmptyTitle+"</div><div class='empty-sub'>"+_listEmptySub+"</div>"+_listClearHtml+"</div>";
+    var _listEmptyClear = document.getElementById("listEmptyClearBtn");
+    if (_listEmptyClear) _listEmptyClear.addEventListener("click", function(){
+      // v469: the search box is a filter too — clearing only the three chip
+      // filters left a search-driven empty state looking identical after the tap.
+      _listSearchQuery = "";
+      var _emptySearchInput = document.getElementById("listSearchInput");
+      if (_emptySearchInput) _emptySearchInput.value = "";
+      _travelFilter = []; _todayFilter = false; _recentFilter = false; renderList();
+    });
     wireSuggestionChips();
     return;
   }
@@ -16546,7 +16594,9 @@ function renderFamlog() {
   if (!shown.length && hasMore) {
     html += "<div style='text-align:center;color:#8A7A8A;padding:30px 16px'><div style='font-size:40px'>&#x1F4D6;</div><div style='font-size:15px;font-weight:600;margin:8px 0 4px'>Nothing in the last "+_famlogDays+" days</div><div style='font-size:13px'>Load earlier shows older events.</div></div>";
   } else if (!shown.length) {
-    html += "<div style='text-align:center;color:#8A7A8A;padding:30px 16px'><div style='font-size:40px'>&#x1F4D6;</div><div style='font-size:15px;font-weight:600;margin:8px 0 4px'>Nothing here yet</div><div style='font-size:13px'>Events from Baby, Train, Trips and Notes will appear as they're logged"+(_famlogFilter!=="all"?" &mdash; try the All filter":"")+".</div></div>";
+    var _famlogFilterNames = { baby:"Baby", train:"Train", trips:"Trips", notes:"Notes" };
+    var _famlogEmptyTitle = _famlogFilter === "all" ? "Nothing here yet" : "No " + (_famlogFilterNames[_famlogFilter] || "matching") + " events yet";
+    html += "<div style='text-align:center;color:#8A7A8A;padding:30px 16px'><div style='font-size:40px'>&#x1F4D6;</div><div style='font-size:15px;font-weight:600;margin:8px 0 4px'>" + _famlogEmptyTitle + "</div><div style='font-size:13px'>Events from Baby, Train, Trips and Notes will appear as they're logged"+(_famlogFilter!=="all"?" &mdash; choose All to see every source":"")+".</div></div>";
   } else {
     var lastDate = null;
     shown.forEach(function(e){
@@ -18195,7 +18245,7 @@ function hwHourLabel(timeStr, idx) {
 }
 function renderHourlyRow(hours) {
   if (!hours || !hours.length) return "";
-  var html = "<div class='hw-hourly-label'>Next 24 hours</div><div class='hw-hourly'>";
+  var html = "<div class='hw-hourly-label'>Next 24 hours</div><div class='hw-hourly chip-scroll'>";
   for (var i = 0; i < hours.length; i++) {
     var hr = hours[i];
     html += "<div class='hw-hour'>" +
@@ -22813,6 +22863,54 @@ if (_seedTainted) {
     });
   }
 }
+
+// v467: keep any focused bottom sheet above the mobile keyboard. This is
+// deliberately event-driven rather than a list of sheet ids: new dynamic
+// sheets inherit the same behaviour as soon as one of their inputs is focused.
+function keyboardSheetOwner(node) {
+  var cur = node;
+  while (cur && cur !== document.body) {
+    if (cur.classList && cur.classList.contains("overlay")) return cur;
+    var cs = window.getComputedStyle(cur);
+    if (cs.position === "fixed" && (cs.bottom === "0px" || cs.inset === "0px")) return cur;
+    cur = cur.parentElement;
+  }
+  return null;
+}
+function installKeyboardSheetSupport() {
+  if (!window.visualViewport) return;
+  var vv = window.visualViewport;
+  function update() {
+    var inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    document.documentElement.style.setProperty("--keyboard-inset", inset + "px");
+    if (inset < 40) {
+      document.querySelectorAll(".keyboard-sheet-offset").forEach(function(el){
+        el.classList.remove("keyboard-sheet-offset");
+      });
+    }
+  }
+  vv.addEventListener("resize", update);
+  vv.addEventListener("scroll", update);
+  window.addEventListener("resize", update);
+  document.addEventListener("focusin", function(e) {
+    var owner = keyboardSheetOwner(e.target);
+    if (!owner) return;
+    document.querySelectorAll(".keyboard-sheet-offset").forEach(function(el){
+      if (el !== owner) el.classList.remove("keyboard-sheet-offset");
+    });
+    owner.classList.add("keyboard-sheet-offset");
+    setTimeout(function(){
+      update();
+      var rect = e.target.getBoundingClientRect();
+      var bottom = vv.offsetTop + vv.height - 14;
+      if (rect.bottom > bottom || rect.top < vv.offsetTop) {
+        e.target.scrollIntoView({ block:"center", behavior:"smooth" });
+      }
+    }, 250);
+  });
+  update();
+}
+installKeyboardSheetSupport();
 
 var bootSection = "home";
 
