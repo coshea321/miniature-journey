@@ -293,6 +293,10 @@ body.home-mode .bn-btn{color:#AAA090}
 .home-empty-spot{padding:16px 12px;text-align:center;font-size:13px;color:#A89A80;background:#FBF8F1;border-radius:9px;margin-bottom:5px}
 
 /* Week strip */
+/* v471: both of these set an explicit `display` in a class rule, which beats
+   the browser's own [hidden]{display:none} — without this line el.hidden is a
+   silent no-op on them. */
+.home-sec-hdr[hidden],.home-week-strip[hidden]{display:none}
 .home-week-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);border-radius:12px;padding:13px 10px}
 .wk-day{display:flex;flex-direction:column;align-items:center;gap:5px}
 .wk-label{font-size:10px;font-weight:700;color:#A89A80;text-transform:uppercase}
@@ -965,12 +969,12 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     <div id="homeGrocerySpot"></div>
 
     <!-- Week strip -->
-    <div class="home-sec-hdr" style="margin-top:14px">
+    <div class="home-sec-hdr" style="margin-top:14px" id="homeWeekHdr">
       <span class="home-sec-title">&#x1F4AA; Training this week</span>
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v470 · 13/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v471 · 13/09/2026</div>
 
   </div>
 </div>
@@ -18827,6 +18831,7 @@ function renderWeekStrip() {
   var d = new Date();
   var todayDow = d.getDay(); // 0=Sun
   var html = "";
+  var anyWkt = false;
 
   for (var i = 6; i >= 0; i--) {
     var date = new Date(d); date.setDate(d.getDate() - i);
@@ -18852,6 +18857,8 @@ function renderWeekStrip() {
       });
     }
 
+    if (hasWkt) anyWkt = true;
+
     var dotClass = "wk-dot";
     var dotInner = "";
     if (hasWkt) { dotClass += " worked"; dotInner = "&#x1F4AA;"; }
@@ -18863,6 +18870,16 @@ function renderWeekStrip() {
     "</div>";
   }
   el.innerHTML = html;
+  // v471: a week with no session is seven empty dots under a title that says
+  // nothing — so hide the strip AND the "Training this week" header with it
+  // (an orphaned title reads worse than the dots did). Toggled BOTH ways on
+  // purpose: renderWeekStrip runs on every Home render, so the strip comes
+  // straight back the moment a session lands. Deliberately NOT extended to
+  // the Training today-card — that card is the only door into Train when its
+  // bar icon is off (see HEARTH-backlog.md entry 4).
+  var wkHdr = document.getElementById("homeWeekHdr");
+  el.hidden = !anyWkt;
+  if (wkHdr) wkHdr.hidden = !anyWkt;
 }
 
 // ── Today-card tap → navigate to section ─────────────────
