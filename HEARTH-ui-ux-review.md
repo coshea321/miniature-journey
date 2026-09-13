@@ -1,6 +1,6 @@
 # Hearth — UI/UX review (12/09/2026)
 
-**Status: suggestions, nothing confirmed.** Do not build from this file until Cathal picks items. A pick belongs in `HEARTH-backlog.md` as a normal pending entry, then its own version/PR.
+**Status (updated 13/09/2026): Cathal has answered all five questions — the confirmed shape of each pick now lives in `HEARTH-backlog.md` § UI/UX review, and that is what a build session reads.** This file is kept as the reasoning behind the picks. §1 shipped as **v470**; §3, §4 and a *narrowed* §1 are confirmed and build-ready; **§1 Option A was NOT taken in full** (see the backlog for what was rejected).
 
 Reviewed **v468** on a phone-width column (~480px), walking Home, Lists, Recipes, Baby → Medicine, More, Settings, Watchlist and Track → Food. This is not a council pass and not a sync/dosing audit.
 
@@ -8,7 +8,7 @@ Reviewed **v468** on a phone-width column (~480px), walking Home, Lists, Recipes
 
 **Already rejected, do not re-open:** dark mode, shopping mode, dashboard customisation, CSS extraction, desktop cosmetics, growing both History buttons, a Watchlist line on Home, a warranty nudge, Family Log on Home, nav-consolidation stages 2–4.
 
-**Already in flight:** [PR #229](https://github.com/coshea321/miniature-journey/pull/229) (*v467: Polish mobile sheets and filtered empty states*) already does four things this review would otherwise ask for: drop the doubled section titles, keep sheets above the keyboard, fade overflowing chip rows, and make filtered empties name the query. **Do not merge it as-is** — it still numbers itself v467, and `main` has since shipped a different v467 and v468. If those four still sound right, rebase it onto current `main` as **v469**. If not, close it.
+**Resolved (13/09/2026):** the PR #229 paragraph that stood here is spent. Its four items — doubled section titles, keyboard-aware sheets, chip-row fade, named filtered empties — were rebased onto v468 and **shipped as v469 on 12/09/2026**, along with a `Clear filters` fix the rebase turned up. Nothing is in flight from this review any more; treat the polish table below as already covering only what v470 did not.
 
 ---
 
@@ -95,12 +95,12 @@ Filtered empty states that *name the query* are the 02/07 parked polish item, an
 
 ---
 
-## Questions for Cathal (only he can answer)
+## Questions for Cathal — ANSWERED 13/09/2026
 
-1. On a quiet day, should Home hide the empty Training / medicine / Today / Grocery / week blocks (**§1 Option A**), or do you use those empty cards as doors?
-2. May Log medicine move above Bottle freshness? (Tab order stays the same.)
-3. Recipes: Week plan stays visible, other tools behind **Tools** — yes/no?
-4. Settings regrouping in §4 — yes/no?
-5. PR #229: rebase as v469, or close it?
+1. Quiet-day Home — **narrow yes, not Option A.** Hide the week strip when no session landed this week, and Training when it has nothing. Keep Plants, the quick-add chips, Last medicine and both 🎉 spotlight lines; those read as reward, not emptiness. **Option A's ★ Today / Grocery / Last medicine hides are rejected on record.**
+2. Log medicine above Bottle freshness — **yes. Shipped v470**, tab order unchanged, and the chip hint went in with it.
+3. Recipes Tools sheet, Week plan staying visible — **yes.** Confirmed, build-ready.
+4. Settings regrouping — **yes**, with one correction: the sheet is already *titled* Settings; the offender is the "Manage your custom categories" subtitle. Confirmed, build-ready.
+5. PR #229 — **moot: shipped as v469** on 12/09/2026.
 
-Nothing in this file is a build brief until those answers are written into `HEARTH-backlog.md`.
+The build-ready detail for each now lives in `HEARTH-backlog.md` § UI/UX review. Read that, not this file, before building.

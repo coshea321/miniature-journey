@@ -119,7 +119,7 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 .chip-scroll{scrollbar-width:none;-webkit-mask-image:linear-gradient(to right,#000 0,#000 calc(100% - 24px),transparent 100%);mask-image:linear-gradient(to right,#000 0,#000 calc(100% - 24px),transparent 100%)}
 .chip-scroll::-webkit-scrollbar{display:none}
 .modal-title{font-family:Georgia,serif;font-size:18px;text-align:center;margin-bottom:14px}
-.modal-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border:none;background:#F0EDE8;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.modal-close{position:absolute;top:14px;right:14px;width:40px;height:40px;border:none;background:#F0EDE8;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .picker-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .picker-opt{padding:12px;border-radius:9px;border:2.5px solid transparent;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
 .picker-opt.sel{border-color:var(--accent)}
@@ -970,7 +970,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v469 · 12/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v470 · 13/09/2026</div>
 
   </div>
 </div>
@@ -1297,7 +1297,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
 <div id="tripsSection" style="display:none">
       <div style="display:flex;gap:4px;padding:8px 10px;background:#0F8A8A;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Trip actions">
     <button id="tripPackingBtn" style="margin-left:auto;border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x2708;&#xFE0F; Packing</button>
-    <button id="tripImportBtn" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F4E5;</button>
+    <button id="tripImportBtn" aria-label="Import trip" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F4E5;</button>
     <button id="tripNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New trip</button>
   </div>
   <div id="tripsContent" style="padding:14px 14px 100px"></div>
@@ -12422,7 +12422,7 @@ function cardHTML(item, c) {
     : "";
   var leftColor = isDup ? "#E8A030" : (isNew ? "#E0703C" : (catColorSafe(c.fg,"#4A4A3A") + "33"));
   var starBtn = (currentList === "todo")
-    ? "<button class='star-btn' title='Pick for today' style='width:34px;height:40px;flex-shrink:0;border:none;background:none;font-size:18px;line-height:1;cursor:pointer;padding:0;color:" + (item.today?"#E8A030":"#D0C8B8") + "'>" + (item.today?"&#x2605;":"&#x2606;") + "</button>"
+    ? "<button class='star-btn' title='Pick for today' aria-label='" + (item.today?"Unpick for today":"Pick for today") + "' aria-pressed='" + (item.today?"true":"false") + "' style='width:34px;height:40px;flex-shrink:0;border:none;background:none;font-size:18px;line-height:1;cursor:pointer;padding:0;color:" + (item.today?"#E8A030":"#D0C8B8") + "'>" + (item.today?"&#x2605;":"&#x2606;") + "</button>"
     : "";
   // v326: travel items opted into per-person checks show three circles (C / P / baby) instead of the single checkbox
   var isPP = currentList === "travel" && item.checks && typeof item.checks === "object";
@@ -12986,35 +12986,35 @@ function openNoteEditor(title, body, onSave, onDelete) {
 
   var TOOLBAR_HTML =
     "<div id='neFmt' style='display:flex;gap:3px;padding:7px 8px;background:#fff;border-top:1px solid #E8E4DC;flex-wrap:wrap;flex-shrink:0;padding-bottom:max(8px,env(safe-area-inset-bottom))'>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='undo' title='Undo' style='font-size:15px'>&#x21B6;</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='redo' title='Redo' style='font-size:15px'>&#x21B7;</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='selectLine' title='Select current line'>&#x2195;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='undo' title='Undo' aria-label='Undo' style='font-size:15px'>&#x21B6;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='redo' title='Redo' aria-label='Redo' style='font-size:15px'>&#x21B7;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='selectLine' title='Select current line' aria-label='Select current line'>&#x2195;</button>" +
       "<div style='width:1px;background:#E8E4DC;margin:0 2px;align-self:stretch'></div>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='bold' title='Bold'><b>B</b></button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='italic' title='Italic'><i>I</i></button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='underline' title='Underline'><u>U</u></button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='strikethrough' title='Strikethrough'><s>S</s></button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='highlight' title='Highlight' style='background:#FFF176;color:#555'>H</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='bold' title='Bold' aria-label='Bold'><b>B</b></button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='italic' title='Italic' aria-label='Italic'><i>I</i></button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='underline' title='Underline' aria-label='Underline'><u>U</u></button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='strikethrough' title='Strikethrough' aria-label='Strikethrough'><s>S</s></button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='highlight' title='Highlight' aria-label='Highlight' style='background:#FFF176;color:#555'>H</button>" +
       "<div style='width:1px;background:#E8E4DC;margin:0 2px;align-self:stretch'></div>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='h1' title='Heading 1' style='font-weight:800;font-size:13px'>H1</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='h2' title='Heading 2' style='font-weight:700;font-size:12px'>H2</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='h3' title='Heading 3' style='font-weight:600;font-size:11px'>H3</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='p' title='Normal text'>&#xB6;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='h1' title='Heading 1' aria-label='Heading 1' style='font-weight:800;font-size:13px'>H1</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='h2' title='Heading 2' aria-label='Heading 2' style='font-weight:700;font-size:12px'>H2</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='h3' title='Heading 3' aria-label='Heading 3' style='font-weight:600;font-size:11px'>H3</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='p' title='Normal text' aria-label='Normal text'>&#xB6;</button>" +
       "<div style='width:1px;background:#E8E4DC;margin:0 2px;align-self:stretch'></div>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='ul' title='Bullet list'>&#x2022;</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='ol' title='Numbered list'>1.</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='indent' title='Indent'>&#x21E5;</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='outdent' title='Outdent'>&#x21E4;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='ul' title='Bullet list' aria-label='Bullet list'>&#x2022;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='ol' title='Numbered list' aria-label='Numbered list'>1.</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='indent' title='Indent' aria-label='Indent'>&#x21E5;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='outdent' title='Outdent' aria-label='Outdent'>&#x21E4;</button>" +
       "<div style='width:1px;background:#E8E4DC;margin:0 2px;align-self:stretch'></div>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='justifyLeft' title='Left'>&#x2261;</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='justifyCenter' title='Centre'>&#x2263;</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='justifyRight' title='Right'>&#x2262;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='justifyLeft' title='Left' aria-label='Left'>&#x2261;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='justifyCenter' title='Centre' aria-label='Centre'>&#x2263;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='justifyRight' title='Right' aria-label='Right'>&#x2262;</button>" +
       "<div style='width:1px;background:#E8E4DC;margin:0 2px;align-self:stretch'></div>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='blockquote' title='Quote'>&#x201C;</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='hr' title='Divider'>&#x2015;</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='code' title='Code'>{ }</button>" +
-      "<button class='fmt-btn ne-fmt' data-fmt='clear' title='Clear formatting' style='color:#C06060'>&#x2A2F;</button>" +
-      "<button id='neHelpBtn' class='fmt-btn' title='Toolbar legend' style='margin-left:auto;font-weight:700;color:#8A7A5C'>?</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='blockquote' title='Quote' aria-label='Quote'>&#x201C;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='hr' title='Divider' aria-label='Divider'>&#x2015;</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='code' title='Code' aria-label='Code'>{ }</button>" +
+      "<button class='fmt-btn ne-fmt' data-fmt='clear' title='Clear formatting' aria-label='Clear formatting' style='color:#C06060'>&#x2A2F;</button>" +
+      "<button id='neHelpBtn' class='fmt-btn' title='Toolbar legend' aria-label='Toolbar legend' style='margin-left:auto;font-weight:700;color:#8A7A5C'>?</button>" +
     "</div>";
 
   inner.innerHTML =
@@ -21952,20 +21952,23 @@ function renderMedicine() {
       (warn ? "background:#FDF0E0;color:#9A5A10;border:1px solid #E8C89A;font-weight:600" : "background:#F6F2FA;color:#7A5A7A")+
       "'>"+(warn?"&#x26A0;&#xFE0F; ":"")+line+"</div>";
   });
-  var html = bottleFreshnessCardHtml(bd) +
-    "<div class='baby-log-card'><div class='baby-card-title'>&#x1F48A; Log medicine</div>" +
+  // v470: Log medicine leads, bottle freshness follows. At 2am the job is
+  // logging a dose; bottle tracking is useful but not the first slot.
+  var html = "<div class='baby-log-card'><div class='baby-card-title'>&#x1F48A; Log medicine</div>" +
     intervalHtml +
     "<div class='med-quick-chips' style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px'>" +
       "<button type='button' class='med-chip' data-med='Calpol' data-conc='Calpol Infant 120mg/5ml' data-mgkg='15' data-mg5='120' data-floor='0' data-cap='10' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:16px;padding:11px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Calpol</button>" +
       "<button type='button' class='med-chip' data-med='Nurofen' data-conc='Nurofen for Children 100mg/5ml' data-mgkg='10' data-mg5='100' data-floor='5' data-cap='10' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:16px;padding:11px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Nurofen</button>" +
       "<button type='button' class='med-chip' data-med='Antibiotic' data-mgkg='' data-fallback='' style='border:1.5px solid #9333ea30;background:#F3EAFA;color:#7E22CE;border-radius:16px;padding:11px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation'>Antibiotic</button>" +
     "</div>" +
+    "<div style='font-size:12.5px;line-height:1.45;color:#6A4A6A;margin:-2px 0 8px'>Tap Calpol or Nurofen for a weight-based estimate &mdash; then check the leaflet.</div>" +
     "<input id='medName' type='text' class='med-input' placeholder='Medicine name' autocomplete='off' style='margin-bottom:6px'>" +
     "<div style='display:flex;gap:8px;margin-bottom:6px'><input id='medDose' type='text' class='med-input' style='flex:1' placeholder='Dose'><input id='medTime' type='datetime-local' class='med-input' style='flex:1' value='"+dtStr+"'></div>" +
-    "<div id='medDoseNote' style='font-size:13px;line-height:1.4;color:#7A5A7A;margin:-2px 0 6px;min-height:0'></div>" +
+    "<div id='medDoseNote' style='font-size:14px;line-height:1.45;color:#5A3A5A;margin:-2px 0 6px;min-height:0'></div>" +
     "<input id='medNotes' type='text' class='med-input' placeholder='Notes (optional)' style='margin-bottom:6px'>" +
     "<div id='medSaveErr' style='display:none;font-size:13px;line-height:1.45;padding:8px 11px;border-radius:9px;margin-bottom:6px;background:#FDECEC;color:#9A2020;border:1px solid #E8A0A0;font-weight:600'></div>" +
-    "<button class='baby-log-btn' id='medLogBtn'>Log</button></div>";
+    "<button class='baby-log-btn' id='medLogBtn'>Log</button></div>" +
+    bottleFreshnessCardHtml(bd);
   if (meds.length) {
     meds.forEach(function(m){
       var tStr=m.ts?new Date(m.ts).toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"}):"";
