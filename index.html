@@ -974,7 +974,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v472 · 13/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v473 · 13/09/2026</div>
 
   </div>
 </div>
@@ -1677,11 +1677,8 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
   <div class="modal-box" style="position:relative">
     <button class="modal-close" id="settingsClose" aria-label="Close settings">&#x2715;</button>
     <div class="modal-title">&#9881;&#65039; Settings</div>
-    <div style="font-size:14px;color:#7A8772;text-align:center;margin-bottom:18px">Manage your custom categories</div>
-    <div id="customCatsList"></div>
-    <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <div class="sync-section-title" style="margin-bottom:8px">Visible sections</div>
-    <div style="font-size:12px;color:#7A8772;margin-bottom:10px;line-height:1.5">Choose what shows on the bottom bar. Lists, Recipes and Baby cannot be hidden. The bar holds five &mdash; anything past that moves into a &ldquo;More&rdquo; button at the end of it. Train stays reachable from the Home Training strip either way.</div>
+    <div style="font-size:12px;color:#7A8772;margin-bottom:10px;line-height:1.5">Five on the bar, the rest under More.</div>
     <div id="sectionToggles">
       <div class="sync-toggle-row">
         <span class="sync-toggle-label">&#x1F3E0; Home dashboard</span>
@@ -1724,6 +1721,11 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="famlog"><span class="toggle-slider"></span></label>
       </div>
     </div>
+    <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
+    <details id="customCatsDetails">
+      <summary style="font-size:13px;color:#7A8772;cursor:pointer;padding:4px 2px">&#x1F3F7;&#xFE0F; Custom categories</summary>
+      <div id="customCatsList" style="margin-top:10px"></div>
+    </details>
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <div class="sync-section-title" style="margin-bottom:8px">Import / Export</div>
     <button class="sync-btn" id="exportBtn">&#x2B07;&#xFE0F; Export all data</button>
