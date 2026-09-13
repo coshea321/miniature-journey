@@ -974,7 +974,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v471 · 13/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v472 · 13/09/2026</div>
 
   </div>
 </div>
@@ -8674,10 +8674,17 @@ function renderRecipes() {
   } else {
     selectHdr = "<div style='display:flex;flex-wrap:wrap;gap:6px;justify-content:space-between;margin-bottom:10px'>" +
       "<button id='rcpPlanBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F4C5; Week plan</button>" +
-      "<button id='rcpTidyBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F9F9; Tidy</button>" +
-      "<button id='rcpPrepBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F4DD; Prep helper</button>" +
-      "<button id='rcpCalBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F525; Calories</button>" +
-      "<button id='rcpSelStart' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x2713; Select</button>" +
+      "<button id='rcpToolsBtn' style='padding:6px 12px;border:1.5px solid #D8C0A0;background:#fff;color:#8A5A1A;border-radius:14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer'>&#x1F9F0; Tools</button>" +
+    "</div>" +
+    "<div class='overlay' id='rcpToolsOverlay'>" +
+      "<div class='modal-box' style='position:relative'>" +
+        "<button class='modal-close' id='rcpToolsClose' aria-label='Close'>&#x2715;</button>" +
+        "<div class='modal-title'>&#x1F9F0; Tools</div>" +
+        "<button id='rcpTidyBtn' class='more-row'><span class='more-ico'>&#x1F9F9;</span><span class='more-name'>Tidy</span></button>" +
+        "<button id='rcpPrepBtn' class='more-row'><span class='more-ico'>&#x1F4DD;</span><span class='more-name'>Prep helper</span></button>" +
+        "<button id='rcpCalBtn' class='more-row'><span class='more-ico'>&#x1F525;</span><span class='more-name'>Calories</span></button>" +
+        "<button id='rcpSelStart' class='more-row'><span class='more-ico'>&#x2713;</span><span class='more-name'>Select</span></button>" +
+      "</div>" +
     "</div>";
   }
   // A banner rather than a fifth toolbar button: duplicates are a one-off
@@ -8786,6 +8793,12 @@ function renderRecipes() {
     _recipeView = "plan";
     renderRecipes();
   });
+  var _rcpToolsOverlay = document.getElementById("rcpToolsOverlay");
+  var _rcpToolsBtn = document.getElementById("rcpToolsBtn");
+  if (_rcpToolsBtn && _rcpToolsOverlay) _rcpToolsBtn.addEventListener("click", function(){ _rcpToolsOverlay.classList.add("open"); });
+  var _rcpToolsClose = document.getElementById("rcpToolsClose");
+  if (_rcpToolsClose && _rcpToolsOverlay) _rcpToolsClose.addEventListener("click", function(){ _rcpToolsOverlay.classList.remove("open"); });
+  if (_rcpToolsOverlay) _rcpToolsOverlay.addEventListener("click", function(e){ if (e.target === this) _rcpToolsOverlay.classList.remove("open"); });
   var _rcpTidyBtn = document.getElementById("rcpTidyBtn");
   if (_rcpTidyBtn) _rcpTidyBtn.addEventListener("click", function(){
     _recipeScrollPos = window.scrollY || document.documentElement.scrollTop;
@@ -11103,7 +11116,7 @@ function renderRecipeDetail() {
     "</div>" +
     "<div style='display:flex;align-items:center;gap:8px;margin:-8px 0 14px'>" +
       "<button id='recipeFocusToggle' type='button' aria-pressed='" + (_recipeFocusOn ? "true" : "false") + "' style='flex-shrink:0;border:1.5px solid " + (_recipeFocusOn ? "#B5651D" : "#E0D0B8") + ";background:" + (_recipeFocusOn ? "#B5651D" : "#fff") + ";color:" + (_recipeFocusOn ? "#fff" : "#7A5A30") + ";border-radius:14px;padding:5px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>&#x1F526; Focus</button>" +
-      "<div id='recipeFocusHint' style='font-size:11px;color:#9A8A6A'>" + (_recipeFocusOn ? "Only the next line is highlighted. Tap it when it&rsquo;s done to move on; tap any other line to jump there." : "Tap a line as you go and it greys out. Reopening the recipe clears them.") + "</div>" +
+      (_recipeFocusOn ? "<div id='recipeFocusHint' style='font-size:11px;color:#9A8A6A'>Only the next line is highlighted. Tap it when it&rsquo;s done to move on; tap any other line to jump there.</div>" : "") +
     "</div>" +
     "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Ingredients</div>" +
     "<ul style='margin:0 0 18px;padding:0 0 0 20px'>" + ingHtml + "</ul>" +
