@@ -97,7 +97,7 @@ Filtered empty states that *name the query* are the 02/07 parked polish item, an
 
 ## Questions for Cathal — ANSWERED 13/09/2026
 
-1. Quiet-day Home — **narrow yes, not Option A.** Hide the week strip when no session landed this week, and Training when it has nothing. Keep Plants, the quick-add chips, Last medicine and both 🎉 spotlight lines; those read as reward, not emptiness. **Option A's ★ Today / Grocery / Last medicine hides are rejected on record.**
+1. Quiet-day Home — **the week strip only, not Option A.** Hide the week strip when no session landed this week. **The Training hide was cut on 13/09/2026:** Train is default-off the nav bar, so its Home card is the only door into the section (see the backlog entry for the full reasoning). Keep Training, Plants, the quick-add chips, Last medicine and both 🎉 spotlight lines; those read as reward, not emptiness. **Option A's ★ Today / Grocery / Last medicine hides are rejected on record.**
 2. Log medicine above Bottle freshness — **yes. Shipped v470**, tab order unchanged, and the chip hint went in with it.
 3. Recipes Tools sheet, Week plan staying visible — **yes.** Confirmed, build-ready.
 4. Settings regrouping — **yes**, with one correction: the sheet is already *titled* Settings; the offender is the "Manage your custom categories" subtitle. Confirmed, build-ready.
