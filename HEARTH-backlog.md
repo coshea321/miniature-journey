@@ -6,6 +6,9 @@ Pending work, triaged review findings, and decisions that must not be re-litigat
 
 **Struck-through items are shipped.** They are kept because the reasoning behind them still matters — a struck item is a "do not re-chase", not a to-do.
 
+## UI/UX review (12/09/2026) — suggestions only, nothing confirmed
+Full write-up: [`HEARTH-ui-ux-review.md`](HEARTH-ui-ux-review.md). Ranked picks: (1) quiet-day Home hiding empty glance cards, (2) Baby → Medicine putting Log above bottle freshness, (3) Recipes folding Tidy/Prep/Calories/Select behind Tools, (4) Settings retitled and regrouped. **Do not build any of them until Cathal picks**; a pick becomes a normal pending entry of its own. Also flagged: open [PR #229](https://github.com/coshea321/miniature-journey/pull/229) already covers doubled section titles, keyboard-aware sheets, chip-row fade and named filtered empties, but it is stranded on a v467 bump while `main` is v468 — rebase as v469 or close, do not merge as-is. Dark mode, shopping mode, dashboard customisation and nav-consolidation stages 2–4 stay rejected.
+
 ## Sync report (09/09/2026)
 - ~~**Repeated “sync needs re-login” warning.**~~ **Shipped v468.** The warning was often false: `fetchPersonal()` appended any in-memory ID token without checking its one-hour expiry, while the cold-start watchdog could begin sync after 6 seconds even though token refresh had an 8-second timeout. Train/Track navigation, Sync now, an SSE patch or the five-minute fallback could therefore turn a valid refreshable session into a 401 and tell Cathal to log out. All Database REST now goes through one refresh-before-fetch/retry-once gate; only a missing or rejected refresh credential asks for login, and transient network failures do not.
 
