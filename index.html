@@ -974,7 +974,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v473 · 13/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v474 · 15/09/2026</div>
 
   </div>
 </div>
@@ -11451,14 +11451,21 @@ function openRecipeEditor(id) {
     recipeCategoryChips() +
     "<label style='display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:14px;color:#2A2010;cursor:pointer'><input id='reInRotation' type='checkbox'" + (r&&r.inRotation?" checked":"") + " style='width:18px;height:18px'> &#x1F501; In rotation (eligible for the weekly auto-fill)</label>" +
     fieldLabel("Ingredients (one per line: amount unit name)") +
-    "<textarea id='reIng' rows='7' placeholder='2 tsp instant coffee&#10;150 ml milk&#10;~8 cube ice cubes' style='" + recipeInputCss() + "margin-bottom:12px;resize:vertical;line-height:1.6'>" + (ingText?esc(ingText):"") + "</textarea>" +
-    fieldLabel("Prep (optional) — done before the cooking starts") +
-    "<textarea id='rePrep' rows='3' placeholder='Finely chop the onion&#10;Preheat the oven to 200C' style='" + recipeInputCss() + "margin-bottom:" + (derivedPrep.length ? "6px" : "12px") + ";resize:vertical;line-height:1.6'>" + (r&&r.prep?esc(r.prep):"") + "</textarea>" +
-    (derivedPrep.length ? "<button id='rePrepFromIng' type='button' style='border:1.5px solid #D8C0A0;background:#FBF4E8;color:#8A5A1A;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:12px'>&#x2193; Use the prep from my ingredients (" + derivedPrep.length + ")</button>" : "") +
-    fieldLabel("Method") +
-    "<textarea id='reMethod' rows='5' placeholder='Step-by-step method...' style='" + recipeInputCss() + "margin-bottom:12px;resize:vertical;line-height:1.6'>" + (r&&r.method?esc(r.method):"") + "</textarea>" +
-    fieldLabel("Notes (optional)") +
-    "<textarea id='reNotes' rows='2' placeholder='Any notes...' style='" + recipeInputCss() + "margin-bottom:16px;resize:vertical;line-height:1.6'>" + (r&&r.notes?esc(r.notes):"") + "</textarea>" +
+    "<textarea id='reIng' rows='7' placeholder='2 tsp instant coffee&#10;150 ml milk&#10;~8 cube ice cubes' style='" + recipeInputCss() + "resize:vertical;line-height:1.6'>" + (ingText?esc(ingText):"") + "</textarea>" +
+    recipeResizeGrip("reIng") +
+    "<details open style='margin-bottom:12px'>" + recipeSectionSummary("Prep (optional) — done before the cooking starts") +
+    "<textarea id='rePrep' rows='3' placeholder='Finely chop the onion&#10;Preheat the oven to 200C' style='" + recipeInputCss() + "margin-top:5px;resize:vertical;line-height:1.6'>" + (r&&r.prep?esc(r.prep):"") + "</textarea>" +
+    recipeResizeGrip("rePrep") +
+    (derivedPrep.length ? "<button id='rePrepFromIng' type='button' style='border:1.5px solid #D8C0A0;background:#FBF4E8;color:#8A5A1A;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;margin-top:6px'>&#x2193; Use the prep from my ingredients (" + derivedPrep.length + ")</button>" : "") +
+    "</details>" +
+    "<details open style='margin-bottom:12px'>" + recipeSectionSummary("Method") +
+    "<textarea id='reMethod' rows='5' placeholder='Step-by-step method...' style='" + recipeInputCss() + "margin-top:5px;resize:vertical;line-height:1.6'>" + (r&&r.method?esc(r.method):"") + "</textarea>" +
+    recipeResizeGrip("reMethod") +
+    "</details>" +
+    "<details open style='margin-bottom:16px'>" + recipeSectionSummary("Notes (optional)") +
+    "<textarea id='reNotes' rows='2' placeholder='Any notes...' style='" + recipeInputCss() + "margin-top:5px;resize:vertical;line-height:1.6'>" + (r&&r.notes?esc(r.notes):"") + "</textarea>" +
+    recipeResizeGrip("reNotes") +
+    "</details>" +
     fieldLabel("Recipe URL (optional)") +
     "<input id='reUrl' type='url' value='" + (r&&r.url?esc(r.url).replace(/'/g,"&#39;"):"") + "' placeholder='https://example.com/recipe' style='" + recipeInputCss() + "margin-bottom:16px'>" +
     "<button id='reSave' style='width:100%;padding:13px;border:none;background:#B5651D;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save recipe</button>";
@@ -11468,6 +11475,7 @@ function openRecipeEditor(id) {
     if (isNew) { _recipeView="list"; renderRecipes(); }
     else { _recipeView="detail"; renderRecipeDetail(); }
   });
+  wireRecipeResizeGrips(el);
   var _reChips = document.getElementById("reCatChips");
   if (_reChips) {
     var _hiReChip = function(){
@@ -11712,6 +11720,33 @@ function recipeCategoryChips() {
     "</div>";
 }
 function fieldLabel(t){ return "<div style='font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px'>" + t + "</div>"; }
+// Same look as fieldLabel, but as a <summary> so the section it labels can collapse.
+function recipeSectionSummary(t){ return "<summary style='font-size:10px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;padding:2px 0'>" + t + "</summary>"; }
+// A visible drag handle under a resizable textarea. CSS resize:vertical
+// leaves no visible grip on most mobile browsers, so this is what actually
+// lets you make the box taller by hand there.
+function recipeResizeGrip(targetId){ return "<div class='reResizeGrip' data-target='" + targetId + "' style='text-align:center;font-size:11px;color:#9A8A6A;padding:6px 0;margin-bottom:8px;cursor:ns-resize;touch-action:none;user-select:none'>&#8597; Drag to resize</div>"; }
+// Wires every .reResizeGrip inside root to drag-resize the textarea named in
+// its data-target, via Pointer Events (covers touch, mouse and pen alike).
+function wireRecipeResizeGrips(root) {
+  Array.prototype.forEach.call(root.querySelectorAll(".reResizeGrip"), function(grip){
+    var ta = document.getElementById(grip.getAttribute("data-target"));
+    if (!ta) return;
+    var startY = 0, startH = 0;
+    function onMove(e) { ta.style.height = Math.max(60, startH + (e.clientY - startY)) + "px"; }
+    function onEnd() {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onEnd);
+    }
+    grip.addEventListener("pointerdown", function(e){
+      e.preventDefault();
+      startY = e.clientY;
+      startH = ta.getBoundingClientRect().height;
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onEnd);
+    });
+  });
+}
 // Force http(s) so a stray "javascript:" (or a bare "example.com") never
 // lands in an <a href> unescaped — trusted scheme in, trusted scheme out.
 function normalizeRecipeUrl(u) {
