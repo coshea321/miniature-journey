@@ -115,6 +115,9 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 .overlay.keyboard-sheet-offset{padding-bottom:var(--keyboard-inset)}
 .overlay.keyboard-sheet-offset .modal-box{max-height:min(82vh,calc(100dvh - var(--keyboard-inset) - 16px))}
 .keyboard-sheet-offset:not(.overlay){bottom:var(--keyboard-inset)!important;max-height:calc(85vh - var(--keyboard-inset))!important}
+/* v476: that max-height is for a SHEET. It must never reach a full-screen
+   fixed panel (#sessionOverlay) - it shrank the session screen to 85vh and
+   exposed the bottom nav underneath. keyboardSheetOwner is the gate. */
 /* A right-edge fade tells a one-handed phone user that a chip row scrolls. */
 .chip-scroll{scrollbar-width:none;-webkit-mask-image:linear-gradient(to right,#000 0,#000 calc(100% - 24px),transparent 100%);mask-image:linear-gradient(to right,#000 0,#000 calc(100% - 24px),transparent 100%)}
 .chip-scroll::-webkit-scrollbar{display:none}
@@ -670,10 +673,10 @@ body.train-mode #toast{background:#3A3328}
 .ycue-tabs{display:flex;gap:6px;justify-content:center;margin:2px 0 10px}
 /* 32px clears WCAG 2.2 AA (2.5.8 wants 24x24) - see the History button note. */
 .ycue-tab{font-size:12px;font-weight:600;padding:6px 16px;min-height:32px;border:1px solid #E0DCD4;background:#FAF8F4;color:#8A7A5A;border-radius:8px;cursor:pointer}
-.ycue-tab.on{background:#8b5cf6;border-color:#8b5cf6;color:#fff}
+.ycue-tab.on{background:var(--ycue-accent,#8b5cf6);border-color:var(--ycue-accent,#8b5cf6);color:#fff}
 .ycue-list{list-style:none;margin:0 0 10px;padding:0;text-align:left;max-width:320px;margin-left:auto;margin-right:auto}
 .ycue-list li{position:relative;padding:5px 0 5px 18px;font-size:14px;line-height:1.5;color:#4A4030}
-.ycue-list li:before{content:"";position:absolute;left:4px;top:12px;width:5px;height:5px;border-radius:50%;background:#8b5cf6}
+.ycue-list li:before{content:"";position:absolute;left:4px;top:12px;width:5px;height:5px;border-radius:50%;background:var(--ycue-accent,#8b5cf6)}
 .ycue-meta{font-size:11px;font-weight:600;color:#B8AE9C;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .ses-video-btn{display:inline-flex;align-items:center;gap:6px;background:#ef4444;color:#fff;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;border:none;font-family:inherit}
 .ses-set-info{font-size:12px;color:#8A7A5A;text-align:center;margin-bottom:8px}
@@ -974,7 +977,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v474 · 15/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v476 · 19/09/2026</div>
 
   </div>
 </div>
@@ -19338,6 +19341,20 @@ var PROGRAMMES_TRAIN = [
     {id:'tabletop_arm_press',name:'Table Top + Arm Press',type:'timed',dur:30,sets:1,note:'30s',cue:'From table top with arms raised, slowly press your arms straight back overhead toward the floor behind you, then return to vertical. Keep your core engaged and lower back flat — the movement comes from the shoulders, not the back. Control the motion both ways.',url:'https://www.youtube.com/watch?v=g_BYB0R-4Ws'},
     {id:'tabletop_leg_45',name:'Table Top + Leg to 45°',type:'timed',dur:30,sets:1,note:'30s alternating',cue:'From table top with arms pressing, extend one leg out to about 45° while keeping the other in table top. Return and alternate legs. Keep your lower back pressed firmly to the floor — if your back starts to arch, extend the leg less far. Move slowly and with control.',url:'https://www.youtube.com/watch?v=g_BYB0R-4Ws'},
     {id:'bridges_mpc',name:'Bridges',type:'timed',dur:30,sets:1,note:'30s · tuck, squeeze, lift',cue:'Lie on your back with knees bent and feet flat. First tuck your tummy (gentle pelvic tilt), then squeeze your glutes, then lift your hips up toward the ceiling. Add a thigh squeeze at the top, and lift your heels up if comfortable. Lower slowly. This sequence protects your spine — the tummy tuck and flexion keep the movement stenosis-safe.',url:'https://www.youtube.com/watch?v=wPM8icPu6H8'}
+  ]},
+  {id:'knee_general',name:'Knee Programme',icon:'&#x1F9B4;',note:'Knee · gentle strength and stretch · daily',color:'#22c55e',warning:'A gentle, general-purpose knee programme — not a diagnosis and not prescribed for anyone in particular. Mild discomfort, up to about 3/10, that settles within a day is fine. Sharp pain, swelling or the knee giving way means stop. See a physio or GP first if you have significant swelling, locking, instability, a recent injury or surgery, or pain that is not improving after 2–3 weeks.',info:'Progression, after 2–3 pain-free weeks: mini squats (0–45°) holding onto a counter · step-ups on a low step · single-leg balance for 30 seconds · a light ankle weight added to the leg raises.',exercises:[
+    {id:'heel_slides_kn',name:'Heel Slides',type:'reps',reps:15,sets:1,note:'Warm-up · 10–15 reps each leg',cue:'Lie on your back with both legs straight. Slowly slide one heel along the floor toward your bum, bending the knee as far as is comfortable, then slide it back out. Smooth and pain-free throughout — this is a warm-up, not a stretch. 10–15 reps, then swap legs.',cues:["Lie on your back, both legs straight","Slide one heel along the floor toward your bum","Bend only as far as is comfortable, then slide back out","Smooth and pain-free — a warm-up, not a stretch","10–15 reps, then swap legs"]},
+    {id:'ankle_pumps_kn',name:'Ankle Pumps',type:'reps',reps:20,sets:1,note:'Warm-up · 20 reps',cue:'Lie or sit with your legs out in front of you. Point both feet away from you, then pull your toes back toward your shins. Steady and rhythmic — this gets the calf pump going before the strength work. 20 reps.',cues:["Lie or sit with your legs out in front","Point both feet away from you","Then pull your toes back toward your shins","Steady and rhythmic — 20 reps"]},
+    {id:'quad_sets_kn',name:'Quad Sets',type:'reps',reps:10,sets:2,note:'Strength · 2 × 10 each leg · hold 5s',cue:'Sit or lie with the working leg straight out in front of you. Press the back of your knee down into the floor and tighten the thigh muscle. Hold 5 seconds, then relax fully. 10 reps on each leg.',cues:["Sit or lie with the working leg straight out","Press the back of the knee down into the floor","Tighten the thigh and hold 5 seconds","Relax fully between reps — 10 on each leg"]},
+    {id:'slr_kn',name:'Straight Leg Raise',type:'reps',reps:10,sets:2,note:'Strength · 2 × 10 each leg',cue:'Lie on your back with one knee bent and the working leg straight. Tighten the thigh first, then lift the straight leg about 30 cm off the floor. Hold 2–3 seconds and lower slowly — the slow lowering is the part that builds the quad. 10 reps on each leg.',cues:["One knee bent, the working leg straight","Tighten the thigh FIRST, then lift about 30 cm","Hold 2–3 seconds","Lower slowly — the slow lowering is what builds the quad"]},
+    {id:'short_arc_quads_kn',name:'Short Arc Quads',type:'reps',reps:10,sets:2,note:'Strength · 2 × 10 each leg · towel roll',cue:'Lie on your back with a rolled towel under your knee so the knee stays slightly bent. Straighten the lower leg by lifting the foot, keeping the back of the knee resting on the towel. Hold 3 seconds, then lower slowly. 10 reps on each leg.',cues:["Rolled towel under the knee so it stays slightly bent","Lift the foot to straighten the lower leg","Back of the knee stays resting on the towel","Hold 3 seconds, lower slowly — 10 on each leg"]},
+    {id:'glute_bridge_kn',name:'Glute Bridge',type:'reps',reps:10,sets:2,note:'Strength · 2 × 10 · hold 3s',cue:'Lie on your back, knees bent, feet flat and hip-width apart. Squeeze your glutes and lift your hips until your body makes a straight line from shoulders to knees. Hold 3 seconds, then lower with control. 10 reps.',cues:["Knees bent, feet flat and hip-width apart","Squeeze the glutes, then lift the hips","A straight line from shoulders to knees","Hold 3 seconds, lower with control"]},
+    {id:'side_leg_raise_kn',name:'Side-Lying Leg Raise',type:'reps',reps:10,sets:2,note:'Strength · 2 × 10 each side',cue:'Lie on your side with your body in a straight line and the bottom knee bent for balance. Lift the top leg straight up with the toes pointing forward, not turned up to the ceiling. Lower slowly. 10 reps on each side.',cues:["On your side, body in a straight line","Bottom knee bent for balance","Lift the top leg with the toes pointing FORWARD","Not turned up to the ceiling. Lower slowly"]},
+    {id:'seated_knee_ext_kn',name:'Seated Knee Extension',type:'reps',reps:10,sets:2,note:'Strength · 2 × 10 each leg · hold 3s',cue:'Sit tall on a chair with your feet flat on the floor. Straighten one knee fully, hold 3 seconds with the thigh tight, then lower slowly. Do not swing the leg up. 10 reps on each leg.',cues:["Sit tall, feet flat on the floor","Straighten one knee fully","Hold 3 seconds with the thigh tight","Lower slowly — never swing the leg up"]},
+    {id:'hamstring_str_kn',name:'Hamstring Stretch',type:'timed',dur:30,sets:4,perLeg:true,note:'Stretch · 30s hold · twice each leg',cue:'Sit on the edge of a chair with one leg straight out in front, heel on the floor and toes up. Keeping your back straight, lean forward gently from the hips until you feel the stretch behind the thigh. Hold 30 seconds, twice on this side.',cues:["Sit on the edge of a chair, one leg straight out","Heel on the floor, toes up","Back straight — lean forward from the hips","Stop at a stretch behind the thigh. Hold 30 seconds"]},
+    {id:'calf_str_kn',name:'Calf Stretch',type:'timed',dur:30,sets:4,perLeg:true,note:'Stretch · 30s hold · twice each leg',cue:'Stand facing a wall with your hands on it. Step one foot back, keep that back leg straight and the heel pressed down, and lean into the wall until you feel the stretch in the calf. Hold 30 seconds, twice on this side.',cues:["Face a wall, hands on it","Step one foot back, that leg straight","Press the back heel down and keep it down","Lean in until you feel the calf. Hold 30 seconds"]},
+    {id:'quad_str_kn',name:'Quad Stretch',type:'timed',dur:30,sets:4,perLeg:true,note:'Stretch · 30s hold · twice each leg',cue:'Lie on your side, or stand holding onto something solid. Bend the top knee and take hold of the ankle, then draw the heel gently toward your bum. Keep your knees together and your hips forward — no arching the lower back. Hold 30 seconds, twice on this side.',cues:["Lie on your side, or stand holding something solid","Bend the top knee and take hold of the ankle","Draw the heel gently toward your bum","Knees together, hips forward — no arching the back"]},
+    {id:'knee_finish_kn',name:'Easy Walk or Cycle',type:'timed',dur:600,sets:1,note:'Finish · 10 min easy',cue:'Finish with about 10 minutes of walking or easy cycling to keep the knee moving. Keep it comfortable — this is a cool-down, not a workout. Tap Skip if you would rather head out and do it away from the phone.',cues:["About 10 minutes of walking or easy cycling","Keep it comfortable — a cool-down, not a workout","Just keep the knee moving","Tap Skip to do it away from the phone"]}
   ]}
 ];
 
@@ -19465,7 +19482,8 @@ function renderTrainPrograms() {
     { type:"physio",  key:1,       bg:"linear-gradient(135deg,#E2F4F1,#EFFAF8)", border:"#14b8a630", icon:"&#x1F9B5;", name:"Lower Limb", tag:"Fitness", desc:"15 exercises · glutes · quad · calf", descColor:"#0A8070" },
     { type:"physio",  key:2,       bg:"linear-gradient(135deg,#E2F4F1,#EFFAF8)", border:"#14b8a630", icon:"&#x1F33F;", name:"Max Physio", tag:"Physio", desc:"8 exercises · post-natal · core &amp; glutes", descColor:"#0A8070" },
     { type:"physio",  key:3,       bg:"linear-gradient(135deg,#EAECFA,#F2F3FC)", border:"#6366f130", icon:"&#x1F9D8;", name:"Decompression", tag:"Physio", desc:"7 exercises · spine · hips · shoulders", descColor:"#4A50C0" },
-    { type:"physio",  key:4,       bg:"linear-gradient(135deg,#E2F1FA,#EFF8FC)", border:"#0ea5e930", icon:"&#x1F9D8;", name:"Max Pilates Core", tag:"Physio", desc:"6 exercises · core stability · Pilates", descColor:"#0A7AB0" }
+    { type:"physio",  key:4,       bg:"linear-gradient(135deg,#E2F1FA,#EFF8FC)", border:"#0ea5e930", icon:"&#x1F9D8;", name:"Max Pilates Core", tag:"Physio", desc:"6 exercises · core stability · Pilates", descColor:"#0A7AB0" },
+    { type:"physio",  key:5,       bg:"linear-gradient(135deg,#E4F6E8,#F0FBF2)", border:"#22c55e30", icon:"&#x1F9B4;", name:"Knee Programme", tag:"Fitness", desc:"12 exercises · warm-up · strength · stretch", descColor:"#1A8040" }
   ];
   var html = "";
   for (var i=0;i<programs.length;i++) {
@@ -19740,6 +19758,54 @@ function skipYogaPose() {
   else { SS.yPoseIdx=next; SS.yTime=flow[next].dur; renderYogaSession(); startYogaTimer(); }
 }
 
+// v476: a physio exercise with a `cues` array reads as short CUES by default,
+// with the full paragraph one tap away under DETAILS — the same two views yoga
+// poses have had since v448, and deliberately the same CSS classes, so the two
+// session screens stay one design rather than two that drift.
+//
+// The reset is DERIVED, not assigned: the choice belongs to the exercise index
+// it was made on (`SS.pViewFor`), so ANY move to another exercise falls back to
+// cues on its own. **Do NOT "simplify" this into setting SS.pView = "cues" at
+// each advance** — beginPhysio, physioNext, physioPrev and the timer's
+// auto-advance all move the index, and a fifth path added later would silently
+// inherit the previous exercise's Details view. Same rule, same reason, as
+// yogaPoseView(). Moving between SETS of one exercise deliberately keeps the
+// choice — it is still the same movement.
+function physioExerciseView() {
+  return (SS.pView === "details" && SS.pViewFor === SS.pExIdx) ? "details" : "cues";
+}
+function setPhysioExerciseView(v) {
+  SS.pView    = (v === "details") ? "details" : "cues";
+  SS.pViewFor = SS.pExIdx;
+  renderPhysioSession();
+}
+// An exercise with no `cues` array — every programme except the Knee Programme
+// — shows the paragraph exactly as it always has, with no tabs. The tabs appear
+// only where there is genuinely a second view to offer.
+function physioExerciseBodyHtml(ex, col) {
+  if (!ex.cues || !ex.cues.length) return ex.cue ? "<p class='ses-pose-cue'>"+esc(ex.cue)+"</p>" : "";
+  var view = physioExerciseView();
+  function tab(v, label) {
+    var on = view === v;
+    return "<button class='ycue-tab"+(on?" on":"")+"' aria-pressed='"+(on?"true":"false")+"'" +
+      " onclick=\"setPhysioExerciseView('"+v+"')\">"+label+"</button>";
+  }
+  // Yoga's meta line is always a hold; here it depends on how the set is counted.
+  var meta = ex.type === "timed"
+    ? "Hold for "+ex.dur+" seconds"
+    : ex.reps+" reps"+((ex.sets||1) > 1 ? " \u00b7 "+ex.sets+" sets" : "");
+  var panel = view === "details"
+    ? "<div class='ycue-meta'>"+esc(meta)+"</div>" +
+      "<p class='ses-pose-cue'>"+esc(ex.cue)+"</p>"
+    : "<ul class='ycue-list'>" + ex.cues.map(function(c){
+        return "<li>"+esc(c)+"</li>";
+      }).join("") + "</ul>";
+  // The accent follows the programme colour; yoga sets no variable and stays purple.
+  return "<div style='--ycue-accent:"+col+"'>" +
+    "<div class='ycue-tabs'>"+tab("cues","Cues")+tab("details","Details")+"</div>" + panel +
+  "</div>";
+}
+
 function renderPhysioSession() {
   var prog = PROGRAMMES_TRAIN[SS.pProgIdx];
   var body = document.getElementById("sesBody");
@@ -19757,7 +19823,8 @@ function renderPhysioSession() {
       "<div class='ses-intro-name'>"+prog.name.replace(/&amp;/g,"&")+"</div>" +
       "<div class='ses-intro-sub'>"+prog.exercises.length+" exercises &middot; "+prog.note+"</div>" +
       (prog.warning ? "<div style='width:100%;max-width:320px;background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#e0c060;line-height:1.5;text-align:left'>&#x26A0;&#xFE0F; "+prog.warning+"</div>" : "") +
-      "<div style='width:100%;max-width:320px;background:#fff;border:1px solid #E0DCD4;border-radius:12px;padding:12px 14px;margin-bottom:28px;text-align:left'>"+exList+"</div>" +
+      "<div style='width:100%;max-width:320px;background:#fff;border:1px solid #E0DCD4;border-radius:12px;padding:12px 14px;margin-bottom:"+(prog.info?"14px":"28px")+";text-align:left'>"+exList+"</div>" +
+      (prog.info ? "<div style='width:100%;max-width:320px;background:#F4F1E8;border:1px solid #E0DCD4;border-radius:10px;padding:10px 13px;margin-bottom:28px;font-size:12px;color:#8A7A5A;line-height:1.5;text-align:left'>"+esc(prog.info)+"</div>" : "") +
       "<button class='ses-begin-btn' style='background:"+col+"' onclick='beginPhysio()'>Begin</button>" +
       "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
     "</div>";
@@ -19800,7 +19867,7 @@ function renderPhysioSession() {
     "<div class='ses-pose-name' style='color:#2A2010'>"+esc(ex.name)+"</div>" +
     (setLabel ? "<div class='ses-pose-sanskrit' style='color:"+col+"'>"+setLabel+"</div>" : "") +
     (totalSets > 1 ? "<div style='text-align:center;margin:6px 0 2px'>"+dots+"</div>" : "") +
-    (ex.cue ? "<p class='ses-pose-cue'>"+esc(ex.cue)+"</p>" : "") +
+    physioExerciseBodyHtml(ex, col) +
     (nextEx && SS.pSetNum >= totalSets ? "<div class='ses-pose-next'>Next: "+esc(nextEx)+"</div>" : "") +
     (ex.url ? "<a class='ses-video-btn' href='"+ex.url+"' target='_blank' rel='noopener'>&#x25B6; Watch video</a>" : "") +
     "<div class='ses-ctrl-row'>" +
@@ -22937,15 +23004,42 @@ if (_seedTainted) {
 // v467: keep any focused bottom sheet above the mobile keyboard. This is
 // deliberately event-driven rather than a list of sheet ids: new dynamic
 // sheets inherit the same behaviour as soon as one of their inputs is focused.
+//
+// v476 narrowed BOTH of its triggers, because between them they made every
+// button inside the session overlay need two taps:
+//
+//   1. A BOTTOM SHEET is bottom-anchored and shorter than the screen. The old
+//      test also matched a full-screen fixed panel (`inset === "0px"`, or
+//      top:0 AND bottom:0) - #sessionOverlay, confirmDialog's backdrop - which
+//      then took `max-height:85vh!important` and shrank away from the bottom
+//      of the screen, flashing the bottom nav into view behind it.
+//   2. Only a control that RAISES THE KEYBOARD should move a sheet at all.
+//      v467 reacted to any focusin, so tapping a plain <button> re-laid-out
+//      the panel under the finger mid-tap and the click never landed.
+//
+// Do NOT widen either one back to "any fixed element" or "any focusin": the
+// double-tap and the nav flash are what that costs.
 function keyboardSheetOwner(node) {
   var cur = node;
   while (cur && cur !== document.body) {
     if (cur.classList && cur.classList.contains("overlay")) return cur;
     var cs = window.getComputedStyle(cur);
-    if (cs.position === "fixed" && (cs.bottom === "0px" || cs.inset === "0px")) return cur;
+    if (cs.position === "fixed" && cs.bottom === "0px" && cs.top !== "0px") return cur;
     cur = cur.parentElement;
   }
   return null;
+}
+// Text entry only. A <select>, a checkbox or a button opens no keyboard, so
+// nothing should shift for them. Unknown/absent type reads as text, which is
+// what the browser does too.
+function raisesSoftKeyboard(el) {
+  if (!el || !el.tagName) return false;
+  if (el.isContentEditable) return true;
+  var tag = el.tagName.toLowerCase();
+  if (tag === "textarea") return true;
+  if (tag !== "input") return false;
+  return !/^(button|checkbox|color|date|datetime-local|file|hidden|image|month|radio|range|reset|submit|time|week)$/
+    .test((el.getAttribute("type") || "text").toLowerCase());
 }
 function installKeyboardSheetSupport() {
   if (!window.visualViewport) return;
@@ -22963,6 +23057,7 @@ function installKeyboardSheetSupport() {
   vv.addEventListener("scroll", update);
   window.addEventListener("resize", update);
   document.addEventListener("focusin", function(e) {
+    if (!raisesSoftKeyboard(e.target)) return;
     var owner = keyboardSheetOwner(e.target);
     if (!owner) return;
     document.querySelectorAll(".keyboard-sheet-offset").forEach(function(el){
