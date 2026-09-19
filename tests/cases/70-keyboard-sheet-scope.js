@@ -1,6 +1,6 @@
 'use strict';
 
-// v475 — the v467 keyboard-sheet helper reached too far, and between its two
+// v476 — the v467 keyboard-sheet helper reached too far, and between its two
 // triggers every button inside the session overlay needed two taps:
 //
 //   * `keyboardSheetOwner` matched ANY fixed element anchored to the bottom,
