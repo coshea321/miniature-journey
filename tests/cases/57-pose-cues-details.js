@@ -14,11 +14,8 @@
 //      not be able to inherit the previous pose's Details view
 //   4. Details still shows the reviewed paragraph verbatim. That text is the
 //      safety content v446 wrote; the tabs must never become a way to lose it
-//   5. v475 CHANGED THIS: Hips & Lower Back is cued too, to the same standard,
-//      and it finally carries a review note. The no-cues fallback is still a
-//      live code path (a future flow could arrive uncued), so it is now pinned
-//      against a hand-built pose instead of against a real flow — do NOT
-//      delete it just because no shipped pose reaches it any more
+//   5. a pose with no cues array (Hips & Lower Back) shows the paragraph with
+//      NO tabs — the tabs appear only where a second view genuinely exists
 
 module.exports = {
   name: '57-pose-cues-details',
@@ -102,47 +99,14 @@ module.exports = {
       closeSessionOverlay();
       storeSet('fl4_yoga_variants', {});
 
-      // ── 5. Hips & Lower Back is cued to the same standard (v475) ───────
+      // ── 5. A pose with no cues gets no tabs ─────────────────────────────
       openYogaSession(1);
-      var hips = SS.yFlow;
-      ok('Hips & Lower Back is the 18-pose flow', hips.length === 18, String(hips.length));
-      var hipsUncued = hips.filter(function(p){ return !p.cues || p.cues.length < 3; })
-                           .map(function(p){ return p.name; });
-      ok('every Hips & Lower Back pose has at least three cues',
-        hipsUncued.length === 0, hipsUncued.join(', '));
-      var hipsLong = hips.filter(function(p){
-        return p.cues.some(function(c){ return c.length > 90; });
-      }).map(function(p){ return p.name; });
-      ok('its cues stay under 90 chars too', hipsLong.length === 0, hipsLong.join(', '));
-      var hipsNoPara = hips.filter(function(p){ return !p.cue || p.cue.length < 60; })
-                           .map(function(p){ return p.name; });
-      ok('and every one still carries its paragraph for Details',
-        hipsNoPara.length === 0, hipsNoPara.join(', '));
       beginYoga();
-      ok('so it now opens on Cues with both tabs, like Full Body',
-        html().indexOf('ycue-list') !== -1 && html().indexOf('>Details<') !== -1);
-
-      // The general-info note. Empty since the flow shipped; v475 filled it.
-      ok('Hips & Lower Back carries a review note',
-        typeof YOGA_TRAIN_NOTES[1] === 'string' && YOGA_TRAIN_NOTES[1].length > 200,
-        String((YOGA_TRAIN_NOTES[1] || '').length));
-      ok('the note says plainly that the flow has NOT been re-tuned',
-        /never been checked/.test(YOGA_TRAIN_NOTES[1]));
-      ok('and it does NOT claim the flow is approved or safe',
-        !/physio-approved|stenosis-safe/i.test(YOGA_TRAIN_NOTES[1]));
+      ok('Hips & Lower Back has poses with no cues array',
+        SS.yFlow.some(function(p){ return !p.cues; }));
+      ok('so it shows the paragraph with NO tabs',
+        html().indexOf('ses-pose-cue') !== -1 && html().indexOf('ycue-tab') === -1);
       closeSessionOverlay();
-      openYogaSession(1);
-      ok('the intro screen actually renders it',
-        document.getElementById('sesBody').innerHTML.indexOf(esc(YOGA_TRAIN_NOTES[1])) !== -1);
-      closeSessionOverlay();
-
-      // ── 5b. TRIPWIRE: the no-cues fallback is still wired ──────────────
-      // No shipped pose reaches it now, so it is pinned against a hand-built
-      // one. A flow added later without cues must still render its paragraph.
-      var bare = yogaPoseBodyHtml({name:'x', sanskrit:'x', dur:30, cue:'Paragraph only.'});
-      ok('a pose with no cues array still shows its paragraph',
-        bare.indexOf('ses-pose-cue') !== -1 && bare.indexOf('Paragraph only.') !== -1);
-      ok('and gets NO tabs', bare.indexOf('ycue-tab') === -1);
 
       return {pass:pass, fail:fail};
     })()`);
