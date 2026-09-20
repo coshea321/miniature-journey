@@ -985,7 +985,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v477 · 19/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v478 · 20/09/2026</div>
 
   </div>
 </div>
@@ -2339,7 +2339,86 @@ function mergeBottles(a, b) {
   });
   return out;
 }
-function mergeBabyData(local, remote, medTombs, growthTombs, msTombs) {
+// ── Bag sync merge (v478) ───────────────────────────────────────
+// Bags were the one baby collection still merged as `remote.bags || local.bags`
+// — a WHOLESALE last-writer-wins, the exact class the v329 comment above says
+// was removed for medicine. Reported 20/09/2026 as three symptoms with one
+// cause: a bag created here vanished when the next pull landed, items added to
+// an existing bag vanished with it, and both came back later when an older
+// snapshot echoed off the SSE. Bags now union by id, and their items union by
+// id inside them, newest-wins by `updated`, with tombstones for both halves so
+// a delete still sticks.
+//
+// bagShape() is the other half of the same report and is load-bearing:
+// **Firebase strips empty containers** (the v333 emptyPersonChecks lesson), so
+// a brand-new bag pushed as {id,name,icon,items:[]} comes back off the echo
+// with NO items key at all. That missing key threw a TypeError mid-render —
+// which is why the new "Test" bag showed the PREVIOUS bag's item list (the tab
+// row is written before the throw, the item list after it) and why "Add to
+// bag" was a silent no-op. Every read goes through normaliseBags, so a bag can
+// never reach a renderer or a handler without an items array. Firebase also
+// returns a sparse array as an OBJECT, so both shapes are accepted on the way
+// in. Do NOT "simplify" this back into a plain array assignment.
+function bagItemShape(it, i, bagId) {
+  if (!it || typeof it !== "object") return null;
+  var id = (it.id == null || it.id === "") ? (bagId + "_i" + i) : String(it.id);
+  return { id:id, name:String(it.name == null ? "" : it.name), packed:!!it.packed, updated:+it.updated || 0 };
+}
+function bagListOf(v) {   // array, Firebase's sparse-array-as-object, or nothing
+  if (Array.isArray(v)) return v;
+  if (v && typeof v === "object") return Object.keys(v).map(function(k){ return v[k]; });
+  return [];
+}
+function normaliseBags(arr) {
+  var out = [];
+  bagListOf(arr).forEach(function(b, i) {
+    if (!b || typeof b !== "object") return;
+    var id = (b.id == null || b.id === "") ? ("bag_x" + i) : String(b.id);
+    var items = [];
+    bagListOf(b.items).forEach(function(it, n){ var s = bagItemShape(it, n, id); if (s) items.push(s); });
+    out.push({ id:id, name:String(b.name == null ? "" : b.name), icon:b.icon || "&#x1F45C;",
+               items:items, updated:+b.updated || 0 });
+  });
+  return out;
+}
+// Union two item lists by id, local order first and remote-only items appended,
+// newest-wins by `updated` (tie → remote, matching every other merge here).
+function mergeBagItems(a, b) {
+  var idx = {}, order = [];
+  [a, b].forEach(function(arr) {
+    (arr || []).forEach(function(it) {
+      if (!it || it.id == null) return;
+      if (!(it.id in idx)) order.push(it.id);
+      var ex = idx[it.id];
+      if (!ex || (it.updated || 0) >= (ex.updated || 0)) idx[it.id] = it;
+    });
+  });
+  return order.map(function(k){ return idx[k]; });
+}
+function mergeBags(local, remote, bagTombs, itemTombs) {
+  var idx = {}, order = [];
+  [normaliseBags(local), normaliseBags(remote)].forEach(function(arr) {
+    arr.forEach(function(bag) {
+      var ex = idx[bag.id];
+      if (!ex) { order.push(bag.id); idx[bag.id] = bag; return; }
+      var win = (bag.updated >= ex.updated) ? bag : ex;   // tie → remote (second pass)
+      idx[bag.id] = { id:win.id, name:win.name, icon:win.icon, updated:win.updated,
+                      items:mergeBagItems(ex.items, bag.items) };
+    });
+  });
+  return order.map(function(k) {
+    var bag = idx[k];
+    return { id:bag.id, name:bag.name, icon:bag.icon, updated:bag.updated,
+             items:bag.items.filter(function(it) {       // deleted at/after its last edit → drop
+               var ts = itemTombs ? itemTombs[it.id] : null;
+               return !(ts != null && ts >= (it.updated || 0));
+             }) };
+  }).filter(function(bag) {
+    var ts = bagTombs ? bagTombs[bag.id] : null;          // ditto for the bag itself
+    return !(ts != null && ts >= bag.updated);
+  });
+}
+function mergeBabyData(local, remote, medTombs, growthTombs, msTombs, bagTombs, bagItemTombs) {
   // v371: generalised from the old mergeMedicine (v329) — medicine and
   // milestones share the same shape (id-keyed, `updated` stamp falling back
   // to `id` for pre-migration entries). Growth keeps its own date-keyed
@@ -2383,7 +2462,7 @@ function mergeBabyData(local, remote, medTombs, growthTombs, msTombs) {
     milestones: mergeIdKeyed(local.milestones, remote.milestones, msTombs),
     teeth:      Object.assign({}, local.teeth||{}, remote.teeth||{}),
     bottles:    mergeBottles(local.bottles,   remote.bottles),
-    bags:       remote.bags || local.bags
+    bags:       mergeBags(local.bags, remote.bags, bagTombs, bagItemTombs)
   };
   // v296: carry EVERY other key through generically (local wins when set,
   // remote fills gaps) — the babySex bug as a class. New Baby fields survive
@@ -14919,7 +14998,7 @@ function importBackupData(data) {
     imported.baby=((bd.growth||[]).length+(bd.medicine||[]).length+(bd.milestones||[]).length)-_bBefore;
     bd.bottles=mergeBottles(bd.bottles||{},bd2.bottles||{});
     if(bd2.babySex && !bd.babySex) bd.babySex=bd2.babySex;
-    if(Array.isArray(bd2.bags) && (!Array.isArray(bd.bags)||!bd.bags.length)) bd.bags=bd2.bags;
+    bd.bags=mergeBags(bd.bags,bd2.bags,getTombs("bags"),getTombs("bagitems")); // v478: was "only if local is empty", which after one visit to the Bags tab (it seeds defaults) was never true -- a restore could not bring bags back. Tombstones still apply, per the v329 restore policy.
     saveBD(bd);
   }
   // v462: reviving a restored entry takes BOTH halves, and each covers a case
@@ -15939,6 +16018,8 @@ var d = {};
   d.med_deleted = purgeTombs(getTombs("med"));
   d.growth_deleted = purgeTombs(getTombs("growth"));
   d.ms_deleted  = purgeTombs(getTombs("ms"));
+  d.bags_deleted = purgeTombs(getTombs("bags"));            // v478
+  d.bagitems_deleted = purgeTombs(getTombs("bagitems"));    // v478
   d.recipebook  = storeGet("fl4_recipebook") || [];
   d.rb_deleted  = purgeTombs(getTombs("recipes"));
   d.mealplan    = storeGet("fl4_mealplan") || [];
@@ -16275,8 +16356,14 @@ function applyPersonal(d) {
   if (d.ms_deleted && typeof d.ms_deleted === "object") {
     storeSet("fl4_tomb_ms", purgeTombs(mergeTombs(getTombs("ms"), d.ms_deleted)));
   }
+  if (d.bags_deleted && typeof d.bags_deleted === "object") {          // v478
+    storeSet("fl4_tomb_bags", purgeTombs(mergeTombs(getTombs("bags"), d.bags_deleted)));
+  }
+  if (d.bagitems_deleted && typeof d.bagitems_deleted === "object") {  // v478
+    storeSet("fl4_tomb_bagitems", purgeTombs(mergeTombs(getTombs("bagitems"), d.bagitems_deleted)));
+  }
   if (d.baby && typeof d.baby === "object") {
-    storeSet("fl4_baby", mergeBabyData(getBD(), d.baby, getTombs("med"), getTombs("growth"), getTombs("ms")));
+    storeSet("fl4_baby", mergeBabyData(getBD(), d.baby, getTombs("med"), getTombs("growth"), getTombs("ms"), getTombs("bags"), getTombs("bagitems")));
     _rDirty.baby = true;
   }
 
@@ -16350,11 +16437,13 @@ var data = {};
   }
   if (isSynced("baby")) {
     var bd = getBD();
-    if ((bd.growth||[]).length || (bd.medicine||[]).length || (bd.milestones||[]).length || Object.keys(bd.teeth||{}).length || Object.keys(bd.bottles||{}).length)
-      data["baby"] = bd;
+    if ((bd.growth||[]).length || (bd.medicine||[]).length || (bd.milestones||[]).length || Object.keys(bd.teeth||{}).length || Object.keys(bd.bottles||{}).length || (bd.bags||[]).length)
+      data["baby"] = bd;   // v478: bags added to the guard -- a household whose Baby section held ONLY bags never pushed them at all
     data["med_deleted"] = purgeTombs(getTombs("med")); // outside the non-empty guard: a delete of the LAST dose must still propagate
     data["growth_deleted"] = purgeTombs(getTombs("growth"));
     data["ms_deleted"] = purgeTombs(getTombs("ms"));
+    data["bags_deleted"] = purgeTombs(getTombs("bags"));           // v478, same reasoning
+    data["bagitems_deleted"] = purgeTombs(getTombs("bagitems"));
   }
   // Recipe book is shared household-wide (merge-by-id on the receiving side).
   data["recipebook"] = storeGet("fl4_recipebook") || [];
@@ -21290,6 +21379,12 @@ function applyHousehold(data) {
   if (isSynced("baby") && data["ms_deleted"] && typeof data["ms_deleted"] === "object") {
     storeSet("fl4_tomb_ms", purgeTombs(mergeTombs(getTombs("ms"), data["ms_deleted"])));
   }
+  if (isSynced("baby") && data["bags_deleted"] && typeof data["bags_deleted"] === "object") {          // v478
+    storeSet("fl4_tomb_bags", purgeTombs(mergeTombs(getTombs("bags"), data["bags_deleted"])));
+  }
+  if (isSynced("baby") && data["bagitems_deleted"] && typeof data["bagitems_deleted"] === "object") {  // v478
+    storeSet("fl4_tomb_bagitems", purgeTombs(mergeTombs(getTombs("bagitems"), data["bagitems_deleted"])));
+  }
   if (isSynced("baby") && data["baby"] && typeof data["baby"] === "object") {
     // v329: was a top-level Object.assign (v296) — remote's medicine/growth/
     // milestones/teeth WHOLESALE-replaced the local collections, so a dose
@@ -21297,7 +21392,7 @@ function applyHousehold(data) {
     // silently dropped. Now the same per-entry merge the personal channel
     // runs (mergeBabyData), incl. medicine tombstones. (v371: growth +
     // milestones now get the same per-entry merge + tombstones.)
-    storeSet("fl4_baby", mergeBabyData(getBD(), data["baby"], getTombs("med"), getTombs("growth"), getTombs("ms")));
+    storeSet("fl4_baby", mergeBabyData(getBD(), data["baby"], getTombs("med"), getTombs("growth"), getTombs("ms"), getTombs("bags"), getTombs("bagitems")));
     _rDirty.baby = true;
   }
   // Recipe book — merge by id with NEWEST-WINS (by `updated` timestamp), so a
@@ -21490,17 +21585,34 @@ var DEFAULT_BAGS = [
   { id:"day",      name:"Day Bag",      icon:"&#x1F392;", items:["Nappies (x3)","Wipes","Snacks","Sippy cup","Spare clothes","Bib","Sunscreen","Hat","Dummy","Small toy"] },
   { id:"holiday",  name:"Holiday Bag",  icon:"&#x1F9F3;", items:["Nappies (x20)","Wipes (x4 packs)","Nappy cream","Nappy sacks","Baby sun cream","Swimsuit","Rash vest","Beach towel","Muslins (x4)","Spare clothes (x5)","Bibs (x5)","Formula/snacks","Baby monitor","Favourite toy","Dummy (x3)","First aid kit","Baby paracetamol","Travel cot sheets"] }
 ];
+// EVERY read of the bags goes through here, and it always returns normalised
+// bags (see normaliseBags): a bag that has been round-tripped through Firebase
+// comes back with its empty `items` array stripped, and an un-normalised bag
+// threw mid-render. Normalising is in-memory only — it deliberately does NOT
+// save, so merely opening the Bags tab never fires a sync push; the next real
+// edit writes the repaired shape back.
+//
+// The seeded defaults are stamped `updated:0` ON PURPOSE. A seed is the
+// lowest-priority state there is, so any real edit on another device outranks
+// a device that has only just seeded, and any tombstone outranks a re-seed of
+// a bag someone deleted. Never stamp these with Date.now().
 function getBagsData() {
   var bd = getBD();
-  if (!bd.bags || !bd.bags.length) {
-    bd.bags = DEFAULT_BAGS.map(function(b) {
-      return { id:b.id, name:b.name, icon:b.icon, items:b.items.map(function(name,i){ return { id:b.id+"_"+i, name:name, packed:false }; }) };
+  var bags = normaliseBags(bd.bags);
+  if (!bags.length) {
+    bags = DEFAULT_BAGS.map(function(b) {
+      return { id:b.id, name:b.name, icon:b.icon, updated:0,
+               items:b.items.map(function(name,i){ return { id:b.id+"_"+i, name:name, packed:false, updated:0 }; }) };
     });
+    bd.bags = bags;
     saveBD(bd);
   }
-  return bd.bags;
+  return bags;
 }
-function saveBagsData(bags) { var bd = getBD(); bd.bags = bags; saveBD(bd); }
+function saveBagsData(bags) { var bd = getBD(); bd.bags = normaliseBags(bags); saveBD(bd); }
+// Any change to a bag or one of its items stamps BOTH, so the newer side wins
+// the merge and so an active bag outranks a stale delete from another device.
+function touchBagItem(bag, item) { var t = Date.now(); if (item) item.updated = t; if (bag) bag.updated = t; }
 
 // ── confirmDialog — works in sandboxed iframes (no confirm()) ─────────────
 function confirmDialog(msg, onYes, onNo) {
@@ -22488,16 +22600,18 @@ document.getElementById("babyBagsView").addEventListener("click",function(e){
   var btn=e.target.closest("[data-action]"); if(!btn) return;
   var bags=getBagsData(), bag=bags.find(function(b){return b.id===currentBagId;});
   var act=btn.dataset.action;
-  if(act==="bagToggle"){ var item=bag&&bag.items.find(function(x){return x.id===btn.dataset.id;}); if(item){item.packed=!item.packed;saveBagsData(bags);renderBagView();} }
-  else if(act==="bagDelete"){ if(!bag) return; bag.items=bag.items.filter(function(x){return x.id!==btn.dataset.id;}); saveBagsData(bags); renderBagView(); }
-  else if(act==="bagReset"){ if(!bag) return; confirmDialog("Unpack everything in "+bag.name+"?",function(){ bag.items.forEach(function(x){x.packed=false;}); saveBagsData(bags); renderBagView(); toast("&#x21BA; Reset"); }); }
-  else if(act==="bagRemove"){ var b2=bags.find(function(x){return x.id===btn.dataset.bagid;}); if(!b2) return; confirmDialog("Delete bag?",function(){ bags=bags.filter(function(x){return x.id!==btn.dataset.bagid;}); if(currentBagId===btn.dataset.bagid) currentBagId=bags[0]?bags[0].id:""; saveBagsData(bags); renderBagView(); }); }
+  if(act==="bagToggle"){ var item=bag&&bag.items.find(function(x){return x.id===btn.dataset.id;}); if(item){item.packed=!item.packed;touchBagItem(bag,item);saveBagsData(bags);renderBagView();} }
+  else if(act==="bagDelete"){ if(!bag) return; addTomb("bagitems",btn.dataset.id); bag.items=bag.items.filter(function(x){return x.id!==btn.dataset.id;}); touchBagItem(bag,null); saveBagsData(bags); renderBagView(); }
+  else if(act==="bagReset"){ if(!bag) return; confirmDialog("Unpack everything in "+bag.name+"?",function(){ bag.items.forEach(function(x){x.packed=false;touchBagItem(bag,x);}); saveBagsData(bags); renderBagView(); toast("&#x21BA; Reset"); }); }
+  else if(act==="bagRemove"){ var b2=bags.find(function(x){return x.id===btn.dataset.bagid;}); if(!b2) return; confirmDialog("Delete "+esc(b2.name)+"?",function(){ addTomb("bags",btn.dataset.bagid); bags=bags.filter(function(x){return x.id!==btn.dataset.bagid;}); if(currentBagId===btn.dataset.bagid) currentBagId=bags[0]?bags[0].id:""; saveBagsData(bags); renderBagView(); }); }
 });
 document.getElementById("bagAddItemBtn").addEventListener("click",function(){
   if(btnBusy(this)) return;
   var name=document.getElementById("bagItemInput").value.trim(); if(!name){toast("Enter an item name");return;}
-  var bags=getBagsData(), bag=bags.find(function(b){return b.id===currentBagId;}); if(!bag) return;
-  bag.items.push({id:currentBagId+"_"+Date.now(),name:name,packed:false});
+  var bags=getBagsData(), bag=bags.find(function(b){return b.id===currentBagId;});
+  if(!bag){ renderBagView(); toast("That bag is gone \u2014 pick a bag first"); return; }
+  var item={id:currentBagId+"_"+Date.now(),name:name,packed:false,updated:0};
+  touchBagItem(bag,item); bag.items.push(item);
   saveBagsData(bags); document.getElementById("bagItemInput").value=""; renderBagView(); toast("Added: "+name);
 });
 document.getElementById("bagItemInput").addEventListener("keydown",function(e){if(e.key==="Enter") document.getElementById("bagAddItemBtn").click();});
@@ -22505,21 +22619,30 @@ document.getElementById("bagCreateBtn").addEventListener("click",function(){
   if(btnBusy(this)) return;
   var name=document.getElementById("bagNameInput").value.trim(); if(!name){toast("Enter a bag name");return;}
   var bags=getBagsData(), id="bag_"+Date.now();
-  bags.push({id:id,name:name,icon:"&#x1F45C;",items:[]}); currentBagId=id;
+  bags.push({id:id,name:name,icon:"&#x1F45C;",items:[],updated:Date.now()}); currentBagId=id;
   saveBagsData(bags); document.getElementById("bagNameInput").value=""; renderBagView(); toast("Created: "+name);
 });
 
 // ── renderBagView ──────────────────────────────────────────
 
+// Never bail out part-rendered. The reported "my new bag is showing another
+// bag's items" was this function throwing between the tab row (written first)
+// and the item list (written last), leaving the two disagreeing on screen. The
+// throw is fixed at source in normaliseBags, but the ordering stays safe here
+// too: the tab row is written only once the bag it highlights is in hand, and
+// an empty bag list renders an empty state instead of returning.
 function renderBagView() {
   var bags = getBagsData();
-  if (!bags.length) return;
-  if (!bags.find(function(b){ return b.id === currentBagId; })) currentBagId = bags[0].id;
+  if (!bags.find(function(b){ return b.id === currentBagId; })) currentBagId = bags.length ? bags[0].id : "";
+  var bag = bags.find(function(b){ return b.id === currentBagId; });
   document.getElementById("bagTabRow").innerHTML = bags.map(function(b) {
     return "<button class='bag-tab"+(b.id===currentBagId?" active":"")+"' data-bagid='"+b.id+"'>"+esc(b.name)+"</button>";
   }).join("");
-  var bag     = bags.find(function(b){ return b.id === currentBagId; });
-  if (!bag) return;
+  if (!bag) {
+    document.getElementById("bagContent").innerHTML = "<div class='bag-empty'>No bags yet \u2014 create one below</div>";
+    document.getElementById("bagManageList").innerHTML = "";
+    return;
+  }
   var unpacked = bag.items.filter(function(x){ return !x.packed; });
   var packed   = bag.items.filter(function(x){ return  x.packed; });
   var total    = bag.items.length;
