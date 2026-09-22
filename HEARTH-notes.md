@@ -78,7 +78,7 @@ Two paths that share one rule, and the rule is the reason both needed care.
 - A family-hub Progressive Web App for two people (Cathal + partner Petra).
 - **One single-file vanilla HTML/JS app**: `index.html` plus `sw.js` (service worker).
 - No build step, no framework. Plain HTML/CSS/JS.
-- **Hosting:** GitHub Pages at `coshea321.github.io/miniature-journey`
+- **Hosting:** Cloudflare Pages at `miniature-journey-b9p.pages.dev`, behind a Cloudflare Access login (since 31/08/2026). GitHub Pages (`coshea321.github.io/miniature-journey`) is switched off; it stays in `_prodHosts` only as a harmless leftover. See `HEARTH-cloudflare-access.md`.
 - **Storage:** localStorage (primary) + Firebase Realtime Database (household sync between the two users)
 - **Users:** `cathal1` (Cathal) and `petra`. Items can carry `addedBy` and sync between devices.
 
@@ -199,7 +199,7 @@ Zero-dependency behaviour test suite in `tests/` (spec: `HEARTH-tests-review.md`
 - Slice 2 (parked): grocery-suggestions + centile-golden-value cases, same harness, `09-`/`10-` case files.
 
 ## Device/workflow notes
-- **Active workflow:** Claude Code commits + pushes to a feature branch; Cathal reviews the PR diff on GitHub and merges to `main`. GitHub Pages serves the updated app within seconds of merge.
+- **Active workflow:** Claude Code commits + pushes to a feature branch; Cathal reviews the PR diff on GitHub and merges to `main`. Cloudflare Pages deploys the updated app shortly after merge.
 - **Pre-merge testing (v324, demo data + checklist v407):** every PR body starts with a "👉 Try this version" raw.githack link serving the branch with test mode active (orange banner, sync/login hard-blocked, sandboxed storage). Cathal taps it on his phone, pokes the change, then merges.
   - **The link opens with a fixed demo household already in it (v407)** — lists, notes, recipes, a meal plan, a trip, baby records, plants, watchlist, train/track data. It is wiped and reseeded on the first open of each version (marker: `fl4_testseed`), so a new PR never inherits what the last one left behind. **Tapping the orange banner resets it.** See `HEARTH-data-models.md` § "Test-build demo data" for how to extend it.
   - **The old advice — export a real backup and import it on the test page — is now the thing this exists to avoid.** raw.githack.com is ONE origin for every branch and version, so anything imported there stayed on the test address across every later PR link. It still works if a specific real-data shape is genuinely needed for a one-off, but the next version's open will clear it, and that is the intended behaviour.

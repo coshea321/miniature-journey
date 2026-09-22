@@ -17,7 +17,7 @@ Cathal is a **non-coder**; treat him as the reviewer, not a co-developer. Lead w
 - `.claude/` — cross-compatible workflow tooling used by Claude Code and every Cursor Agent model: `agents/hearth-preflight.md` + `agents/hearth-verifier.md` (both Haiku; subagents below), `agents/hearth-scout.md` (Sonnet, read-only code-location sweeps), `skills/release/` (explicit `/release` skill), `skills/hearth-council/` (council review).
 - `.cursor/agents/` — thin Cursor-only wrappers around the three canonical `.claude/agents/` prompts. They pin preflight/verifier to Composer Fast and scout to Composer, avoiding unavailable Claude aliases without duplicating the prompts.
 - `tests/` — zero-dependency behaviour test suite (since v350; see `HEARTH-notes.md` § Tests). Run `node tests/run.js` before committing.
-- Hosted on **GitHub Pages**; `main` is live. No backend except Firebase Realtime DB (household sync via room codes, REST/EventSource — no SDK).
+- Hosted on **Cloudflare Pages** at `miniature-journey-b9p.pages.dev`, behind a **Cloudflare Access** login (since 31/08/2026; GitHub Pages is off). `main` is live — Cloudflare deploys it on merge. Full record: `HEARTH-cloudflare-access.md`. No backend except Firebase Realtime DB (household sync via room codes, REST/EventSource — no SDK).
 
 ## Per-change workflow (every change)
 1. **Run the `hearth-preflight` subagent before any edits** — every time, without exception. It confirms the base is the latest `origin/main` (one PR per version), pushes the `backup-vNNN` branch, reports version state, names backup branches outside the keep-newest-10 window for Cathal to delete, and greps for already-built features when given keywords. Resolve any flags before editing. Never touch `main` directly.

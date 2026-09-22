@@ -60,7 +60,7 @@ Current fields: `kind`, `person`, `title`, `date`, `time`, `who`, `dose`, `expir
 **Three separate things in `index.html` are called "health" and none are each other**: this section (`sectionVisible.health`), a pre-existing always-true `syncPrefs.health` key with no UI toggle, and the grocery **category** id `health`. Commented at the `syncPrefs` line; do not tidy them together.
 
 ## Test-build demo data (v407) — add to it when you add a section
-Test builds (any host that isn't `coshea321.github.io`, i.e. every raw.githack PR link) wipe the `fl4_*` store and reseed a fixed demo household **once per version** — the version string is stored in `fl4_testseed`, so a reload of the same version keeps whatever you were doing, and the next PR's link starts clean. The orange banner is the manual reset.
+Test builds (any host not on the exact-match `_prodHosts` list — the live `miniature-journey-b9p.pages.dev`, plus the retired `coshea321.github.io` — i.e. every raw.githack PR link and every Cloudflare branch/preview deployment) wipe the `fl4_*` store and reseed a fixed demo household **once per version** — the version string is stored in `fl4_testseed`, so a reload of the same version keeps whatever you were doing, and the next PR's link starts clean. The orange banner is the manual reset.
 
 Three functions in `index.html`, all behind `_isTestBuild`: the phase-1 wipe (right under `_isTestBuild`, before any module-level code reads storage), `buildTestSeed()` and `resetTestData()` (just above `var bootSection`). The seed is applied through **`importBackupData()`** — the same merge the real backup restore uses — so it is defined in the **export payload shape** (`buildExportPayload`).
 
