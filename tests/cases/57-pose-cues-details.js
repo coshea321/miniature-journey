@@ -14,7 +14,7 @@
 //      not be able to inherit the previous pose's Details view
 //   4. Details still shows the reviewed paragraph verbatim. That text is the
 //      safety content v446 wrote; the tabs must never become a way to lose it
-//   5. a pose with no cues array (Hips & Lower Back) shows the paragraph with
+//   5. a pose with no cues array (Hips & Lower Back's original side) shows the paragraph with
 //      NO tabs — the tabs appear only where a second view genuinely exists
 
 module.exports = {
@@ -100,13 +100,17 @@ module.exports = {
       storeSet('fl4_yoga_variants', {});
 
       // ── 5. A pose with no cues gets no tabs ─────────────────────────────
+      // v481: the re-tuned Hips & Lower Back is cued on its reviewed side; its
+      // ORIGINAL side is still the uncued paragraph, which is what this checks.
+      setYogaVariantAll(1, 'orig');
       openYogaSession(1);
       beginYoga();
-      ok('Hips & Lower Back has poses with no cues array',
+      ok('Hips & Lower Back (original side) has poses with no cues array',
         SS.yFlow.some(function(p){ return !p.cues; }));
       ok('so it shows the paragraph with NO tabs',
         html().indexOf('ses-pose-cue') !== -1 && html().indexOf('ycue-tab') === -1);
       closeSessionOverlay();
+      storeSet('fl4_yoga_variants', {});
 
       return {pass:pass, fail:fail};
     })()`);
