@@ -59,6 +59,13 @@ Current fields: `kind`, `person`, `title`, `date`, `time`, `who`, `dose`, `expir
 
 **Three separate things in `index.html` are called "health" and none are each other**: this section (`sectionVisible.health`), a pre-existing always-true `syncPrefs.health` key with no UI toggle, and the grocery **category** id `health`. Commented at the `syncPrefs` line; do not tidy them together.
 
+## Baby bags data model — two levels, each merged by id (v478)
+`bd.bags` is an array of bags, each holding an `items` array, and **both levels** union by id, newest-wins by `updated`, with their own tombstones (`fl4_tomb_bags`, `fl4_tomb_bagitems`) on both sync channels. **Every read goes through `normaliseBags`** (via `getBagsData`) because Firebase strips an empty `items:[]` and returns sparse arrays as objects — never read `bd.bags` directly. **Every write stamps the item AND its bag** (`touchBagItem`).
+
+**Fields are hand-listed in `normaliseBags`/`bagItemShape`, and also in `mergeBags`' rebuilt bag object** — a new field must go in all three or it is silently dropped on the next read or merge. Bag: `id`, `name`, `icon`, `items`, `updated`. Item: `id`, `name`, `packed`, `updated`. Bags ride inside `fl4_baby`, so the backup file and test seed need no per-field edit.
+
+**Defaults are seeded `updated:0` and never re-seeded once tombstoned** (v480) — a seed is the lowest-priority state, and re-seeding a deleted default only made it flicker.
+
 ## Test-build demo data (v407) — add to it when you add a section
 Test builds (any host not on the exact-match `_prodHosts` list — the live `miniature-journey-b9p.pages.dev`, plus the retired `coshea321.github.io` — i.e. every raw.githack PR link and every Cloudflare branch/preview deployment) wipe the `fl4_*` store and reseed a fixed demo household **once per version** — the version string is stored in `fl4_testseed`, so a reload of the same version keeps whatever you were doing, and the next PR's link starts clean. The orange banner is the manual reset.
 

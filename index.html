@@ -985,7 +985,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v479 · 22/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v480 · 22/09/2026</div>
 
   </div>
 </div>
@@ -1689,7 +1689,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     <button class="modal-close" id="settingsClose" aria-label="Close settings">&#x2715;</button>
     <div class="modal-title">&#9881;&#65039; Settings</div>
     <div class="sync-section-title" style="margin-bottom:8px">Visible sections</div>
-    <div style="font-size:12px;color:#7A8772;margin-bottom:10px;line-height:1.5">Five on the bar, the rest under More.</div>
+    <div style="font-size:12px;color:#7A8772;margin-bottom:10px;line-height:1.5">Five on the bar, the rest under More. Lists, Recipes and Baby can&rsquo;t be hidden.</div>
     <div id="sectionToggles">
       <div class="sync-toggle-row">
         <span class="sync-toggle-label">&#x1F3E0; Home dashboard</span>
@@ -4557,6 +4557,7 @@ function watchFetchSummary(id) {
   if (i < 0) return;                              // guarded, never all[-1]
   if (!watchWikiQuery(all[i])) return;            // no title, nothing to ask
   _watchSumBusy = id;
+  var asked = watchWikiQuery(all[i]);             // v480: what this fetch is about
   renderWatchlist();
   fetchWithTimeout(watchSummaryApiUrl(all[i]), null, 9000)
     .then(function(r){ return r.json(); })
@@ -4578,6 +4579,10 @@ function watchFetchSummary(id) {
       var cur = getWatchlist();
       var k = cur.findIndex(function(w){ return w && w.id === id; });
       if (k < 0) { renderWatchlist(); return; }
+      // v480: retitled (or re-kinded) while the fetch was out -- this text is
+      // the OLD title's plot, the exact case "retitling clears the summary"
+      // exists to prevent. Drop it rather than store it under the new title.
+      if (watchWikiQuery(cur[k]) !== asked) { renderWatchlist(); toast("&#x1F4D6; The title changed while fetching &mdash; tap again"); return; }
       cur[k].summary    = text;
       cur[k].summarySrc = src;
       cur[k].updated    = Date.now();
@@ -11824,16 +11829,23 @@ function wireRecipeResizeGrips(root) {
     if (!ta) return;
     var startY = 0, startH = 0;
     function onMove(e) { ta.style.height = Math.max(60, startH + (e.clientY - startY)) + "px"; }
+    // v480: pointercancel ends a drag too. Android cancels a touch it takes
+    // over (a scroll, the back gesture) and never sends pointerup, which used
+    // to leave onMove attached -- any later finger movement anywhere resized
+    // this box. Do NOT drop the pointercancel half.
     function onEnd() {
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onEnd);
+      document.removeEventListener("pointercancel", onEnd);
     }
     grip.addEventListener("pointerdown", function(e){
       e.preventDefault();
+      onEnd();   // a drag never overlaps another; drop anything left attached
       startY = e.clientY;
       startH = ta.getBoundingClientRect().height;
       document.addEventListener("pointermove", onMove);
       document.addEventListener("pointerup", onEnd);
+      document.addEventListener("pointercancel", onEnd);
     });
   });
 }
@@ -15616,11 +15628,24 @@ function getAuthToken(cb) {
     method: "POST",
     headers: { "Content-Type":"application/x-www-form-urlencoded" },
     body: "grant_type=refresh_token&refresh_token=" + encodeURIComponent(rt)
-  }).then(function(r){ return r.json(); })
-  .then(function(d) {
+  }).then(function(r){
+    // v480: keep the status. Google's token endpoint answers 429 and 5xx with
+    // a JSON error body too, and treating every JSON reply without an id_token
+    // as "rejected" put up "log out and back in" for a server hiccup -- the
+    // v468 false-alarm class. Only 400/401/403 is Google refusing the
+    // credential (INVALID_REFRESH_TOKEN, TOKEN_EXPIRED, USER_DISABLED...);
+    // anything else is transient and stays quiet like a network failure.
+    return r.json().then(function(d){ return { status:+r.status || 0, d:d || {} }; });
+  })
+  .then(function(res) {
+    var d = res.d;
     // Logout may have happened while the request was in flight. Never restore
     // credentials after v463 deliberately cleared them.
     if (!isLoggedIn()) { finishAuthRefresh(null, "logged-out"); return; }
+    if (!d.id_token && res.status !== 400 && res.status !== 401 && res.status !== 403 &&
+        !(res.status >= 200 && res.status < 300)) {
+      finishAuthRefresh(null, "network"); return;   // cached token left alone: it may still be good
+    }
     if (d.id_token) {
       hearthIdToken = d.id_token;
       hearthTokenExpiry = Date.now() + (parseInt(d.expires_in)||3600) * 1000;
@@ -21604,16 +21629,22 @@ var DEFAULT_BAGS = [
 // lowest-priority state there is, so any real edit on another device outranks
 // a device that has only just seeded, and any tombstone outranks a re-seed of
 // a bag someone deleted. Never stamp these with Date.now().
+//
+// v480: a default someone DELETED is not seeded again. The tombstone always
+// outranks an updated:0 seed, so re-seeding it only made it flicker: back on
+// this read, filtered out by the next merge, back on the read after that, a
+// sync push every time. If every default is tombstoned the list stays empty,
+// and renderBagView shows its "No bags yet" state instead.
 function getBagsData() {
   var bd = getBD();
   var bags = normaliseBags(bd.bags);
   if (!bags.length) {
-    bags = DEFAULT_BAGS.map(function(b) {
+    var bagTombs = getTombs("bags");
+    bags = DEFAULT_BAGS.filter(function(b){ return bagTombs[b.id] == null; }).map(function(b) {
       return { id:b.id, name:b.name, icon:b.icon, updated:0,
                items:b.items.map(function(name,i){ return { id:b.id+"_"+i, name:name, packed:false, updated:0 }; }) };
     });
-    bd.bags = bags;
-    saveBD(bd);
+    if (bags.length) { bd.bags = bags; saveBD(bd); }
   }
   return bags;
 }
