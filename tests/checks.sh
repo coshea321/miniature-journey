@@ -187,6 +187,16 @@ done <<EOF
 $PIGGYBACK
 EOF
 
+# ── Changelog rotation (22/09/2026) ──────────────────────────────────────────────
+# HEARTH-changelog.md is meant to hold the newest ~10 detailed entries; by v479
+# the rotation had lapsed and it held 78 (173 KB, ~43k tokens for any session
+# that opened it). INFORMATIONAL ONLY — never touch `fail`. Counts top-level
+# "- **vNNN" entries in the "Recently completed" section.
+CL_ENTRIES=$(awk '/^## Recently completed/{p=1;next} /^## /{p=0} p' HEARTH-changelog.md 2>/dev/null | grep -cE '^ ?- \*\*v[0-9]+')
+if [ "${CL_ENTRIES:-0}" -gt 12 ]; then
+  echo "  note HEARTH-changelog.md holds $CL_ENTRIES detailed entries — move the oldest to the top of HEARTH-archive.md until ~10 remain"
+fi
+
 echo
 [ "$fail" = "0" ] && echo "MECHANICAL CHECKS: PASS" || echo "MECHANICAL CHECKS: FAIL"
 exit $fail
