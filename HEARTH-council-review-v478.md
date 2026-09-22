@@ -150,3 +150,5 @@
 3. **The Knee Programme is Petra's**, and basic enough that it doesn't need physio approval. Expert 2's item 3 and the Devil's Advocate dissent are closed.
 4. **Yes**, "Each leg" at Basic. Shipped in v479, Basic only.
 5. Petra's phone updates tonight.
+
+**22/09/2026, later:** Cathal asked for the remaining low-priority items too. They shipped in **v480**: the resize-grip `pointercancel`, no reseeding of a deleted default bag, the Watchlist retitle race, token-endpoint 429/5xx treated as transient, the Settings "can't be hidden" line, a Baby bags data-model note, and the v470–v473 PR links. Still open: the Nurofen no-weight wording (Expert 2 item 5) and the fresh-device restore count (Expert 3 item 3).
