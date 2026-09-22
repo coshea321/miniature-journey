@@ -985,7 +985,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v478 · 20/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v479 · 22/09/2026</div>
 
   </div>
 </div>
@@ -19356,7 +19356,7 @@ var YOGA_TRAIN_NAMES   = ['Full Body Flow','Hips & Lower Back'];
 // Index-aligned with YOGA_FLOWS_TRAIN; shown on the session intro screen. Empty string = no note.
 var YOGA_TRAIN_NOTES   = [
   "Reviewed August 2026 and re-tuned 30/08/2026 against the precise history — a 4 cm hiatus hernia, mild bilateral L5/S1 foraminal stenosis and an L4/L5 disc bulge. That combination is why this flow keeps to the middle of the range in both directions: extension, side-bending and rotation all close the foramen, while end-range and loaded flexion is what a disc bulge feels. The general 'flex to open the canal' advice is written for central canal stenosis and only half applies to you. The switches below choose between the reviewed version of a pose and the original — they start on the reviewed side and keep whatever you last picked. Practise at least 2–3 hours after eating, and not in the first hour after waking when the discs are at their most swollen. Keep breathing throughout — no breath-holding — and stop for regurgitation, chest or upper-abdominal pressure, or symptoms travelling further down a leg. New saddle numbness, bladder or bowel changes, foot drop or progressive weakness need urgent medical assessment. This is mobility and core work — keep it alongside your strength days and walking.",
-  ''
+  "Not re-tuned for your history. Unlike the Full Body Flow, this sequence has never been checked against the recorded history — a 4 cm hiatus hernia, mild bilateral L5/S1 foraminal stenosis and an L4/L5 disc bulge. A pose-by-pose comparison in September 2026 found that about twelve of the eighteen poses involve a movement that history names: sustained forward folds, a deep squat, repeated side-bending and held rotations. Nothing here has been changed on that basis — which poses to keep or modify is a decision for you and your physio, not for the app — and a re-tune like the Full Body Flow's is planned. Until then, treat this flow as unverified and worth raising at your next appointment. Meanwhile the same practical rules apply as on the Full Body Flow: practise at least 2–3 hours after eating, not in the first hour after waking, keep breathing throughout with no breath-holding, and come out of anything that pinches or sends symptoms further down a leg. Stop for regurgitation or chest or upper-abdominal pressure. New saddle numbness, bladder or bowel changes, foot drop or progressive weakness need urgent medical assessment."
 ];
 
 var POSE_PHOTOS_TRAIN = {
@@ -19443,14 +19443,14 @@ var PROGRAMMES_TRAIN = [
     {id:'bridges_mpc',name:'Bridges',type:'timed',dur:30,sets:1,note:'30s · tuck, squeeze, lift',cue:'Lie on your back with knees bent and feet flat. First tuck your tummy (gentle pelvic tilt), then squeeze your glutes, then lift your hips up toward the ceiling. Add a thigh squeeze at the top, and lift your heels up if comfortable. Lower slowly. This sequence protects your spine — the tummy tuck and flexion keep the movement stenosis-safe.',url:'https://www.youtube.com/watch?v=wPM8icPu6H8'}
   ]},
   {id:'knee_general',name:'Knee Programme',icon:'&#x1F9B4;',note:'Knee · gentle strength and stretch · daily',color:'#22c55e',levels:true,warning:'A gentle, general-purpose knee programme — not a diagnosis and not prescribed for anyone in particular. Mild discomfort, up to about 3/10, that settles within a day is fine. Sharp pain, swelling or the knee giving way means stop. See a physio or GP first if you have significant swelling, locking, instability, a recent injury or surgery, or pain that is not improving after 2–3 weeks.',info:'Progression, after 2–3 pain-free weeks: mini squats (0–45°) holding onto a counter · step-ups on a low step · single-leg balance for 30 seconds · a light ankle weight added to the leg raises.',exercises:[
-    {id:'heel_slides_kn',name:'Heel Slides',type:'reps',reps:15,sets:1,note:'Warm-up · 10–15 reps each leg',cue:'Lie on your back with both legs straight. Slowly slide one heel along the floor toward your bum, bending the knee as far as is comfortable, then slide it back out. Smooth and pain-free throughout — this is a warm-up, not a stretch. 10–15 reps, then swap legs.',cues:["Lie on your back, both legs straight","Slide one heel along the floor toward your bum","Bend only as far as is comfortable, then slide back out","Smooth and pain-free — a warm-up, not a stretch","10–15 reps, then swap legs"]},
+    {id:'heel_slides_kn',name:'Heel Slides',type:'reps',eachLeg:true,reps:15,sets:1,note:'Warm-up · 10–15 reps each leg',cue:'Lie on your back with both legs straight. Slowly slide one heel along the floor toward your bum, bending the knee as far as is comfortable, then slide it back out. Smooth and pain-free throughout — this is a warm-up, not a stretch. 10–15 reps, then swap legs.',cues:["Lie on your back, both legs straight","Slide one heel along the floor toward your bum","Bend only as far as is comfortable, then slide back out","Smooth and pain-free — a warm-up, not a stretch","10–15 reps, then swap legs"]},
     {id:'ankle_pumps_kn',name:'Ankle Pumps',type:'reps',reps:20,sets:1,note:'Warm-up · 20 reps',cue:'Lie or sit with your legs out in front of you. Point both feet away from you, then pull your toes back toward your shins. Steady and rhythmic — this gets the calf pump going before the strength work. 20 reps.',cues:["Lie or sit with your legs out in front","Point both feet away from you","Then pull your toes back toward your shins","Steady and rhythmic — 20 reps"]},
-    {id:'quad_sets_kn',name:'Quad Sets',type:'reps',reps:10,sets:2,note:'Strength · 2 × 10 each leg · hold 5s',cue:'Sit or lie with the working leg straight out in front of you. Press the back of your knee down into the floor and tighten the thigh muscle. Hold 5 seconds, then relax fully. 10 reps on each leg.',cues:["Sit or lie with the working leg straight out","Press the back of the knee down into the floor","Tighten the thigh and hold 5 seconds","Relax fully between reps — 10 on each leg"]},
-    {id:'slr_kn',name:'Straight Leg Raise',type:'reps',reps:10,sets:2,note:'Strength · 2 × 10 each leg',cue:'Lie on your back with one knee bent and the working leg straight. Tighten the thigh first, then lift the straight leg about 30 cm off the floor. Hold 2–3 seconds and lower slowly — the slow lowering is the part that builds the quad. 10 reps on each leg.',cues:["One knee bent, the working leg straight","Tighten the thigh FIRST, then lift about 30 cm","Hold 2–3 seconds","Lower slowly — the slow lowering is what builds the quad"]},
-    {id:'short_arc_quads_kn',name:'Short Arc Quads',type:'reps',reps:10,sets:2,note:'Strength · 2 × 10 each leg · towel roll',cue:'Lie on your back with a rolled towel under your knee so the knee stays slightly bent. Straighten the lower leg by lifting the foot, keeping the back of the knee resting on the towel. Hold 3 seconds, then lower slowly. 10 reps on each leg.',cues:["Rolled towel under the knee so it stays slightly bent","Lift the foot to straighten the lower leg","Back of the knee stays resting on the towel","Hold 3 seconds, lower slowly — 10 on each leg"]},
+    {id:'quad_sets_kn',name:'Quad Sets',type:'reps',eachLeg:true,reps:10,sets:2,note:'Strength · 2 × 10 each leg · hold 5s',cue:'Sit or lie with the working leg straight out in front of you. Press the back of your knee down into the floor and tighten the thigh muscle. Hold 5 seconds, then relax fully. 10 reps on each leg.',cues:["Sit or lie with the working leg straight out","Press the back of the knee down into the floor","Tighten the thigh and hold 5 seconds","Relax fully between reps — 10 on each leg"]},
+    {id:'slr_kn',name:'Straight Leg Raise',type:'reps',eachLeg:true,reps:10,sets:2,note:'Strength · 2 × 10 each leg',cue:'Lie on your back with one knee bent and the working leg straight. Tighten the thigh first, then lift the straight leg about 30 cm off the floor. Hold 2–3 seconds and lower slowly — the slow lowering is the part that builds the quad. 10 reps on each leg.',cues:["One knee bent, the working leg straight","Tighten the thigh FIRST, then lift about 30 cm","Hold 2–3 seconds","Lower slowly — the slow lowering is what builds the quad"]},
+    {id:'short_arc_quads_kn',name:'Short Arc Quads',type:'reps',eachLeg:true,reps:10,sets:2,note:'Strength · 2 × 10 each leg · towel roll',cue:'Lie on your back with a rolled towel under your knee so the knee stays slightly bent. Straighten the lower leg by lifting the foot, keeping the back of the knee resting on the towel. Hold 3 seconds, then lower slowly. 10 reps on each leg.',cues:["Rolled towel under the knee so it stays slightly bent","Lift the foot to straighten the lower leg","Back of the knee stays resting on the towel","Hold 3 seconds, lower slowly — 10 on each leg"]},
     {id:'glute_bridge_kn',name:'Glute Bridge',type:'reps',reps:10,sets:2,note:'Strength · 2 × 10 · hold 3s',cue:'Lie on your back, knees bent, feet flat and hip-width apart. Squeeze your glutes and lift your hips until your body makes a straight line from shoulders to knees. Hold 3 seconds, then lower with control. 10 reps.',cues:["Knees bent, feet flat and hip-width apart","Squeeze the glutes, then lift the hips","A straight line from shoulders to knees","Hold 3 seconds, lower with control"]},
-    {id:'side_leg_raise_kn',name:'Side-Lying Leg Raise',type:'reps',reps:10,sets:2,note:'Strength · 2 × 10 each side',cue:'Lie on your side with your body in a straight line and the bottom knee bent for balance. Lift the top leg straight up with the toes pointing forward, not turned up to the ceiling. Lower slowly. 10 reps on each side.',cues:["On your side, body in a straight line","Bottom knee bent for balance","Lift the top leg with the toes pointing FORWARD","Not turned up to the ceiling. Lower slowly"]},
-    {id:'seated_knee_ext_kn',name:'Seated Knee Extension',type:'reps',reps:10,sets:2,note:'Strength · 2 × 10 each leg · hold 3s',cue:'Sit tall on a chair with your feet flat on the floor. Straighten one knee fully, hold 3 seconds with the thigh tight, then lower slowly. Do not swing the leg up. 10 reps on each leg.',cues:["Sit tall, feet flat on the floor","Straighten one knee fully","Hold 3 seconds with the thigh tight","Lower slowly — never swing the leg up"]},
+    {id:'side_leg_raise_kn',name:'Side-Lying Leg Raise',type:'reps',eachLeg:true,reps:10,sets:2,note:'Strength · 2 × 10 each side',cue:'Lie on your side with your body in a straight line and the bottom knee bent for balance. Lift the top leg straight up with the toes pointing forward, not turned up to the ceiling. Lower slowly. 10 reps on each side.',cues:["On your side, body in a straight line","Bottom knee bent for balance","Lift the top leg with the toes pointing FORWARD","Not turned up to the ceiling. Lower slowly"]},
+    {id:'seated_knee_ext_kn',name:'Seated Knee Extension',type:'reps',eachLeg:true,reps:10,sets:2,note:'Strength · 2 × 10 each leg · hold 3s',cue:'Sit tall on a chair with your feet flat on the floor. Straighten one knee fully, hold 3 seconds with the thigh tight, then lower slowly. Do not swing the leg up. 10 reps on each leg.',cues:["Sit tall, feet flat on the floor","Straighten one knee fully","Hold 3 seconds with the thigh tight","Lower slowly — never swing the leg up"]},
     {id:'hamstring_str_kn',name:'Hamstring Stretch',type:'timed',dur:30,sets:4,perLeg:true,note:'Stretch · 30s hold · twice each leg',cue:'Sit on the edge of a chair with one leg straight out in front, heel on the floor and toes up. Keeping your back straight, lean forward gently from the hips until you feel the stretch behind the thigh. Hold 30 seconds, twice on this side.',cues:["Sit on the edge of a chair, one leg straight out","Heel on the floor, toes up","Back straight — lean forward from the hips","Stop at a stretch behind the thigh. Hold 30 seconds"]},
     {id:'calf_str_kn',name:'Calf Stretch',type:'timed',dur:30,sets:4,perLeg:true,note:'Stretch · 30s hold · twice each leg',cue:'Stand facing a wall with your hands on it. Step one foot back, keep that back leg straight and the heel pressed down, and lean into the wall until you feel the stretch in the calf. Hold 30 seconds, twice on this side.',cues:["Face a wall, hands on it","Step one foot back, that leg straight","Press the back heel down and keep it down","Lean in until you feel the calf. Hold 30 seconds"]},
     {id:'quad_str_kn',name:'Quad Stretch',type:'timed',dur:30,sets:4,perLeg:true,note:'Stretch · 30s hold · twice each leg',cue:'Lie on your side, or stand holding onto something solid. Bend the top knee and take hold of the ankle, then draw the heel gently toward your bum. Keep your knees together and your hips forward — no arching the lower back. Hold 30 seconds, twice on this side.',cues:["Lie on your side, or stand holding something solid","Bend the top knee and take hold of the ankle","Draw the heel gently toward your bum","Knees together, hips forward — no arching the back"]},
@@ -19935,6 +19935,12 @@ function physioPerLegOf(ex)   { return physioIsBasic() ? false : !!ex.perLeg; }
 // Basic runs a per-leg stretch ONCE, so the screen has to say what the four
 // side-labelled rounds used to say by themselves.
 function physioBothSides(ex)  { return physioIsBasic() && !!ex.perLeg; }
+// v479: the same gap for the strength moves done "10 each leg". They are NOT
+// perLeg (the set counter never alternated sides for them), so in Basic, where
+// they show as one plain "10 reps", only the cue text said to swap legs. The
+// `eachLeg` flag is data on the exercise, read only here -- Basic only, as
+// confirmed; Full keeps its "Set N of M" line unchanged.
+function physioEachLeg(ex)    { return physioIsBasic() && !!ex.eachLeg; }
 
 function physioLevelPickerHtml(prog, col) {
   if (!prog.levels) return "";
@@ -19998,6 +20004,8 @@ function renderPhysioSession() {
   // the four side-labelled rounds used to carry on their own.
   var setLabel = physioBothSides(ex)
     ? "Do both sides"
+    : physioEachLeg(ex)
+    ? "Each leg"
     : physioPerLegOf(ex)
       ? (SS.pSetNum <= Math.ceil(totalSets/2) ? "Right side" : "Left side") + (totalSets > 2 ? " \u00b7 set "+SS.pSetNum+" of "+totalSets : "")
       : (totalSets > 1 ? "Set "+SS.pSetNum+" of "+totalSets : "");
@@ -22277,7 +22285,7 @@ function renderMedicine() {
     "<div style='display:flex;gap:8px;margin-bottom:6px'><input id='medDose' type='text' class='med-input' style='flex:1' placeholder='Dose'><input id='medTime' type='datetime-local' class='med-input' style='flex:1' value='"+dtStr+"'></div>" +
     "<div id='medDoseNote' style='font-size:14px;line-height:1.45;color:#5A3A5A;margin:-2px 0 6px;min-height:0'></div>" +
     "<input id='medNotes' type='text' class='med-input' placeholder='Notes (optional)' style='margin-bottom:6px'>" +
-    "<div id='medSaveErr' style='display:none;font-size:13px;line-height:1.45;padding:8px 11px;border-radius:9px;margin-bottom:6px;background:#FDECEC;color:#9A2020;border:1px solid #E8A0A0;font-weight:600'></div>" +
+    "<div id='medSaveErr' style='display:none;font-size:15px;line-height:1.45;padding:8px 11px;border-radius:9px;margin-bottom:6px;background:#FDECEC;color:#9A2020;border:1px solid #E8A0A0;font-weight:600'></div>" +
     "<button class='baby-log-btn' id='medLogBtn'>Log</button></div>" +
     bottleFreshnessCardHtml(bd);
   if (meds.length) {
@@ -22304,9 +22312,13 @@ function renderMedicine() {
       // re-rendering would rebuild the form and destroy the entry we just
       // failed to save. The message is persistent, not a toast: a toast is
       // what failed the parent here, and it disappears in 2.2 seconds.
+      // v479: the limit is Hearth's own browser quota, NOT the phone's free
+      // space -- clearing phone storage does not help, so the message must not
+      // send him there. Plant photos (plantShrinkPhoto, stored inline as
+      // base64) are the only large thing Hearth keeps, so they are the lever.
       if (!saveBD(bd2)) {
         var errEl=document.getElementById("medSaveErr");
-        if(errEl){ errEl.textContent="NOT logged \u2014 this device's storage is full, so the dose was not saved. Free up space and tap Log again."; errEl.style.display=""; }
+        if(errEl){ errEl.textContent="NOT logged \u2014 Hearth's own storage is full, so this dose was not saved. Write it down now. To make room, remove some plant photos, then tap Log again."; errEl.style.display=""; }
         else toast("Not logged &#8212; storage full");
         return;
       }
@@ -22602,7 +22614,7 @@ document.getElementById("babyBagsView").addEventListener("click",function(e){
   var act=btn.dataset.action;
   if(act==="bagToggle"){ var item=bag&&bag.items.find(function(x){return x.id===btn.dataset.id;}); if(item){item.packed=!item.packed;touchBagItem(bag,item);saveBagsData(bags);renderBagView();} }
   else if(act==="bagDelete"){ if(!bag) return; addTomb("bagitems",btn.dataset.id); bag.items=bag.items.filter(function(x){return x.id!==btn.dataset.id;}); touchBagItem(bag,null); saveBagsData(bags); renderBagView(); }
-  else if(act==="bagReset"){ if(!bag) return; confirmDialog("Unpack everything in "+bag.name+"?",function(){ bag.items.forEach(function(x){x.packed=false;touchBagItem(bag,x);}); saveBagsData(bags); renderBagView(); toast("&#x21BA; Reset"); }); }
+  else if(act==="bagReset"){ if(!bag) return; confirmDialog("Unpack everything in "+esc(bag.name)+"?",function(){ bag.items.forEach(function(x){x.packed=false;touchBagItem(bag,x);}); saveBagsData(bags); renderBagView(); toast("&#x21BA; Reset"); }); }
   else if(act==="bagRemove"){ var b2=bags.find(function(x){return x.id===btn.dataset.bagid;}); if(!b2) return; confirmDialog("Delete "+esc(b2.name)+"?",function(){ addTomb("bags",btn.dataset.bagid); bags=bags.filter(function(x){return x.id!==btn.dataset.bagid;}); if(currentBagId===btn.dataset.bagid) currentBagId=bags[0]?bags[0].id:""; saveBagsData(bags); renderBagView(); }); }
 });
 document.getElementById("bagAddItemBtn").addEventListener("click",function(){
@@ -22636,7 +22648,7 @@ function renderBagView() {
   if (!bags.find(function(b){ return b.id === currentBagId; })) currentBagId = bags.length ? bags[0].id : "";
   var bag = bags.find(function(b){ return b.id === currentBagId; });
   document.getElementById("bagTabRow").innerHTML = bags.map(function(b) {
-    return "<button class='bag-tab"+(b.id===currentBagId?" active":"")+"' data-bagid='"+b.id+"'>"+esc(b.name)+"</button>";
+    return "<button class='bag-tab"+(b.id===currentBagId?" active":"")+"' data-bagid='"+esc(b.id)+"'>"+esc(b.name)+"</button>";
   }).join("");
   if (!bag) {
     document.getElementById("bagContent").innerHTML = "<div class='bag-empty'>No bags yet \u2014 create one below</div>";
@@ -22653,7 +22665,7 @@ function renderBagView() {
   if (unpacked.length) {
     html += "<div class='bag-section-hdr'>To pack ("+unpacked.length+")</div>";
     unpacked.forEach(function(item) {
-      html += "<div class='bag-item'><button class='bag-item-check' data-action='bagToggle' data-id='"+item.id+"'>&#x00A0;</button><span class='bag-item-name'>"+esc(item.name)+"</span><button class='bag-item-del' data-action='bagDelete' data-id='"+item.id+"'>&#x2715;</button></div>";
+      html += "<div class='bag-item'><button class='bag-item-check' data-action='bagToggle' data-id='"+esc(item.id)+"'>&#x00A0;</button><span class='bag-item-name'>"+esc(item.name)+"</span><button class='bag-item-del' data-action='bagDelete' data-id='"+esc(item.id)+"'>&#x2715;</button></div>";
     });
   } else if (packed.length) {
     html += "<div class='bag-empty'>&#x1F389; Everything is packed!</div>";
@@ -22661,14 +22673,14 @@ function renderBagView() {
   if (packed.length) {
     html += "<div class='bag-packed-hdr'>&#x2705; Packed ("+packed.length+")</div>";
     packed.forEach(function(item) {
-      html += "<div class='bag-item'><button class='bag-item-check packed' data-action='bagToggle' data-id='"+item.id+"'>&#x2713;</button><span class='bag-item-name packed'>"+esc(item.name)+"</span><button class='bag-item-del' data-action='bagDelete' data-id='"+item.id+"'>&#x2715;</button></div>";
+      html += "<div class='bag-item'><button class='bag-item-check packed' data-action='bagToggle' data-id='"+esc(item.id)+"'>&#x2713;</button><span class='bag-item-name packed'>"+esc(item.name)+"</span><button class='bag-item-del' data-action='bagDelete' data-id='"+esc(item.id)+"'>&#x2715;</button></div>";
     });
     html += "<button class='bag-reset-btn' data-action='bagReset'>&#x21BA; Unpack all</button>";
   }
   if (!total) html = "<div class='bag-empty'>No items yet — add some below</div>";
   document.getElementById("bagContent").innerHTML = html;
   document.getElementById("bagManageList").innerHTML = bags.map(function(b) {
-    return "<div class='bag-manage-row'><span class='bag-manage-name'>"+esc(b.name)+"</span>"+(bags.length>1?"<button class='bag-manage-del' data-action='bagRemove' data-bagid='"+b.id+"'>&#x2715;</button>":"")+"</div>";
+    return "<div class='bag-manage-row'><span class='bag-manage-name'>"+esc(b.name)+"</span>"+(bags.length>1?"<button class='bag-manage-del' data-action='bagRemove' data-bagid='"+esc(b.id)+"'>&#x2715;</button>":"")+"</div>";
   }).join("");
 }
 

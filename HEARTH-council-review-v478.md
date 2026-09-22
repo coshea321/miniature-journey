@@ -142,3 +142,11 @@
 3. **Is the Knee Programme for you?** If so, two of its stretches (seated hamstring lean, standing quad stretch) are worth adding to your physio questions alongside Hips & Lower Back.
 4. **In Knee "Basic", should the each-leg strength moves say "Each leg" on screen,** the way the stretches now say "Do both sides"?
 5. **Is Petra's phone on v478 yet?** The bag fix only settles once every phone is updated.
+
+## Cathal's answers (22/09/2026)
+
+1. **Note back, and cues too — but as a full Full-Body-style re-tune.** The note shipped in v479. The re-tune needs its own design and is in the backlog.
+2. **Yes** to "write it down" wording. Shipped in v479. It says *plant photos*, not "Plants or Home inventory": on checking, inventory photos are links and only plants store image bytes.
+3. **The Knee Programme is Petra's**, and basic enough that it doesn't need physio approval. Expert 2's item 3 and the Devil's Advocate dissent are closed.
+4. **Yes**, "Each leg" at Basic. Shipped in v479, Basic only.
+5. Petra's phone updates tonight.
