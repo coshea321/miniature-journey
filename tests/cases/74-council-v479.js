@@ -25,9 +25,11 @@ module.exports = {
       // ── 1. the Hips & Lower Back note ──────────────────────────────────
       var n1 = String(YOGA_TRAIN_NOTES[1] || '');
       ok('TRIPWIRE: Hips & Lower Back has a caution note again', n1.length > 200, n1.slice(0, 80));
-      ok('it says the flow is not re-tuned for the history', /Not re-tuned for your history/.test(n1));
+      // v481 re-tuned the flow and rewrote this note (76-hips-retune.js pins
+      // the new wording); what must survive is that it stays honest about it.
+      ok('it says the flow is re-tuned, and NOT physio-checked', /Re-tuned 22\\/09\\/2026/.test(n1) && /NOT been checked by a physio/.test(n1));
       ok('it names the recorded history', /foraminal stenosis/.test(n1) && /L4\\/L5 disc bulge/.test(n1));
-      ok('it leaves the pose decision to him and his physio', /your physio/.test(n1));
+      ok('it sends the re-tune to his next appointment', /next appointment/.test(n1));
       ok('it keeps the red-flag line', /urgent medical assessment/.test(n1));
       ok('the notes stay index-aligned with the flows', YOGA_TRAIN_NOTES.length === YOGA_FLOWS_TRAIN.length);
 

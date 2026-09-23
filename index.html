@@ -638,6 +638,7 @@ body.train-mode #toast{background:#3A3328}
 .yv-hdr{font-size:11px;font-weight:700;color:#6A3CB0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
 .yv-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F2EEE6}
 .yv-row:last-child{border-bottom:none}
+.yv-row.yv-all{border-bottom:2px solid #E0DCD4;padding-bottom:8px;margin-bottom:3px}
 .yv-lab{font-size:12px;color:#8A7A5A;flex:1;min-width:0}
 .yv-btns{display:flex;gap:4px;flex-shrink:0}
 /* 32px clears WCAG 2.2 AA (2.5.8 wants 24x24) - see the History button note. */
@@ -985,7 +986,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v480 · 22/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v481 · 22/09/2026</div>
 
   </div>
 </div>
@@ -19318,6 +19319,120 @@ var YOGA_FB_BASE = [
   {slot:'savasana'}
 ];
 
+
+// ── Hips & Lower Back — re-tuned 22/09/2026 (v481) ────────────────────────
+// Built on the Full Body machinery: every pose the re-tune changed is a slot
+// carrying the reviewed version and the ORIGINAL VERBATIM, and an unset or
+// corrupt choice reads as reviewed (yogaVariantOf). Only Windshield Wipers is
+// unchanged, so it is the one plain pose. Slot ids are `hlb_`-prefixed because
+// they share `fl4_yoga_variants` with the Full Body slots — `kneehug` and
+// `savasana` exist in both flows and must stay independent choices.
+//
+// The reviewed side is MODEL-WRITTEN from the rules in Full Body's note (middle
+// of the range, no loaded or end-range fold, small supported twists, head above
+// the heart, no breath-holding) and has NOT been checked by a physio —
+// YOGA_TRAIN_NOTES[1] says so on screen. Do not describe it as physio-approved.
+// Reviewed poses carry `noPhoto:true`: the only photos are of the ORIGINAL
+// poses, and "Upright Butterfly" showing the Diamond Fold photo would teach the
+// fold this version removed. `hlb_fold2`'s reviewed side is EMPTY (skipped, as
+// with Full Body's floss) — the hamstrings are covered by the strap stretch.
+var YOGA_HLB_SLOTS = {
+  hlb_fold1: { label:'Opening fold', revLabel:'Hip Hinge', origLabel:'Rounded Fold',
+    rev:[
+          {name:"Seated Hip Hinge",sanskrit:"Sukhasana variation",dur:45,noPhoto:true,cue:"Replaces the rounded forward fold. Sit on a firm cushion or block high enough that your hips are above your knees, feet flat, knees apart. Rest your forearms on your thighs. Tip forward from the hips a little with the back long — the chest leads, and it goes only as far as it can without the back rounding. Stay there, breathing slowly and normally into the back of the ribs. Pressure in the stomach or any reflux: come up taller.",cues:["Sit on a cushion, hips above the knees","Forearms rest on the thighs","Tip forward from the hips — back long, never rounded","Stomach pressure or reflux? Come up taller"]} ],
+    orig:[
+          {name:'Seated Forward Fold Variation',sanskrit:'Sukhasana variation',dur:60,cue:'Sit with feet on the ground and knees lifted. Slowly drape your heart over the tops of your thighs. Breathe into the back body.'} ] },
+  hlb_boat: { label:'Core', revLabel:'Marching', origLabel:'Boat Prep',
+    rev:[
+          {name:"Supine Marching",sanskrit:"Trunk control",dur:30,noPhoto:true,cue:"Replaces Boat Prep. Lie on your back, knees bent, feet flat, spine resting in its natural curve. Breathe out and lift one foot just a few centimetres off the floor, keeping the knee bent; breathe in and lower it. Alternate slowly, about 6 each side. The hips stay level and still. If the low back arches or you catch yourself holding your breath, make the lift smaller — the same core work as the boat, without the loaded fold or the pressure on the stomach.",cues:["Lie on your back, knees bent, feet flat","Breathe out: lift one foot a few centimetres","Breathe in: lower it. About 6 each side","Hips still — never hold your breath"]} ],
+    orig:[
+          {name:'Core Stability Boat Prep',sanskrit:'Navasana variation',dur:30,cue:'From seated, lean back slightly and lift shins parallel to the floor. Hands behind thighs for support. Core engaged, breathe steadily.'} ] },
+  hlb_twist: { label:'Seated twist', revLabel:'Small, moving', origLabel:'Held',
+    rev:[
+          {name:"Small Seated Rotation Right",sanskrit:"Ardha Matsyendrasana variation",dur:30,noPhoto:true,cue:"Replaces the held seated twist. Sit tall on a firm cushion or a chair, hips above knees, arms crossed over the chest. Breathe out and turn your ribs and shoulders to the right about half as far as you could go, then breathe in and come back to centre. About 5 slow reps. Moving, not held: no hand behind you levering you further, and no pulling on the knee. Rotation narrows the foramen, so the middle of the range is the whole point.",cues:["Sit tall on a cushion or chair, arms crossed","Breathe out: turn right about HALF your range","Breathe in: back to centre. About 5 reps","No hand levering you further"]},
+          {name:"Small Seated Rotation Left",sanskrit:"Ardha Matsyendrasana variation",dur:30,noPhoto:true,cue:"Same again to the left. Sit tall, arms crossed over the chest. Breathe out and turn to the left about half as far as you could go, breathe in and return to centre. About 5 slow reps. Keep it moving and keep it small — the twist should never be held at its end, and nothing should pull you deeper.",cues:["Sit tall, arms crossed over the chest","Breathe out: turn left about half your range","Breathe in: back to centre. About 5 reps","Moving and small — never held at the end"]} ],
+    orig:[
+          {name:'Seated Spinal Twist Right',sanskrit:'Ardha Matsyendrasana',dur:30,cue:'Extend left leg. Hug right knee to chest. Inhale tall, exhale twist toward right knee. Left hand to right knee, right hand behind.'},
+          {name:'Seated Spinal Twist Left',sanskrit:'Ardha Matsyendrasana',dur:30,cue:'Extend right leg. Hug left knee to chest. Inhale tall, exhale twist left. Right hand to left knee, left hand behind.'} ] },
+  hlb_h2k: { label:'Hamstrings', revLabel:'Lying, strap', origLabel:'Head-to-Knee',
+    rev:[
+          {name:"Supine Hamstring Stretch Right",sanskrit:"Supta Padangusthasana variation",dur:30,noPhoto:true,cue:"Replaces Head-to-Knee. Lie on your back with both knees bent. Loop a strap, belt or towel round the ball of the right foot and straighten the leg up toward the ceiling only until you feel a light stretch behind the thigh — the angle does not matter. The left foot stays flat on the floor and your low back keeps its natural curve on the mat, so the hamstring stretches without the spine folding. Keep the shoulders and neck soft and breathe normally.",cues:["Lie on your back, both knees bent","Strap round the ball of the right foot","Straighten the leg up only to a LIGHT stretch","Left foot flat, low back resting on the mat"]},
+          {name:"Supine Hamstring Stretch Left",sanskrit:"Supta Padangusthasana variation",dur:30,noPhoto:true,cue:"Lower the right foot and move the strap to the left foot. Straighten the left leg up only until you feel a light stretch behind the thigh. Right foot flat on the floor, low back resting in its natural curve, shoulders soft. Let the strap hold the leg — no pulling it closer on the exhale.",cues:["Right foot down, strap to the left foot","Straighten the left leg to a light stretch","Right foot flat, low back resting","Let the strap hold it — no pulling closer"]} ],
+    orig:[
+          {name:'Head-to-Knee Pose Right',sanskrit:'Janu Sirsasana',dur:30,cue:'Tuck left foot at inner right thigh. Extend right leg. Hinge from hips with long spine, reach toward right foot or shin.'},
+          {name:'Head-to-Knee Pose Left',sanskrit:'Janu Sirsasana',dur:30,cue:'Tuck right foot at inner left thigh. Extend left leg. Hinge from hips, long spine, reach toward left foot.'} ] },
+  hlb_bound: { label:'Butterfly', revLabel:'Upright', origLabel:'Diamond Fold',
+    rev:[
+          {name:"Upright Butterfly",sanskrit:"Baddha Konasana variation",dur:45,noPhoto:true,cue:"Replaces the Diamond Fold. Sit up on a firm cushion so your hips are above your knees. Soles of the feet together, feet a comfortable distance out to make a wide diamond. Sit tall with your hands on the ankles or shins and let the knees drop with gravity — don't push them down, and don't fold forward. The hips do the opening here; the back stays upright and the stomach stays free. Breathe normally.",cues:["Sit on a cushion, hips above the knees","Soles together, a wide diamond","Sit TALL — no fold forward","Let the knees drop; don't push them"]} ],
+    orig:[
+          {name:'Bound Angle Diamond Fold',sanskrit:'Baddha Konasana',dur:60,cue:'Soles together, feet further from body making a wide diamond. Hinge forward from hips, chest leads, spine long.'} ] },
+  hlb_swim: { label:'Side stretch', revLabel:'Figure-Four', origLabel:'Swimming',
+    rev:[
+          {name:"Seated Figure-Four Right",sanskrit:"Glute stretch",dur:30,noPhoto:true,cue:"Replaces the Swimming Side Stretch, which bent the spine sideways again and again. Sit tall on a chair or a firm cushion. Rest the right ankle on the left thigh just above the knee, right foot flexed. Stay upright and let the right knee lower with gravity — the stretch in the outer right hip comes from the knee dropping, not from leaning forward. If you feel little, that is fine; don't fold to find more. Breathe normally.",cues:["Sit tall on a chair or cushion","Right ankle on the left thigh, above the knee","Stay upright; let the right knee lower","Don't lean forward to find more"]},
+          {name:"Seated Figure-Four Left",sanskrit:"Glute stretch",dur:30,noPhoto:true,cue:"Switch sides: left ankle on the right thigh just above the knee, left foot flexed. Sit tall and let the left knee lower with gravity. Feel the outer left hip and the buttock. Upright throughout — the forward lean that deepens this stretch is exactly the fold this version leaves out.",cues:["Left ankle on the right thigh, foot flexed","Sit tall; let the left knee lower","Feel the outer left hip","Upright throughout — no forward lean"]} ],
+    orig:[
+          {name:'Swimming Side Stretch',sanskrit:'Seated lateral flow',dur:30,cue:'Legs in wide straddle. Reach one arm up and over toward opposite toes in a fluid sweeping motion. 8 sweeps each side.'} ] },
+  hlb_fold2: { label:'Seated Forward Fold', revLabel:'Skip', origLabel:'Include',
+    rev:[],
+    orig:[
+          {name:'Seated Forward Fold',sanskrit:'Paschimottanasana',dur:60,cue:'Legs extended, soft bend in knees. Hinge forward from hips with long spine. Reach for shins, ankles or feet.'} ] },
+  hlb_froggy: { label:'Inner groin', revLabel:'Rocking', origLabel:'Froggy',
+    rev:[
+          {name:"Wide-Knee Rocking",sanskrit:"Mandukasana variation",dur:30,noPhoto:true,cue:"Replaces Froggy Pose. Come onto hands and knees with the knees wider than the hips. Keep the back flat. Breathe out and rock the hips back about halfway toward the heels, then breathe in and rock forward to tabletop. Your head stays level with your hips — not dropped below them — and stop the rock before the low back starts to round. Slow, about 8 rocks. Feel it in the inner groin.",cues:["Hands and knees, knees wide","Breathe out: rock back about halfway","Breathe in: forward to tabletop. About 8","Head level with the hips; stop before the back rounds"]} ],
+    orig:[
+          {name:'Froggy Pose',sanskrit:'Mandukasana variation',dur:30,cue:'Wide kneeling, knees far apart, hips low to floor, body folded forward. Forearms on the ground. Breathe into the inner groin.'} ] },
+  hlb_squat: { label:'Squat', revLabel:'Supported', origLabel:'Yogi Squat',
+    rev:[
+          {name:"Supported Squat",sanskrit:"Malasana variation",dur:30,noPhoto:true,cue:"Replaces the deep Yogi Squat. Put a yoga block, a low stool or a stack of firm books behind you — high enough that your hips stay level with or above your knees. Feet wider than the hips, toes turned out a little, and lower yourself to sit on it. The prop takes your weight, so this is a supported sit, not a deep hanging squat. Chest upright, hands resting on the knees, elbows gently easing them wide. Breathe normally with no bearing down, and use a hand on the floor or a wall to come up.",cues:["Block or low stool behind you","Feet wide, toes out a little — sit on the prop","Hips level with or above the knees","Chest up, breathe normally, no bearing down"]} ],
+    orig:[
+          {name:'Yogi Squat',sanskrit:'Malasana',dur:30,cue:'Deep squat, heels toward earth. Hands in prayer, elbows pressing knees wide. Tailbone heavy, spine long.'} ] },
+  hlb_standfold: { label:'Standing fold', revLabel:'Wall Hinge', origLabel:'Hanging Fold',
+    rev:[
+          {name:"Wall-Supported Half Hinge",sanskrit:"Ardha Uttanasana variation",dur:30,noPhoto:true,cue:"Replaces the Standing Forward Fold, which hung the spine at the end of its range with the head below the heart. Stand facing a wall or the back of a sturdy chair, hands on it at about hip height. Walk your feet back and hinge from the hips until your arms are straight and your back is long and flat — at most a right angle at the hips, less is fine. Knees softly bent, head in line with the spine so it stays above your heart. Press gently into the hands and feel the length down the backs of the legs. Walk the feet in to come up.",cues:["Hands on a wall or chair back, hip height","Walk back, hinge to a flat back — not a hang","Knees soft, head in line with the spine","Walk the feet in to come up"]} ],
+    orig:[
+          {name:'Standing Forward Fold',sanskrit:'Uttanasana',dur:60,cue:'Feet wide, hinge at hips, upper body hangs heavy. Soft bend in knees. Arms dangle or hold opposite elbows.'} ] },
+  hlb_kneehug: { label:'Knee hug', revLabel:'One at a time', origLabel:'Both knees',
+    rev:YOGA_FB_SLOTS.kneehug.rev,
+    orig:[
+          {name:'Knees to Chest',sanskrit:'Apanasana',dur:30,cue:'Lie on your back. Draw both knees gently to chest. Hold below kneecaps. Rock side to side.'} ] },
+  hlb_eagle: { label:'Eagle twist', revLabel:'Supported', origLabel:'Full',
+    rev:[
+          {name:"Supported Eagle Twist Right",sanskrit:"Supta Garudasana variation",dur:30,noPhoto:true,cue:"Lie on your back, knees bent. Cross the right leg over the left, then let both knees lower to the left — only about halfway, onto a cushion or folded blanket so the legs rest rather than hang. Right arm out wide, palm up, both shoulders heavy on the mat. Breathe normally and let the exhales soften the outer right hip, not take you deeper into the twist. Rotation narrows the foramen, so small and supported is the point.",cues:["Right leg crossed over the left","Knees lower to the left onto a cushion","Only about halfway — resting, not hanging","Exhale into the hip, not deeper into the twist"]},
+          {name:"Supported Eagle Twist Left",sanskrit:"Supta Garudasana variation",dur:30,noPhoto:true,cue:"Bring the knees back to centre and uncross. Cross the left leg over the right, and lower both knees to the right onto the cushion — about halfway again. Left arm wide, palm up, shoulders grounded. Soften the outer left hip on each exhale; the twist itself stays where it is.",cues:["Back to centre, uncross","Left leg over the right","Knees lower to the right onto the cushion","Left arm wide; the twist stays small"]} ],
+    orig:[
+          {name:'Eagle Legs Twist Right',sanskrit:'Supta Garudasana variation',dur:30,cue:'Cross right leg over left, both knees fall to the left. Right arm wide. Both shoulders heavy. Breathe into the right outer hip.'},
+          {name:'Eagle Legs Twist Left',sanskrit:'Supta Garudasana variation',dur:30,cue:'Cross left leg over right, knees fall to the right. Left arm wide. Shoulders grounded. Soften on every exhale.'} ] },
+  hlb_happy: { label:'Happy Baby', revLabel:'One leg', origLabel:'Both legs',
+    rev:[
+          {name:"Half Happy Baby Right",sanskrit:"Ananda Balasana variation",dur:25,noPhoto:true,cue:"Replaces the full Happy Baby, which tips the pelvis to the end of its range. Lie on your back with the left foot flat on the floor. Draw the right knee toward the right armpit and hold the outside of the right foot, the back of the thigh, or a strap round the foot — whichever lets your tailbone stay down on the mat. Shin roughly vertical, knee easing wide. Breathe normally; no rocking to go deeper.",cues:["Left foot flat on the floor","Right knee toward the right armpit","Hold the foot, thigh or a strap","Tailbone stays down — no rocking deeper"]},
+          {name:"Half Happy Baby Left",sanskrit:"Ananda Balasana variation",dur:25,noPhoto:true,cue:"Lower the right foot to the floor. Draw the left knee toward the left armpit and hold the outside of the left foot, the back of the thigh, or a strap. Tailbone stays on the mat and the right foot stays flat. Gentle and steady, breathing normally.",cues:["Right foot down, flat on the floor","Left knee toward the left armpit","Hold the foot, thigh or a strap","Tailbone on the mat; breathe normally"]} ],
+    orig:[
+          {name:'Happy Baby',sanskrit:'Ananda Balasana',dur:30,cue:'Hug knees to chest then reach for outer edges of feet. Knees wide toward armpits. Rock side to side if it feels good.'} ] },
+  hlb_savasana: { label:'Final rest', revLabel:'Propped', origLabel:'Flat',
+    rev:YOGA_FB_SLOTS.savasana.rev,
+    orig:[
+          {name:'Savasana',sanskrit:'Savasana',dur:90,cue:'Legs long, feet falling open. Arms by sides, palms up. Eyes fully closed. Every muscle releases.'} ] }
+};
+// Render order for the intro-screen switches (here it is also the flow order).
+var YOGA_HLB_SLOT_ORDER = ['hlb_fold1','hlb_boat','hlb_twist','hlb_h2k','hlb_bound','hlb_swim','hlb_fold2','hlb_froggy','hlb_squat','hlb_standfold','hlb_kneehug','hlb_eagle','hlb_happy','hlb_savasana'];
+var YOGA_HLB_BASE = [
+  {slot:'hlb_fold1'},
+  {slot:'hlb_boat'},
+  {slot:'hlb_twist'},
+  {slot:'hlb_h2k'},
+  {slot:'hlb_bound'},
+  {slot:'hlb_swim'},
+  {slot:'hlb_fold2'},
+  {slot:'hlb_froggy'},
+  {slot:'hlb_squat'},
+  {slot:'hlb_standfold'},
+  {slot:'hlb_kneehug'},
+  {slot:'hlb_eagle'},
+  {slot:'hlb_happy'},
+  {name:'Windshield Wipers',sanskrit:'Supta variation',dur:30,cue:'Feet flat, knees bent, feet wider than hips. Let knees drop right then sweep to left. Slow and fluid.'},
+  {slot:'hlb_savasana'}
+];
+
 // Unset = reviewed. Anything that is not the exact string 'orig' reads as
 // reviewed, so a corrupt or half-written value fails safe rather than silently
 // dropping the reviewed version.
@@ -19327,28 +19442,55 @@ function yogaVariantPrefs() {
 }
 function yogaVariantOf(id) { return yogaVariantPrefs()[id] === "orig" ? "orig" : "rev"; }
 
-function buildFullBodyFlow() {
-  var out = [];
-  YOGA_FB_BASE.forEach(function(p) {
+// The two slotted flows, by YOGA_FLOWS_TRAIN index. `allSwitch` adds the
+// "All reviewed / All original" row on top of the picker — Hips & Lower Back
+// only (Cathal, 22/09/2026: its fourteen switches were too many to flip one by
+// one). Full Body keeps its seven without it; that was not asked for.
+var YOGA_SLOTTED = {
+  0: { base: YOGA_FB_BASE,  slots: YOGA_FB_SLOTS,  order: YOGA_FB_SLOT_ORDER },
+  1: { base: YOGA_HLB_BASE, slots: YOGA_HLB_SLOTS, order: YOGA_HLB_SLOT_ORDER, allSwitch: true }
+};
+function buildSlottedFlow(idx) {
+  var def = YOGA_SLOTTED[idx], out = [];
+  def.base.forEach(function(p) {
     if (!p.slot) { out.push(p); return; }
-    var s = YOGA_FB_SLOTS[p.slot];
+    var s = def.slots[p.slot];
     if (!s) return;                                   // unknown slot: drop it, never crash
     (yogaVariantOf(p.slot) === "orig" ? s.orig : s.rev).forEach(function(q){ out.push(q); });
   });
   return out;
 }
-function yogaFlowFor(idx)   { return idx === 0 ? buildFullBodyFlow() : YOGA_FLOWS_TRAIN[idx]; }
+function buildFullBodyFlow() { return buildSlottedFlow(0); }
+function buildHipsFlow()     { return buildSlottedFlow(1); }
+function yogaFlowFor(idx)   { return YOGA_SLOTTED[idx] ? buildSlottedFlow(idx) : YOGA_FLOWS_TRAIN[idx]; }
 function yogaFlowTotal(flow){ return flow.reduce(function(a,p){ return a + p.dur; }, 0); }
+function yogaSlotFlowIdx(id) {
+  for (var k in YOGA_SLOTTED) if (YOGA_SLOTTED[k].slots.hasOwnProperty(id)) return +k;
+  return -1;
+}
 
 // Called from the intro screen's switches. Saves, rebuilds the live flow and
 // repaints, so the pose count and the duration on screen follow the choice.
 function setYogaVariant(id, which) {
-  if (!YOGA_FB_SLOTS[id]) return;
+  if (yogaSlotFlowIdx(id) === -1) return;
   var p = yogaVariantPrefs();
   p[id] = (which === "orig") ? "orig" : "rev";
   storeSet("fl4_yoga_variants", p);
-  if (SS && SS.type === "yoga" && SS.yFlowIdx === 0) {
-    SS.yFlow = buildFullBodyFlow();
+  yogaVariantRepaint(yogaSlotFlowIdx(id));
+}
+// The "All" row: sets every slot of ONE flow, leaving the other flow's choices
+// alone (they share the store).
+function setYogaVariantAll(idx, which) {
+  var def = YOGA_SLOTTED[idx];
+  if (!def) return;
+  var p = yogaVariantPrefs();
+  def.order.forEach(function(id){ p[id] = (which === "orig") ? "orig" : "rev"; });
+  storeSet("fl4_yoga_variants", p);
+  yogaVariantRepaint(idx);
+}
+function yogaVariantRepaint(idx) {
+  if (SS && SS.type === "yoga" && SS.yFlowIdx === idx) {
+    SS.yFlow = buildSlottedFlow(idx);
     renderYogaSession();
   }
   if (document.getElementById("progGrid")) renderTrainPrograms();
@@ -19358,30 +19500,13 @@ function setYogaVariant(id, which) {
 // SS.yFlow (set in openYogaSession) so a switch mid-intro takes effect at once.
 var YOGA_FLOWS_TRAIN = [
   buildFullBodyFlow(),
-  [{name:'Seated Forward Fold Variation',sanskrit:'Sukhasana variation',dur:60,cue:'Sit with feet on the ground and knees lifted. Slowly drape your heart over the tops of your thighs. Breathe into the back body.'},
-  {name:'Core Stability Boat Prep',sanskrit:'Navasana variation',dur:30,cue:'From seated, lean back slightly and lift shins parallel to the floor. Hands behind thighs for support. Core engaged, breathe steadily.'},
-  {name:'Seated Spinal Twist Right',sanskrit:'Ardha Matsyendrasana',dur:30,cue:'Extend left leg. Hug right knee to chest. Inhale tall, exhale twist toward right knee. Left hand to right knee, right hand behind.'},
-  {name:'Seated Spinal Twist Left',sanskrit:'Ardha Matsyendrasana',dur:30,cue:'Extend right leg. Hug left knee to chest. Inhale tall, exhale twist left. Right hand to left knee, left hand behind.'},
-  {name:'Head-to-Knee Pose Right',sanskrit:'Janu Sirsasana',dur:30,cue:'Tuck left foot at inner right thigh. Extend right leg. Hinge from hips with long spine, reach toward right foot or shin.'},
-  {name:'Head-to-Knee Pose Left',sanskrit:'Janu Sirsasana',dur:30,cue:'Tuck right foot at inner left thigh. Extend left leg. Hinge from hips, long spine, reach toward left foot.'},
-  {name:'Bound Angle Diamond Fold',sanskrit:'Baddha Konasana',dur:60,cue:'Soles together, feet further from body making a wide diamond. Hinge forward from hips, chest leads, spine long.'},
-  {name:'Swimming Side Stretch',sanskrit:'Seated lateral flow',dur:30,cue:'Legs in wide straddle. Reach one arm up and over toward opposite toes in a fluid sweeping motion. 8 sweeps each side.'},
-  {name:'Seated Forward Fold',sanskrit:'Paschimottanasana',dur:60,cue:'Legs extended, soft bend in knees. Hinge forward from hips with long spine. Reach for shins, ankles or feet.'},
-  {name:'Froggy Pose',sanskrit:'Mandukasana variation',dur:30,cue:'Wide kneeling, knees far apart, hips low to floor, body folded forward. Forearms on the ground. Breathe into the inner groin.'},
-  {name:'Yogi Squat',sanskrit:'Malasana',dur:30,cue:'Deep squat, heels toward earth. Hands in prayer, elbows pressing knees wide. Tailbone heavy, spine long.'},
-  {name:'Standing Forward Fold',sanskrit:'Uttanasana',dur:60,cue:'Feet wide, hinge at hips, upper body hangs heavy. Soft bend in knees. Arms dangle or hold opposite elbows.'},
-  {name:'Knees to Chest',sanskrit:'Apanasana',dur:30,cue:'Lie on your back. Draw both knees gently to chest. Hold below kneecaps. Rock side to side.'},
-  {name:'Eagle Legs Twist Right',sanskrit:'Supta Garudasana variation',dur:30,cue:'Cross right leg over left, both knees fall to the left. Right arm wide. Both shoulders heavy. Breathe into the right outer hip.'},
-  {name:'Eagle Legs Twist Left',sanskrit:'Supta Garudasana variation',dur:30,cue:'Cross left leg over right, knees fall to the right. Left arm wide. Shoulders grounded. Soften on every exhale.'},
-  {name:'Happy Baby',sanskrit:'Ananda Balasana',dur:30,cue:'Hug knees to chest then reach for outer edges of feet. Knees wide toward armpits. Rock side to side if it feels good.'},
-  {name:'Windshield Wipers',sanskrit:'Supta variation',dur:30,cue:'Feet flat, knees bent, feet wider than hips. Let knees drop right then sweep to left. Slow and fluid.'},
-  {name:'Savasana',sanskrit:'Savasana',dur:90,cue:'Legs long, feet falling open. Arms by sides, palms up. Eyes fully closed. Every muscle releases.'}]
+  buildHipsFlow()
 ];
 var YOGA_TRAIN_NAMES   = ['Full Body Flow','Hips & Lower Back'];
 // Index-aligned with YOGA_FLOWS_TRAIN; shown on the session intro screen. Empty string = no note.
 var YOGA_TRAIN_NOTES   = [
   "Reviewed August 2026 and re-tuned 30/08/2026 against the precise history — a 4 cm hiatus hernia, mild bilateral L5/S1 foraminal stenosis and an L4/L5 disc bulge. That combination is why this flow keeps to the middle of the range in both directions: extension, side-bending and rotation all close the foramen, while end-range and loaded flexion is what a disc bulge feels. The general 'flex to open the canal' advice is written for central canal stenosis and only half applies to you. The switches below choose between the reviewed version of a pose and the original — they start on the reviewed side and keep whatever you last picked. Practise at least 2–3 hours after eating, and not in the first hour after waking when the discs are at their most swollen. Keep breathing throughout — no breath-holding — and stop for regurgitation, chest or upper-abdominal pressure, or symptoms travelling further down a leg. New saddle numbness, bladder or bowel changes, foot drop or progressive weakness need urgent medical assessment. This is mobility and core work — keep it alongside your strength days and walking.",
-  "Not re-tuned for your history. Unlike the Full Body Flow, this sequence has never been checked against the recorded history — a 4 cm hiatus hernia, mild bilateral L5/S1 foraminal stenosis and an L4/L5 disc bulge. A pose-by-pose comparison in September 2026 found that about twelve of the eighteen poses involve a movement that history names: sustained forward folds, a deep squat, repeated side-bending and held rotations. Nothing here has been changed on that basis — which poses to keep or modify is a decision for you and your physio, not for the app — and a re-tune like the Full Body Flow's is planned. Until then, treat this flow as unverified and worth raising at your next appointment. Meanwhile the same practical rules apply as on the Full Body Flow: practise at least 2–3 hours after eating, not in the first hour after waking, keep breathing throughout with no breath-holding, and come out of anything that pinches or sends symptoms further down a leg. Stop for regurgitation or chest or upper-abdominal pressure. New saddle numbness, bladder or bowel changes, foot drop or progressive weakness need urgent medical assessment."
+  "Re-tuned 22/09/2026 against the same history as the Full Body Flow — a 4 cm hiatus hernia, mild bilateral L5/S1 foraminal stenosis and an L4/L5 disc bulge. The reviewed versions keep to the middle of the range: no loaded or end-range forward folds, small supported twists instead of held ones, no repeated side-bending, the head kept above the heart and nothing pressing on the stomach. They were written by the app from those rules and have NOT been checked by a physio — worth raising at your next appointment. The switches below choose between the reviewed version of each pose and the original — they start on the reviewed side, keep whatever you last picked, and the top row flips them all at once. Practise at least 2–3 hours after eating, and not in the first hour after waking. Keep breathing throughout — no breath-holding — and come out of anything that pinches or sends symptoms further down a leg. Stop for regurgitation or chest or upper-abdominal pressure. New saddle numbness, bladder or bowel changes, foot drop or progressive weakness need urgent medical assessment."
 ];
 
 var POSE_PHOTOS_TRAIN = {
@@ -19595,14 +19720,14 @@ function renderTrainView() {
 // ── Programs grid ─────────────────────────────────────────
 function renderTrainPrograms() {
   var el = document.getElementById("progGrid");
-  // Flow 0's length and duration depend on the slot choices, so the card is
+  // Both flows' length and duration depend on the slot choices, so the cards are
   // built from the live flow rather than a hard-coded string that would rot.
-  var _fbFlow = buildFullBodyFlow();
+  var _fbFlow = buildFullBodyFlow(), _hlbFlow = buildHipsFlow();
   var programs = [
     { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#E8EFFA,#F0F5FC)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Ring Rows · Split Squats · Assisted Pull-ups · Bridge", descColor:"#2A5AB0" },
     { type:"workout", key:"push",  bg:"linear-gradient(135deg,#FBEAEA,#FCF2F2)", border:"#ef444430", icon:"&#x1F534;", name:"Push Day", desc:"Bench Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B03030" },
     { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#EAE4F8,#F2EDFB)", border:"#8b5cf650", icon:"&#x1F9D8;", name:"Full Body Flow", tag:"Physio", desc:_fbFlow.length+" poses · ~"+Math.round(yogaFlowTotal(_fbFlow)/60)+" min · your version", descColor:"#6A3CB0" },
-    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#F0EAFA,#F6F2FC)", border:"#8b5cf630", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", tag:"Physio", desc:"18 poses · ~12 min", descColor:"#6A3CB0" },
+    { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#F0EAFA,#F6F2FC)", border:"#8b5cf630", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", tag:"Physio", desc:_hlbFlow.length+" poses · ~"+Math.round(yogaFlowTotal(_hlbFlow)/60)+" min · your version", descColor:"#6A3CB0" },
     { type:"physio",  key:0,       bg:"linear-gradient(135deg,#E2F4F1,#EFFAF8)", border:"#14b8a630", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", tag:"Physio", desc:"7 exercises · nerve mobility", descColor:"#0A8070" },
     { type:"physio",  key:1,       bg:"linear-gradient(135deg,#E2F4F1,#EFFAF8)", border:"#14b8a630", icon:"&#x1F9B5;", name:"Lower Limb", tag:"Fitness", desc:"15 exercises · glutes · quad · calf", descColor:"#0A8070" },
     { type:"physio",  key:2,       bg:"linear-gradient(135deg,#E2F4F1,#EFFAF8)", border:"#14b8a630", icon:"&#x1F33F;", name:"Max Physio", tag:"Physio", desc:"8 exercises · post-natal · core &amp; glutes", descColor:"#0A8070" },
@@ -19749,7 +19874,8 @@ function renderYogaSession() {
 
   // Running
   var pose = flow[SS.yPoseIdx];
-  var photo = getPosePhoto(pose.name);
+  // Reviewed poses have no photo of their own — never show the original's.
+  var photo = pose.noPhoto ? null : getPosePhoto(pose.name);
   var photoHtml = photo ? "<img src='"+photo+"' class='ses-pose-photo' alt='"+esc(pose.name)+"'>" : "";
   var nextPose  = SS.yPoseIdx < flow.length-1 ? "<div class='ses-pose-next'>Next: "+flow[SS.yPoseIdx+1].name+"</div>" : "";
   body.innerHTML =
@@ -19767,12 +19893,29 @@ function renderYogaSession() {
     "<button class='ses-exit-link' onclick=\"confirmDialog('Exit practice?',function(){closeSessionOverlay()})\">Exit practice</button>";
 }
 
-// The per-pose switches, shown on the Full Body Flow intro only. Real <button>s,
-// so no role/tabindex is needed; aria-pressed carries the state the colour shows.
+// The per-pose switches, shown on the intro of each slotted flow (Full Body,
+// and Hips & Lower Back since v481). Real <button>s, so no role/tabindex is
+// needed; aria-pressed carries the state the colour shows.
 function yogaVariantPickerHtml() {
-  if (SS.yFlowIdx !== 0) return "";
-  var rows = YOGA_FB_SLOT_ORDER.map(function(id) {
-    var sl = YOGA_FB_SLOTS[id], cur = yogaVariantOf(id);
+  var def = YOGA_SLOTTED[SS.yFlowIdx];
+  if (!def) return "";
+  // The "All" row is lit only when every slot agrees; a mixed flow lights neither.
+  var allHtml = "";
+  if (def.allSwitch) {
+    var curs = def.order.map(yogaVariantOf);
+    var allBtn = function(which, label) {
+      var on = curs.every(function(c){ return c === which; });
+      return "<button class='yv-btn" + (on ? " on" : "") + "'" +
+        " aria-pressed='" + (on ? "true" : "false") + "'" +
+        " onclick=\"setYogaVariantAll(" + SS.yFlowIdx + ",'" + which + "')\">" + label + "</button>";
+    };
+    allHtml = "<div class='yv-row yv-all'>" +
+      "<div class='yv-lab'><b>Every pose</b></div>" +
+      "<div class='yv-btns'>" + allBtn("rev", "All reviewed") + allBtn("orig", "All original") + "</div>" +
+    "</div>";
+  }
+  var rows = allHtml + def.order.map(function(id) {
+    var sl = def.slots[id], cur = yogaVariantOf(id);
     function btn(which, label) {
       var on = cur === which;
       return "<button class='yv-btn" + (on ? " on" : "") + "'" +

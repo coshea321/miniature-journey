@@ -1,5 +1,7 @@
 # Hips & Lower Back — flow review
 
+> **Update 22/09/2026 (v481):** Cathal chose to re-tune the flow Full-Body-style. Every changed pose now has a reviewed/original switch, reviewed by default; the table below describes the **original** side. The reviewed versions are model-written and not physio-checked, so the physio questions at the end still apply.
+
 **Written 05/09/2026 (Opus 5 session), committed 07/09/2026. Reviewed against `index.html` at v462; the flow is byte-identical at v467, so this still describes the live content.**
 
 > **This is preparation for a physio appointment, not a clinical assessment and not a decision.**

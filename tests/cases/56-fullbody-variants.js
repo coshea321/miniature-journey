@@ -135,9 +135,11 @@ module.exports = {
       setYogaVariant('kneehug', 'orig');
       ok('switching on the intro rebuilds SS.yFlow immediately (one pose shorter)',
         SS.yFlow.length === before - 1, before + ' -> ' + SS.yFlow.length);
-      openYogaSession(1);
-      ok('the picker does NOT appear on Hips & Lower Back, which has no slots',
-        document.getElementById('sesBody').innerHTML.indexOf('yv-btn') === -1);
+      // v481: Hips & Lower Back is slotted too now (76-hips-retune.js), so the
+      // old "no picker there" check became "Full Body's picker has no All row".
+      openYogaSession(0);
+      ok('Full Body keeps its picker WITHOUT the All row (only Hips & Lower Back asked for it)',
+        document.getElementById('sesBody').innerHTML.indexOf('setYogaVariantAll') === -1);
       closeSessionOverlay();
 
       return {pass:pass, fail:fail};
