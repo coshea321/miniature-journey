@@ -66,6 +66,9 @@ Current fields: `kind`, `person`, `title`, `date`, `time`, `who`, `dose`, `expir
 
 **Defaults are seeded `updated:0` and never re-seeded once tombstoned** (v480) — a seed is the lowest-priority state, and re-seeding a deleted default only made it flicker.
 
+## Pull-up Plan progress (`fl4_pullup`, v482) — one object, rebuilt from the plan
+`{ checks:{ "w-s-e":[bool×sets] }, test:"", logged:{ "w-s":workoutId }, updatedAt }`, all indices 0-based into `pullupSessionExercises(w,s)`. Exercise order is therefore part of the key, so **never reorder or insert into a week's `exercises`**. Append only, or old ticks land on the wrong exercise. Hand-listed places: `pullupNormalise` (the only reader, which drops unknown keys), `pullupImport` (additive restore), `buildExportPayload` (`pullup:`), the `imported.pullup` counter + `IMPORT_LABELS`, and the `pullup:` block in `buildTestSeed`. It isn't synced.
+
 ## Test-build demo data (v407) — add to it when you add a section
 Test builds (any host not on the exact-match `_prodHosts` list — the live `miniature-journey-b9p.pages.dev`, plus the retired `coshea321.github.io` — i.e. every raw.githack PR link and every Cloudflare branch/preview deployment) wipe the `fl4_*` store and reseed a fixed demo household **once per version** — the version string is stored in `fl4_testseed`, so a reload of the same version keeps whatever you were doing, and the next PR's link starts clean. The orange banner is the manual reset.
 
