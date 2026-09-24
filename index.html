@@ -646,6 +646,44 @@ body.train-mode #toast{background:#3A3328}
 .yv-btn.on{background:#8b5cf6;border-color:#8b5cf6;color:#fff}
 /* v477: the Knee Programme's Basic/Full picker. Two wide buttons rather than
    the yv- row pair, because each one needs a line saying what it means. */
+.pu-wrap{max-width:380px;margin:0 auto}
+.pu-card{background:#fff;border:1px solid #E0DCD4;border-radius:12px;margin-bottom:8px}
+.pu-overall{padding:12px 14px;margin:14px 0 8px}
+.pu-overall-txt{font-size:14px;font-weight:700;color:#4A4030;margin-bottom:8px}
+.pu-bar{height:8px;border-radius:4px;background:#EDE8DE;overflow:hidden}
+.pu-bar-fill{height:100%;border-radius:4px;transition:width .2s}
+.pu-rules{padding:0 14px;margin-bottom:18px}
+.pu-rules>summary{min-height:44px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#4A4030;cursor:pointer;touch-action:manipulation}
+.pu-rules-body{padding-bottom:12px;font-size:13px;color:#8A7A5A;line-height:1.55}
+.pu-rules-body .ycue-list{max-width:none;margin:0}
+.pu-rules-body .ycue-list li{font-size:13px}
+.pu-warn{background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;font-size:12px;color:#e0c060;line-height:1.5}
+.pu-info{background:#F4F1E8;border:1px solid #E0DCD4;border-radius:10px;padding:10px 13px;margin-top:12px;font-size:12px;line-height:1.5}
+.pu-h{font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px}
+.pu-week{margin-bottom:16px}
+.pu-week-hdr{font-family:Georgia,serif;font-size:17px;font-weight:600;color:#2A2010;margin:0 2px 6px}
+.pu-week-focus{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-size:12px;font-weight:500;color:#8A7A5A}
+.pu-ses{overflow:hidden;margin-bottom:6px}
+.pu-ses-hdr{display:flex;align-items:center;gap:8px;width:100%;min-height:48px;padding:0 14px;border:none;background:none;font-family:inherit;text-align:left;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.pu-ses-name{flex:1;font-size:14px;font-weight:600;color:#4A4030}
+.pu-ses-prog{font-size:12px;font-weight:600;color:#8A7A5A}
+.pu-ses-prog.done{color:#1A8040}
+.pu-ses-body{border-top:1px solid #F0EBE0;padding:2px 14px 8px}
+.pu-ex{padding:10px 0;border-bottom:1px solid #F0EBE0}
+.pu-ex:last-child{border-bottom:none}
+.pu-ex-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+.pu-ex-name{font-size:14px;font-weight:600;color:#2A2010}
+.pu-ex-target{font-size:12px;font-weight:600;color:#8A7A5A;white-space:nowrap}
+.pu-sets{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.pu-set{width:44px;height:44px;border-radius:50%;border:2px solid #E0DCD4;background:#FAF8F4;color:#8A7A5A;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.pu-set.on{background:var(--ycue-accent,#3b82f6);border-color:var(--ycue-accent,#3b82f6);color:#fff}
+.pu-how-btn{margin-left:auto;min-height:44px;padding:0 6px 0 10px;border:none;background:none;color:#8A7A5A;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;touch-action:manipulation}
+.pu-how{margin-top:8px;background:#FAF8F4;border-radius:10px;padding:10px 10px 2px}
+.pu-how .ycue-list{max-width:none}
+.pu-how .ses-pose-cue{text-align:left}
+.pu-test{display:block;margin-top:10px;font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px}
+.pu-test-inp{display:block;width:100%;box-sizing:border-box;min-height:44px;margin-top:4px;padding:10px 12px;border:1px solid #E0DCD4;border-radius:10px;background:#fff;color:#2A2010;font-family:inherit;font-size:16px;text-transform:none;letter-spacing:0;font-weight:400}
+.pu-reset{display:block;margin:18px auto 0;min-height:44px;padding:0 16px;border:none;background:none;color:#C06060;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation}
 .plv-wrap{width:100%;max-width:320px;margin-bottom:14px;text-align:left}
 .plv-hdr{font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .plv-btns{display:flex;gap:8px}
@@ -986,7 +1024,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v481 · 22/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v482 · 24/09/2026</div>
 
   </div>
 </div>
@@ -14745,10 +14783,13 @@ function buildExportPayload() {
   //   conditions, tests, medication, vaccinations and contacts alike. The
   //   per-record `files` array rides inside the record; it holds LINKS to
   //   letters and scans, never the documents themselves).
+  //  pullup (Train › Pull-up Plan, v482 — the ticks, the Week 4 test result
+  //   and which sessions were saved to History; export/backup only, not synced).
   //  NOT exported (intentional — UI/transient state only): fl4_catOpen_*,
   //  fl4_doneOpen_*, fl4_seen_*, fl4_unseen_*, fl4_last_backup, fl4_backup_snooze,
   //  fl4_last_cloudbackup, fl4_tomb_* (sync deletion tombstones),
   //  fl4_mealplan_prompted (device-local weekly roll-over banner marker, v362),
+  //  fl4_pullup_open (v482: which Pull-up Plan session is expanded, device UI),
   //  fl4_tidy_undo (v366: device-local single-slot receipt for putting a recipe
   //   tidy back; a short-lived safety net, deliberately not version history).
   //  Used by BOTH the manual file export and the daily cloud backup — one
@@ -14769,6 +14810,7 @@ function buildExportPayload() {
     watchlist:storeGet("fl4_watchlist")||[],
     appliances:storeGet("fl4_appliances")||[],
     health:storeGet("fl4_health")||[],
+    pullup:pullupState(),
     cal_goal:storeGet("fl4_cal_goal")||2000,
     cal_goal_ts:+storeGet("fl4_cal_goal_ts")||0,
     profile:storeGet("fl4_profile")||{},
@@ -14954,7 +14996,7 @@ function importBackupData(data) {
   // importedSummary; a restore that silently reports nothing reads as a broken
   // backup file, which is the worst thing a backup can do.
   var imported={lists:0,recipes:0,trips:0,notes:0,food:0,meals:0,plants:0,
-                watchlist:0,inventory:0,health:0,logEntries:0,medEntries:0,workouts:0,baby:0,
+                watchlist:0,inventory:0,health:0,pullup:0,logEntries:0,medEntries:0,workouts:0,baby:0,
                 // v462: records the file held that were deliberately NOT restored
                 // because they are deleted medical data. Counted separately and
                 // kept OUT of IMPORT_LABELS on purpose -- it is not a record type,
@@ -15114,6 +15156,8 @@ function importBackupData(data) {
       imported.plants=newPl.length;
     }
   }
+  // Pull-up Plan (v482): additive, see pullupImport.
+  if(data.pullup && typeof data.pullup==="object") imported.pullup=pullupImport(data.pullup);
   // Health: additive only, same shape as the plants/watchlist restores below
   // — a record whose id is already here is left exactly as it is, and a
   // restored one is stamped updated=now with any matching tombstone cleared
@@ -15242,6 +15286,7 @@ var IMPORT_LABELS = [
   ["watchlist",  "watchlist entry","watchlist entries"],
   ["inventory",  "inventory item", "inventory items"],
   ["health",     "health record",  "health records"],
+  ["pullup",     "pull-up set",    "pull-up sets"],
   ["logEntries", "log entry",      "log entries"],
   ["medEntries", "medicine entry", "medicine entries"],
   ["workouts",   "workout",        "workouts"],
@@ -19726,6 +19771,8 @@ function renderTrainPrograms() {
   var programs = [
     { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#E8EFFA,#F0F5FC)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Ring Rows · Split Squats · Assisted Pull-ups · Bridge", descColor:"#2A5AB0" },
     { type:"workout", key:"push",  bg:"linear-gradient(135deg,#FBEAEA,#FCF2F2)", border:"#ef444430", icon:"&#x1F534;", name:"Push Day", desc:"Bench Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B03030" },
+    // v482: the only card whose desc reads saved progress — it is the one programme that keeps any.
+    { type:"pullup",  key:0,       bg:"linear-gradient(135deg,#E8EFFA,#F0F5FC)", border:"#3b82f640", icon:"&#x1F4AA;", name:"Pull-up Plan", tag:"Fitness", desc:pullupSessionsDone(pullupState())+" of "+pullupTotalSessions()+" sessions · 4 weeks", descColor:"#2A5AB0" },
     { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#EAE4F8,#F2EDFB)", border:"#8b5cf650", icon:"&#x1F9D8;", name:"Full Body Flow", tag:"Physio", desc:_fbFlow.length+" poses · ~"+Math.round(yogaFlowTotal(_fbFlow)/60)+" min · your version", descColor:"#6A3CB0" },
     { type:"yoga",    key:1,       bg:"linear-gradient(135deg,#F0EAFA,#F6F2FC)", border:"#8b5cf630", icon:"&#x1F9D8;", name:"Hips &amp; Lower Back", tag:"Physio", desc:_hlbFlow.length+" poses · ~"+Math.round(yogaFlowTotal(_hlbFlow)/60)+" min · your version", descColor:"#6A3CB0" },
     { type:"physio",  key:0,       bg:"linear-gradient(135deg,#E2F4F1,#EFFAF8)", border:"#14b8a630", icon:"&#x1FAB4;", name:"Nerve &amp; Hip", tag:"Physio", desc:"7 exercises · nerve mobility", descColor:"#0A8070" },
@@ -19752,6 +19799,7 @@ function renderTrainPrograms() {
       if (type==="yoga")    openYogaSession(+key);
       if (type==="physio")  openPhysioSession(+key);
       if (type==="workout") openWorkoutSession(key);
+      if (type==="pullup")  openPullupPlan();
     });
   });
 }
@@ -19794,6 +19842,8 @@ document.getElementById("sesBackBtn").addEventListener("click", function(){
     confirmDialog("Exit?", closeSessionOverlay);
     return;
   }
+  // Every tick is already saved, so no confirm — just repaint the card's count.
+  if (SS.type === "pullup") { closeSessionOverlay(); renderTrainView(); return; }
   closeSessionOverlay();
 });
 
@@ -20591,6 +20641,334 @@ function finishWorkoutSession(withCond) {
   toast("&#x1F4AA; "+wk.name+" saved!");
 }
 
+// ============================================================
+// PULL-UP PLAN (v482)
+// ============================================================
+// A 4-week, 12-session plan, and the one Train programme that REMEMBERS its
+// progress between visits — every other programme is one guided sitting. It
+// came from a standalone prototype and was adapted to the Train safety rules
+// (HEARTH-notes.md § Train programme safety content): no held breath under
+// effort, and only the kit Cathal owns — a bar, gymnastic rings and the step
+// ladder. The adaptation is model-written, not physio-checked; the intro says so.
+//
+// State: `fl4_pullup` = { checks:{ "w-s-e":[bool,…] }, test:"", logged:{ "w-s":workoutId },
+// updatedAt }, all indices 0-based. It is in the export/backup, the import and
+// the test seed, but deliberately NOT synced (Cathal's call, v482). Which
+// session is open is device-local UI state in `fl4_pullup_open`, not exported.
+// Always read through pullupState(), which rebuilds the shape from the plan.
+var PULLUP_PLAN = {
+  id:'pullup-4wk', title:'Pull-up Plan', color:'#3b82f6', sessionsPerWeek:3,
+  weeks:[
+    { title:'Week 1', focus:'Build the base', exercises:[
+      { id:'dead-hang',   name:'Dead hang',       sets:3, target:'20–30s' },
+      { id:'scap-pulls',  name:'Scapular pulls',  sets:3, target:'6–8' },
+      { id:'inv-rows',    name:'Inverted rows',   sets:3, target:'8' },
+      { id:'flexed-hang', name:'Flexed-arm hang', sets:3, target:'5–10s' }
+    ]},
+    { title:'Week 2', focus:'Introduce negatives', exercises:[
+      { id:'dead-hang',   name:'Dead hang',            sets:3, target:'30–40s' },
+      { id:'scap-pulls',  name:'Scapular pulls',       sets:3, target:'10' },
+      { id:'negatives',   name:'Negatives, 3–5s down', sets:3, target:'3' },
+      { id:'inv-rows',    name:'Inverted rows',        sets:3, target:'10' }
+    ]},
+    { title:'Week 3', focus:'Add volume', exercises:[
+      { id:'negatives',   name:'Negatives, 5s down',          sets:4, target:'3' },
+      { id:'assisted',    name:'Assisted pull-ups',           sets:3, target:'5' },
+      { id:'flexed-hang', name:'Flexed-arm hang',             sets:3, target:'15s' },
+      { id:'inv-rows',    name:'Inverted rows, feet forward', sets:3, target:'10' }
+    ]},
+    { title:'Week 4', focus:'Push toward a full rep', exercises:[
+      { id:'negatives',   name:'Negatives, 5–8s down',        sets:4, target:'4' },
+      { id:'assisted',    name:'Assisted pull-ups, less help', sets:3, target:'6' },
+      { id:'flexed-hang', name:'Flexed-arm hang',             sets:3, target:'20s' }
+    ]}
+  ]
+};
+// Week 4 Session 3 (0-based 3-2) adds the test attempt and a free-text result.
+var PULLUP_TEST = { week:3, session:2, exercise:{ id:'test', name:'Strict pull-up attempt', sets:1, target:'1' } };
+var PULLUP_RULES = [
+  "Do 3 sessions a week on non-consecutive days.",
+  "Rest 90–120s between sets.",
+  "Stop each set 1–2 reps, or a few seconds, short of failure.",
+  "Breathe out on every effort and never hold your breath — end the set the moment you would have to.",
+  "If you haven't got a full pull-up by the end of Week 4, repeat Week 4.",
+  "Back off for sharp pain in the shoulder or elbow, pain that lingers into the next session, or tingling in the hands."
+];
+var PULLUP_WARMUP  = "10 arm circles each way, 2 × 10 wall slides, 8 cat-cows kept to the middle of the range (no big arch, no deep round), and a 10s easy hang with your feet on the ground.";
+var PULLUP_COOLDOWN = "A lat stretch on a doorframe for 30s each side, then forearm stretches, palm up then palm down, 20s each.";
+var PULLUP_INFO = "Adapted from a general pull-up plan to your Train safety rules: the breathing rule, and your kit — the bar, the rings and the step ladder. The adaptation is model-written, not physio-checked.";
+// Keyed by exercise id; every week's variant of a movement shares one guide.
+var PULLUP_GUIDE = {
+  'dead-hang':{
+    cues:["Overhand grip just wider than the shoulders, thumbs wrapped","Squeeze the bar — arms long, not limp","Ribs down, legs together, keep breathing","Easier: toes on a rung of the step ladder"],
+    cue:"Take an overhand grip just wider than your shoulders, thumbs wrapped around the bar. Squeeze the bar and keep your arms long without going limp; ribs down, legs together. Breathe normally the whole way through — a relaxed hang gently decompresses the spine, but only while it never turns into a breath-hold. Common mistakes: collapsing into your shoulders, holding your breath, swinging. Easier: keep your toes on a rung of the step ladder."},
+  'scap-pulls':{
+    cues:["From a dead hang, arms stay straight","Pull the shoulders down, away from the ears","Hold 1–2s, then lower slowly","Breathe out as you pull down"],
+    cue:"From a dead hang, pull your shoulders down away from your ears without bending your elbows. Hold 1–2 seconds, then lower slowly. Think shoulder blades into your back pockets and chest toward the bar — your arms are just ropes. Breathe out as you pull down. Common mistakes: bending the elbows, rushing, swinging."},
+  'inv-rows':{
+    cues:["On the rings: straight arms, heels down, body in one line","Pull the chest to the rings, elbows back at about 45°","Pause 1s, lower over 2–3s","Breathe out as you pull — hips don't sag"],
+    cue:"Use the rings, set up as for Ring Rows on Pull Day: hang back under them on straight arms, heels on the floor, body in one straight line from ankle to ear with ribs down. Pull your chest to the rings, driving the elbows toward your back pockets at about 45°, squeeze the shoulder blades, pause 1 second and lower over 2–3 seconds. Breathe out as you pull. Common mistakes: hips sagging (that is the lower back arching), craning the neck, dropping fast. Easier: bend your knees or stand more upright. Harder: walk your feet forward — progress by angle, never by adding load."},
+  'flexed-hang':{
+    cues:["Step up from the ladder so your chin is over the bar","Chest to the bar, elbows down, shoulders down","Keep breathing — short, steady breaths","End the hold if it needs a held breath; lower slowly"],
+    cue:"Step up from the step ladder so your chin is over the bar, lift your feet and hold: chest to the bar, elbows pointing down, shoulders down. Keep breathing in short, steady breaths the whole time. This is the item most likely to turn into a breath-hold, and with a 4 cm hiatus hernia that pressure spike is the thing to avoid — if you can only stay up by holding your breath, end the hold there; the seconds you get while breathing are the ones that count. Lower slowly rather than dropping. Common mistakes: tilting your head back, dropping at the end. Easier: hold with your chin level with the bar."},
+  'negatives':{
+    cues:["Step up from the ladder to chin over the bar — no jump","Lower under control for the target time","Fight hardest through the bottom half","Breathe out on the way down; stop when you can't slow it"],
+    cue:"Step up from the step ladder — not a jump — to chin over the bar, then lower yourself under control for the target time until your arms are straight. Control the whole way down and fight hardest through the bottom half. Breathe out slowly as you lower rather than holding your breath at the top. End the set when you can no longer slow the descent."},
+  'assisted':{
+    cues:["A foot on a ladder rung, or rings low enough to stand under","Full reps: dead hang to chin over the bar","The least help that still hits the target reps","Enough help that you can breathe out through every rep"],
+    cue:"Take some of your weight through your legs: a foot on a rung of the step ladder, rings set low enough to stand under, or a band under one foot if you have one. Do full reps from a dead hang to chin over the bar. Use the lightest help that still lets you hit the target reps — but never so little that you have to brace and hold your breath to finish one, the same line as Assisted Pull-ups on Pull Day. Ribs down, breathe out as you pull."},
+  'test':{
+    cues:["After a full warm-up — one attempt","Dead hang to chin over the bar, no kick or swing","Breathe out as you pull","Needs a held breath? Stop: that's a not-yet, repeat Week 4"],
+    cue:"After a full warm-up, one strict attempt: from a dead hang, pull until your chin is over the bar, with no kicking or swinging. Breathe out as you pull. This is the one maximal effort in the plan, so it carries one extra rule: if the rep only goes by bracing hard and holding your breath, stop and count it as not yet — that held breath under max effort is exactly the pressure spike a 4 cm hiatus hernia does not want. Not yet is fine: repeat Week 4 and try again. Write what happened in the result box."}
+};
+
+function pullupSessionExercises(w, s) {
+  var wk = PULLUP_PLAN.weeks[w];
+  if (!wk) return [];
+  var exs = wk.exercises.slice();
+  if (w === PULLUP_TEST.week && s === PULLUP_TEST.session) exs.push(PULLUP_TEST.exercise);
+  return exs;
+}
+function pullupEachSession(fn) {
+  for (var w=0; w<PULLUP_PLAN.weeks.length; w++)
+    for (var s=0; s<PULLUP_PLAN.sessionsPerWeek; s++) fn(w, s, pullupSessionExercises(w, s));
+}
+function pullupTotalSessions() { return PULLUP_PLAN.weeks.length * PULLUP_PLAN.sessionsPerWeek; }
+// Rebuilds the stored object against the plan: unknown keys are dropped, every
+// ticks array is exactly `sets` long and holds real booleans. A corrupt value
+// reads as no progress rather than throwing.
+function pullupNormalise(raw) {
+  var out = { checks:{}, test:"", logged:{}, updatedAt:0 };
+  if (!raw || typeof raw !== "object") return out;
+  var c = (raw.checks && typeof raw.checks === "object") ? raw.checks : {};
+  var lg = (raw.logged && typeof raw.logged === "object") ? raw.logged : {};
+  pullupEachSession(function(w, s, exs){
+    exs.forEach(function(ex, e){
+      var a = c[w+"-"+s+"-"+e];
+      if (!Array.isArray(a)) return;
+      var arr = [];
+      for (var i=0; i<ex.sets; i++) arr.push(a[i] === true);
+      out.checks[w+"-"+s+"-"+e] = arr;
+    });
+    if (lg[w+"-"+s] != null) out.logged[w+"-"+s] = lg[w+"-"+s];
+  });
+  out.test = typeof raw.test === "string" ? raw.test.slice(0, 200) : "";
+  out.updatedAt = +raw.updatedAt || 0;
+  return out;
+}
+function pullupState() { return pullupNormalise(storeGet("fl4_pullup")); }
+function pullupSave(st) { st.updatedAt = Date.now(); storeSet("fl4_pullup", st); }
+function pullupSessionCount(st, w, s) {
+  var done = 0, total = 0;
+  pullupSessionExercises(w, s).forEach(function(ex, e){
+    var a = st.checks[w+"-"+s+"-"+e] || [];
+    total += ex.sets;
+    for (var i=0; i<ex.sets; i++) if (a[i]) done++;
+  });
+  return { done:done, total:total };
+}
+function pullupSessionsDone(st) {
+  var n = 0;
+  pullupEachSession(function(w, s){ var c = pullupSessionCount(st, w, s); if (c.done === c.total) n++; });
+  return n;
+}
+// "" is a real choice (everything closed), so only a missing key falls back
+// to the first session that isn't finished yet.
+function pullupOpenKey(st) {
+  var k = storeGet("fl4_pullup_open");
+  if (typeof k === "string") return k;
+  var first = "";
+  pullupEachSession(function(w, s){
+    if (first) return;
+    var c = pullupSessionCount(st, w, s);
+    if (c.done < c.total) first = w+"-"+s;
+  });
+  return first;
+}
+
+function openPullupPlan() {
+  SS = { type:"pullup", puHow:"", puView:"cues", puViewFor:"" };
+  openSessionOverlay(PULLUP_PLAN.title);
+  renderPullupPlan();
+}
+function pullupToggleSession(k) {
+  storeSet("fl4_pullup_open", pullupOpenKey(pullupState()) === k ? "" : k);
+  renderPullupPlan();
+}
+function pullupToggleHow(k) {
+  SS.puHow = SS.puHow === k ? "" : k;
+  renderPullupPlan();
+}
+// Same DERIVED reset as physioExerciseView(): Details sticks only to the guide
+// it was chosen on, so opening another exercise's guide falls back to Cues.
+function pullupHowView(k) { return (SS.puView === "details" && SS.puViewFor === k) ? "details" : "cues"; }
+function setPullupHowView(v, k) {
+  SS.puView = (v === "details") ? "details" : "cues";
+  SS.puViewFor = k;
+  renderPullupPlan();
+}
+// Reuses the .ycue-* tabs so this reads as the same design as the yoga and
+// physio session screens.
+function pullupGuideHtml(ex, k) {
+  var g = PULLUP_GUIDE[ex.id];
+  if (!g) return "";
+  var view = pullupHowView(k);
+  function tab(v, label) {
+    var on = view === v;
+    return "<button class='ycue-tab"+(on?" on":"")+"' aria-pressed='"+(on?"true":"false")+"'" +
+      " onclick=\"setPullupHowView('"+v+"','"+k+"')\">"+label+"</button>";
+  }
+  var panel = view === "details"
+    ? "<p class='ses-pose-cue'>"+esc(g.cue)+"</p>"
+    : "<ul class='ycue-list'>" + g.cues.map(function(c){ return "<li>"+esc(c)+"</li>"; }).join("") + "</ul>";
+  return "<div class='pu-how'><div class='ycue-tabs'>"+tab("cues","Cues")+tab("details","Details")+"</div>"+panel+"</div>";
+}
+
+function renderPullupPlan() {
+  var st = pullupState(), col = PULLUP_PLAN.color, open = pullupOpenKey(st);
+  var doneN = pullupSessionsDone(st), totalN = pullupTotalSessions();
+  var anyTick = Object.keys(st.checks).some(function(k){ return st.checks[k].indexOf(true) !== -1; });
+  document.getElementById("sesCount").textContent = doneN+" / "+totalN;
+  document.getElementById("sesProgFill").style.width = ((doneN/totalN)*100)+"%";
+  document.getElementById("sesProgFill").style.background = col;
+
+  var html = "<div class='pu-wrap' style='--ycue-accent:"+col+"'>" +
+    "<div class='ses-intro' style='padding:14px 8px 0'>" +
+      "<div class='ses-intro-ico' style='font-size:44px;margin-bottom:8px'>&#x1F4AA;</div>" +
+      "<div class='ses-intro-name'>"+esc(PULLUP_PLAN.title)+"</div>" +
+      "<div class='ses-intro-sub'>"+PULLUP_PLAN.weeks.length+" weeks &middot; "+PULLUP_PLAN.sessionsPerWeek+" sessions a week</div>" +
+    "</div>" +
+    "<div class='pu-card pu-overall'><div class='pu-overall-txt'>"+doneN+" of "+totalN+" sessions</div>" +
+      "<div class='pu-bar'><div class='pu-bar-fill' style='width:"+((doneN/totalN)*100)+"%;background:"+col+"'></div></div></div>" +
+    // Open until the first tick, then folded away — it is long for a screen
+    // you come back to twelve times.
+    "<details class='pu-card pu-rules'"+(anyTick?"":" open")+"><summary>Before you start</summary><div class='pu-rules-body'>" +
+      "<div class='pu-warn'>&#x26A0;&#xFE0F; "+esc(WK_TRAIN_NOTE)+"</div>" +
+      "<div class='pu-h'>Rules</div><ul class='ycue-list'>" +
+        PULLUP_RULES.map(function(r){ return "<li>"+esc(r)+"</li>"; }).join("") + "</ul>" +
+      "<div class='pu-h'>Warm-up &middot; 5 min</div><div>"+esc(PULLUP_WARMUP)+"</div>" +
+      "<div class='pu-h'>Cool-down</div><div>"+esc(PULLUP_COOLDOWN)+"</div>" +
+      "<div class='pu-info'>"+esc(PULLUP_INFO)+"</div>" +
+    "</div></details>";
+
+  PULLUP_PLAN.weeks.forEach(function(wk, w){
+    html += "<div class='pu-week'><div class='pu-week-hdr'>"+esc(wk.title)+" <span class='pu-week-focus'>&middot; "+esc(wk.focus)+"</span></div>";
+    for (var s=0; s<PULLUP_PLAN.sessionsPerWeek; s++) {
+      var sk = w+"-"+s, c = pullupSessionCount(st, w, s), isOpen = open === sk, done = c.done === c.total;
+      html += "<div class='pu-card pu-ses'>" +
+        "<button class='pu-ses-hdr' aria-expanded='"+(isOpen?"true":"false")+"' onclick=\"pullupToggleSession('"+sk+"')\">" +
+          "<span class='pu-ses-name'>Session "+(s+1)+(w===PULLUP_TEST.week&&s===PULLUP_TEST.session?" &middot; test":"")+"</span>" +
+          "<span class='pu-ses-prog"+(done?" done":"")+"'>"+(done?"&#x2713; Done":c.done+"/"+c.total+" sets")+"</span>" +
+          "<span class='whi-chev'>"+(isOpen?"&#x25B2;":"&#x25BC;")+"</span>" +
+        "</button>";
+      if (isOpen) {
+        html += "<div class='pu-ses-body'>";
+        pullupSessionExercises(w, s).forEach(function(ex, e){
+          var k = sk+"-"+e, a = st.checks[k] || [], sets = "";
+          for (var i=0; i<ex.sets; i++) {
+            var on = !!a[i];
+            sets += "<button class='pu-set"+(on?" on":"")+"' aria-pressed='"+(on?"true":"false")+"' aria-label='Set "+(i+1)+(on?", done":"")+"'" +
+              " onclick=\"pullupTick('"+k+"',"+i+")\">"+(on?"&#x2713;":(i+1))+"</button>";
+          }
+          var howOpen = SS.puHow === k;
+          html += "<div class='pu-ex'>" +
+            "<div class='pu-ex-top'><div class='pu-ex-name'>"+esc(ex.name)+"</div>" +
+              "<div class='pu-ex-target'>"+(ex.id==="test"?"1 attempt":ex.sets+" &times; "+esc(ex.target))+"</div></div>" +
+            "<div class='pu-sets'>"+sets +
+              (PULLUP_GUIDE[ex.id] ? "<button class='pu-how-btn' aria-expanded='"+(howOpen?"true":"false")+"' onclick=\"pullupToggleHow('"+k+"')\">How to "+(howOpen?"&#x25B2;":"&#x25BC;")+"</button>" : "") +
+            "</div>" +
+            (howOpen ? pullupGuideHtml(ex, k) : "") +
+            (ex.id==="test" ? "<label class='pu-test'>Result<input class='pu-test-inp' type='text' maxlength='200' value='"+esc(st.test)+"'" +
+              " placeholder='e.g. chin to the bar, not over' onchange='pullupSetTest(this.value)'></label>" : "") +
+          "</div>";
+        });
+        html += "</div>";
+      }
+      html += "</div>";
+    }
+    html += "</div>";
+  });
+  html += "<button class='pu-reset' onclick='pullupReset()'>Reset progress</button></div>";
+  document.getElementById("sesBody").innerHTML = html;
+}
+
+function pullupTick(k, i) {
+  var st = pullupState(), p = String(k).split("-"), w = +p[0], s = +p[1], e = +p[2];
+  var ex = pullupSessionExercises(w, s)[e];
+  if (!ex || i < 0 || i >= ex.sets) return;
+  var before = pullupSessionCount(st, w, s);
+  var arr = st.checks[k] || [];
+  for (var j=0; j<ex.sets; j++) arr[j] = arr[j] === true;
+  arr[i] = !arr[i];
+  st.checks[k] = arr;
+  var after = pullupSessionCount(st, w, s);
+  var logged = (after.done === after.total && before.done < before.total) ? pullupLogSession(st, w, s) : false;
+  pullupSave(st);
+  renderPullupPlan();
+  if (logged) toast("&#x1F4AA; Week "+(w+1)+" · Session "+(s+1)+" saved to History");
+}
+// Finishing a session saves ONE History entry, like the other programmes.
+// `logged` remembers it so untick-and-retick doesn't save it twice — unless the
+// entry has since been deleted from History, in which case it is saved again.
+function pullupLogSession(st, w, s) {
+  var lk = w+"-"+s, prevId = st.logged[lk];
+  if (prevId != null && (getWD().workouts||[]).some(function(x){ return x && x.id === prevId; })) return false;
+  var exs = pullupSessionExercises(w, s), nSets = 0;
+  var exercises = exs.map(function(ex){
+    var sets = [];
+    for (var i=0; i<ex.sets; i++) sets.push({ target:ex.target });
+    nSets += ex.sets;
+    return { name:ex.name, sets:sets, notes:ex.id === "test" ? st.test : "" };
+  });
+  var entry = { id:Date.now(), ts:Date.now(), date:trainTodayStr(), type:'workout',
+    sessionName:PULLUP_PLAN.title+" · Week "+(w+1)+" · Session "+(s+1),
+    kcal:estimateSessionKcal(4.0, nSets * 1.5), exercises:exercises };
+  saveSession(entry);
+  st.logged[lk] = entry.id;
+  pushPersonal();
+  return true;
+}
+// The result can be typed after the session was saved, so it is copied onto
+// that History entry's test exercise too.
+function pullupSetTest(v) {
+  var st = pullupState();
+  st.test = String(v == null ? "" : v).trim().slice(0, 200);
+  var id = st.logged[PULLUP_TEST.week+"-"+PULLUP_TEST.session];
+  if (id != null) {
+    var data = getWD(), hit = false;
+    (data.workouts||[]).forEach(function(x){
+      if (!x || x.id !== id || !Array.isArray(x.exercises)) return;
+      x.exercises.forEach(function(ex){ if (ex && ex.name === PULLUP_TEST.exercise.name) { ex.notes = st.test; hit = true; } });
+    });
+    if (hit) { saveWD(data); pushPersonal(); }
+  }
+  pullupSave(st);
+}
+function pullupReset() {
+  confirmDialog("Reset pull-up progress? Every tick and the test result are cleared. Sessions already saved to History stay there.", function(){
+    pullupSave({ checks:{}, test:"", logged:{} });
+    storeSet("fl4_pullup_open", null);
+    SS.puHow = "";
+    renderPullupPlan();
+    toast("Pull-up progress reset");
+  });
+}
+// Backup restore: additive, like the other restores — a tick in either copy
+// survives, a result already typed here is kept, and a saved-session marker
+// fills in only where this device has none. Returns how many sets it ticked.
+function pullupImport(raw) {
+  var inc = pullupNormalise(raw), st = pullupState(), n = 0;
+  Object.keys(inc.checks).forEach(function(k){
+    var a = st.checks[k] || [], b = inc.checks[k];
+    for (var i=0; i<b.length; i++) { if (b[i] && !a[i]) n++; a[i] = !!(a[i] || b[i]); }
+    st.checks[k] = a;
+  });
+  if (!st.test && inc.test) st.test = inc.test;
+  Object.keys(inc.logged).forEach(function(k){ if (st.logged[k] == null) st.logged[k] = inc.logged[k]; });
+  pullupSave(st);
+  return n;
+}
+
 // ── Free-form log ─────────────────────────────────────────
 function renderWorkoutLog() {
   document.getElementById("workoutDateLabel").textContent = trainFmtDate(workoutDate);
@@ -20740,6 +21118,8 @@ function wktSetText(s) {
   if (+s.reps)     parts.push(s.reps + " rep" + (+s.reps === 1 ? "" : "s"));
   if (+s.weight)   parts.push(s.weight + " kg");
   if (+s.duration) parts.push(s.duration + "s");
+  // v482: a Pull-up Plan set is a tick against a target, not a logged number.
+  if (!parts.length && s.target) parts.push(s.target + " \u2713");
   return parts.join(" · ");
 }
 
@@ -23198,6 +23578,11 @@ function buildTestSeed() {
         { ts:_tsTs(-9, 8, 15), date:_tsDay(-9),  sys:128, dia:81, pulse:66 }
       ]
     },
+    // Pull-up Plan (v482): Week 1 Session 1 finished, Session 2 part-way.
+    pullup:{ checks:{
+      "0-0-0":[true,true,true], "0-0-1":[true,true,true], "0-0-2":[true,true,true], "0-0-3":[true,true,true],
+      "0-1-0":[true,true,true], "0-1-1":[true,false,false]
+    }, test:"", logged:{} },
     action_log:[
       { id:_tsId(), text:"Demo: put the bins out", ts:_tsTs(-1, 19, 0) },
       { id:_tsId(), text:"Demo: booked the dentist", ts:_tsTs(-4, 11, 0) }
