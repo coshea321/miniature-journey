@@ -1024,7 +1024,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v482 · 24/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v483 · 25/09/2026</div>
 
   </div>
 </div>
@@ -4162,7 +4162,7 @@ function renderPlantImport() {
     btn.addEventListener("click", function(){
       var pid = parseInt(btn.getAttribute("data-pid"), 10);
       var target = getPlants().find(function(x){ return x && x.id === pid; });
-      confirmDialog("Update " + ((target && target.name) || "this plant") + " from this file?", function(){
+      confirmDialog("Update " + esc((target && target.name) || "this plant") + " from this file?", function(){
         var res = importPlantInto(pid, one);
         if (res.error) { toast(res.error); return; }
         _plantImporting = false; _plantImportParsed = null;
@@ -4300,7 +4300,7 @@ function renderPlantDetail() {
   });
   document.getElementById("plEdit").addEventListener("click", function(){ openPlantEditor(p.id); });
   document.getElementById("plDelete").addEventListener("click", function(){
-    confirmDialog("Delete " + (p.name || "this plant") + "?", function(){ deletePlant(p.id); });
+    confirmDialog("Delete " + esc(p.name || "this plant") + "?", function(){ deletePlant(p.id); });
   });
   document.getElementById("plExport").addEventListener("click", function(){
     var cur = getPlants().find(function(x){ return x && x.id === p.id; });
@@ -4948,8 +4948,9 @@ function watchRowHTML(w) {
       });
       h += "</div>";
     }
-    if (w.link) {
-      h += "<a href='" + esc(w.link) + "' target='_blank' rel='noopener' " +
+    var wLink = applianceLinkUrl(w.link, true);
+    if (wLink) {
+      h += "<a href='" + esc(wLink) + "' target='_blank' rel='noopener' " +
         "style='display:inline-flex;align-items:center;gap:5px;background:" + WATCH_COLOR + ";color:#fff;border-radius:20px;" +
         "padding:7px 12px;font-size:12px;font-weight:700;text-decoration:none;margin-bottom:10px;touch-action:manipulation'>&#x1F517; Your link</a>";
     }
@@ -6252,9 +6253,14 @@ function copyToClipboard(text, okMsg) {
 // a restored backup written by anything. v428 split the gate out of
 // applianceManualUrl so the photos link goes through exactly the same one —
 // two copies of a security check is how one of them drifts.
-function applianceLinkUrl(raw) {
+// v483: it is now the render gate for EVERY stored link — watchlist and
+// list-item links (allowContact: their editors have always accepted
+// mailto:/tel: as well, confirmed 25/09/2026) and the recipe source URL.
+// Widen it here with a flag; never write a second gate beside it.
+function applianceLinkUrl(raw, allowContact) {
   raw = String(raw == null ? "" : raw).trim();
   if (!raw) return "";
+  if (allowContact && /^(mailto|tel):/i.test(raw)) return raw;
   // Anything carrying its own scheme must be http(s). The (?!\d) is what keeps
   // "example.com:8080/manual" out of that branch — a bare host:port is a valid
   // link, and "example.com" is a syntactically valid scheme name, so the port
@@ -11259,7 +11265,7 @@ function renderRecipeDetail() {
     (prepHtml ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Prep</div><div id='rcpPrepBody' style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + prepHtml + "</div>" : "") +
     (r.method ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Method</div><div id='rcpMethodBody' style='font-size:15px;color:#2A2010;line-height:1.6;margin-bottom:18px'>" + formatMethod(r.method) + "</div>" : "") +
     (r.notes ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Notes</div><div style='font-size:14px;color:#6A5A40;line-height:1.6;margin-bottom:18px'>" + esc(r.notes) + "</div>" : "") +
-    (r.url ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Source</div><a href='" + esc(r.url) + "' target='_blank' rel='noopener noreferrer' style='display:inline-block;font-size:14px;color:#B5651D;font-weight:600;word-break:break-all;margin-bottom:18px'>&#x1F517; " + esc(r.url) + "</a>" : "") +
+    (applianceLinkUrl(r.url) ? "<div style='font-size:12px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px'>Source</div><a href='" + esc(applianceLinkUrl(r.url)) + "' target='_blank' rel='noopener noreferrer' style='display:inline-block;font-size:14px;color:#B5651D;font-weight:600;word-break:break-all;margin-bottom:18px'>&#x1F517; " + esc(r.url) + "</a>" : "") +
     "<button id='recipeToGroceryBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#2D6B35;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F6D2; Add to grocery list&hellip;</button>" +
     "<button id='recipeToFoodBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#A05A10;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F373; Log to food journal&hellip;</button>" +
     "<div style='display:flex;gap:8px;margin-top:8px'>" +
@@ -11347,7 +11353,7 @@ function renderRecipeDetail() {
   document.getElementById("servMinus").addEventListener("click", function(){ if(_recipeServings>1){_recipeServings--; renderRecipeDetail();} });
   document.getElementById("servPlus").addEventListener("click", function(){ if(_recipeServings<50){_recipeServings++; renderRecipeDetail();} });
   document.getElementById("recipeDeleteBtn").addEventListener("click", function(){
-    confirmDialog("Delete \"" + r.name + "\"?", function(){
+    confirmDialog("Delete \"" + esc(r.name) + "\"?", function(){
       addTomb("recipes", r.id);
       saveRecipeBook(getRecipeBook().filter(function(x){ return x.id !== r.id; }));
       _recipeView="list"; _recipeOpenId=null; renderRecipes();
@@ -12525,7 +12531,7 @@ function renderList() {
     card.querySelector(".del-btn").addEventListener("click", function(e){
       e.stopPropagation();
       var it = getItems().find(function(x){ return x.id===id; });
-      confirmDialog("Delete \"" + (it ? it.name : "this item") + "\"?", function(){ removeItem(id); });
+      confirmDialog("Delete \"" + esc(it ? it.name : "this item") + "\"?", function(){ removeItem(id); });
     });
     card.querySelector(".item-pill").addEventListener("click", function(e){ e.stopPropagation(); openPicker(id); });
   });
@@ -12546,11 +12552,14 @@ function dueDateLabel(item) {
 }
 
 function calLink(item) {
-  if (!item.dueDate) return "";
+  // dueDate/dueTime go straight into an href, and a synced or restored item
+  // never passed the date picker — so anything not shaped like one gets no
+  // button (bad date) or the all-day link (bad time), never the raw string.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(item.dueDate || ""))) return "";
   var title = encodeURIComponent(item.name);
   var date  = item.dueDate.replace(/-/g,"");
   var start, end;
-  if (item.dueTime) {
+  if (/^\d{1,2}:\d{2}$/.test(String(item.dueTime || ""))) {
     var h = item.dueTime.split(":")[0].padStart(2,"0");
     var m = item.dueTime.split(":")[1].padStart(2,"0");
     start = date + "T" + h + m + "00";
@@ -12568,7 +12577,7 @@ function calLink(item) {
     end   = "" + y + mo + dy;
   }
   var url = "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + title + "&dates=" + start + "/" + end;
-  return "<a class='cal-link' href='" + url + "' target='_blank' title='Add to calendar' style='display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:5px;background:#1E3A5E;color:#60a5fa;font-size:11px;font-weight:600;text-decoration:none;vertical-align:middle'>&#x1F4C5;</a>";
+  return "<a class='cal-link' href='" + esc(url) + "' target='_blank' title='Add to calendar' style='display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:5px;background:#1E3A5E;color:#60a5fa;font-size:11px;font-weight:600;text-decoration:none;vertical-align:middle'>&#x1F4C5;</a>";
 }
 
 function alarmLink(item) {
@@ -12589,8 +12598,9 @@ function cardHTML(item, c) {
   var noteSnip = isDetail && item.notes
     ? "<div style='font-size:11px;color:#8A7A5A;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>&#x1F4DD; " + esc(item.notes.substring(0,40)) + (item.notes.length>40?"…":"") + "</div>"
     : "";
-  var linkChip = (isDetail && item.link)
-    ? "<a href='" + esc(item.link) + "' target='_blank' rel='noopener' class='item-link' style='display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#3B6FE0;margin-top:3px;text-decoration:none;font-weight:600'>&#x1F517; Open link</a>"
+  var itemLink = isDetail ? applianceLinkUrl(item.link, true) : "";
+  var linkChip = itemLink
+    ? "<a href='" + esc(itemLink) + "' target='_blank' rel='noopener' class='item-link' style='display:inline-flex;align-items:center;gap:3px;font-size:11px;color:#3B6FE0;margin-top:3px;text-decoration:none;font-weight:600'>&#x1F517; Open link</a>"
     : "";
   var recipeChip = item.recipe
     ? "<span style='display:inline-block;font-size:10px;font-weight:700;background:#E6DBF5;color:#6A3CB0;padding:1px 7px;border-radius:8px;margin-left:6px;vertical-align:middle'>&#x1F37D; " + esc(item.recipe) + "</span>"
@@ -16826,7 +16836,7 @@ function renderFamlog() {
     var lastDate = null;
     shown.forEach(function(e){
       if (e.date !== lastDate) { html += dateSeparatorHTML(e.date); lastDate = e.date; }
-      html += "<div class='fml-row' data-act='"+e.act+"'"+(e.id?" data-id='"+e.id+"'":"")+" style='display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;margin:0 0 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);cursor:pointer;touch-action:manipulation'>"+
+      html += "<div class='fml-row' data-act='"+e.act+"'"+(e.id?" data-id='"+esc(e.id)+"'":"")+" style='display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;margin:0 0 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);cursor:pointer;touch-action:manipulation'>"+
         "<span style='font-size:18px'>"+e.ico+"</span>"+
         "<span style='flex:1;font-size:14px;font-weight:600;color:#2A2A1E;min-width:0'>"+e.text+"</span>"+
         (e.time?"<span style='font-size:12px;color:#B8A8C0;font-weight:600'>"+e.time+"</span>":"")+
@@ -17614,7 +17624,7 @@ window.addEventListener("DOMContentLoaded", function() {
       del.style.cssText = "border:none;background:rgba(106,60,176,.15);color:#6A3CB0;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0";
       del.addEventListener("click", function(e){
         e.stopPropagation();
-        confirmDialog("Delete saved recipe \"" + rec.name + "\"?", function(){
+        confirmDialog("Delete saved recipe \"" + esc(rec.name) + "\"?", function(){
           saveRecipes(getRecipes().filter(function(x){ return x.name.toLowerCase() !== rec.name.toLowerCase(); }));
           renderSavedRecipes();
         });
@@ -18800,7 +18810,7 @@ function renderTodayCard() {
   if (sportCand.length) {
     sportCand.sort(function(a,b){ return a.ts - b.ts; });
     var sc = sportCand[0], sSum = sportsSummarise(sc.team, [sc.next], null);
-    rows.push({ ico:"&#x26BD;", text: esc(sc.team.name) + " " + sSum.nextText, act:"sports" });
+    rows.push({ ico:"&#x26BD;", text: esc(sc.team.name) + " " + esc(sSum.nextText), act:"sports" });
   }
   if (!rows.length) {
     el.innerHTML = "<div style='background:#fff;border-radius:14px;padding:16px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(20,50,20,.07);text-align:center;font-size:14px;color:#8A8A6A;font-weight:600'>&#x2728; All caught up for today</div>";
@@ -21077,7 +21087,7 @@ function wireWorkoutLog() {
   // Delete exercise
   document.querySelectorAll(".ex-del").forEach(function(btn) {
     btn.addEventListener("click", function() {
-      confirmDialog("Remove " + (getWorkoutForDate(workoutDate).exercises[+btn.dataset.ei]||{}).name + "?", function() {
+      confirmDialog("Remove " + esc((getWorkoutForDate(workoutDate).exercises[+btn.dataset.ei]||{}).name || "this exercise") + "?", function() {
         var data=getWD();
         for (var i=0;i<data.workouts.length;i++) {
           if (data.workouts[i].date===workoutDate) { data.workouts[i].exercises.splice(+btn.dataset.ei,1); break; }
@@ -21178,14 +21188,14 @@ function renderWorkoutHistory() {
                w.type==="cardio" ? ((w.duration?w.duration+" min":"")+(w.duration&&w.calories?" · ":"")+(w.calories?w.calories+" kcal":"")) :
                (w.exercises&&w.exercises.length ? w.exercises.length+" exercise"+(w.exercises.length!==1?"s":"") : "");
     if (w.kcal && w.type!=="cardio") sub += (sub?" · ":"") + "~" + w.kcal + " kcal";
-    html+="<div class='workout-hist-item' data-wid='"+w.id+"'>"+
+    html+="<div class='workout-hist-item' data-wid='"+esc(w.id)+"'>"+
       "<div class='whi-row' style='align-items:center'>"+
-        "<div class='whi-date wh-date-edit' data-wid='"+w.id+"' style='cursor:pointer;text-decoration:underline dotted;flex:1'>"+trainFmtDateLong(w.date)+"</div>"+
-        "<button class='wh-del-btn' data-wid='"+w.id+"' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;opacity:.5;padding:0 4px'>&#x2715;</button>"+
+        "<div class='whi-date wh-date-edit' data-wid='"+esc(w.id)+"' style='cursor:pointer;text-decoration:underline dotted;flex:1'>"+trainFmtDateLong(w.date)+"</div>"+
+        "<button class='wh-del-btn' data-wid='"+esc(w.id)+"' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;opacity:.5;padding:0 4px'>&#x2715;</button>"+
       "</div>"+
-      "<div class='whi-row whi-toggle' data-wid='"+w.id+"'><span>"+icon+" "+esc(name)+"</span>"+
+      "<div class='whi-row whi-toggle' data-wid='"+esc(w.id)+"'><span>"+icon+" "+esc(name)+"</span>"+
         "<span class='whi-sets'>"+sub+"<span class='whi-chev'>&#x25BC;</span></span></div>"+
-      "<div class='whi-detail' data-wid='"+w.id+"' style='display:none'>"+wktHistoryDetailHTML(w)+"</div>"+
+      "<div class='whi-detail' data-wid='"+esc(w.id)+"' style='display:none'>"+wktHistoryDetailHTML(w)+"</div>"+
     "</div>";
   });
   el.innerHTML = html;
@@ -21739,7 +21749,7 @@ function renderBodyView() {
         var diff=entry.weight-bw[i+1].weight;
         if (diff!==0) { var cls=diff>0?"pos":"neg"; diffHtml="<span class='bw-entry-diff "+cls+"'>"+(diff>0?"+":"")+diff.toFixed(1)+"</span>"; }
       }
-      html+="<div class='bw-entry'><span class='bw-entry-date bw-date-edit' data-date='"+entry.date+"' style='cursor:pointer;text-decoration:underline dotted'>"+label+"</span>"+diffHtml+"<span class='bw-entry-val'>"+entry.weight+" kg</span><button class='bw-entry-del' data-date='"+entry.date+"'>&#x2715;</button></div>";
+      html+="<div class='bw-entry'><span class='bw-entry-date bw-date-edit' data-date='"+esc(entry.date)+"' style='cursor:pointer;text-decoration:underline dotted'>"+label+"</span>"+diffHtml+"<span class='bw-entry-val'>"+entry.weight+" kg</span><button class='bw-entry-del' data-date='"+esc(entry.date)+"'>&#x2715;</button></div>";
     }
     el.innerHTML=html;
     el.querySelectorAll(".bw-entry-del").forEach(function(btn) {
@@ -21763,9 +21773,9 @@ function renderBodyView() {
         var r=bp[j], rd=new Date(r.date+"T12:00:00");
         var rlabel=rd.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
         var cat = r.sys>=140||r.dia>=90 ? "#C05A3A" : (r.sys>=130||r.dia>=80 ? "#B08A20" : "#2F8A50");
-        bpHtml+="<div class='bw-entry'><span class='bw-entry-date bp-date-edit' data-bpts='"+r.ts+"' style='cursor:pointer;text-decoration:underline dotted'>"+rlabel+"</span>" +
+        bpHtml+="<div class='bw-entry'><span class='bw-entry-date bp-date-edit' data-bpts='"+esc(r.ts)+"' style='cursor:pointer;text-decoration:underline dotted'>"+rlabel+"</span>" +
           "<span class='bw-entry-val' style='color:"+cat+"'>"+r.sys+"/"+r.dia+(r.pulse?" <span style='color:#8A7A5A;font-size:12px'>&middot; "+r.pulse+" bpm</span>":"")+"</span>" +
-          "<button class='bw-entry-del' data-bpts='"+r.ts+"'>&#x2715;</button></div>";
+          "<button class='bw-entry-del' data-bpts='"+esc(r.ts)+"'>&#x2715;</button></div>";
       }
       bpEl.innerHTML=bpHtml;
       bpEl.querySelectorAll(".bw-entry-del").forEach(function(btn) {
@@ -22182,7 +22192,6 @@ function confirmDialog(msg, onYes, onNo) {
   ov.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.5);z-index:900;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box";
   ov.setAttribute("role", "alertdialog");
   ov.setAttribute("aria-modal", "true");
-  ov.setAttribute("aria-label", msg);
   var box = document.createElement("div");
   box.style.cssText = "background:#fff;border-radius:14px;padding:20px;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.2)";
   box.innerHTML = "<div style='font-size:15px;color:#2A2010;line-height:1.5;margin-bottom:16px'>" + msg + "</div>" +
@@ -22190,6 +22199,10 @@ function confirmDialog(msg, onYes, onNo) {
       "<button id='_cfNo' style='flex:1;padding:11px;border:1.5px solid #E0D0B0;border-radius:9px;background:none;font-family:inherit;font-size:14px;cursor:pointer;touch-action:manipulation'>Cancel</button>" +
       "<button id='_cfYes' style='flex:1;padding:11px;border:none;background:#C03030;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>OK</button>" +
     "</div>";
+  // msg is HTML (callers esc() any stored name in it), so the label is read
+  // back from the rendered text — never set from msg itself, or a screen
+  // reader announces "&amp;" and "&ldquo;" literally.
+  ov.setAttribute("aria-label", box.firstChild.textContent);
   ov.appendChild(box);
   document.body.appendChild(ov);
   document.getElementById("_cfYes").addEventListener("click", function(){ document.body.removeChild(ov); if(onYes) onYes(); });
@@ -22228,10 +22241,10 @@ function renderGrowth() {
       var rawIdx = bd.growth.indexOf(e);
       var band = growthBand(e, bd.babySex);
       var bandHtml = band ? "<span style='font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;margin-left:6px;background:"+band.bg+";color:"+band.fg+"'>"+band.label+"</span>" : "";
-      html += "<div class='growth-row' data-gdate='" + e.date + "' style='padding:10px 0;border-bottom:1px solid #F0EBF8'>" +
+      html += "<div class='growth-row' data-gdate='" + esc(e.date) + "' style='padding:10px 0;border-bottom:1px solid #F0EBF8'>" +
         "<div style='display:flex;align-items:center'>" +
           "<div style='flex:1'>" +
-            "<div class='growth-edit-trigger' data-growthdate='" + e.date + "' style='font-size:14px;font-weight:600;color:#2A2010;cursor:pointer;text-decoration:underline dotted'>" + e.date + "</div>" +
+            "<div class='growth-edit-trigger' data-growthdate='" + esc(e.date) + "' style='font-size:14px;font-weight:600;color:#2A2010;cursor:pointer;text-decoration:underline dotted'>" + esc(e.date) + "</div>" +
             "<div style='font-size:13px;color:#8A6A8A'>" + (e.weight?e.weight+" kg":"") + (e.weight&&e.height?" &middot; ":"") + (e.height?e.height+" cm":"") + bandHtml + "</div>" +
             (e.note?"<div style='font-size:12px;color:#A88AA8;font-style:italic;margin-top:2px'>"+esc(e.note)+"</div>":"") +
           "</div>" +
@@ -23056,7 +23069,7 @@ function renderMilestones() {
     "<button class='baby-log-btn' id='msLogBtn'>Log milestone</button></div>";
   if(ms.length){
     ms.forEach(function(m){
-      html+="<div class='ms-row' style='display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff;margin:0 12px 6px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'><span style='font-size:22px'>&#x2B50;</span><div style='flex:1'><div style='font-size:14px;font-weight:600;color:#2A2010'>"+esc(m.text||"")+"</div>"+(m.date?"<div class='ms-date-edit' data-msid='"+m.id+"' style='font-size:12px;color:#B8A880;cursor:pointer;text-decoration:underline dotted'>"+m.date+"</div>":"")+"</div><button data-msid='"+m.id+"' class='ms-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
+      html+="<div class='ms-row' style='display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff;margin:0 12px 6px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'><span style='font-size:22px'>&#x2B50;</span><div style='flex:1'><div style='font-size:14px;font-weight:600;color:#2A2010'>"+esc(m.text||"")+"</div>"+(m.date?"<div class='ms-date-edit' data-msid='"+esc(m.id)+"' style='font-size:12px;color:#B8A880;cursor:pointer;text-decoration:underline dotted'>"+esc(m.date)+"</div>":"")+"</div><button data-msid='"+esc(m.id)+"' class='ms-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
     });
   } else {
     html+="<div style='text-align:center;padding:32px;color:#8A6A8A;font-size:14px'>No milestones yet</div>";
