@@ -1024,7 +1024,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v483 · 25/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v484 · 25/09/2026</div>
 
   </div>
 </div>
@@ -2729,7 +2729,7 @@ function showAC(query) {
     var trailer = h._fromItem
       ? "<span class='ac-tag'>"+(h.done ? "done" : "on list")+"</span>"
       : "<span class='ac-times'>"+(h.count||1)+"x</span>";
-    html += "<div class='ac-item' data-name='"+esc(h.name)+"' data-cat='"+c.id+"'>" +
+    html += "<div class='ac-item' data-name='"+esc(h.name)+"' data-cat='"+esc(c.id)+"'>" +
       "<span class='ac-name'>"+hl+"</span>" +
       "<span class='ac-badge' style='background:"+catColorSafe(c.bg,"#EDEAE4")+";color:"+catColorSafe(c.fg,"#4A4A3A")+"'>"+catEmojiSafe(c.emoji)+" "+esc(c.name)+"</span>" +
       trailer + "</div>";
@@ -2849,7 +2849,7 @@ function showVoiceReview(transcript, items){
   ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:900;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box";
   ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); ov.setAttribute("aria-label","Add by voice");
   var chips = items.map(function(it,idx){
-    return "<span class='vc-chip' data-idx='"+idx+"' style='display:inline-flex;align-items:center;gap:6px;background:#F0EBF8;color:#4A3A20;border-radius:16px;padding:6px 10px;margin:0 6px 6px 0;font-size:14px'>"+esc(it)+"<span class='vc-x' data-idx='"+idx+"' style='cursor:pointer;color:#B07070;font-weight:800'>&times;</span></span>";
+    return "<span class='vc-chip' data-idx='"+esc(idx)+"' style='display:inline-flex;align-items:center;gap:6px;background:#F0EBF8;color:#4A3A20;border-radius:16px;padding:6px 10px;margin:0 6px 6px 0;font-size:14px'>"+esc(it)+"<span class='vc-x' data-idx='"+esc(idx)+"' style='cursor:pointer;color:#B07070;font-weight:800'>&times;</span></span>";
   }).join("");
   ov.innerHTML =
     "<div style='background:#fff;border-radius:16px;padding:20px;width:100%;max-width:360px;max-height:75vh;overflow-y:auto'>" +
@@ -3813,7 +3813,7 @@ function plantCardSubHTML(p) {
   return bits.join(" &middot; ");
 }
 function plantCardHTML(p) {
-  return "<div class='plant-card' data-pid='" + p.id + "' style='display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:#fff;border:1px solid #E4EADC;border-radius:12px;padding:12px;margin-bottom:10px;cursor:pointer'>" +
+  return "<div class='plant-card' data-pid='" + esc(p.id) + "' style='display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:#fff;border:1px solid #E4EADC;border-radius:12px;padding:12px;margin-bottom:10px;cursor:pointer'>" +
     plantThumbHTML(p, 46) +
     "<div style='flex:1;min-width:0'>" +
       "<div style='font-size:16px;font-weight:700;color:#1A2E1E;margin-bottom:2px'>" + esc(p.name || "Untitled plant") + "</div>" +
@@ -3878,7 +3878,7 @@ function renderPlants() {
       var on = c.kind === "all"  ? !_plantArea
              : c.kind === "none" ? _plantArea === PLANT_AREA_NONE
              : plantAreaKey(c.v) === plantAreaKey(_plantArea);
-      html += "<button class='plant-area-chip' data-kind='" + c.kind + "' data-area='" + esc(c.v) + "' " +
+      html += "<button class='plant-area-chip' data-kind='" + esc(c.kind) + "' data-area='" + esc(c.v) + "' " +
         "style='flex-shrink:0;border-radius:20px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation;" +
         (on ? "background:#2E7D4F;color:#fff;border:1.5px solid #2E7D4F" : "background:#fff;color:#5A6A4A;border:1.5px solid #DCE4D2") +
         "'>" + esc(c.t) + "</button>";
@@ -4013,7 +4013,7 @@ function renderPlantImport() {
       html += "<div style='font-size:13px;color:#7A8A6A;text-align:center;margin:16px 0 10px;font-weight:600'>&mdash; or update one you already have &mdash;</div>";
       ordered.forEach(function(p){
         var mark = oneIsMatch[p.id];
-        html += "<button class='plImpTarget' data-pid='" + p.id + "' style='display:block;width:100%;text-align:left;padding:11px 14px;margin-bottom:6px;border:1px solid " +
+        html += "<button class='plImpTarget' data-pid='" + esc(p.id) + "' style='display:block;width:100%;text-align:left;padding:11px 14px;margin-bottom:6px;border:1px solid " +
           (mark ? "#8FBF7A" : "#DCE4D2") + ";background:" + (mark ? "#F4FAF0" : "#fff") + ";border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;color:#2A3A22;cursor:pointer;touch-action:manipulation'>" +
           esc(p.name || "Untitled plant") +
           (plantCleanText(p.room) ? "<span style='color:#9A9A7A;font-weight:600'> &middot; " + esc(plantCleanText(p.room)) + "</span>" : "") +
@@ -4067,7 +4067,7 @@ function renderPlantImport() {
           "<span style='" + badgeCss + ";font-size:10.5px;font-weight:700;border-radius:6px;padding:2px 6px'>" + badge + "</span>" +
         "</div>" +
         (plantCleanText(src.latin) ? "<div style='font-size:11.5px;color:#7A8A6A;font-style:italic;margin-top:1px'>" + esc(plantCleanText(src.latin)) + "</div>" : "") +
-        "<select class='plImpRow' data-idx='" + idx + "' style='" + recipeInputCss() + "margin-top:8px'>" + opts + "</select>" +
+        "<select class='plImpRow' data-idx='" + esc(idx) + "' style='" + recipeInputCss() + "margin-top:8px'>" + opts + "</select>" +
       "</div>";
     });
 
@@ -4190,8 +4190,8 @@ function plantCareRowHTML(p, kind) {
       "<div style='font-size:14px;font-weight:700;color:#2A3A22'>" + (isFeed ? "Fed" : "Watered") + " " + esc(plantAgoLabel(last)) + "</div>" +
       "<div style='font-size:12px;color:" + col + "'>" + esc(sub) + "</div>" +
     "</div>" +
-    (loggedToday ? "<button class='plant-undo' data-kind='" + kind + "' aria-label='Undo today&#39;s " + (isFeed ? "feed" : "water") + "' style='border:none;background:none;color:#9A9A7A;font-size:13px;font-weight:700;cursor:pointer;padding:11px 8px;touch-action:manipulation'>Undo</button>" : "") +
-    "<button class='plant-log' data-kind='" + kind + "' style='border:none;background:#2E7D4F;color:#fff;border-radius:9px;padding:10px 15px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;min-height:44px'>Log</button>" +
+    (loggedToday ? "<button class='plant-undo' data-kind='" + esc(kind) + "' aria-label='Undo today&#39;s " + (isFeed ? "feed" : "water") + "' style='border:none;background:none;color:#9A9A7A;font-size:13px;font-weight:700;cursor:pointer;padding:11px 8px;touch-action:manipulation'>Undo</button>" : "") +
+    "<button class='plant-log' data-kind='" + esc(kind) + "' style='border:none;background:#2E7D4F;color:#fff;border-radius:9px;padding:10px 15px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;min-height:44px'>Log</button>" +
   "</div>";
 }
 // The care logs were written from v377 and read by nothing but plantLastTs
@@ -4659,12 +4659,12 @@ function watchSummaryBlockHTML(w) {
       "<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px'>" +
         "<span style='flex:1;min-width:0;font-size:11px;color:#A8A2B8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" +
           "From Wikipedia &middot; " + esc(String((w && w.summarySrc) || "")) + "</span>" +
-        "<button class='watch-sum-get' data-wid='" + w.id + "' style='flex-shrink:0;padding:5px 10px;border:1.5px solid #DCD6EA;background:#fff;color:#5A5470;border-radius:16px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation'>" +
+        "<button class='watch-sum-get' data-wid='" + esc(w.id) + "' style='flex-shrink:0;padding:5px 10px;border:1.5px solid #DCD6EA;background:#fff;color:#5A5470;border-radius:16px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation'>" +
           (busy ? "Fetching&hellip;" : "&#x21BB; Refresh") + "</button>" +
-        "<button class='watch-sum-clear' data-wid='" + w.id + "' style='flex-shrink:0;padding:5px 10px;border:1.5px solid #DCD6EA;background:#fff;color:#8A84A0;border-radius:16px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation'>Clear</button>" +
+        "<button class='watch-sum-clear' data-wid='" + esc(w.id) + "' style='flex-shrink:0;padding:5px 10px;border:1.5px solid #DCD6EA;background:#fff;color:#8A84A0;border-radius:16px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;touch-action:manipulation'>Clear</button>" +
       "</div>";
   } else {
-    h += "<button class='watch-sum-get' data-wid='" + w.id + "' style='width:100%;padding:10px;border:1.5px solid #DCD6EA;background:#fff;color:" + WATCH_COLOR +
+    h += "<button class='watch-sum-get' data-wid='" + esc(w.id) + "' style='width:100%;padding:10px;border:1.5px solid #DCD6EA;background:#fff;color:" + WATCH_COLOR +
       ";border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px;touch-action:manipulation'>" +
       (busy ? "Fetching&hellip;" : "&#x1F4C4; Get a summary from Wikipedia") + "</button>";
   }
@@ -4861,7 +4861,7 @@ function watchStarsHTML(n, interactive, id) {
   for (var s = 1; s <= 5; s++) {
     var on = s <= n;
     if (interactive) {
-      out += "<button class='watch-star' data-wid='" + id + "' data-star='" + s + "' " +
+      out += "<button class='watch-star' data-wid='" + esc(id) + "' data-star='" + esc(s) + "' " +
         "aria-label='Rate " + s + " star" + (s === 1 ? "" : "s") + "' " +
         "style='border:none;background:none;padding:2px 3px;font-size:20px;line-height:1;cursor:pointer;touch-action:manipulation;color:" +
         (on ? "#E0A020" : "#CFC8DE") + "'>" + (on ? "&#x2605;" : "&#x2606;") + "</button>";
@@ -4887,10 +4887,10 @@ function watchRowHTML(w) {
       (sUI.stripe ? "border-left:4px solid " + sUI.stripe + ";" : "") +
       "border-radius:12px;margin-bottom:8px;overflow:hidden'>" +
     "<div style='display:flex;align-items:center;gap:2px;padding:2px'>" +
-      "<button class='watch-tick' data-wid='" + w.id + "' aria-label='" + sUI.next + "' " +
+      "<button class='watch-tick' data-wid='" + esc(w.id) + "' aria-label='" + sUI.next + "' " +
         "style='flex-shrink:0;width:44px;height:46px;border:none;background:none;cursor:pointer;font-size:19px;line-height:1;touch-action:manipulation;color:" +
         sUI.color + "'>" + sUI.ico + "</button>" +
-      "<div class='watch-body' data-wid='" + w.id + "' style='flex:1;min-width:0;padding:8px 8px 8px 0;cursor:pointer'>" +
+      "<div class='watch-body' data-wid='" + esc(w.id) + "' style='flex:1;min-width:0;padding:8px 8px 8px 0;cursor:pointer'>" +
         "<div style='font-size:15px;font-weight:600;color:#2A2010;line-height:1.3;" +
           (status === "watched" ? "opacity:.6" : "") + "'>" +
           "<span style='display:inline-block;vertical-align:1px;margin-right:7px;background:" + meta.bg + ";color:" + meta.color +
@@ -4926,7 +4926,7 @@ function watchRowHTML(w) {
       "<div style='display:flex;gap:6px;margin-bottom:10px'>";
     WATCH_STATUS_LABELS.forEach(function(s){
       var on = status === s.key;
-      h += "<button class='watch-status-btn' data-wid='" + w.id + "' data-status='" + s.key + "' " +
+      h += "<button class='watch-status-btn' data-wid='" + esc(w.id) + "' data-status='" + esc(s.key) + "' " +
         "style='flex:1;padding:9px 4px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;" +
         (on ? "background:" + WATCH_COLOR + ";color:#fff;border:1.5px solid " + WATCH_COLOR
             : "background:#fff;color:#5A5470;border:1.5px solid #DCD6EA") + "'>" + s.label + "</button>";
@@ -4959,8 +4959,8 @@ function watchRowHTML(w) {
         "<div style='margin-bottom:10px;margin-left:-3px'>" + watchStarsHTML(watchRatingOf(w), true, w.id) + "</div>";
     }
     h += "<div style='display:flex;gap:8px'>" +
-      "<button class='watch-edit' data-wid='" + w.id + "' style='flex:1;padding:10px;border:1.5px solid #DCD6EA;background:#fff;color:#5A5470;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>Edit</button>" +
-      "<button class='watch-del' data-wid='" + w.id + "' style='flex:1;padding:10px;border:1.5px solid #F0D0D0;background:#fff;color:#B03030;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>Remove</button>" +
+      "<button class='watch-edit' data-wid='" + esc(w.id) + "' style='flex:1;padding:10px;border:1.5px solid #DCD6EA;background:#fff;color:#5A5470;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>Edit</button>" +
+      "<button class='watch-del' data-wid='" + esc(w.id) + "' style='flex:1;padding:10px;border:1.5px solid #F0D0D0;background:#fff;color:#B03030;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>Remove</button>" +
       "</div></div>";
   }
   return h + "</div>";
@@ -5031,7 +5031,7 @@ function renderWatchlist() {
     // row and the status row below stop looking like the same control twice.
     [{ v:"all", t:"All", c:WATCH_COLOR }, { v:"film", t:"&#x1F3AC; Films", c:watchKindMeta("film").color }, { v:"tv", t:"&#x1F4FA; TV", c:watchKindMeta("tv").color }].forEach(function(c){
       var on = _watchFilter === c.v;
-      html += "<button class='watch-kind-chip' data-kind='" + c.v + "' " +
+      html += "<button class='watch-kind-chip' data-kind='" + esc(c.v) + "' " +
         "style='flex:1;border-radius:20px;padding:8px 6px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation;" +
         (on ? "background:" + c.c + ";color:#fff;border:1.5px solid " + c.c
             : "background:#fff;color:#5A5470;border:1.5px solid #DCD6EA") + "'>" + c.t + "</button>";
@@ -5042,7 +5042,7 @@ function renderWatchlist() {
     html += "<div style='display:flex;gap:6px;padding:0 1px 10px'>";
     [{ v:"all", t:"All", c:WATCH_COLOR }, { v:"watching", t:"Watching", c:WATCH_STATUS_UI.watching.chip }, { v:"todo", t:"To watch", c:WATCH_STATUS_UI.todo.chip }, { v:"watched", t:"Watched", c:WATCH_STATUS_UI.watched.chip }].forEach(function(c){
       var on = _watchStatusFilter === c.v;
-      html += "<button class='watch-status-chip' data-status='" + c.v + "' " +
+      html += "<button class='watch-status-chip' data-status='" + esc(c.v) + "' " +
         "style='flex:1;border-radius:20px;padding:7px 4px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation;" +
         (on ? "background:" + c.c + ";color:#fff;border:1.5px solid " + c.c
             : "background:#fff;color:#5A5470;border:1.5px solid #DCD6EA") + "'>" + c.t + "</button>";
@@ -5182,7 +5182,7 @@ function renderWatchEditor() {
     "<div style='display:flex;gap:8px'>" +
       WATCH_KINDS.map(function(k){
         var on = _watchKindDraft === k.key;
-        return "<button class='watch-kind-pick' data-kind='" + k.key + "' style='flex:1;padding:11px;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation;" +
+        return "<button class='watch-kind-pick' data-kind='" + esc(k.key) + "' style='flex:1;padding:11px;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation;" +
           (on ? "background:" + WATCH_COLOR + ";color:#fff;border:1.5px solid " + WATCH_COLOR
               : "background:#fff;color:#5A5470;border:1.5px solid #DCD6EA") + "'>" + k.ico + " " + k.label + "</button>";
       }).join("") +
@@ -5619,7 +5619,7 @@ function healthRowHTML(rec) {
   var files = healthFileList(rec);
 
   var h = "<div style='background:#fff;border:1.5px solid #DDEAEA;border-radius:12px;margin-bottom:8px;overflow:hidden'>" +
-    "<div class='health-body' data-hid='" + rec.id + "' style='display:flex;align-items:center;gap:9px;padding:11px 12px;cursor:pointer;touch-action:manipulation'>" +
+    "<div class='health-body' data-hid='" + esc(rec.id) + "' style='display:flex;align-items:center;gap:9px;padding:11px 12px;cursor:pointer;touch-action:manipulation'>" +
       "<span style='flex-shrink:0;font-size:17px'>" + meta.ico + "</span>" +
       "<div style='flex:1;min-width:0'>" +
         "<div style='font-size:15px;font-weight:600;color:#1E2A2A;line-height:1.3'>" + esc(rec.title || "Untitled") + "</div>";
@@ -5691,8 +5691,8 @@ function healthRowHTML(rec) {
       h += "<div style='padding:10px 0 2px;font-size:14px;color:#2A3636;line-height:1.55;white-space:pre-wrap'>" + esc(rec.notes) + "</div>";
     }
     h += "<div style='display:flex;gap:8px;margin-top:12px'>" +
-      "<button class='health-edit' data-hid='" + rec.id + "' style='flex:1;padding:10px;border:1.5px solid #CFE0E0;background:#fff;color:#3A5555;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>Edit</button>" +
-      "<button class='health-del' data-hid='" + rec.id + "' style='flex:1;padding:10px;border:1.5px solid #F0D0D0;background:#fff;color:#B03030;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>Delete</button>" +
+      "<button class='health-edit' data-hid='" + esc(rec.id) + "' style='flex:1;padding:10px;border:1.5px solid #CFE0E0;background:#fff;color:#3A5555;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>Edit</button>" +
+      "<button class='health-del' data-hid='" + esc(rec.id) + "' style='flex:1;padding:10px;border:1.5px solid #F0D0D0;background:#fff;color:#B03030;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>Delete</button>" +
       "</div></div>";
   }
   return h + "</div>";
@@ -5907,7 +5907,7 @@ function renderHealthEditor() {
     "<div style='display:flex;flex-wrap:wrap;gap:6px'>" +
       HEALTH_KINDS.map(function(k){
         var on = _healthKindDraft === k.key;
-        return "<button class='health-kind-pick' data-kind='" + k.key + "' style='flex:1 1 30%;padding:10px 4px;border-radius:9px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;" +
+        return "<button class='health-kind-pick' data-kind='" + esc(k.key) + "' style='flex:1 1 30%;padding:10px 4px;border-radius:9px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;" +
           (on ? "background:" + HEALTH_COLOR + ";color:#fff;border:1.5px solid " + HEALTH_COLOR
               : "background:#fff;color:#3A5555;border:1.5px solid #CFE0E0") + "'>" + k.ico + " " + k.label + "</button>";
       }).join("") +
@@ -6428,7 +6428,7 @@ function applianceCardHTML(a) {
   // a list you are totting up for a claim wants the figures aligned down the
   // right, and an unvalued record shows nothing rather than a misleading 0.
   var val = applianceValueNum(a);
-  return "<div class='appl-card' data-aid='" + a.id + "' style='display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:13px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(20,40,50,.08);cursor:pointer;touch-action:manipulation'>" +
+  return "<div class='appl-card' data-aid='" + esc(a.id) + "' style='display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:13px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(20,40,50,.08);cursor:pointer;touch-action:manipulation'>" +
     "<div style='flex:1;min-width:0'>" +
       "<div style='font-size:15px;font-weight:700;color:#2A2010;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + esc(a.name || "(unnamed)") + "</div>" +
       (bits.length ? "<div style='font-size:12.5px;color:#7A8A94;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + bits.join(" &middot; ") + "</div>" : "") +
@@ -6606,7 +6606,7 @@ function renderAppliances() {
       var on = c.kind === "all"  ? !_applArea
              : c.kind === "none" ? _applArea === PLANT_AREA_NONE
              : plantAreaKey(c.v) === plantAreaKey(_applArea);
-      html += "<button class='appl-area-chip' data-kind='" + c.kind + "' data-area='" + esc(c.v) + "' " +
+      html += "<button class='appl-area-chip' data-kind='" + esc(c.kind) + "' data-area='" + esc(c.v) + "' " +
         "style='flex-shrink:0;border-radius:20px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation;" +
         (on ? "background:" + APPL_COLOR + ";color:#fff;border:1.5px solid " + APPL_COLOR
             : "background:#fff;color:#5A6A74;border:1.5px solid #D8E0E4") + "'>" + esc(c.t) + "</button>";
@@ -7110,7 +7110,7 @@ function renderTrips() {
       if (existingTrips.length > 0) {
         mergeHtml = "<div style='font-size:13px;color:#6A5A40;text-align:center;margin:14px 0 10px;font-weight:600'>— or add bookings to an existing trip —</div>";
         existingTrips.forEach(function(t){
-          mergeHtml += "<button class='tripMergeTarget' data-id='" + t.id + "' style='display:block;width:100%;text-align:left;padding:11px 14px;margin-bottom:6px;border:1px solid #D8D0C0;background:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;color:#2A3A3A;cursor:pointer'>" + esc(t.name) + "<span style='float:right;color:#0F8A8A;font-size:12px;font-weight:700'>+ " + bLabel + "</span></button>";
+          mergeHtml += "<button class='tripMergeTarget' data-id='" + esc(t.id) + "' style='display:block;width:100%;text-align:left;padding:11px 14px;margin-bottom:6px;border:1px solid #D8D0C0;background:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;color:#2A3A3A;cursor:pointer'>" + esc(t.name) + "<span style='float:right;color:#0F8A8A;font-size:12px;font-weight:700'>+ " + bLabel + "</span></button>";
         });
       }
       el.innerHTML =
@@ -7214,7 +7214,7 @@ function tripCountdownBadge(t) {
 }
 function tripCardHTML(t) {
   var n = (t.bookings||[]).length;
-  return "<div class='trip-card' data-tid='" + t.id + "' style='display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer'>" +
+  return "<div class='trip-card' data-tid='" + esc(t.id) + "' style='display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer'>" +
     "<div style='flex:1;min-width:0'>" +
       "<div style='font-size:16px;font-weight:700;color:#1A2E2E;margin-bottom:3px'>" + esc(t.name||"Untitled trip") + "</div>" +
       "<div style='font-size:12px;color:#9A8A6A'>" + esc(tripRangeLabel(t.start, t.end)) + " &middot; " + n + " booking" + (n!==1?"s":"") + "</div>" +
@@ -7246,7 +7246,7 @@ function renderTripDetail() {
   html += "<div style='display:flex;gap:6px;align-items:center;margin-bottom:14px'>" +
     ["compact","timeline"].map(function(v){
       var on = _tripDetailView === v;
-      return "<button class='trip-view-btn' data-view='" + v + "' style='flex:1;padding:8px;border:" + (on?"none":"1.5px solid #D8D0C0") + ";background:" + (on?"#0F8A8A":"#fff") + ";color:" + (on?"#fff":"#6A8A8A") + ";border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>" +
+      return "<button class='trip-view-btn' data-view='" + esc(v) + "' style='flex:1;padding:8px;border:" + (on?"none":"1.5px solid #D8D0C0") + ";background:" + (on?"#0F8A8A":"#fff") + ";color:" + (on?"#fff":"#6A8A8A") + ";border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>" +
         (v === "compact" ? "Compact" : "Timeline") + "</button>";
     }).join("") +
     (bookings.length ? "<button id='tripExpandToggle' style='margin-left:auto;border:none;background:none;color:#0F8A8A;font-size:12px;font-weight:700;cursor:pointer;padding:4px 2px;white-space:nowrap'>" + (_allExp ? "Collapse all" : "Expand all") + "</button>" : "") +
@@ -7408,10 +7408,10 @@ function bookingCardHTML(b, prevB) {
       (b.ref ? "<div style='margin-bottom:4px'><b>Ref:</b> " + esc(b.ref) + "</div>" : "") +
       (b.notes ? "<div style='white-space:pre-wrap'>" + esc(b.notes) + "</div>" : "") +
       (!b.location && !b.ref && !b.notes ? "<div style='color:#B0A488'>No extra details</div>" : "") +
-      "<button class='booking-edit-btn' data-bid='" + b.id + "' style='margin-top:10px;border:1.5px solid #D8D0C0;background:#fff;color:#0F8A8A;border-radius:8px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>Edit booking</button>" +
+      "<button class='booking-edit-btn' data-bid='" + esc(b.id) + "' style='margin-top:10px;border:1.5px solid #D8D0C0;background:#fff;color:#0F8A8A;border-radius:8px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer'>Edit booking</button>" +
     "</div>";
   }
-  return transferBadge + "<div class='booking-card' data-bid='" + b.id + "' style='background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer'>" +
+  return transferBadge + "<div class='booking-card' data-bid='" + esc(b.id) + "' style='background:#fff;border:1px solid #ECE4D6;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer'>" +
     "<div style='display:flex;align-items:center;gap:10px'>" +
       "<span style='font-size:20px'>" + ty.icon + "</span>" +
       "<div style='flex:1;min-width:0'>" +
@@ -9078,7 +9078,7 @@ function openMealPlanPicker(day) {
     var rest = shown.filter(function(r){ return !r.fav; }).sort(byName);
     var ordered = favs.concat(rest);
     var rowsHtml = ordered.map(function(r){
-      return "<div class='mpPickRow' data-rid='" + r.id + "' style='display:flex;align-items:center;gap:8px;min-height:44px;padding:9px 4px;border-bottom:1px solid #EEE9E0;cursor:pointer'>" +
+      return "<div class='mpPickRow' data-rid='" + esc(r.id) + "' style='display:flex;align-items:center;gap:8px;min-height:44px;padding:9px 4px;border-bottom:1px solid #EEE9E0;cursor:pointer'>" +
         (r.fav ? "<span style='color:#E8A030;font-size:15px'>&#x2605;</span>" : "") +
         "<div style='flex:1;min-width:0'>" +
           "<div style='font-size:15px;font-weight:600;color:#2A2010'>" + esc(r.name) + "</div>" +
@@ -9185,8 +9185,8 @@ function openMealPlanDaySheet(day) {
 function recipeCardHTML(r, selectMode, selected) {
   var ingCount = (r.ingredients||[]).length;
   var check = selectMode ? "<div style='font-size:22px;line-height:1;color:" + (selected?"#B5651D":"#CFC4AE") + "'>" + (selected?"&#x2611;":"&#x2610;") + "</div>" : "";
-  var fav = selectMode ? "" : "<button class='recipe-fav' data-rid='" + r.id + "' aria-label='Favourite' style='border:none;background:none;cursor:pointer;font-size:22px;line-height:1;padding:4px;color:" + (r.fav?"#E8A030":"#D8CEBC") + "'>" + (r.fav?"&#x2605;":"&#x2606;") + "</button>";
-  return "<div class='recipe-card' data-rid='" + r.id + "' style='display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:" + (selected?"#FBF1E2":"#fff") + ";border:1px solid " + (selected?"#E0C098":"#ECE4D6") + ";border-radius:12px;padding:14px 14px;margin-bottom:10px;cursor:pointer'>" +
+  var fav = selectMode ? "" : "<button class='recipe-fav' data-rid='" + esc(r.id) + "' aria-label='Favourite' style='border:none;background:none;cursor:pointer;font-size:22px;line-height:1;padding:4px;color:" + (r.fav?"#E8A030":"#D8CEBC") + "'>" + (r.fav?"&#x2605;":"&#x2606;") + "</button>";
+  return "<div class='recipe-card' data-rid='" + esc(r.id) + "' style='display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:" + (selected?"#FBF1E2":"#fff") + ";border:1px solid " + (selected?"#E0C098":"#ECE4D6") + ";border-radius:12px;padding:14px 14px;margin-bottom:10px;cursor:pointer'>" +
     check +
     "<div style='flex:1;min-width:0'>" +
       "<div style='font-size:16px;font-weight:700;color:#2A2010;margin-bottom:3px'>" + esc(r.name) + "</div>" +
@@ -9284,9 +9284,9 @@ function renderRecipeTidy() {
     // The row toggles expand, the checkbox toggles accept — two actions in one
     // strip, so the checkbox gets a padded hit box of its own rather than
     // relying on a 19px target next to a much bigger one.
-    html += "<div class='tidy-hdr' data-id='" + p.id + "' style='display:flex;align-items:center;gap:6px;padding:11px 12px;cursor:pointer;min-height:44px;box-sizing:border-box'>" +
-      "<span class='tidy-chkwrap' data-id='" + p.id + "' style='display:flex;align-items:center;justify-content:center;padding:12px;margin:-12px 0 -12px -12px;flex:none;cursor:pointer'>" +
-        "<input type='checkbox' class='tidy-chk' data-id='" + p.id + "'" + (on?" checked":"") + " aria-label='Apply changes to " + esc(p.name).replace(/'/g,"&#39;") + "' style='width:22px;height:22px;flex:none'>" +
+    html += "<div class='tidy-hdr' data-id='" + esc(p.id) + "' style='display:flex;align-items:center;gap:6px;padding:11px 12px;cursor:pointer;min-height:44px;box-sizing:border-box'>" +
+      "<span class='tidy-chkwrap' data-id='" + esc(p.id) + "' style='display:flex;align-items:center;justify-content:center;padding:12px;margin:-12px 0 -12px -12px;flex:none;cursor:pointer'>" +
+        "<input type='checkbox' class='tidy-chk' data-id='" + esc(p.id) + "'" + (on?" checked":"") + " aria-label='Apply changes to " + esc(p.name).replace(/'/g,"&#39;") + "' style='width:22px;height:22px;flex:none'>" +
       "</span>" +
       "<div style='flex:1;min-width:0'>" +
         "<div style='font-size:15px;font-weight:600;color:#2A2010;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + esc(p.name) + "</div>" +
@@ -9305,7 +9305,7 @@ function renderRecipeTidy() {
         html += "<div style='background:#FDF6E8;border:1px solid #E8D8B8;border-radius:9px;padding:9px 10px;margin-bottom:10px'>" +
           "<div style='font-size:12px;color:#7A5A30;margin-bottom:6px'>The amounts look bigger than " + p.servings + " serving" + (p.servings!==1?"s":"") + ". Set the right number if you know it &mdash; it's never guessed for you.</div>" +
           "<label style='display:flex;align-items:center;gap:8px;font-size:13px;color:#7A5A30;font-weight:600'>Serves " +
-          "<input type='number' min='1' max='50' class='tidy-serves' data-id='" + p.id + "' value='" + sv + "' style='width:70px;padding:6px 8px;border:1.5px solid #D8C8A8;border-radius:8px;font-family:inherit;font-size:14px'>" +
+          "<input type='number' min='1' max='50' class='tidy-serves' data-id='" + esc(p.id) + "' value='" + sv + "' style='width:70px;padding:6px 8px;border:1.5px solid #D8C8A8;border-radius:8px;font-family:inherit;font-size:14px'>" +
           "</label></div>";
       }
       // EVERY line, not just the ones with something to say. Cathal's report:
@@ -9322,7 +9322,7 @@ function renderRecipeTidy() {
              : quiet ? "<span>already fine</span>"
                      : "<span style='text-decoration:line-through'>" + esc(l.before) + "</span>") +
           "</div>" +
-          "<input type='text' class='tidy-line' data-key='" + p.id + ":" + idx + "' value='" + esc(val).replace(/'/g,"&#39;") + "' style='width:100%;box-sizing:border-box;padding:10px;border:1.5px solid " + (flagged?"#E8C89A":quiet?"#ECE4D6":"#D8C8A8") + ";border-radius:8px;font-family:inherit;font-size:14px;color:" + (quiet?"#7A6A50":"#2A2010") + ";background:" + (flagged?"#FFFBF3":"#fff") + "'>" +
+          "<input type='text' class='tidy-line' data-key='" + esc(p.id) + ":" + idx + "' value='" + esc(val).replace(/'/g,"&#39;") + "' style='width:100%;box-sizing:border-box;padding:10px;border:1.5px solid " + (flagged?"#E8C89A":quiet?"#ECE4D6":"#D8C8A8") + ";border-radius:8px;font-family:inherit;font-size:14px;color:" + (quiet?"#7A6A50":"#2A2010") + ";background:" + (flagged?"#FFFBF3":"#fff") + "'>" +
         "</div>";
       });
       if (p.method) {
@@ -9551,7 +9551,7 @@ function renderRecipeTidyNames() {
       // Whole row is the target, min 44px — the name and the count are part of
       // the label, not decoration beside a 17px dot.
       html += "<label style='display:flex;align-items:center;gap:10px;padding:9px 0;min-height:44px;box-sizing:border-box;font-size:14px;color:#2A2010;cursor:pointer'>" +
-        "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + gi + "' data-name='" + esc(v.name).replace(/'/g,"&#39;") + "'" + (on?" checked":"") + " style='width:20px;height:20px;flex:none'>" +
+        "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + esc(gi) + "' data-name='" + esc(v.name).replace(/'/g,"&#39;") + "'" + (on?" checked":"") + " style='width:20px;height:20px;flex:none'>" +
         "<span style='flex:1'>" + esc(v.name) + "</span>" +
         "<span style='font-size:12px;color:#9A8A6A;flex:none'>" + v.count + "&times;</span>" +
       "</label>";
@@ -9565,11 +9565,11 @@ function renderRecipeTidyNames() {
     // is ambiguous for screen readers and lets a tap meant for the box hit the
     // radio instead. Typing already selects the radio in the input handler.
     html += "<div style='display:flex;align-items:center;gap:10px;padding:9px 0;min-height:44px;box-sizing:border-box;border-top:1px dotted #ECE4D6;margin-top:4px'>" +
-      "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + gi + "' data-custom='1'" + (custOn?" checked":"") + " aria-label='Use a name I type' style='width:20px;height:20px;flex:none'>" +
-      "<input type='text' class='tidy-custom' data-gi='" + gi + "' value='" + esc(cust).replace(/'/g,"&#39;") + "' placeholder='Or type a different name' aria-label='A different name for this ingredient' style='flex:1;min-width:0;padding:10px 9px;border:1.5px solid #D8C8A8;border-radius:8px;font-family:inherit;font-size:14px;color:#2A2010'>" +
+      "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + esc(gi) + "' data-custom='1'" + (custOn?" checked":"") + " aria-label='Use a name I type' style='width:20px;height:20px;flex:none'>" +
+      "<input type='text' class='tidy-custom' data-gi='" + esc(gi) + "' value='" + esc(cust).replace(/'/g,"&#39;") + "' placeholder='Or type a different name' aria-label='A different name for this ingredient' style='flex:1;min-width:0;padding:10px 9px;border:1.5px solid #D8C8A8;border-radius:8px;font-family:inherit;font-size:14px;color:#2A2010'>" +
     "</div>";
     html += "<label style='display:flex;align-items:center;gap:10px;padding:9px 0;min-height:44px;box-sizing:border-box;font-size:14px;color:#8A7A5A;cursor:pointer'>" +
-      "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + gi + "' data-name=''" + (st.picks[gi]?"":" checked") + " style='width:20px;height:20px;flex:none'>" +
+      "<input type='radio' name='tidyg" + gi + "' class='tidy-pick' data-gi='" + esc(gi) + "' data-name=''" + (st.picks[gi]?"":" checked") + " style='width:20px;height:20px;flex:none'>" +
       "<span>Leave as they are</span></label>";
     html += "</div>";
   });
@@ -10495,7 +10495,7 @@ function renderCalHelper() {
     var chips = "";
     for (var bi = 0; bi < count; bi++) {
       var on = bi === st.batch;
-      chips += "<button class='cal-batch' data-b='" + bi + "' style='padding:6px 12px;border:1.5px solid " + (on ? "#B5651D" : "#D8C0A0") + ";background:" + (on ? "#B5651D" : "#FBF4E8") + ";color:" + (on ? "#fff" : "#8A5A1A") + ";border-radius:14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>" + (bi + 1) + "</button>";
+      chips += "<button class='cal-batch' data-b='" + esc(bi) + "' style='padding:6px 12px;border:1.5px solid " + (on ? "#B5651D" : "#D8C0A0") + ";background:" + (on ? "#B5651D" : "#FBF4E8") + ";color:" + (on ? "#fff" : "#8A5A1A") + ";border-radius:14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>" + (bi + 1) + "</button>";
     }
     batchHtml =
       "<div style='background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:12px'>" +
@@ -10593,13 +10593,13 @@ function renderCalHelperReview(el, st, head) {
     var val = _calHelperState.edits[row.id] != null ? _calHelperState.edits[row.id] : row.kcal;
     html +=
       "<div style='border:1.5px solid " + (on ? "#D8C0A0" : "#ECE4D6") + ";background:" + (on ? "#FDFAF3" : "#fff") + ";border-radius:12px;padding:12px;margin-bottom:10px'>" +
-        "<div class='cal-chkwrap' data-id='" + row.id + "' style='display:flex;align-items:center;gap:10px;cursor:pointer;padding:2px 0 8px'>" +
+        "<div class='cal-chkwrap' data-id='" + esc(row.id) + "' style='display:flex;align-items:center;gap:10px;cursor:pointer;padding:2px 0 8px'>" +
           "<input type='checkbox' class='cal-chk'" + (on ? " checked" : "") + " style='width:20px;height:20px;flex:none'>" +
           "<span style='flex:1;font-size:15px;font-weight:700;color:#2A2010'>" + esc(row.name) + "</span>" +
           (row.existing ? "<span style='font-size:11px;color:#B03030;font-weight:700'>replaces " + row.existing + "</span>" : "") +
         "</div>" +
         "<div style='display:flex;align-items:center;gap:8px'>" +
-          "<input type='number' class='cal-edit' data-id='" + row.id + "' min='1' max='9999' inputmode='numeric' value='" + esc(String(val)) + "' style='" + recipeInputCss() + "max-width:120px'>" +
+          "<input type='number' class='cal-edit' data-id='" + esc(row.id) + "' min='1' max='9999' inputmode='numeric' value='" + esc(String(val)) + "' style='" + recipeInputCss() + "max-width:120px'>" +
           "<span style='font-size:13px;color:#8A7A5A'>kcal per serving</span>" +
         "</div>" +
       "</div>";
@@ -10833,7 +10833,7 @@ function renderDupRepair() {
       var chosen = st.keep[gi] === idx;
       var ings = (r.ingredients || []).length;
       html +=
-        "<div class='dup-pick' data-g='" + gi + "' data-i='" + idx + "' style='display:flex;gap:10px;align-items:flex-start;padding:8px;margin-bottom:6px;border:1.5px solid " + (chosen ? "#2D6B35" : "#ECE4D6") + ";background:" + (chosen ? "#F3F8F3" : "#fff") + ";border-radius:10px;cursor:pointer'>" +
+        "<div class='dup-pick' data-g='" + esc(gi) + "' data-i='" + esc(idx) + "' style='display:flex;gap:10px;align-items:flex-start;padding:8px;margin-bottom:6px;border:1.5px solid " + (chosen ? "#2D6B35" : "#ECE4D6") + ";background:" + (chosen ? "#F3F8F3" : "#fff") + ";border-radius:10px;cursor:pointer'>" +
           "<div style='width:18px;height:18px;flex:none;margin-top:2px;border-radius:50%;border:2px solid " + (chosen ? "#2D6B35" : "#C8BEA8") + ";background:" + (chosen ? "#2D6B35" : "#fff") + "'></div>" +
           "<div style='flex:1;min-width:0'>" +
             "<div style='font-size:13px;font-weight:700;color:" + (chosen ? "#2D6B35" : "#6A5A40") + "'>" +
@@ -10856,7 +10856,7 @@ function renderDupRepair() {
         "</div>";
     });
     html +=
-        "<button class='dup-toggle' data-g='" + gi + "' style='border:none;background:none;color:#B5651D;font-size:12px;font-weight:700;cursor:pointer;padding:2px 0'>" +
+        "<button class='dup-toggle' data-g='" + esc(gi) + "' style='border:none;background:none;color:#B5651D;font-size:12px;font-weight:700;cursor:pointer;padding:2px 0'>" +
           (open ? "Hide ingredients" : "Compare ingredients") +
         "</button>" +
       "</div>";
@@ -10961,7 +10961,7 @@ function renderPrepHelper() {
     var chips = "";
     for (var bi = 0; bi < count; bi++) {
       var on = bi === st.batch;
-      chips += "<button class='prep-batch' data-b='" + bi + "' style='padding:6px 12px;border:1.5px solid " + (on ? "#B5651D" : "#D8C0A0") + ";background:" + (on ? "#B5651D" : "#FBF4E8") + ";color:" + (on ? "#fff" : "#8A5A1A") + ";border-radius:14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>" + (bi + 1) + "</button>";
+      chips += "<button class='prep-batch' data-b='" + esc(bi) + "' style='padding:6px 12px;border:1.5px solid " + (on ? "#B5651D" : "#D8C0A0") + ";background:" + (on ? "#B5651D" : "#FBF4E8") + ";color:" + (on ? "#fff" : "#8A5A1A") + ";border-radius:14px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer'>" + (bi + 1) + "</button>";
     }
     batchHtml =
       "<div style='background:#FBF4E8;border:1px solid #ECE0CC;border-radius:10px;padding:10px 12px;margin-bottom:12px'>" +
@@ -11054,7 +11054,7 @@ function renderPrepHelperReview(el, st, head) {
     var on = !!st.accept[row.id];
     html +=
       "<div style='border:1.5px solid " + (on ? "#D8C0A0" : "#ECE4D6") + ";background:" + (on ? "#FDFAF3" : "#fff") + ";border-radius:12px;padding:12px;margin-bottom:10px'>" +
-        "<div class='prep-chkwrap' data-id='" + row.id + "' style='display:flex;align-items:center;gap:10px;cursor:pointer;padding:2px 0 8px'>" +
+        "<div class='prep-chkwrap' data-id='" + esc(row.id) + "' style='display:flex;align-items:center;gap:10px;cursor:pointer;padding:2px 0 8px'>" +
           "<input type='checkbox' class='prep-chk'" + (on ? " checked" : "") + " style='width:20px;height:20px;flex:none'>" +
           "<span style='font-size:15px;font-weight:700;color:#2A2010'>" + esc(row.name) + "</span>" +
           (row.existing ? "<span style='font-size:11px;color:#B03030;font-weight:700'>replaces what you wrote</span>" : "") +
@@ -11064,7 +11064,7 @@ function renderPrepHelperReview(el, st, head) {
             "<div style='font-size:13px;color:#7A6A50;line-height:1.5;white-space:pre-wrap;margin-bottom:8px'>" + esc(row.existing) + "</div>" +
             "<div style='font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px'>Proposed</div>"
           : "") +
-        "<textarea class='prep-edit' data-id='" + row.id + "' rows='3' style='" + recipeInputCss() + "resize:vertical;line-height:1.5;font-size:13px'>" + esc(prepRowValue(row)) + "</textarea>" +
+        "<textarea class='prep-edit' data-id='" + esc(row.id) + "' rows='3' style='" + recipeInputCss() + "resize:vertical;line-height:1.5;font-size:13px'>" + esc(prepRowValue(row)) + "</textarea>" +
       "</div>";
   });
 
@@ -11228,7 +11228,7 @@ function renderRecipeDetail() {
     // rcp-tick/data-tk make it a cook-along line (v405); the key is the
     // ingredient's index in r.ingredients, so it survives a re-render.
     var ingKey = "i" + ingIdx;
-    ingHtml += "<li class='rcp-tick rcp-ing" + (_recipeDone[ingKey] ? " rcp-done" : "") + "' data-tk='" + ingKey + "' style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#B5651D;list-style:disc'><span style='color:#2A2010'>" + amtStr + esc(eff.name) + pref + "</span></li>";
+    ingHtml += "<li class='rcp-tick rcp-ing" + (_recipeDone[ingKey] ? " rcp-done" : "") + "' data-tk='" + esc(ingKey) + "' style='padding:7px 0;border-bottom:1px dotted #ECE4D6;font-size:15px;color:#B5651D;list-style:disc'><span style='color:#2A2010'>" + amtStr + esc(eff.name) + pref + "</span></li>";
   });
 
   // Prep: what was typed if anything was, otherwise what the ingredients
@@ -11435,13 +11435,13 @@ function renderGroceryPick() {
     rowsHtml +=
       "<div style='display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-bottom:1px dotted #ECE4D6'>" +
         // Padded wrapper, not the 20px box, so a near-miss still hits (44px tall)
-        "<span class='gpk-chkwrap' data-i='" + row.i + "' style='display:flex;align-items:center;min-height:44px;padding:0 8px 0 2px;cursor:pointer'>" +
-          "<input class='gpk-chk' type='checkbox' data-i='" + row.i + "'" + (on ? " checked" : "") +
+        "<span class='gpk-chkwrap' data-i='" + esc(row.i) + "' style='display:flex;align-items:center;min-height:44px;padding:0 8px 0 2px;cursor:pointer'>" +
+          "<input class='gpk-chk' type='checkbox' data-i='" + esc(row.i) + "'" + (on ? " checked" : "") +
             " aria-label='Add " + esc(row.def).replace(/'/g,"&#39;") + " to the grocery list' style='width:20px;height:20px'>" +
         "</span>" +
         "<div style='flex:1;min-width:0;padding-top:5px'>" +
           "<div style='display:flex;align-items:center;gap:8px'>" +
-            "<input class='gpk-name' data-i='" + row.i + "' type='text' value='" + esc(v).replace(/'/g,"&#39;") + "'" +
+            "<input class='gpk-name' data-i='" + esc(row.i) + "' type='text' value='" + esc(v).replace(/'/g,"&#39;") + "'" +
               " aria-label='Name on the shopping list' style='flex:1;min-width:0;padding:9px 10px;border:1.5px solid #E0D0B8;border-radius:8px;font-family:inherit;font-size:15px;color:#2A2010;background:#fff'>" +
             (row.amt ? "<span style='font-size:13px;font-weight:700;color:#2D6B35;white-space:nowrap'>" + esc(row.amt) + "</span>" : "") +
           "</div>" +
@@ -11865,7 +11865,7 @@ function recipeSectionSummary(t){ return "<summary style='font-size:10px;font-we
 // A visible drag handle under a resizable textarea. CSS resize:vertical
 // leaves no visible grip on most mobile browsers, so this is what actually
 // lets you make the box taller by hand there.
-function recipeResizeGrip(targetId){ return "<div class='reResizeGrip' data-target='" + targetId + "' style='text-align:center;font-size:11px;color:#9A8A6A;padding:6px 0;margin-bottom:8px;cursor:ns-resize;touch-action:none;user-select:none'>&#8597; Drag to resize</div>"; }
+function recipeResizeGrip(targetId){ return "<div class='reResizeGrip' data-target='" + esc(targetId) + "' style='text-align:center;font-size:11px;color:#9A8A6A;padding:6px 0;margin-bottom:8px;cursor:ns-resize;touch-action:none;user-select:none'>&#8597; Drag to resize</div>"; }
 // Wires every .reResizeGrip inside root to drag-resize the textarea named in
 // its data-target, via Pointer Events (covers touch, mouse and pen alike).
 function wireRecipeResizeGrips(root) {
@@ -12369,7 +12369,7 @@ function renderList() {
     var catStored = storeGet(catKey);
     var catOpen = (catStored === null) ? true : !!catStored; // default open
     if (_listSearchQuery) catOpen = true; // always expand while searching
-    html+="<div class='sec-hdr cat-toggle' data-catkey='"+catKey+"' style='cursor:pointer'>" +
+    html+="<div class='sec-hdr cat-toggle' data-catkey='"+esc(catKey)+"' style='cursor:pointer'>" +
       "<span class='done-toggle-arrow"+(catOpen?"":" collapsed")+"' style='margin-right:4px'>&#9660;</span>" +
       "<span>"+catEmojiSafe(c.emoji)+"&ensp;<span class='sec-name'>"+esc(c.name)+"</span></span>" +
       "<div class='sec-line'></div><span class='sec-count'>"+gi.length+"</span></div>";
@@ -12586,7 +12586,7 @@ function alarmLink(item) {
   var m = parseInt(item.dueTime.split(":")[1]);
   var pad = function(x){ return x < 10 ? "0"+x : ""+x; };
   var label = pad(h) + ":" + pad(m);
-  return "<button class='alarm-link' data-alarmh='" + h + "' data-alarmm='" + m + "' data-alarmname='" + esc(item.name) + "' title='Set alarm' style='display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:#1E2A3E;color:#a78bfa;font-size:12px;font-weight:600;border:none;cursor:pointer;touch-action:manipulation'>&#x23F0; " + label + "</button>";
+  return "<button class='alarm-link' data-alarmh='" + esc(h) + "' data-alarmm='" + esc(m) + "' data-alarmname='" + esc(item.name) + "' title='Set alarm' style='display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:#1E2A3E;color:#a78bfa;font-size:12px;font-weight:600;border:none;cursor:pointer;touch-action:manipulation'>&#x23F0; " + label + "</button>";
 }
 
 function cardHTML(item, c) {
@@ -12636,12 +12636,12 @@ function cardHTML(item, c) {
     checkHTML = "<div class='ppc-wrap'>" +
       [["c","C","Cathal"],["p","P","Petra"],["b","&#x1F476;","the baby"]].map(function(pp){
         var isOn = !!item.checks[pp[0]];
-        return "<div class='ppc" + (isOn?" on":"") + "' data-pp='" + pp[0] + "' role='button' aria-pressed='" + isOn + "' aria-label='Packed for " + pp[2] + "'>" + pp[1] + "</div>";
+        return "<div class='ppc" + (isOn?" on":"") + "' data-pp='" + esc(pp[0]) + "' role='button' aria-pressed='" + isOn + "' aria-label='Packed for " + pp[2] + "'>" + pp[1] + "</div>";
       }).join("") + "</div>";
   } else {
     checkHTML = "<div class='chk' style='cursor:pointer'>" + (item.done?"&#10003;":"") + "</div>";
   }
-  return "<div class='item-card" + (item.done?" done":"") + (isDup?" is-dup":"") + "' data-id='" + item.id + "' style='border-left-color:" + leftColor + (isDup?";background:#FFF8EC":"") + "'>" +
+  return "<div class='item-card" + (item.done?" done":"") + (isDup?" is-dup":"") + "' data-id='" + esc(item.id) + "' style='border-left-color:" + leftColor + (isDup?";background:#FFF8EC":"") + "'>" +
     checkHTML +
     "<div class='item-body' style='flex:1;min-width:0;margin-left:5px;" + (isDetail?"cursor:pointer":"") + "'>" +
       "<span class='item-name'>" + esc(item.name) + "</span>" + amtChip + newBadge + dupBadge + recipeChip + tagChips + repChip +
@@ -12812,7 +12812,7 @@ function renderHistory() {
     var inList=false;
     for (var j=0;j<items.length;j++) { if (!items[j].done&&items[j].name.toLowerCase()===h.name.toLowerCase()) { inList=true; break; } }
     var sel = !!_histSelected[h.name.toLowerCase()];
-    html+="<div class='hist-item' data-name='"+esc(h.name)+"' data-cat='"+c.id+"'>" +
+    html+="<div class='hist-item' data-name='"+esc(h.name)+"' data-cat='"+esc(c.id)+"'>" +
       "<span class='hist-emoji'>"+catEmojiSafe(c.emoji)+"</span>" +
       "<div class='hist-body'><div class='hist-name'>"+esc(h.name)+"</div>" +
       "<div class='hist-meta'><span class='hist-cat' style='background:"+catColorSafe(c.bg,"#EDEAE4")+";color:"+catColorSafe(c.fg,"#4A4A3A")+"'>"+esc(c.name)+"</span>" +
@@ -12932,7 +12932,7 @@ document.getElementById("addCatBtn").addEventListener("click", function() {
 function renderEmojiGrid() {
   var html = "";
   for (var i=0;i<CAT_EMOJIS.length;i++) {
-    html+="<div class='emoji-opt"+(CAT_EMOJIS[i]===selectedCatEmoji?" sel":"")+"' data-idx='"+i+"'>"+CAT_EMOJIS[i]+"</div>";
+    html+="<div class='emoji-opt"+(CAT_EMOJIS[i]===selectedCatEmoji?" sel":"")+"' data-idx='"+esc(i)+"'>"+CAT_EMOJIS[i]+"</div>";
   }
   document.getElementById("emojiGrid").innerHTML = html;
   document.getElementById("emojiGrid").querySelectorAll(".emoji-opt").forEach(function(opt) {
@@ -12945,7 +12945,7 @@ function renderEmojiGrid() {
 function renderColorGrid() {
   var html = "";
   for (var i=0;i<CAT_COLORS.length;i++) {
-    html+="<div class='color-opt"+(i===selectedCatColor?" sel":"")+"' data-idx='"+i+"' style='background:"+CAT_COLORS[i].bg+"'></div>";
+    html+="<div class='color-opt"+(i===selectedCatColor?" sel":"")+"' data-idx='"+esc(i)+"' style='background:"+CAT_COLORS[i].bg+"'></div>";
   }
   document.getElementById("colorGrid").innerHTML = html;
   document.getElementById("colorGrid").querySelectorAll(".color-opt").forEach(function(opt) {
@@ -13488,9 +13488,9 @@ function renderLogView() {
       var t = new Date(e2.ts);
       var timeStr = t.toLocaleTimeString("en-IE", { hour:"2-digit", minute:"2-digit" });
       html += "<div style='display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;margin:0 12px 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>" +
-        "<span class='log-time-btn' data-logid='" + e2.id + "' style='font-size:12px;font-weight:700;color:#B87A40;min-width:42px;flex-shrink:0;cursor:pointer;touch-action:manipulation;text-decoration:underline dotted'>" + timeStr + "</span>" +
+        "<span class='log-time-btn' data-logid='" + esc(e2.id) + "' style='font-size:12px;font-weight:700;color:#B87A40;min-width:42px;flex-shrink:0;cursor:pointer;touch-action:manipulation;text-decoration:underline dotted'>" + timeStr + "</span>" +
         "<span style='flex:1;font-size:14px;color:#2A2010'>" + esc(e2.text) + "</span>" +
-        "<button data-logid='" + e2.id + "' class='log-del-btn' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button>" +
+        "<button data-logid='" + esc(e2.id) + "' class='log-del-btn' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button>" +
       "</div>";
     });
   });
@@ -13612,10 +13612,10 @@ function renderTrackMedicine() {
       var t = new Date(e2.ts);
       var timeStr = t.toLocaleTimeString("en-IE", { hour:"2-digit", minute:"2-digit" });
       html += "<div style='display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;margin:0 12px 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>" +
-        "<span class='trkmed-time-btn' data-medid='" + e2.id + "' style='font-size:12px;font-weight:700;color:#B87A40;min-width:42px;flex-shrink:0;cursor:pointer;touch-action:manipulation;text-decoration:underline dotted'>" + timeStr + "</span>" +
+        "<span class='trkmed-time-btn' data-medid='" + esc(e2.id) + "' style='font-size:12px;font-weight:700;color:#B87A40;min-width:42px;flex-shrink:0;cursor:pointer;touch-action:manipulation;text-decoration:underline dotted'>" + timeStr + "</span>" +
         "<div style='flex:1'><div style='font-size:14px;color:#2A2010'>" + esc(e2.name) + (e2.dose ? " &#8212; " + esc(e2.dose) : "") + "</div>" +
         (e2.notes ? "<div style='font-size:12px;color:#8A6A40'>" + esc(e2.notes) + "</div>" : "") + "</div>" +
-        "<button data-medid='" + e2.id + "' class='trkmed-del-btn' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button>" +
+        "<button data-medid='" + esc(e2.id) + "' class='trkmed-del-btn' style='border:none;background:none;color:#C06060;font-size:13px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button>" +
       "</div>";
     });
   });
@@ -13930,7 +13930,7 @@ function openRecipeFoodLogSheet(id) {
       "<div style='display:flex;gap:6px;margin-bottom:16px'>" +
         MEAL_TYPES.map(function(m, i){
           var on = (i === mealIdx);
-          return "<button class='_rfMeal' data-mi='" + i + "' style='flex:1;padding:8px 2px;border:1.5px solid " + (on?"#A05A10":"#E0D0B0") + ";background:" + (on?"#A05A10":"#fff") + ";color:" + (on?"#fff":"#7A5A30") + ";border-radius:9px;font-family:inherit;font-size:11px;font-weight:700;line-height:1.5;cursor:pointer;touch-action:manipulation'>" + m.icon + "<br>" + m.label + "</button>";
+          return "<button class='_rfMeal' data-mi='" + esc(i) + "' style='flex:1;padding:8px 2px;border:1.5px solid " + (on?"#A05A10":"#E0D0B0") + ";background:" + (on?"#A05A10":"#fff") + ";color:" + (on?"#fff":"#7A5A30") + ";border-radius:9px;font-family:inherit;font-size:11px;font-weight:700;line-height:1.5;cursor:pointer;touch-action:manipulation'>" + m.icon + "<br>" + m.label + "</button>";
         }).join("") +
       "</div>" +
       "<div style='display:flex;gap:8px'>" +
@@ -14060,7 +14060,7 @@ function renderFoodSuggest() {
   if (!_foodSuggest.length) { hideFoodSuggest(); return; }
   box.innerHTML = _foodSuggest.map(function(it, i) {
     var last = i === _foodSuggest.length - 1;
-    return "<div class='food-sugg' data-si='" + i + "' style='display:flex;align-items:center;gap:8px;padding:10px 11px;cursor:pointer;touch-action:manipulation" +
+    return "<div class='food-sugg' data-si='" + esc(i) + "' style='display:flex;align-items:center;gap:8px;padding:10px 11px;cursor:pointer;touch-action:manipulation" +
       (last ? "" : ";border-bottom:1px solid #F0E4D0") + "'>" +
       "<span style='font-size:13px;flex-shrink:0'>" + (it.recipe ? "&#x1F4D6;" : "&#x1F553;") + "</span>" +
       "<span style='flex:1;font-size:14px;color:#2A2010;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>" + esc(it.text) + "</span>" +
@@ -14157,7 +14157,7 @@ function renderFoodView() {
           (e.calAuto ? "<div style='font-size:11px;color:#B8805A;margin-top:1px'>~" + e.cal + " kcal (estimated)</div>" : "") +
           (!e.calAuto && e.cal ? "<div style='font-size:11px;color:#7A5030;margin-top:1px'>" + e.cal + " kcal</div>" : "") +
         "</div>" +
-        "<button data-foodid='" + e.id + "' class='food-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button>" +
+        "<button data-foodid='" + esc(e.id) + "' class='food-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button>" +
       "</div>";
     });
     html += "</div>";
@@ -14200,7 +14200,7 @@ function renderFoodView() {
   var smRow = document.getElementById("savedMealsRow");
   if (savedMeals.length) {
     smRow.innerHTML = savedMeals.map(function(m, i) {
-      return "<button class='food-saved-chip' data-midx='" + i + "' style='padding:5px 10px;background:#F5E8D8;border:1.5px solid #C4A07A;border-radius:16px;color:#7A3A05;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;white-space:nowrap;flex-shrink:0'>" +
+      return "<button class='food-saved-chip' data-midx='" + esc(i) + "' style='padding:5px 10px;background:#F5E8D8;border:1.5px solid #C4A07A;border-radius:16px;color:#7A3A05;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;white-space:nowrap;flex-shrink:0'>" +
         esc(m.name) + (m.cal ? " ~"+m.cal+"kcal" : "") + "</button>";
     }).join("") +
     "<button id='manageSavedMealsBtn' style='padding:5px 10px;background:none;border:1.5px dashed #C4A07A;border-radius:16px;color:#B8805A;font-family:inherit;font-size:12px;cursor:pointer;touch-action:manipulation;white-space:nowrap;flex-shrink:0'>&#x2699; Manage</button>";
@@ -14443,9 +14443,9 @@ function openSavedMealsManager() {
           // Already in the book: a second, deliberate tap opens it, rather than
           // the manager teleporting you over to Recipes on its own.
           (savedMealRecipe(m)
-            ? "<button data-open='" + i + "' style='border:1.5px solid #C4A07A;background:none;color:#7A3A05;font-family:inherit;font-size:11px;font-weight:700;border-radius:14px;cursor:pointer;touch-action:manipulation;padding:5px 9px;white-space:nowrap;flex-shrink:0'>&#x1F4D6; Open</button>"
-            : "<button data-rec='" + i + "' style='border:1.5px solid #C4A07A;background:none;color:#7A3A05;font-family:inherit;font-size:11px;font-weight:700;border-radius:14px;cursor:pointer;touch-action:manipulation;padding:5px 9px;white-space:nowrap;flex-shrink:0'>&#x1F4D6; Make recipe</button>") +
-          "<button data-del='" + i + "' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;padding:4px 8px;flex-shrink:0'>&#x2715;</button>" +
+            ? "<button data-open='" + esc(i) + "' style='border:1.5px solid #C4A07A;background:none;color:#7A3A05;font-family:inherit;font-size:11px;font-weight:700;border-radius:14px;cursor:pointer;touch-action:manipulation;padding:5px 9px;white-space:nowrap;flex-shrink:0'>&#x1F4D6; Open</button>"
+            : "<button data-rec='" + esc(i) + "' style='border:1.5px solid #C4A07A;background:none;color:#7A3A05;font-family:inherit;font-size:11px;font-weight:700;border-radius:14px;cursor:pointer;touch-action:manipulation;padding:5px 9px;white-space:nowrap;flex-shrink:0'>&#x1F4D6; Make recipe</button>") +
+          "<button data-del='" + esc(i) + "' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;padding:4px 8px;flex-shrink:0'>&#x2715;</button>" +
         "</div>";
       }).join("") : "<p style='color:#B8805A;font-size:14px'>No saved meals yet.</p>") +
       "<button style='width:100%;margin-top:14px;padding:12px;border:none;background:#F5E8D8;color:#7A3A05;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Close</button>";
@@ -14678,7 +14678,7 @@ function renderCustomCatsList() {
         "<span style='font-size:20px'>"+catEmojiSafe(c.emoji)+"</span>" +
         "<span style='flex:1;font-size:15px;font-weight:500'>"+esc(c.name)+"</span>" +
         "<span style='font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:"+catColorSafe(c.bg,"#EDEAE4")+";color:"+catColorSafe(c.fg,"#4A4A3A")+"'>"+esc(c.name)+"</span>" +
-        "<button class='del-btn' style='opacity:.5' data-lt='"+lt+"' data-idx='"+idx+"'>&#x2715;</button>" +
+        "<button class='del-btn' style='opacity:.5' data-lt='"+esc(lt)+"' data-idx='"+esc(idx)+"'>&#x2715;</button>" +
         "</div>";
     });
   });
@@ -16699,7 +16699,7 @@ function openSportsManage(){
   function draw(){
     var teams = getSportsTeams();
     var list = teams.map(function(t,i){
-      return "<div style='display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid #EEE9E0'><span style='font-size:14px;color:#2A2010'>"+esc(t.name)+"</span><button class='sptRm' data-idx='"+i+"' aria-label='Remove' style='border:none;background:none;color:#C06060;font-size:17px;cursor:pointer;padding:0 6px'>&times;</button></div>";
+      return "<div style='display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid #EEE9E0'><span style='font-size:14px;color:#2A2010'>"+esc(t.name)+"</span><button class='sptRm' data-idx='"+esc(i)+"' aria-label='Remove' style='border:none;background:none;color:#C06060;font-size:17px;cursor:pointer;padding:0 6px'>&times;</button></div>";
     }).join("") || "<div style='font-size:13px;color:#8A7A5A;padding:6px 2px'>No teams yet.</div>";
     ov.innerHTML = "<div style='background:#fff;border-radius:16px;padding:20px;width:100%;max-width:360px;max-height:82vh;overflow-y:auto'>" +
       "<div style='font-size:16px;font-weight:800;color:#4A3A20;margin-bottom:10px'>&#x26BD; Manage teams</div>" +
@@ -16822,7 +16822,7 @@ function renderFamlog() {
   html += "<div style='display:flex;gap:7px;flex-wrap:wrap;margin-bottom:6px'>";
   chips.forEach(function(c){
     var on = _famlogFilter===c[0];
-    html += "<button class='fml-chip' data-src='"+c[0]+"' style='border:1.5px solid "+(on?"#8A5A9A":"#DCD2E0")+";background:"+(on?"#8A5A9A":"#fff")+";color:"+(on?"#fff":"#6A5A72")+";border-radius:14px;padding:5px 13px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>"+c[1]+"</button>";
+    html += "<button class='fml-chip' data-src='"+esc(c[0])+"' style='border:1.5px solid "+(on?"#8A5A9A":"#DCD2E0")+";background:"+(on?"#8A5A9A":"#fff")+";color:"+(on?"#fff":"#6A5A72")+";border-radius:14px;padding:5px 13px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>"+c[1]+"</button>";
   });
   html += "</div>";
 
@@ -16836,7 +16836,7 @@ function renderFamlog() {
     var lastDate = null;
     shown.forEach(function(e){
       if (e.date !== lastDate) { html += dateSeparatorHTML(e.date); lastDate = e.date; }
-      html += "<div class='fml-row' data-act='"+e.act+"'"+(e.id?" data-id='"+esc(e.id)+"'":"")+" style='display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;margin:0 0 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);cursor:pointer;touch-action:manipulation'>"+
+      html += "<div class='fml-row' data-act='"+esc(e.act)+"'"+(e.id?" data-id='"+esc(e.id)+"'":"")+" style='display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;margin:0 0 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);cursor:pointer;touch-action:manipulation'>"+
         "<span style='font-size:18px'>"+e.ico+"</span>"+
         "<span style='flex:1;font-size:14px;font-weight:600;color:#2A2A1E;min-width:0'>"+e.text+"</span>"+
         (e.time?"<span style='font-size:12px;color:#B8A8C0;font-weight:600'>"+e.time+"</span>":"")+
@@ -18667,7 +18667,7 @@ function renderGlobalSearchResults() {
     html += "<div style='background:#fff;border-radius:12px;padding:10px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(20,50,20,.07)'>" +
       "<div style='font-size:12.5px;font-weight:700;color:#8A8A6A;margin-bottom:2px'>" + g.label + "</div>";
     shown.forEach(function(it){
-      html += "<div class='gs-row' data-key='" + g.key + "'" + (it._nctx ? " data-ctx='" + it._nctx + "'" : "") +
+      html += "<div class='gs-row' data-key='" + esc(g.key) + "'" + (it._nctx ? " data-ctx='" + esc(it._nctx) + "'" : "") +
         // Only appliances and health carry an id: they're the groups whose tap
         // opens the record itself rather than handing off to a section search.
         ((g.key === "appliances" || g.key === "health") && it.id != null ? " data-id='" + esc(String(it.id)) + "'" : "") + " style='display:flex;align-items:center;gap:9px;padding:8px 0;cursor:pointer;touch-action:manipulation;border-top:1px solid #F0EDE6'>" +
@@ -18676,7 +18676,7 @@ function renderGlobalSearchResults() {
       "</div>";
     });
     if (more > 0) {
-      html += "<div class='gs-more' data-key='" + g.key + "' style='text-align:center;padding:8px 0 2px;font-size:12.5px;font-weight:700;color:" + g.color + ";cursor:pointer;touch-action:manipulation'>+" + more + " more &#8594;</div>";
+      html += "<div class='gs-more' data-key='" + esc(g.key) + "' style='text-align:center;padding:8px 0 2px;font-size:12.5px;font-weight:700;color:" + g.color + ";cursor:pointer;touch-action:manipulation'>+" + more + " more &#8594;</div>";
     }
     html += "</div>";
   });
@@ -18818,7 +18818,7 @@ function renderTodayCard() {
   }
   var html = "<div style='background:#fff;border-radius:14px;padding:2px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(20,50,20,.07)'>";
   rows.forEach(function(r, i){
-    html += "<div class='today-row' data-act='" + r.act + "'" + (r.id?" data-id='" + esc(r.id) + "'":"") + " style='display:flex;align-items:center;gap:11px;padding:11px 0;cursor:pointer;touch-action:manipulation" + (i<rows.length-1?";border-bottom:1px solid #F0EDE6":"") + "'>" +
+    html += "<div class='today-row' data-act='" + esc(r.act) + "'" + (r.id?" data-id='" + esc(r.id) + "'":"") + " style='display:flex;align-items:center;gap:11px;padding:11px 0;cursor:pointer;touch-action:manipulation" + (i<rows.length-1?";border-bottom:1px solid #F0EDE6":"") + "'>" +
       "<span style='font-size:17px'>" + r.ico + "</span>" +
       "<span style='flex:1;font-size:14px;font-weight:600;color:#2A2A1E'>" + r.text + "</span>" +
       "<span style='color:#C8BEA8;font-size:18px'>&#x203A;</span>" +
@@ -19795,7 +19795,7 @@ function renderTrainPrograms() {
   var html = "";
   for (var i=0;i<programs.length;i++) {
     var p = programs[i];
-    html += "<button class='prog-card' style='background:"+p.bg+";border:1px solid "+p.border+"' data-type='"+p.type+"' data-key='"+p.key+"'>" +
+    html += "<button class='prog-card' style='background:"+p.bg+";border:1px solid "+p.border+"' data-type='"+esc(p.type)+"' data-key='"+esc(p.key)+"'>" +
       "<div class='prog-card-icon'>"+p.icon+"</div>" +
       (p.tag ? "<div class='prog-card-tag' style='background:"+(p.tag==='Physio'?'#DCF2E2':'#F7EFD8')+";color:"+(p.tag==='Physio'?'#1A7A3A':'#9A7A10')+"'>"+(p.tag==='Physio'?'&#x2713; Physio-approved':'General fitness')+"</div>" : "") +
       "<div class='prog-card-name'>"+p.name+"</div>" +
@@ -20262,7 +20262,7 @@ function renderPhysioSession() {
     (ex.url ? "<a class='ses-video-btn' href='"+ex.url+"' target='_blank' rel='noopener'>&#x25B6; Watch video</a>" : "") +
     "<div class='ses-ctrl-row'>" +
       "<button class='ses-ctrl-btn ses-ctrl-back' data-action='physioPrev'>&#x276E;</button>" +
-      "<button class='ses-ctrl-btn' data-action='"+(isTimedRunning?"togglePhysioTimer":"physioNext")+"'>" +
+      "<button class='ses-ctrl-btn' data-action='"+esc((isTimedRunning?"togglePhysioTimer":"physioNext"))+"'>" +
         (isTimedRunning ? (SS.pRunning ? "Pause" : "Resume") : nextLabel) +
       "</button>" +
       (isTimedRunning ? "<button class='ses-ctrl-btn' data-action='physioNext'>Skip &#x276F;</button>" : "") +
@@ -20483,7 +20483,7 @@ function renderWorkoutSession() {
     return "<div class='ss-ex'>" +
       "<div class='ss-ex-name'>"+esc(ex.name)+"</div>" + (ex.cue ? "<div class='ss-ex-cue'>"+esc(ex.cue)+"</div>" : "") +
       "<div class='ss-inputs'>" + inputsHtml(ex, key, val) + "</div>" +
-      "<textarea class='ss-note' rows='2' placeholder='Notes (optional)' data-nkey='"+nKey+"'>"+esc(SS.wNotes[nKey]||"")+"</textarea>" +
+      "<textarea class='ss-note' rows='2' placeholder='Notes (optional)' data-nkey='"+esc(nKey)+"'>"+esc(SS.wNotes[nKey]||"")+"</textarea>" +
     "</div>";
   }).join("");
 
@@ -20548,11 +20548,11 @@ function wktFillEntry(prefix, round, ex) {
 
 function inputsHtml(ex, key, val) {
   if (ex.type === "weighted") return "" +
-    "<div class='ss-field'><div class='ss-field-label'>Reps</div><input class='ss-input' type='number' inputmode='numeric' placeholder='--' value='"+(val.reps||"")+"' data-key='"+key+"' data-field='reps'></div>" +
-    "<div class='ss-field'><div class='ss-field-label'>kg</div><input class='ss-input' type='number' inputmode='decimal' placeholder='--' value='"+(val.weight||"")+"' data-key='"+key+"' data-field='weight'></div>";
+    "<div class='ss-field'><div class='ss-field-label'>Reps</div><input class='ss-input' type='number' inputmode='numeric' placeholder='--' value='"+(val.reps||"")+"' data-key='"+esc(key)+"' data-field='reps'></div>" +
+    "<div class='ss-field'><div class='ss-field-label'>kg</div><input class='ss-input' type='number' inputmode='decimal' placeholder='--' value='"+(val.weight||"")+"' data-key='"+esc(key)+"' data-field='weight'></div>";
   if (ex.type === "duration") return "" +
-    "<div class='ss-field'><div class='ss-field-label'>Seconds</div><input class='ss-input' type='number' inputmode='numeric' placeholder='--' value='"+(val.duration||"")+"' data-key='"+key+"' data-field='duration'></div>";
-  return "<div class='ss-field'><div class='ss-field-label'>Reps</div><input class='ss-input' type='number' inputmode='numeric' placeholder='--' value='"+(val.reps||"")+"' data-key='"+key+"' data-field='reps'></div>";
+    "<div class='ss-field'><div class='ss-field-label'>Seconds</div><input class='ss-input' type='number' inputmode='numeric' placeholder='--' value='"+(val.duration||"")+"' data-key='"+esc(key)+"' data-field='duration'></div>";
+  return "<div class='ss-field'><div class='ss-field-label'>Reps</div><input class='ss-input' type='number' inputmode='numeric' placeholder='--' value='"+(val.reps||"")+"' data-key='"+esc(key)+"' data-field='reps'></div>";
 }
 
 function wireInputs() {
@@ -21002,7 +21002,7 @@ function renderWorkoutLog() {
     for (var si=0;si<ex.sets.length;si++) {
       var s=ex.sets[si];
       var logged = s.reps > 0;
-      pillsHtml += "<div class='set-pill"+(logged?" set-pill-done":"")+"' data-ei='"+ei+"' data-si='"+si+"'>" +
+      pillsHtml += "<div class='set-pill"+(logged?" set-pill-done":"")+"' data-ei='"+esc(ei)+"' data-si='"+esc(si)+"'>" +
         "<div class='set-pill-num'>"+(si+1)+"</div>" +
         (logged
           ? "<div class='set-pill-val'>"+(s.weight>0?s.weight+"kg":""+(s.reps)+" reps")+"</div><div class='set-pill-reps'>"+(s.weight>0?s.reps+" reps":"")+"</div>"
@@ -21012,9 +21012,9 @@ function renderWorkoutLog() {
     html += "<div class='exercise-card'>" +
       "<div class='ex-header'><div class='ex-num'>"+(ei+1)+"</div><span class='ex-name-txt'>"+esc(ex.name)+"</span>" +
       (volStr?"<span class='ex-vol'>"+volStr+"</span>":"") +
-      "<button class='ex-del' data-ei='"+ei+"' style='margin-left:auto'>&#x2715;</button></div>" +
+      "<button class='ex-del' data-ei='"+esc(ei)+"' style='margin-left:auto'>&#x2715;</button></div>" +
       "<div class='set-pills-row'>"+pillsHtml+"</div>" +
-      "<button class='add-set-btn' data-ei='"+ei+"'>+ Add set</button></div>";
+      "<button class='add-set-btn' data-ei='"+esc(ei)+"'>+ Add set</button></div>";
   }
   el.innerHTML = html;
   wireWorkoutLog();
@@ -22248,7 +22248,7 @@ function renderGrowth() {
             "<div style='font-size:13px;color:#8A6A8A'>" + (e.weight?e.weight+" kg":"") + (e.weight&&e.height?" &middot; ":"") + (e.height?e.height+" cm":"") + bandHtml + "</div>" +
             (e.note?"<div style='font-size:12px;color:#A88AA8;font-style:italic;margin-top:2px'>"+esc(e.note)+"</div>":"") +
           "</div>" +
-          "<button data-gidx='" + rawIdx + "' class='growth-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45;width:40px;height:40px'>&#x2715;</button>" +
+          "<button data-gidx='" + esc(rawIdx) + "' class='growth-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45;width:40px;height:40px'>&#x2715;</button>" +
         "</div></div>";
     });
     html += "</div>";
@@ -22859,7 +22859,7 @@ function renderMedicine() {
     meds.forEach(function(m){
       var tStr=m.ts?new Date(m.ts).toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"}):"";
       var dStr=m.ts?new Date(m.ts).toLocaleDateString("en-IE",{day:"numeric",month:"short"}):"";
-      html+="<div class='med-row' style='display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;margin:0 12px 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'><div style='flex:1'><div style='font-size:14px;font-weight:600;color:#2A2010'>"+esc(m.name||"")+(m.dose?" — "+esc(m.dose):"")+"</div>"+(m.notes?"<div style='font-size:12px;color:#8A6A8A'>"+esc(m.notes)+"</div>":"")+(tStr?"<div class='med-dt-edit-trigger' data-medid='"+m.id+"' style='font-size:11px;color:#B8A880;cursor:pointer;text-decoration:underline dotted'>"+dStr+" "+tStr+"</div>":"")+"</div><button data-medid='"+m.id+"' class='med-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
+      html+="<div class='med-row' style='display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;margin:0 12px 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'><div style='flex:1'><div style='font-size:14px;font-weight:600;color:#2A2010'>"+esc(m.name||"")+(m.dose?" — "+esc(m.dose):"")+"</div>"+(m.notes?"<div style='font-size:12px;color:#8A6A8A'>"+esc(m.notes)+"</div>":"")+(tStr?"<div class='med-dt-edit-trigger' data-medid='"+esc(m.id)+"' style='font-size:11px;color:#B8A880;cursor:pointer;text-decoration:underline dotted'>"+dStr+" "+tStr+"</div>":"")+"</div><button data-medid='"+esc(m.id)+"' class='med-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
     });
   } else {
     html+="<div style='text-align:center;padding:32px;color:#8A6A8A;font-size:14px'>No medicine logged yet</div>";
@@ -23124,7 +23124,7 @@ var toothPending = null;
 
 function buildRow(teeth) {
   return teeth.map(function(id){
-    return "<button class='tooth-btn' data-tooth='"+id+"'>&middot;</button>";
+    return "<button class='tooth-btn' data-tooth='"+esc(id)+"'>&middot;</button>";
   }).join("");
 }
 
