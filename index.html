@@ -14552,7 +14552,11 @@ function saveSectionVisible() { storeSet("fl4_secVisible", sectionVisible); }
 
 // One-off migration (v318 nav consolidation): devices that stored train:true
 // before v318 also start with Train off the bar; re-pin it in Settings.
-if (!storeGet("fl4_trainNavMigrated")) {
+// A test build has no pre-v318 history to migrate — it wipes and reseeds
+// fl4_trainNavMigrated along with everything else on every load (v407), so
+// without this guard the migration re-fires every time and stomps the
+// test-mode seed's train:true (v485) straight back to false.
+if (!_isTestBuild && !storeGet("fl4_trainNavMigrated")) {
   sectionVisible.train = false;
   saveSectionVisible();
   storeSet("fl4_trainNavMigrated", true);
