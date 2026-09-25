@@ -1024,7 +1024,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v484 · 25/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v485 · 25/09/2026</div>
 
   </div>
 </div>
@@ -1992,9 +1992,10 @@ if (_isTestBuild) {
       wipeTestStore();
       _testSeedPending = true;
       // Written after the wipe so the demo household opens with every
-      // section on the bar — including the opt-in ones (Train, Family log,
-      // Plants, Sports), which otherwise have nothing to review.
-      storeSet("fl4_secVisible", { home:true, train:true, trips:true, track:true, sports:true, famlog:true, plants:true, watch:true });
+      // hideable section on the bar (keep this list in sync with
+      // HIDEABLE_SECTIONS below — it can't be built from that constant
+      // directly, since this runs before HIDEABLE_SECTIONS is assigned).
+      storeSet("fl4_secVisible", { home:true, train:true, trips:true, track:true, sports:true, famlog:true, plants:true, watch:true, appliances:true, health:true });
     }
   } catch (e) { console.warn("test seed check failed:", e); }
 }
@@ -14551,7 +14552,11 @@ function saveSectionVisible() { storeSet("fl4_secVisible", sectionVisible); }
 
 // One-off migration (v318 nav consolidation): devices that stored train:true
 // before v318 also start with Train off the bar; re-pin it in Settings.
-if (!storeGet("fl4_trainNavMigrated")) {
+// A test build has no pre-v318 history to migrate — it wipes and reseeds
+// fl4_trainNavMigrated along with everything else on every load (v407), so
+// without this guard the migration re-fires every time and stomps the
+// test-mode seed's train:true (v485) straight back to false.
+if (!_isTestBuild && !storeGet("fl4_trainNavMigrated")) {
   sectionVisible.train = false;
   saveSectionVisible();
   storeSet("fl4_trainNavMigrated", true);
