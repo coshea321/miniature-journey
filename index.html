@@ -16899,7 +16899,8 @@ function renderFamlog() {
 function switchSection(section) {
   // Notes lives inside Lists since v318 — map legacy deep-links to the sub-tab.
   if (section === "notes") { currentList = "notes"; section = "lists"; }
-  var wasTrack = currentSection === "track";
+  // The first test-build navigation can run before currentSection exists.
+  var wasTrack = typeof currentSection !== "undefined" && currentSection === "track";
   currentSection = section;
   stopHomeClock();
 
