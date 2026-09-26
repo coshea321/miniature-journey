@@ -1222,6 +1222,11 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
        advisories here by design (that logic stays exclusively in Baby); this
        is just "what, when, how much, notes", same shape as the Log tab. -->
   <div id="notesMedicineView" class="content" style="padding-top:12px;display:none;padding-bottom:90px">
+    <!-- v486: shown only for My daughter (renderTrackMedicine). Track has no dose-gap
+         advisories, and Baby's never read fl4_track_med, so steer her doses there. -->
+    <div id="trkMedBabyNote" style="display:none;margin:0 12px 12px;padding:10px 12px;background:#FDF0E0;border:1.5px solid #E0B070;border-radius:9px;font-size:13px;line-height:1.4;color:#7A4A18">
+      &#x26A0;&#xFE0F; For Calpol or Nurofen, log it in <b>Baby &#x2192; Medicine</b> instead &mdash; the dose-gap reminders there don&rsquo;t see doses logged here.
+    </div>
     <div style="padding:0 12px;margin-bottom:12px">
       <div class="trkmed-quick-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
         <button type="button" class="trkmed-chip" data-med="Nurofen" style="border:1.5px solid #A05A1030;background:#FDF0E0;color:#A05A10;border-radius:16px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation">Nurofen</button>
@@ -13594,6 +13599,8 @@ function doLogTrackMed() {
 function renderTrackMedicine() {
   var dtEl = document.getElementById("trkMedDt");
   if (dtEl && !dtEl._initialised) { dtEl.value = localDatetimeValue(); dtEl._initialised = true; }
+  var babyNote = document.getElementById("trkMedBabyNote");
+  if (babyNote) babyNote.style.display = trackPerson() === "daughter" ? "" : "none";
 
   var entries = getTrackMed().filter(function(e){ return trackPersonOf(e) === trackPerson(); });
   var el = document.getElementById("trkMedList");
@@ -23618,7 +23625,10 @@ function buildTestSeed() {
       bodyweight:[
         { date:_tsDay(-1),  weight:82.4 },
         { date:_tsDay(-8),  weight:83.1 },
-        { date:_tsDay(-15), weight:83.6 }
+        { date:_tsDay(-15), weight:83.6 },
+        // v486: same day as Me's first entry on purpose -- bodyweight merges by person+date.
+        { date:_tsDay(-1),  weight:64.2, person:"wife" },
+        { date:_tsDay(-8),  weight:64.8, person:"wife" }
       ],
       bp:[
         { ts:_tsTs(-1, 8, 0),  date:_tsDay(-1),  sys:124, dia:78, pulse:62 },
@@ -23632,11 +23642,16 @@ function buildTestSeed() {
     }, test:"", logged:{} },
     action_log:[
       { id:_tsId(), text:"Demo: put the bins out", ts:_tsTs(-1, 19, 0) },
-      { id:_tsId(), text:"Demo: booked the dentist", ts:_tsTs(-4, 11, 0) }
+      { id:_tsId(), text:"Demo: booked the dentist", ts:_tsTs(-4, 11, 0) },
+      { id:_tsId(), text:"Demo: yoga class", ts:_tsTs(-2, 18, 30), person:"wife" },
+      { id:_tsId(), text:"Demo: first swim lesson", ts:_tsTs(-3, 10, 0), person:"daughter" }
     ],
     track_med:[
       { id:_tsId(), name:"Demo vitamin D", dose:"1 tablet", notes:"", ts:_tsTs(0, 8, 0), updated:_tsTs(0, 8, 0) },
-      { id:_tsId(), name:"Demo antihistamine", dose:"10 mg", notes:"Hay fever.", ts:_tsTs(-1, 8, 0), updated:_tsTs(-1, 8, 0) }
+      { id:_tsId(), name:"Demo antihistamine", dose:"10 mg", notes:"Hay fever.", ts:_tsTs(-1, 8, 0), updated:_tsTs(-1, 8, 0) },
+      { id:_tsId(), name:"Demo iron supplement", dose:"1 tablet", notes:"", ts:_tsTs(0, 9, 0), updated:_tsTs(0, 9, 0), person:"wife" },
+      // Not Calpol/Nurofen on purpose: those belong in Baby -> Medicine (see trkMedBabyNote).
+      { id:_tsId(), name:"Demo teething gel", dose:"pea-sized", notes:"", ts:_tsTs(-1, 20, 0), updated:_tsTs(-1, 20, 0), person:"daughter" }
     ],
     food_log:[
       // meal is an INDEX into MEAL_TYPES (0 Breakfast, 1 Lunch, 2 Dinner, 3 Snack),
@@ -23644,7 +23659,9 @@ function buildTestSeed() {
       // 770 kcal of demo food into the day's total under no meal heading.
       { id:_tsId(), date:_tsDay(0),  meal:0, text:"Porridge and banana", cal:320, calAuto:true },
       { id:_tsId(), date:_tsDay(0),  meal:1, text:"Chicken sandwich",    cal:450, calAuto:true },
-      { id:_tsId(), date:_tsDay(-1), meal:2, text:"Pasta bake",          cal:680, calAuto:false }
+      { id:_tsId(), date:_tsDay(-1), meal:2, text:"Pasta bake",          cal:680, calAuto:false },
+      { id:_tsId(), date:_tsDay(0),  meal:0, text:"Yoghurt and granola", cal:310, calAuto:false, person:"wife" },
+      { id:_tsId(), date:_tsDay(0),  meal:0, text:"Toast soldiers",      cal:0,   calAuto:false, person:"daughter" }
     ],
     food_notes:{},
     saved_meals:[
