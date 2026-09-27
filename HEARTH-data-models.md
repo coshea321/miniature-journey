@@ -69,6 +69,14 @@ Current fields: `kind`, `person`, `title`, `date`, `time`, `who`, `dose`, `expir
 ## Pull-up Plan progress (`fl4_pullup`, v482) — one object, rebuilt from the plan
 `{ checks:{ "w-s-e":[bool×sets] }, test:"", logged:{ "w-s":workoutId }, updatedAt }`, all indices 0-based into `pullupSessionExercises(w,s)`. Exercise order is therefore part of the key, so **never reorder or insert into a week's `exercises`**. Append only, or old ticks land on the wrong exercise. Hand-listed places: `pullupNormalise` (the only reader, which drops unknown keys), `pullupImport` (additive restore), `buildExportPayload` (`pullup:`), the `imported.pullup` counter + `IMPORT_LABELS`, and the `pullup:` block in `buildTestSeed`. It isn't synced.
 
+## Track person tag (v486) — one optional `person` field on five stores
+Track → Log, Medicine, Body and Food record for **Me, My wife or My daughter**, picked in `#trackPerson` (session-only, reset to Me each time Track is entered). The field is `person: "wife" | "daughter"`; **absent means Me** (`trackPersonOf`), so pre-v486 records need no migration and nothing ever writes `"me"` back into old ones. Stores carrying it: `fl4_action_log`, `fl4_track_med`, `fl4_food_log`, `workouts.bodyweight`, `workouts.bp`. Food daily notes (`fl4_food_notes`) key by `date` for Me and `wife:date` / `daughter:date` otherwise (`foodNoteKey`).
+
+- **Merges:** action log, medicine, food and BP merge whole records by id/`ts`, so `person` rides along with no field list to update. **Bodyweight merges by `person + ":" + date`** in both `importBackupData` and `applyPersonal` — **do NOT revert either to date-only**, or two people's weights on the same day overwrite each other.
+- **Readers must pick a side.** Track views filter by `trackPerson()`. Anything about Cathal's own numbers filters to `"me"`: `tdeeCurrentKg`, `measuredTDEE`, `tdeeIntakeToday`, `homeCalState`, `latestBodyweightKg`. A new reader of these stores that does neither will mix three people's data.
+- Entries made outside the Track views (checklist auto-log, cardio, Recipes → food log) are Me.
+- **Daughter + medicine:** Track → Medicine shows `#trkMedBabyNote` for her, pointing Calpol/Nurofen to Baby → Medicine, because Baby's dose-gap advisories never read `fl4_track_med`. Do NOT copy advisory logic into Track to "fix" this — dosing logic stays in Baby only.
+
 ## Test-build demo data (v407) — add to it when you add a section
 Test builds (any host not on the exact-match `_prodHosts` list — the live `miniature-journey-b9p.pages.dev`, plus the retired `coshea321.github.io` — i.e. every raw.githack PR link and every Cloudflare branch/preview deployment) wipe the `fl4_*` store and reseed a fixed demo household **once per version** — the version string is stored in `fl4_testseed`, so a reload of the same version keeps whatever you were doing, and the next PR's link starts clean. The orange banner is the manual reset.
 

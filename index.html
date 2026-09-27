@@ -1024,7 +1024,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v485 · 25/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v486 · 26/09/2026</div>
 
   </div>
 </div>
@@ -1191,6 +1191,12 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
      container ids keep their pre-v339 names -- renderers target them by id.
      ============================================================ -->
 <div id="trackSection" style="display:none">
+  <div style="padding:8px 12px;background:#FFF8EE;display:flex;align-items:center;gap:8px">
+    <label for="trackPerson" style="font-size:13px;font-weight:700;color:#7A4A18">Recording for</label>
+    <select id="trackPerson" style="flex:1;padding:9px;border:1.5px solid #C4A07A;border-radius:8px;background:#fff;font:inherit;color:#2A2010">
+      <option value="me">Me</option><option value="wife">My wife</option><option value="daughter">My daughter</option>
+    </select>
+  </div>
   <div class="train-subnav" id="trackSubNav" style="background:#A05A10">
     <button class="tsn-btn active" data-tview="log">&#x1F4CB; Log</button>
     <button class="tsn-btn" data-tview="medicine">&#x1F48A; Medicine</button>
@@ -1216,6 +1222,11 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
        advisories here by design (that logic stays exclusively in Baby); this
        is just "what, when, how much, notes", same shape as the Log tab. -->
   <div id="notesMedicineView" class="content" style="padding-top:12px;display:none;padding-bottom:90px">
+    <!-- v486: shown only for My daughter (renderTrackMedicine). Track has no dose-gap
+         advisories, and Baby's never read fl4_track_med, so steer her doses there. -->
+    <div id="trkMedBabyNote" style="display:none;margin:0 12px 12px;padding:10px 12px;background:#FDF0E0;border:1.5px solid #E0B070;border-radius:9px;font-size:13px;line-height:1.4;color:#7A4A18">
+      &#x26A0;&#xFE0F; For Calpol or Nurofen, log it in <b>Baby &#x2192; Medicine</b> instead &mdash; the dose-gap reminders there don&rsquo;t see doses logged here.
+    </div>
     <div style="padding:0 12px;margin-bottom:12px">
       <div class="trkmed-quick-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
         <button type="button" class="trkmed-chip" data-med="Nurofen" style="border:1.5px solid #A05A1030;background:#FDF0E0;color:#A05A10;border-radius:16px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation">Nurofen</button>
@@ -13443,7 +13454,7 @@ function doLogAction() {
   var ts    = dtEl && dtEl.value ? new Date(dtEl.value).getTime() : Date.now();
   if (isNaN(ts)) ts = Date.now();
   var entries = getActionLog();
-  entries.unshift({ id: Date.now(), text: text, ts: ts });
+  entries.unshift({ id: Date.now(), text: text, ts: ts, person: trackPerson() });
   // Keep sorted newest first
   entries.sort(function(a,b){ return b.ts - a.ts; });
   saveActionLog(entries);
@@ -13465,7 +13476,7 @@ function renderLogView() {
   var dtEl = document.getElementById("logActionDt");
   if (dtEl && !dtEl._initialised) { dtEl.value = localDatetimeValue(); dtEl._initialised = true; }
 
-  var entries = getActionLog().filter(function(e2){ return e2 && e2.type !== "cardio" && (e2.text !== undefined && e2.text !== null); });
+  var entries = getActionLog().filter(function(e2){ return e2 && e2.type !== "cardio" && (e2.text !== undefined && e2.text !== null) && trackPersonOf(e2) === trackPerson(); });
   var el = document.getElementById("logActionList");
   if (!entries.length) {
     el.innerHTML = "<div style='text-align:center;padding:40px 24px;color:#B87A40'>" +
@@ -13574,7 +13585,7 @@ function doLogTrackMed() {
   var ts    = dtEl && dtEl.value ? new Date(dtEl.value).getTime() : Date.now();
   if (isNaN(ts)) ts = Date.now();
   var entries = getTrackMed();
-  entries.unshift({ id: Date.now(), name: name, dose: dose, notes: notes, ts: ts, updated: Date.now() });
+  entries.unshift({ id: Date.now(), name: name, dose: dose, notes: notes, ts: ts, updated: Date.now(), person: trackPerson() });
   entries.sort(function(a,b){ return b.ts - a.ts; });
   saveTrackMed(entries);
   document.getElementById("trkMedName").value = "";
@@ -13588,8 +13599,10 @@ function doLogTrackMed() {
 function renderTrackMedicine() {
   var dtEl = document.getElementById("trkMedDt");
   if (dtEl && !dtEl._initialised) { dtEl.value = localDatetimeValue(); dtEl._initialised = true; }
+  var babyNote = document.getElementById("trkMedBabyNote");
+  if (babyNote) babyNote.style.display = trackPerson() === "daughter" ? "" : "none";
 
-  var entries = getTrackMed();
+  var entries = getTrackMed().filter(function(e){ return trackPersonOf(e) === trackPerson(); });
   var el = document.getElementById("trkMedList");
   if (!entries.length) {
     el.innerHTML = "<div style='text-align:center;padding:40px 24px;color:#B87A40'>" +
@@ -13808,7 +13821,7 @@ function nextFoodId() {
 function foodDefaultMeal(date) {
   var last = null;
   getFoodLog().forEach(function(e) {
-    if (e.date !== date) return;
+    if (e.date !== date || trackPersonOf(e) !== trackPerson()) return;
     // v461: nextFoodId() stops NEW ties being created, but entries already
     // stored -- or logged on the other phone in the same millisecond -- can
     // still share an id, and this read must not be arbitrary for them. Break a
@@ -13896,7 +13909,7 @@ function openRecipeFoodLogSheet(id) {
     var total = Math.round(r.kcal * portions);
     var text  = r.name + (portions === 1 ? "" : " (" + fmtPortions(portions) + " portions)");
     var log = getFoodLog();
-    log.push({ id: nextFoodId(), date: foodTodayStr(), meal: mealIdx, text: text, cal: total, calAuto: false });
+    log.push({ id: nextFoodId(), date: foodTodayStr(), meal: mealIdx, text: text, cal: total, calAuto: false, person: "me" });
     saveFoodLog(log);
     close();
     toast("&#x1F373; " + MEAL_TYPES[mealIdx].label + ": " + text + " (" + total + " kcal)");
@@ -14085,7 +14098,7 @@ function pickFoodSuggest(i) {
   var ci = document.getElementById("foodCalInput");
   if (!fi) return;
   fi.value = it.text;
-  if (ci && it.cal && !ci.value) ci.value = it.cal;       // typed figures only
+  if (ci && it.cal && !ci.value && trackPerson() !== "daughter") ci.value = it.cal; // adult figures only
   hideFoodSuggest();
   refreshFoodCalEst();
   fi.focus();
@@ -14098,29 +14111,32 @@ function refreshFoodCalEst() {
   var estEl = document.getElementById("foodCalEst");
   var calIn = document.getElementById("foodCalInput");
   if (!fi || !estEl || !calIn) return;
-  var est = estimateCals(fi.value);
+  var est = trackPerson() === "daughter" ? 0 : estimateCals(fi.value);
   if (est && !calIn.value) {
     estEl.textContent = "Est. ~" + est + " kcal";
     calIn.placeholder = "~" + est + " kcal (estimated)";
   } else {
     estEl.textContent = "";
-    calIn.placeholder = "kcal (auto-estimated)";
+    calIn.placeholder = trackPerson() === "daughter" ? "kcal (optional)" : "kcal (auto-estimated)";
   }
 }
 
+function foodNoteKey(date) { return trackPerson() === "me" ? date : trackPerson() + ":" + date; }
 function renderFoodView() {
+  refreshFoodCalEst();
   var today = (function(){ var d=new Date(); return d.getFullYear()+"-"+(d.getMonth()<9?"0":"")+(d.getMonth()+1)+"-"+(d.getDate()<10?"0":"")+d.getDate(); })();
 
   // Date nav
   document.getElementById("foodDateLabel").textContent = foodDateStr(foodDate);
   document.getElementById("foodNextDay").disabled = foodDate >= today;
 
-  var entries = getFoodLog().filter(function(e){ return e.date === foodDate; });
+  var entries = getFoodLog().filter(function(e){ return e.date === foodDate && trackPersonOf(e) === trackPerson(); });
   // Sort by meal order
   entries.sort(function(a,b){ return (a.meal||0) - (b.meal||0); });
 
   var totalCal = entries.reduce(function(s,e){ return s+(e.cal||0); }, 0);
   var goalCal  = storeGet("fl4_cal_goal") || 2000;
+  var isMyFood = trackPerson() === "me";
 
   // Summary bar
   var pct = Math.min(100, Math.round(totalCal/goalCal*100));
@@ -14128,11 +14144,11 @@ function renderFoodView() {
   document.getElementById("foodDaySummary").innerHTML =
     "<div style='font-size:15px;font-weight:700;color:#7A3A05;margin-bottom:5px'>" +
       totalCal.toLocaleString() + " kcal" +
-      "<span style='font-size:12px;font-weight:400;color:#B8805A;margin-left:8px'>of " + goalCal.toLocaleString() + " goal</span>" +
+      (isMyFood ? "<span style='font-size:12px;font-weight:400;color:#B8805A;margin-left:8px'>of " + goalCal.toLocaleString() + " goal</span>" : "") +
     "</div>" +
-    "<div style='height:6px;background:#E8D8C0;border-radius:3px;overflow:hidden'>" +
+    (isMyFood ? "<div style='height:6px;background:#E8D8C0;border-radius:3px;overflow:hidden'>" +
       "<div style='height:100%;width:"+pct+"%;background:"+barColour+";border-radius:3px;transition:width .3s'></div>" +
-    "</div>" +
+    "</div>" : "") +
     "<div style='display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:#B8805A'>" +
       MEAL_TYPES.map(function(m,i){
         var mCal = entries.filter(function(e){ return e.meal===i; }).reduce(function(s,e){ return s+(e.cal||0);},0);
@@ -14184,13 +14200,14 @@ function renderFoodView() {
   // Daily note
   var noteEl = document.getElementById("foodDailyNote");
   var dayNotes = storeGet("fl4_food_notes") || {};
-  noteEl.value = dayNotes[foodDate] || "";
+  noteEl.value = dayNotes[foodNoteKey(foodDate)] || "";
   if (!noteEl._wired) {
     noteEl._wired = true;
     noteEl.addEventListener("blur", function() {
       var dayNotes2 = storeGet("fl4_food_notes") || {};
-      if (noteEl.value.trim()) dayNotes2[foodDate] = noteEl.value.trim();
-      else delete dayNotes2[foodDate];
+      var key = foodNoteKey(foodDate);
+      if (noteEl.value.trim()) dayNotes2[key] = noteEl.value.trim();
+      else delete dayNotes2[key];
       storeSet("fl4_food_notes", dayNotes2);
       pushPersonal();
     });
@@ -14199,6 +14216,8 @@ function renderFoodView() {
   // Saved meals chips
   var savedMeals = storeGet("fl4_saved_meals") || [];
   var smRow = document.getElementById("savedMealsRow");
+  smRow.style.display = trackPerson() === "daughter" ? "none" : "flex";
+  document.getElementById("saveMealBtn").style.display = trackPerson() === "daughter" ? "none" : "";
   if (savedMeals.length) {
     smRow.innerHTML = savedMeals.map(function(m, i) {
       return "<button class='food-saved-chip' data-midx='" + esc(i) + "' style='padding:5px 10px;background:#F5E8D8;border:1.5px solid #C4A07A;border-radius:16px;color:#7A3A05;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;white-space:nowrap;flex-shrink:0'>" +
@@ -14215,7 +14234,7 @@ function renderFoodView() {
       if (!meal) return;
       var entries2 = getFoodLog();
       meal.items.forEach(function(it) {
-        entries2.push({ id:nextFoodId(), date:foodDate, meal:currentFoodMeal, text:it.text, cal:it.cal, calAuto:it.calAuto });  // v461: was Date.now()+Math.random()
+        entries2.push({ id:nextFoodId(), date:foodDate, meal:currentFoodMeal, text:it.text, cal:it.cal, calAuto:it.calAuto, person:trackPerson() });  // v461: was Date.now()+Math.random()
       });
       saveFoodLog(entries2);
       renderFoodView();
@@ -14274,18 +14293,19 @@ document.getElementById("foodAddBtn").addEventListener("click", function() {
   var text = document.getElementById("foodItemInput").value.trim();
   if (!text) { toast("Enter what you ate"); return; }
   var manualCal = parseInt(document.getElementById("foodCalInput").value);
-  var autoCal   = estimateCals(text);
+  // The estimator uses adult portions; a toddler entry needs an explicit amount.
+  var autoCal   = trackPerson() === "daughter" ? 0 : estimateCals(text);
   var cal = manualCal || autoCal || 0;
   var calAuto = !manualCal && !!autoCal;
 
   var entries = getFoodLog();
-  entries.push({ id:nextFoodId(), date:foodDate, meal:currentFoodMeal, text:text, cal:cal, calAuto:calAuto });
+  entries.push({ id:nextFoodId(), date:foodDate, meal:currentFoodMeal, text:text, cal:cal, calAuto:calAuto, person:trackPerson() });
   saveFoodLog(entries);
 
   document.getElementById("foodItemInput").value = "";
   document.getElementById("foodCalInput").value  = "";
   document.getElementById("foodCalEst").textContent = "";
-  document.getElementById("foodCalInput").placeholder = "kcal (auto-estimated)";
+  document.getElementById("foodCalInput").placeholder = trackPerson() === "daughter" ? "kcal (optional)" : "kcal (auto-estimated)";
   hideFoodSuggest();
   renderFoodView();
   toast("&#x1F373; Logged: " + text + (cal ? " (~" + cal + " kcal)" : ""));
@@ -14293,6 +14313,7 @@ document.getElementById("foodAddBtn").addEventListener("click", function() {
 
 // Goal setting — tap summary
 document.getElementById("foodDaySummary").addEventListener("click", function() {
+  if (trackPerson() !== "me") return;
   var ov = document.createElement("div");
   ov.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.55);z-index:700;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box";
   var box = document.createElement("div");
@@ -14322,7 +14343,7 @@ document.getElementById("foodDaySummary").addEventListener("click", function() {
 // Save as meal
 document.getElementById("saveMealBtn").addEventListener("click", function() {
   if (btnBusy(this)) return;
-  var entries = getFoodLog().filter(function(e){ return e.date === foodDate; });
+  var entries = getFoodLog().filter(function(e){ return e.date === foodDate && trackPersonOf(e) === trackPerson(); });
   if (!entries.length) { toast("No entries today to save as a meal"); return; }
 
   // prompt() is blocked in sandboxed iframes — use a custom overlay instead
@@ -14502,6 +14523,13 @@ function openSavedMealsManager() {
 // divs keep their pre-v339 ids (see the trackSection markup comment).
 // ============================================================
 var currentTrackView = "log";
+// Missing person on older records means Me. The picker is deliberately session-only.
+function trackPersonOf(entry) { return entry && (entry.person === "wife" || entry.person === "daughter") ? entry.person : "me"; }
+function trackPerson() { return document.getElementById("trackPerson").value; }
+document.getElementById("trackPerson").addEventListener("change", function() {
+  if (currentTrackView === "food") foodMealPicked = false;
+  renderTrackView();
+});
 var TRACK_VIEWS = {
   log:      { div: "notesLogView",      render: function(){ renderLogView();      } },
   medicine: { div: "notesMedicineView", render: function(){ renderTrackMedicine(); } },
@@ -15044,8 +15072,8 @@ function importBackupData(data) {
     // v352: bodyweight/bp were dropped on restore (fix-queue batch A, finding 1).
     // Additive union, keep-local on a same-date/same-ts collision (Cathal's call,
     // consistent with the rest of this function being additive-only).
-    var bwIdx={}; (data.workouts.bodyweight||[]).forEach(function(e){if(e&&e.date)bwIdx[e.date]=e;});
-    (wd.bodyweight||[]).forEach(function(e){if(e&&e.date)bwIdx[e.date]=e;});
+    var bwIdx={}; (data.workouts.bodyweight||[]).forEach(function(e){if(e&&e.date)bwIdx[trackPersonOf(e)+":"+e.date]=e;});
+    (wd.bodyweight||[]).forEach(function(e){if(e&&e.date)bwIdx[trackPersonOf(e)+":"+e.date]=e;});
     wd.bodyweight=Object.values(bwIdx).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
     var bpIdx={}; (data.workouts.bp||[]).forEach(function(e){if(e&&e.ts)bpIdx[e.ts]=e;});
     (wd.bp||[]).forEach(function(e){if(e&&e.ts)bpIdx[e.ts]=e;});
@@ -16192,8 +16220,8 @@ function applyPersonal(d) {
     localWkts.forEach(function(w){  if(w) wIdx[w.id] = w; });
     // Merge bodyweight by date (union — never lose a local entry)
     var bwIdx = {};
-    (Array.isArray(remoteWD.bodyweight) ? remoteWD.bodyweight : []).forEach(function(e){ if(e && e.date) bwIdx[e.date] = e; });
-    (Array.isArray(localWD.bodyweight)  ? localWD.bodyweight  : []).forEach(function(e){ if(e && e.date) bwIdx[e.date] = e; });
+    (Array.isArray(remoteWD.bodyweight) ? remoteWD.bodyweight : []).forEach(function(e){ if(e && e.date) bwIdx[trackPersonOf(e)+":"+e.date] = e; });
+    (Array.isArray(localWD.bodyweight)  ? localWD.bodyweight  : []).forEach(function(e){ if(e && e.date) bwIdx[trackPersonOf(e)+":"+e.date] = e; });
     // Merge blood pressure by date+time (union)
     var bpIdx = {};
     (Array.isArray(remoteWD.bp) ? remoteWD.bp : []).forEach(function(e){ if(e && e.ts) bpIdx[e.ts] = e; });
@@ -16878,6 +16906,8 @@ function renderFamlog() {
 function switchSection(section) {
   // Notes lives inside Lists since v318 — map legacy deep-links to the sub-tab.
   if (section === "notes") { currentList = "notes"; section = "lists"; }
+  // The first test-build navigation can run before currentSection exists.
+  var wasTrack = typeof currentSection !== "undefined" && currentSection === "track";
   currentSection = section;
   stopHomeClock();
 
@@ -16995,6 +17025,7 @@ function switchSection(section) {
     document.getElementById("hdrBadge").style.display = "none";
     renderTrips();
   } else if (section === "track") {
+    if (!wasTrack) document.getElementById("trackPerson").value = "me";
     document.getElementById("themeColor").setAttribute("content", "#A05A10");
     document.getElementById("appTitle").innerHTML = "&#x1F4C8; Track";
     document.getElementById("hdrBadge").style.display = "none";
@@ -18097,7 +18128,7 @@ function getNotes(lt) {
 
 // ── Calorie estimate for training sessions ────────────────
 function latestBodyweightKg() {
-  var bw = (getWD().bodyweight||[]);
+  var bw = (getWD().bodyweight||[]).filter(function(e){ return trackPersonOf(e) === "me"; });
   return bw.length ? (bw[0].weight || 70) : 70;
 }
 function estimateSessionKcal(met, minutes) {
@@ -18896,7 +18927,7 @@ function stopHomeClock() {
 // Returns null when nothing is logged today - the card hides on null.
 function homeCalState() {
   var today = trainTodayStr();
-  if (!getFoodLog().some(function(e){ return e && e.date === today; })) return null;
+  if (!getFoodLog().some(function(e){ return e && e.date === today && trackPersonOf(e) === "me"; })) return null;
   var eaten = tdeeIntakeToday();
   var goal  = +storeGet("fl4_cal_goal") || 2000;
   var mins  = (function(){ var d = new Date(); return d.getHours()*60 + d.getMinutes(); })();
@@ -21348,7 +21379,7 @@ function profileComplete(p) {
 // latestBodyweightKg(), whose 70 kg default is right for a cardio estimate
 // and wrong here — a TDEE built on a guessed weight looks authoritative.
 function tdeeCurrentKg() {
-  var bw = (getWD().bodyweight || []).filter(function(e){ return e && e.date && +e.weight > 0; })
+  var bw = (getWD().bodyweight || []).filter(function(e){ return e && e.date && +e.weight > 0 && trackPersonOf(e) === "me"; })
     .slice().sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); });
   return bw.length ? +bw[0].weight : 0;
 }
@@ -21388,7 +21419,7 @@ function measuredTDEE() {
   var today  = tdeeDayNum(trainTodayStr());
   var cutoff = today - TDEE_WINDOW_DAYS;
   var pts = (getWD().bodyweight || [])
-    .filter(function(e){ return e && e.date && +e.weight > 0; })
+    .filter(function(e){ return e && e.date && +e.weight > 0 && trackPersonOf(e) === "me"; })
     .map(function(e){ return { x: tdeeDayNum(e.date), y: +e.weight }; })
     // >= cutoff, not >: a reading taken exactly TDEE_WINDOW_DAYS ago is the
     // oldest one the window is meant to cover, and dropping it shortened
@@ -21405,7 +21436,7 @@ function measuredTDEE() {
   // logged days only, and the whole run is refused if too many are missing.
   var byDate = {};
   getFoodLog().forEach(function(e){
-    if (!e || !e.date) return;
+    if (!e || !e.date || trackPersonOf(e) !== "me") return;
     var x = tdeeDayNum(e.date);
     if (x === null || x < first || x > last) return;
     byDate[e.date] = (byDate[e.date] || 0) + (+e.cal || 0);
@@ -21496,7 +21527,7 @@ function tdeeTrainingToday() {
 }
 function tdeeIntakeToday() {
   var today = trainTodayStr();
-  return getFoodLog().reduce(function(s,e){ return s + (e && e.date === today ? (+e.cal || 0) : 0); }, 0);
+  return getFoodLog().reduce(function(s,e){ return s + (e && e.date === today && trackPersonOf(e) === "me" ? (+e.cal || 0) : 0); }, 0);
 }
 
 function tdeeSourceLine(t) {
@@ -21710,8 +21741,8 @@ document.getElementById("bwLogBtn").addEventListener("click", function() {
   var data=getWD(), today=trainTodayStr();
   data.bodyweight=data.bodyweight||[];
   var found=false;
-  for (var i=0;i<data.bodyweight.length;i++) { if (data.bodyweight[i].date===today) { data.bodyweight[i].weight=val; found=true; break; } }
-  if (!found) data.bodyweight.unshift({date:today,weight:val});
+  for (var i=0;i<data.bodyweight.length;i++) { if (data.bodyweight[i].date===today && trackPersonOf(data.bodyweight[i])===trackPerson()) { data.bodyweight[i].weight=val; found=true; break; } }
+  if (!found) data.bodyweight.unshift({date:today,weight:val,person:trackPerson()});
   data.bodyweight.sort(function(a,b){ return b.date.localeCompare(a.date); });
   saveWD(data);
   document.getElementById("bwInput").value="";
@@ -21726,7 +21757,7 @@ document.getElementById("bpLogBtn").addEventListener("click", function() {
   if (!dia || dia<40 || dia>150)  { toast("Enter a valid diastolic (40–150)"); return; }
   var data = getWD();
   data.bp = data.bp || [];
-  data.bp.unshift({ ts: Date.now(), date: trainTodayStr(), sys: sys, dia: dia, pulse: (pulse||null) });
+  data.bp.unshift({ ts: Date.now(), date: trainTodayStr(), sys: sys, dia: dia, pulse: (pulse||null), person:trackPerson() });
   data.bp.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
   saveWD(data);
   document.getElementById("bpSys").value="";
@@ -21737,8 +21768,9 @@ document.getElementById("bpLogBtn").addEventListener("click", function() {
 });
 
 function renderBodyView() {
-  renderTdeeCard();
-  var data=getWD(), bw=(data.bodyweight||[]).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  if (trackPerson() === "me") renderTdeeCard();
+  else document.getElementById("tdeeCard").innerHTML = "";
+  var data=getWD(), bw=(data.bodyweight||[]).filter(function(e){ return trackPersonOf(e) === trackPerson(); }).slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
   var bwChartEl=document.getElementById("bwChart");
   if (bwChartEl) bwChartEl.innerHTML = bwChartHtml(bw.slice().reverse());
   var el=document.getElementById("bwHistory");
@@ -21760,14 +21792,14 @@ function renderBodyView() {
     el.querySelectorAll(".bw-entry-del").forEach(function(btn) {
       btn.addEventListener("click",function(){
         confirmDialog("Delete this weight entry?", function(){
-          var data=getWD(); data.bodyweight=(data.bodyweight||[]).filter(function(e){return e.date!==btn.dataset.date;}); saveWD(data); pushPersonal(); renderBodyView();
+          var data=getWD(); data.bodyweight=(data.bodyweight||[]).filter(function(e){return e.date!==btn.dataset.date || trackPersonOf(e)!==trackPerson();}); saveWD(data); pushPersonal(); renderBodyView();
         });
       });
     });
   }
   var bpEl = document.getElementById("bpHistory");
   if (bpEl) {
-    var bp = (data.bp||[]).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    var bp = (data.bp||[]).filter(function(e){ return trackPersonOf(e) === trackPerson(); }).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
     var bpChartEl=document.getElementById("bpChart");
     if (bpChartEl) bpChartEl.innerHTML = bpChartHtml(bp.slice().reverse());
     if (!bp.length) {
@@ -21786,7 +21818,7 @@ function renderBodyView() {
       bpEl.querySelectorAll(".bw-entry-del").forEach(function(btn) {
         btn.addEventListener("click",function(){
           confirmDialog("Delete this blood pressure reading?", function(){
-            var data=getWD(); data.bp=(data.bp||[]).filter(function(e){return String(e.ts)!==btn.dataset.bpts;}); saveWD(data); pushPersonal(); renderBodyView();
+            var data=getWD(); data.bp=(data.bp||[]).filter(function(e){return String(e.ts)!==btn.dataset.bpts || trackPersonOf(e)!==trackPerson();}); saveWD(data); pushPersonal(); renderBodyView();
           });
         });
       });
@@ -21809,8 +21841,12 @@ function renderBodyView() {
         var newDate = picker.querySelector("input").value;
         if (!newDate) return;
         var data = getWD();
-        var e = (data.bodyweight||[]).find(function(x){ return x.date === oldDate; });
-        if (e) { e.date = newDate; data.bodyweight.sort(function(a,b){ return b.date.localeCompare(a.date); }); saveWD(data); pushPersonal(); }
+        var e = (data.bodyweight||[]).find(function(x){ return x.date === oldDate && trackPersonOf(x) === trackPerson(); });
+        if (e) {
+          var conflict = (data.bodyweight||[]).some(function(x){ return x !== e && x.date === newDate && trackPersonOf(x) === trackPerson(); });
+          if (conflict) { toast("A weight is already logged for that day"); return; }
+          e.date = newDate; data.bodyweight.sort(function(a,b){ return b.date.localeCompare(a.date); }); saveWD(data); pushPersonal();
+        }
         renderBodyView();
       });
       picker.querySelector("._bwCancel").addEventListener("click", function(){ picker.remove(); });
@@ -21834,7 +21870,7 @@ function renderBodyView() {
         var newTs = val ? new Date(val).getTime() : ts;
         if (!isNaN(newTs)) {
           var data = getWD();
-          var e = (data.bp||[]).find(function(x){ return x.ts === ts; });
+          var e = (data.bp||[]).find(function(x){ return x.ts === ts && trackPersonOf(x) === trackPerson(); });
           if (e) { e.ts = newTs; e.date = localDatetimeValue(newTs).slice(0,10); data.bp.sort(function(a,b){ return (b.ts||0)-(a.ts||0); }); saveWD(data); pushPersonal(); }
         }
         renderBodyView();
@@ -23589,7 +23625,10 @@ function buildTestSeed() {
       bodyweight:[
         { date:_tsDay(-1),  weight:82.4 },
         { date:_tsDay(-8),  weight:83.1 },
-        { date:_tsDay(-15), weight:83.6 }
+        { date:_tsDay(-15), weight:83.6 },
+        // v486: same day as Me's first entry on purpose -- bodyweight merges by person+date.
+        { date:_tsDay(-1),  weight:64.2, person:"wife" },
+        { date:_tsDay(-8),  weight:64.8, person:"wife" }
       ],
       bp:[
         { ts:_tsTs(-1, 8, 0),  date:_tsDay(-1),  sys:124, dia:78, pulse:62 },
@@ -23603,11 +23642,16 @@ function buildTestSeed() {
     }, test:"", logged:{} },
     action_log:[
       { id:_tsId(), text:"Demo: put the bins out", ts:_tsTs(-1, 19, 0) },
-      { id:_tsId(), text:"Demo: booked the dentist", ts:_tsTs(-4, 11, 0) }
+      { id:_tsId(), text:"Demo: booked the dentist", ts:_tsTs(-4, 11, 0) },
+      { id:_tsId(), text:"Demo: yoga class", ts:_tsTs(-2, 18, 30), person:"wife" },
+      { id:_tsId(), text:"Demo: first swim lesson", ts:_tsTs(-3, 10, 0), person:"daughter" }
     ],
     track_med:[
       { id:_tsId(), name:"Demo vitamin D", dose:"1 tablet", notes:"", ts:_tsTs(0, 8, 0), updated:_tsTs(0, 8, 0) },
-      { id:_tsId(), name:"Demo antihistamine", dose:"10 mg", notes:"Hay fever.", ts:_tsTs(-1, 8, 0), updated:_tsTs(-1, 8, 0) }
+      { id:_tsId(), name:"Demo antihistamine", dose:"10 mg", notes:"Hay fever.", ts:_tsTs(-1, 8, 0), updated:_tsTs(-1, 8, 0) },
+      { id:_tsId(), name:"Demo iron supplement", dose:"1 tablet", notes:"", ts:_tsTs(0, 9, 0), updated:_tsTs(0, 9, 0), person:"wife" },
+      // Not Calpol/Nurofen on purpose: those belong in Baby -> Medicine (see trkMedBabyNote).
+      { id:_tsId(), name:"Demo teething gel", dose:"pea-sized", notes:"", ts:_tsTs(-1, 20, 0), updated:_tsTs(-1, 20, 0), person:"daughter" }
     ],
     food_log:[
       // meal is an INDEX into MEAL_TYPES (0 Breakfast, 1 Lunch, 2 Dinner, 3 Snack),
@@ -23615,7 +23659,9 @@ function buildTestSeed() {
       // 770 kcal of demo food into the day's total under no meal heading.
       { id:_tsId(), date:_tsDay(0),  meal:0, text:"Porridge and banana", cal:320, calAuto:true },
       { id:_tsId(), date:_tsDay(0),  meal:1, text:"Chicken sandwich",    cal:450, calAuto:true },
-      { id:_tsId(), date:_tsDay(-1), meal:2, text:"Pasta bake",          cal:680, calAuto:false }
+      { id:_tsId(), date:_tsDay(-1), meal:2, text:"Pasta bake",          cal:680, calAuto:false },
+      { id:_tsId(), date:_tsDay(0),  meal:0, text:"Yoghurt and granola", cal:310, calAuto:false, person:"wife" },
+      { id:_tsId(), date:_tsDay(0),  meal:0, text:"Toast soldiers",      cal:0,   calAuto:false, person:"daughter" }
     ],
     food_notes:{},
     saved_meals:[
