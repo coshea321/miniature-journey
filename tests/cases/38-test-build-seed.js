@@ -218,11 +218,18 @@ module.exports = {
         getAppliances().some(function(a){ return !!appliancePhotosUrl(a); }),
         'got: ' + JSON.stringify(getAppliances().map(function(a){ return [a.receipt, a.photos]; })));
       ok('workouts, bodyweight and blood pressure land',
-        getWD().workouts.length === 2 && getWD().bodyweight.length === 3 && getWD().bp.length === 2,
+        getWD().workouts.length === 2 && getWD().bodyweight.length === 5 && getWD().bp.length === 2,
         'got: ' + [getWD().workouts.length, getWD().bodyweight.length, (getWD().bp||[]).length].join('/'));
       ok('the family log and health trackers land',
-        getActionLog().length === 2 && getTrackMed().length === 2 && getFoodLog().length === 3,
+        getActionLog().length === 4 && getTrackMed().length === 4 && getFoodLog().length === 5,
         'got: ' + [getActionLog().length, getTrackMed().length, getFoodLog().length].join('/'));
+      // v486: the seed puts Me's and My wife's weights on the same day. Bodyweight
+      // merges by person + date, so both must survive the seed's import.
+      ok('same-day weights for two people both survive the import merge',
+        (function(){
+          var bw = getWD().bodyweight, d = (bw.find(function(e){ return e.person === 'wife'; })||{}).date;
+          return !!d && bw.filter(function(e){ return e.date === d; }).length === 2;
+        })(), 'got: ' + JSON.stringify(getWD().bodyweight));
       ok('notes land on both the list tabs and the global tabs',
         getNotes('grocery').length === 1 && (storeGet('fl4_notes_global')||[]).length === 2 &&
         (storeGet('fl4_notes_global_work')||[]).length === 1,
