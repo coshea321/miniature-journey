@@ -261,10 +261,10 @@ body.home-mode .bn-btn{color:#736856}
 .today-card-train .tc-count{color:#2A5AB0}
 .tc-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .today-card-life .tc-label{color:#4E7040}
-.today-card-train .tc-label{color:#4F6FA8}
+.today-card-train .tc-label{color:#3F5F98}
 .tc-sub{font-size:12px;line-height:1.5}
 .today-card-life .tc-sub{color:#3A7A48}
-.today-card-train .tc-sub{color:#3B6FE0}
+.today-card-train .tc-sub{color:#2F5FC0}
 
 /* Quick-add buttons */
 .home-quick-row{display:flex;gap:7px;margin-bottom:16px}
@@ -470,7 +470,7 @@ body.train-mode .bottom-nav{background:#fff;border-top-color:#E0DCD4}
 body.train-mode #toast{background:#3A3328}
 
 .train-subnav{display:flex;gap:4px;padding:5px 5px 4px;background:#3565C8;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-.tsn-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:rgba(255,255,255,.85);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .18s}
+.tsn-btn{flex:1;padding:9px 4px;border:none;border-radius:7px;font-family:inherit;font-size:13px;font-weight:700;color:rgba(255,255,255,.92);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .18s}
 .tsn-btn.active{color:#fff;background:rgba(255,255,255,.22)}
 
 .train-content{padding:13px 13px 100px}
@@ -1030,7 +1030,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v489 · 29/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v490 · 29/09/2026</div>
 
   </div>
 </div>
@@ -22502,13 +22502,13 @@ function chartDots(points, xOf, yOf, color) {
 function chartEndLabel(x, y, yTop, yBottom, text) {
   var ly = Math.max(yTop + 8, Math.min(yBottom - 3, y + 3.5));
   return "<text x='" + (x + 7).toFixed(1) + "' y='" + ly.toFixed(1) +
-    "' font-size='10' font-weight='700' fill='#3D4035'>" + text + "</text>";
+    "' font-size='11' font-weight='700' fill='#3D4035'>" + text + "</text>";
 }
 function chartDateLabels(W, H, padL, padR, minT, maxT) {
   var firstLabel = esc(new Date(minT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
   var lastLabel = esc(new Date(maxT).toLocaleDateString("en-IE",{day:"numeric",month:"short"}));
-  return "<text x='" + padL + "' y='" + (H-4) + "' font-size='9' fill='#8A8578'>" + firstLabel + "</text>" +
-    "<text x='" + (W-padR) + "' y='" + (H-4) + "' font-size='9' fill='#8A8578' text-anchor='end'>" + lastLabel + "</text>";
+  return "<text x='" + padL + "' y='" + (H-4) + "' font-size='11' fill='#8A8578'>" + firstLabel + "</text>" +
+    "<text x='" + (W-padR) + "' y='" + (H-4) + "' font-size='11' fill='#8A8578' text-anchor='end'>" + lastLabel + "</text>";
 }
 // 2–4 "nice" round tick values strictly inside [minV, maxV].
 function chartTicks(minV, maxV) {
@@ -22540,7 +22540,7 @@ function centileOrdinal(n) {
 // marks the typical range, with a dashed 50th-centile (median) reference
 // line; the 15/50/85 values double as the y-axis labels.
 function growthCentileChartSvg(points, color) {
-  var W=300, H=140, padL=30, padR=36, padT=12, padB=20;
+  var W=300, H=140, padL=30, padR=42, padT=12, padB=20;
   var plotW=W-padL-padR, plotH=H-padT-padB;
   var minT=points[0].t, maxT=points[points.length-1].t;
   var vals = points.map(function(p){ return p.v; }).concat([15, 85]);
@@ -22552,7 +22552,7 @@ function growthCentileChartSvg(points, color) {
   var band = "<rect x='"+padL+"' y='"+yOf(85).toFixed(1)+"' width='"+plotW+"' height='"+(yOf(15)-yOf(85)).toFixed(1)+"' fill='#EBF5E4'/>";
   var medianLine = "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(50).toFixed(1)+"' y2='"+yOf(50).toFixed(1)+"' stroke='#C4BCAE' stroke-width='1' stroke-dasharray='4,3'/>";
   var refLabels = [15, 50, 85].map(function(v){
-    return "<text x='"+(padL-5)+"' y='"+(yOf(v)+3).toFixed(1)+"' font-size='9' fill='#8A8578' text-anchor='end'>"+v+"</text>";
+    return "<text x='"+(padL-5)+"' y='"+(yOf(v)+3).toFixed(1)+"' font-size='11' fill='#8A8578' text-anchor='end'>"+v+"</text>";
   }).join("");
   var linePts = points.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.v).toFixed(1); }).join(" ");
   var lastP = points[points.length-1];
@@ -22570,7 +22570,7 @@ function growthCentileChartSvg(points, color) {
 // growthCentileChartSvg; no band/median since there's no "normal range" for
 // bodyweight, so it gets round-number gridlines and a soft area wash instead.
 function bodyweightChartSvg(points, color) {
-  var W=300, H=140, padL=34, padR=46, padT=12, padB=20;
+  var W=300, H=140, padL=34, padR=54, padT=12, padB=20;
   var plotW=W-padL-padR, plotH=H-padT-padB;
   var minT=points[0].t, maxT=points[points.length-1].t;
   var vals = points.map(function(p){ return p.v; });
@@ -22582,7 +22582,7 @@ function bodyweightChartSvg(points, color) {
     var y = yOf(v).toFixed(1);
     var lbl = (v % 1 === 0) ? String(v) : v.toFixed(1);
     return "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+y+"' y2='"+y+"' stroke='#EFE9DC' stroke-width='1'/>" +
-      "<text x='"+(padL-5)+"' y='"+(yOf(v)+3).toFixed(1)+"' font-size='9' fill='#8A8578' text-anchor='end'>"+lbl+"</text>";
+      "<text x='"+(padL-5)+"' y='"+(yOf(v)+3).toFixed(1)+"' font-size='11' fill='#8A8578' text-anchor='end'>"+lbl+"</text>";
   }).join("");
   var linePts = points.map(function(p){ return xOf(p.t).toFixed(1)+","+yOf(p.v).toFixed(1); }).join(" ");
   var yBottom = (padT+plotH).toFixed(1);
@@ -22610,7 +22610,7 @@ function bwChartHtml(bwAsc) {
 // amber 130-139, else green); dashed reference lines mark the diastolic
 // thresholds (90/80) since one y-axis can't band both readings at once.
 function bpChartSvg(points, sysColor, diaColor) {
-  var W=300, H=140, padL=30, padR=30, padT=12, padB=20;
+  var W=300, H=140, padL=30, padR=36, padT=12, padB=20;
   var plotW=W-padL-padR, plotH=H-padT-padB;
   var minT=points[0].t, maxT=points[points.length-1].t;
   var vals = [];
@@ -22629,7 +22629,7 @@ function bpChartSvg(points, sysColor, diaColor) {
   var diaLines = "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(90).toFixed(1)+"' y2='"+yOf(90).toFixed(1)+"' stroke='#C4BCAE' stroke-width='1' stroke-dasharray='3,3'/>" +
     "<line x1='"+padL+"' x2='"+(W-padR)+"' y1='"+yOf(80).toFixed(1)+"' y2='"+yOf(80).toFixed(1)+"' stroke='#C4BCAE' stroke-width='1' stroke-dasharray='3,3'/>";
   var refLabels = [80, 90, 130, 140].map(function(v){
-    return "<text x='"+(padL-5)+"' y='"+(yOf(v)+3).toFixed(1)+"' font-size='9' fill='#8A8578' text-anchor='end'>"+v+"</text>";
+    return "<text x='"+(padL-5)+"' y='"+(yOf(v)+3).toFixed(1)+"' font-size='11' fill='#8A8578' text-anchor='end'>"+v+"</text>";
   }).join("");
   var sysSeries = points.map(function(p){ return { t: p.t, v: p.sys }; });
   var diaSeries = points.map(function(p){ return { t: p.t, v: p.dia }; });
