@@ -20,6 +20,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-seri
 header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;transition:background .25s}
 .app-title{font-family:Georgia,serif;font-size:20px;font-weight:600;color:#F4EEE4;flex:1}
 .hdr-badge{background:rgba(255,255,255,.25);color:#fff;border-radius:20px;padding:2px 9px;font-size:12px;font-weight:700;display:none}
+.app-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr-act{display:none;align-items:center;gap:8px;flex-shrink:0}
+.hdr-btn.hdr-add{font-size:26px;font-weight:600;line-height:1}
+.hdr-btn.hdr-more{font-size:20px;font-weight:700}
+.hdr-person{display:flex;align-items:center;gap:2px;height:42px;padding:0 4px 0 10px;border-radius:8px;background:rgba(255,255,255,.18);color:#fff;font-size:15px;cursor:pointer}
+.hdr-person select{border:none;background:transparent;color:#fff;font:inherit;font-weight:700;padding:8px 2px;max-width:120px;cursor:pointer}
+.hdr-person select option{color:#2A2010}
+.sec-tools{display:none}
+body[data-sec=recipes] header{background:#B5651D}
+body[data-sec=trips] header{background:#0F8A8A}
+body[data-sec=plants] header{background:#2E7D4F}
+body[data-sec=watch] header{background:#4A3F7A}
+body[data-sec=appliances] header{background:#3E5C6B}
+body[data-sec=health] header{background:#2F6E6E}
+body[data-sec=recipes] #hdrUser,body[data-sec=trips] #hdrUser,body[data-sec=plants] #hdrUser,body[data-sec=watch] #hdrUser,body[data-sec=appliances] #hdrUser,body[data-sec=health] #hdrUser,body[data-sec=track] #hdrUser{display:none}
 .hdr-btn{width:42px;height:42px;border:none;background:rgba(255,255,255,.18);color:#fff;border-radius:8px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 /* v487: sync status as a dot — CSS color never tints the 🔁 emoji, so the old green was invisible */
 #syncBtn{position:relative}
@@ -876,9 +891,28 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
   <div class="app-title" id="appTitle">🔥 Hearth</div>
   <div class="hdr-badge" id="hdrBadge"></div>
   <span id="hdrUser" style="font-size:11px;color:rgba(255,255,255,.55);font-weight:600;letter-spacing:.3px;white-space:nowrap;overflow:hidden;max-width:80px;text-overflow:ellipsis"></span>
+  <!-- v496: each section's actions live in the header (was a coloured bar under it). switchSection shows the matching .hdr-act. -->
+  <div class="hdr-act" data-sec="recipes"><button class="hdr-btn hdr-add" id="recipeNewBtn" aria-label="New recipe" title="New recipe">+</button><button class="hdr-btn hdr-more" data-tools="recipes" aria-label="More recipe actions" title="More">&#x22EF;</button></div>
+  <div class="hdr-act" data-sec="trips"><button class="hdr-btn hdr-add" id="tripNewBtn" aria-label="New trip" title="New trip">+</button><button class="hdr-btn hdr-more" data-tools="trips" aria-label="More trip actions" title="More">&#x22EF;</button></div>
+  <div class="hdr-act" data-sec="plants"><button class="hdr-btn hdr-add" id="plantNewBtn" aria-label="New plant" title="New plant">+</button><button class="hdr-btn hdr-more" data-tools="plants" aria-label="More plant actions" title="More">&#x22EF;</button></div>
+  <div class="hdr-act" data-sec="watch"><button class="hdr-btn hdr-add" id="watchNewBtn" aria-label="Add to watchlist" title="Add to watchlist">+</button><button class="hdr-btn hdr-more" data-tools="watch" aria-label="More watchlist actions" title="More">&#x22EF;</button></div>
+  <div class="hdr-act" data-sec="appliances"><button class="hdr-btn hdr-add" id="applNewBtn" aria-label="New inventory item" title="New inventory item">+</button></div>
+  <div class="hdr-act" data-sec="health"><button class="hdr-btn hdr-add" id="hlNewBtn" aria-label="New medical record" title="New medical record">+</button></div>
+  <div class="hdr-act" data-sec="track"><label class="hdr-person">&#x1F464;<select id="trackPerson" aria-label="Recording for"><option value="me">Me</option><option value="wife">My wife</option><option value="daughter">My daughter</option></select></label></div>
   <button class="hdr-btn" id="syncBtn" title="Sync" aria-label="Open sync settings">&#128257;<span class="sync-dot" id="syncDot"></span></button>
   <button class="hdr-btn" id="settingsBtn" title="Settings" aria-label="Open app settings">&#9881;&#65039;</button>
 </header>
+<!-- v496: the section header's ⋯ opens this sheet; each group holds the rarely used buttons that used to sit in the section's action bar (same ids and handlers). -->
+<div class="overlay" id="secToolsOverlay">
+  <div class="modal-box" style="position:relative">
+    <button class="modal-close" id="secToolsClose" aria-label="Close">&#x2715;</button>
+    <div class="modal-title">More</div>
+    <div class="sec-tools" data-sec="recipes"><button id="recipeImportBtn" class="more-row"><span class="more-ico">&#x2B07;</span><span class="more-name">Import a recipe</span></button></div>
+    <div class="sec-tools" data-sec="trips"><button id="tripPackingBtn" class="more-row"><span class="more-ico">&#x2708;&#xFE0F;</span><span class="more-name">Packing list</span></button><button id="tripImportBtn" class="more-row"><span class="more-ico">&#x1F4E5;</span><span class="more-name">Import a trip</span></button></div>
+    <div class="sec-tools" data-sec="plants"><button id="plantImportBtn" class="more-row"><span class="more-ico">&#x1F4E5;</span><span class="more-name">Import a plant</span></button></div>
+    <div class="sec-tools" data-sec="watch"><button id="watchRandomBtn" class="more-row"><span class="more-ico">&#x1F3B2;</span><span class="more-name">Pick something at random</span></button></div>
+  </div>
+</div>
 
 <div id="staleDataBanner" role="alert" aria-live="assertive" style="display:none;background:#7a2a10;color:#ffd0a0;padding:9px 14px;font-size:13px;font-weight:600;text-align:center;line-height:1.4;cursor:pointer">
   &#x26A0;&#xFE0F; Showing offline data — sync needs re-login. Tap to fix.
@@ -1029,7 +1063,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v495 · 29/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v496 · 29/09/2026</div>
 
   </div>
 </div>
@@ -1199,12 +1233,6 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
      container ids keep their pre-v339 names -- renderers target them by id.
      ============================================================ -->
 <div id="trackSection" style="display:none">
-  <div style="padding:8px 12px;background:#FFF8EE;display:flex;align-items:center;gap:8px">
-    <label for="trackPerson" style="font-size:13px;font-weight:700;color:#7A4A18">Recording for</label>
-    <select id="trackPerson" style="flex:1;padding:9px;border:1.5px solid #C4A07A;border-radius:8px;background:#fff;font:inherit;color:#2A2010">
-      <option value="me">Me</option><option value="wife">My wife</option><option value="daughter">My daughter</option>
-    </select>
-  </div>
   <div class="train-subnav" id="trackSubNav" style="background:#A05A10">
     <button class="tsn-btn active" data-tview="log">&#x1F4CB; Log</button>
     <button class="tsn-btn" data-tview="medicine">&#x1F48A; Medicine</button>
@@ -1348,10 +1376,6 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
      RECIPES SECTION
      ============================================================ -->
 <div id="recipesSection" style="display:none">
-      <div style="display:flex;gap:4px;padding:8px 10px;background:#B5651D;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Recipe actions">
-    <button id="recipeImportBtn" style="margin-left:auto;border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-right:6px">&#x2B07; Import</button>
-    <button id="recipeNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
-  </div>
   <div style="display:flex;justify-content:flex-end;padding:6px 14px 0">
     <button id="rcpSearchBtn" style="border:none;background:none;color:#A0855A;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#x1F50D; Search</button>
   </div>
@@ -1368,11 +1392,6 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
      TRIPS SECTION
      ============================================================ -->
 <div id="tripsSection" style="display:none">
-      <div style="display:flex;gap:4px;padding:8px 10px;background:#0F8A8A;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Trip actions">
-    <button id="tripPackingBtn" style="margin-left:auto;border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x2708;&#xFE0F; Packing</button>
-    <button id="tripImportBtn" aria-label="Import trip" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F4E5;</button>
-    <button id="tripNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New trip</button>
-  </div>
   <div id="tripsContent" style="padding:14px 14px 100px"></div>
 </div>
 
@@ -1380,18 +1399,10 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
      PLANTS SECTION (v377)
      ============================================================ -->
 <div id="plantsSection" style="display:none">
-  <div style="display:flex;gap:4px;padding:8px 10px;background:#2E7D4F;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Plant actions">
-    <button id="plantImportBtn" aria-label="Import plant" style="margin-left:auto;border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F4E5;</button>
-    <button id="plantNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
-  </div>
   <div id="plantsContent" style="padding:14px 14px 100px"></div>
 </div>
 
 <div id="watchSection" style="display:none">
-  <div style="display:flex;gap:4px;padding:8px 10px;background:#4A3F7A;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Watchlist actions">
-    <button id="watchRandomBtn" aria-label="Pick something to watch at random" style="margin-left:auto;border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:8px;padding:7px 11px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">&#x1F3B2;</button>
-    <button id="watchNewBtn" style="border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ Add</button>
-  </div>
   <div id="watchContent" style="padding:14px 14px 100px"></div>
 </div>
 
@@ -1399,9 +1410,6 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
      HOME INVENTORY SECTION (v424 as Appliances, widened v428)
      ============================================================ -->
 <div id="appliancesSection" style="display:none">
-  <div style="display:flex;gap:4px;padding:8px 10px;background:#3E5C6B;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Inventory actions">
-    <button id="applNewBtn" style="margin-left:auto;border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
-  </div>
   <div id="appliancesContent" style="padding:14px 14px 100px"></div>
 </div>
 
@@ -1409,9 +1417,6 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
      HEALTH SECTION (v449) - the family's medical history
      ============================================================ -->
 <div id="healthSection" style="display:none">
-  <div style="display:flex;gap:4px;padding:8px 10px;background:#2F6E6E;box-shadow:0 2px 10px rgba(0,0,0,.15);align-items:center" aria-label="Medical history actions">
-    <button id="hlNewBtn" style="margin-left:auto;border:none;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New</button>
-  </div>
   <div id="healthContent" style="padding:14px 14px 100px"></div>
 </div>
 
@@ -3868,7 +3873,7 @@ function renderPlants() {
     el.innerHTML = "<div style='text-align:center;color:#7A8A6A;padding:40px 20px'>" +
       "<div style='font-size:40px;margin-bottom:10px'>&#x1FAB4;</div>" +
       "<div style='font-size:16px;font-weight:600;margin-bottom:4px'>No plants yet</div>" +
-      "<div style='font-size:13px'>Tap &ldquo;+ New&rdquo; to add one, or &#x1F4E5; to paste one in from a chat.</div></div>";
+      "<div style='font-size:13px'>Tap + to add one, or &#x22EF; &rarr; Import to paste one in from a chat.</div></div>";
     return;
   }
 
@@ -4999,7 +5004,7 @@ function renderWatchlist() {
     el.innerHTML = "<div style='text-align:center;color:#8A84A0;padding:40px 20px'>" +
       "<div style='font-size:40px;margin-bottom:10px'>&#x1F37F;</div>" +
       "<div style='font-size:16px;font-weight:600;margin-bottom:4px;color:#2A2010'>Nothing on the list yet</div>" +
-      "<div style='font-size:13px'>Tap &ldquo;+ Add&rdquo; to note down a film or a show you want to watch.</div></div>";
+      "<div style='font-size:13px'>Tap + to note down a film or a show you want to watch.</div></div>";
     return;
   }
 
@@ -6549,7 +6554,7 @@ function renderAppliances() {
     el.innerHTML = "<div style='text-align:center;color:#7A8A94;padding:40px 20px'>" +
       "<div style='font-size:40px;margin-bottom:10px'>&#x1F4E6;</div>" +
       "<div style='font-size:16px;font-weight:600;margin-bottom:4px;color:#2A2010'>Nothing saved yet</div>" +
-      "<div style='font-size:13px'>Tap &ldquo;+ New&rdquo; to save something &mdash; what it is and where, its model and serial number, what it would cost to replace, and where the receipt and photos are.</div></div>" +
+      "<div style='font-size:13px'>Tap + to save something &mdash; what it is and where, its model and serial number, what it would cost to replace, and where the receipt and photos are.</div></div>" +
       // The import button belongs in the empty state too: a phone that lost
       // everything is exactly the phone with an inventory file to restore.
       inventoryFileButtonsHTML(false);
@@ -7123,7 +7128,7 @@ function renderTrips() {
 
   var trips = getTrips();
   if (!trips.length) {
-    el.innerHTML = "<div style='text-align:center;color:#8A7A5A;padding:40px 20px'><div style='font-size:40px;margin-bottom:10px'>&#x1F9F3;</div><div style='font-size:16px;font-weight:600;margin-bottom:4px'>No trips yet</div><div style='font-size:13px'>Tap “+ New trip” to plan one.</div></div>";
+    el.innerHTML = "<div style='text-align:center;color:#8A7A5A;padding:40px 20px'><div style='font-size:40px;margin-bottom:10px'>&#x1F9F3;</div><div style='font-size:16px;font-weight:600;margin-bottom:4px'>No trips yet</div><div style='font-size:13px'>Tap + to plan one.</div></div>";
     return;
   }
   var today = todayStr();
@@ -8729,7 +8734,7 @@ function renderRecipes() {
   var el = document.getElementById("recipesContent");
   var rb = getRecipeBook();
   if (!rb.length) {
-    el.innerHTML = "<div style='text-align:center;color:#8A7A5A;padding:40px 20px'><div style='font-size:40px;margin-bottom:10px'>&#x1F37D;</div><div style='font-size:16px;font-weight:600;margin-bottom:4px'>No recipes yet</div><div style='font-size:13px'>Tap “+ New” or “Import”.</div></div>";
+    el.innerHTML = "<div style='text-align:center;color:#8A7A5A;padding:40px 20px'><div style='font-size:40px;margin-bottom:10px'>&#x1F37D;</div><div style='font-size:16px;font-weight:600;margin-bottom:4px'>No recipes yet</div><div style='font-size:13px'>Tap + or &#x22EF; &rarr; Import.</div></div>";
     return;
   }
   // Collect categories in use
@@ -16925,6 +16930,11 @@ function switchSection(section) {
   document.body.classList.toggle("home-mode",  section === "home");
   document.body.classList.toggle("train-mode", section === "train");
   document.body.classList.toggle("baby-mode",  section === "baby");
+  // v496: section colour on the header + that section's header actions.
+  document.body.setAttribute("data-sec", section);
+  Array.prototype.forEach.call(document.querySelectorAll(".hdr-act"), function(el){
+    el.style.display = el.getAttribute("data-sec") === section ? "flex" : "none";
+  });
 
   if (isHouseholdSet() && (section === "home" || section === "lists" || section === "baby") && (Date.now() - lastPushTs > 15000)) {
     fetchHousehold();
@@ -18259,6 +18269,24 @@ document.getElementById("watchNewBtn").addEventListener("click", function(){ ope
 document.getElementById("watchRandomBtn").addEventListener("click", watchRandomPick);
 document.getElementById("hlNewBtn").addEventListener("click", function(){ openHealthEditor(null); });
 document.getElementById("plantNewBtn").addEventListener("click", function(){ openPlantEditor(null); window.scrollTo(0, 0); });
+// v496: header ⋯ opens the section's rarely used actions. The buttons inside
+// keep their original ids and click handlers; this only opens and closes the sheet.
+(function(){
+  var ov = document.getElementById("secToolsOverlay");
+  function closeSecTools(){ ov.classList.remove("open"); }
+  Array.prototype.forEach.call(document.querySelectorAll(".hdr-more"), function(btn){
+    btn.addEventListener("click", function(){
+      var sec = btn.getAttribute("data-tools");
+      Array.prototype.forEach.call(ov.querySelectorAll(".sec-tools"), function(g){
+        g.style.display = g.getAttribute("data-sec") === sec ? "block" : "none";
+      });
+      ov.classList.add("open");
+    });
+  });
+  Array.prototype.forEach.call(ov.querySelectorAll(".sec-tools button"), function(b){ b.addEventListener("click", closeSecTools); });
+  document.getElementById("secToolsClose").addEventListener("click", closeSecTools);
+  ov.addEventListener("click", function(e){ if (e.target === ov) closeSecTools(); });
+})();
 document.getElementById("plantImportBtn").addEventListener("click", function(){
   _plantImporting = true; _plantImportParsed = null;
   _plantView = "list"; _plantOpenId = null;
