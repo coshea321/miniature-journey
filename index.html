@@ -1030,7 +1030,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v491 · 29/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v492 · 29/09/2026</div>
 
   </div>
 </div>
@@ -4839,7 +4839,8 @@ var _watchFilter  = "all";    // "all" | "film" | "tv" — session only, never s
 // never synced or exported — same "hearth_" namespace as the auth fields,
 // so a test-build wipe leaves it alone too): Cathal asked for the
 // last-picked status to be the default next time the section opens.
-var _watchStatusFilter = storeGet("hearth_watchStatusFilter") || "all"; // "all" | "todo" | "watching" | "watched"
+// v492: no status filter any more — the list is already grouped Watching / To watch / Watched.
+// (Older builds saved hearth_watchStatusFilter; nothing reads it now, so a stale value is harmless.)
 var _watchEditing = false;    // sync-render guard, same role as _plantEditing
 var _watchCancelFn = null;    // back-button discard closure (v345 pattern)
 var _watchDoneOpen = false;   // the Watched group starts collapsed
@@ -5015,23 +5016,7 @@ function renderWatchlist() {
   var shownByKind = all.filter(function(w){
     return _watchFilter === "all" || watchKindMeta(w.kind).key === _watchFilter;
   });
-  // Status chips follow the same v379 "only show a real choice" rule, judged
-  // against what the kind filter already left on screen.
-  var hasWatchingS = shownByKind.some(function(w){ return watchStatusOf(w) === "watching"; });
-  var hasTodoS     = shownByKind.some(function(w){ return watchStatusOf(w) === "todo"; });
-  var hasWatchedS  = shownByKind.some(function(w){ return watchStatusOf(w) === "watched"; });
-  var showStatusChips = (hasWatchingS?1:0) + (hasTodoS?1:0) + (hasWatchedS?1:0) > 1;
-  if (!showStatusChips) _watchStatusFilter = "all";
-  // Same vanish-fallback as the kind filter above — don't persist the reset,
-  // only the in-memory copy, so a genuine prior choice survives once the
-  // status reappears.
-  if (_watchStatusFilter === "watching" && !hasWatchingS) _watchStatusFilter = "all";
-  if (_watchStatusFilter === "todo"     && !hasTodoS)     _watchStatusFilter = "all";
-  if (_watchStatusFilter === "watched"  && !hasWatchedS)  _watchStatusFilter = "all";
-
-  var shown = shownByKind.filter(function(w){
-    return _watchStatusFilter === "all" || watchStatusOf(w) === _watchStatusFilter;
-  });
+  var shown = shownByKind;
   // Watching first — "what are we in the middle of" is the question this
   // screen gets asked most. Most recently touched first within that group.
   var watchingNow = shown.filter(function(w){ return watchStatusOf(w) === "watching"; })
@@ -5055,22 +5040,9 @@ function renderWatchlist() {
     });
     html += "</div>";
   }
-  if (showStatusChips) {
-    html += "<div style='display:flex;gap:6px;padding:0 1px 10px'>";
-    [{ v:"all", t:"All", c:WATCH_COLOR }, { v:"watching", t:"Watching", c:WATCH_STATUS_UI.watching.chip }, { v:"todo", t:"To watch", c:WATCH_STATUS_UI.todo.chip }, { v:"watched", t:"Watched", c:WATCH_STATUS_UI.watched.chip }].forEach(function(c){
-      var on = _watchStatusFilter === c.v;
-      html += "<button class='watch-status-chip' data-status='" + esc(c.v) + "' " +
-        "style='flex:1;border-radius:20px;padding:7px 4px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;touch-action:manipulation;" +
-        (on ? "background:" + c.c + ";color:#fff;border:1.5px solid " + c.c
-            : "background:#fff;color:#5A5470;border:1.5px solid #DCD6EA") + "'>" + c.t + "</button>";
-    });
-    html += "</div>";
-  }
-
   if (!watchingNow.length && !toWatch.length && !watched.length) {
     var _watchEmptyParts = [];
     if (_watchFilter !== "all") _watchEmptyParts.push(_watchFilter === "tv" ? "TV" : "films");
-    if (_watchStatusFilter !== "all") _watchEmptyParts.push(_watchStatusFilter === "todo" ? "To watch" : (_watchStatusFilter === "watching" ? "Watching" : "Watched"));
     html += "<div style='text-align:center;color:#8A84A0;padding:30px 20px;font-size:13px'>" +
       (_watchEmptyParts.length ? "Nothing matches " + esc(_watchEmptyParts.join(" · ")) + "." : "Nothing matches the current filters.") +
       "<br><span style='display:inline-block;margin-top:5px'>Choose another chip above.</span></div>";
@@ -5084,16 +5056,9 @@ function renderWatchlist() {
     toWatch.forEach(function(w){ html += watchRowHTML(w); });
   }
   if (watched.length) {
-    // Filtering the chip straight to Watched is itself the "show me" — force
-    // the group open rather than making him tap the collapse toggle too.
-    var watchedForcedOpen = _watchStatusFilter === "watched";
-    if (watchedForcedOpen) {
-      html += "<div style='padding:10px 2px 7px;font-size:11px;font-weight:700;color:" + WATCH_STATUS_UI.watched.chip + ";text-transform:uppercase;letter-spacing:.5px'>Watched &middot; " + watched.length + "</div>";
-    } else {
-      html += "<button id='watchDoneHdr' style='width:100%;text-align:left;border:none;background:none;padding:10px 2px 7px;font-family:inherit;font-size:11px;font-weight:700;color:" + WATCH_STATUS_UI.watched.chip + ";text-transform:uppercase;letter-spacing:.5px;cursor:pointer;touch-action:manipulation'>" +
-        (_watchDoneOpen ? "&#x25B2;" : "&#x25BC;") + " Watched &middot; " + watched.length + "</button>";
-    }
-    if (watchedForcedOpen || _watchDoneOpen) watched.forEach(function(w){ html += watchRowHTML(w); });
+    html += "<button id='watchDoneHdr' style='width:100%;text-align:left;border:none;background:none;padding:10px 2px 7px;font-family:inherit;font-size:11px;font-weight:700;color:" + WATCH_STATUS_UI.watched.chip + ";text-transform:uppercase;letter-spacing:.5px;cursor:pointer;touch-action:manipulation'>" +
+      (_watchDoneOpen ? "&#x25B2;" : "&#x25BC;") + " Watched &middot; " + watched.length + "</button>";
+    if (_watchDoneOpen) watched.forEach(function(w){ html += watchRowHTML(w); });
   }
   el.innerHTML = html;
 
@@ -5128,13 +5093,6 @@ function renderWatchlist() {
   el.querySelectorAll(".watch-kind-chip").forEach(function(b){
     b.addEventListener("click", function(){ _watchFilter = b.dataset.kind || "all"; renderWatchlist(); });
   });
-  el.querySelectorAll(".watch-status-chip").forEach(function(b){
-    b.addEventListener("click", function(){
-      _watchStatusFilter = b.dataset.status || "all";
-      storeSet("hearth_watchStatusFilter", _watchStatusFilter);
-      renderWatchlist();
-    });
-  });
   var dh = document.getElementById("watchDoneHdr");
   if (dh) dh.addEventListener("click", function(){ _watchDoneOpen = !_watchDoneOpen; renderWatchlist(); });
 }
@@ -5142,17 +5100,14 @@ function renderWatchlist() {
 // Picks uniformly from everything not marked watched (todo + watching both
 // count — "watching" just means already started, not decided against).
 // v453: the KIND chip is respected — "pick a film" is the actual Friday-night
-// ask, so with Films selected the pick comes from films. Only the status
-// filter is reset to All, so the pick is still the one row visible on screen
-// (it is inside the selected kind by construction).
+// ask, so with Films selected the pick comes from films. The pick is
+// still the one row visible on screen (it is inside the selected kind by construction).
 function watchRandomPick() {
   var candidates = getWatchlist().filter(function(w){
     return watchStatusOf(w) !== "watched" && (_watchFilter === "all" || watchKindMeta(w.kind).key === _watchFilter);
   });
   if (!candidates.length) { toast("Nothing left to pick &mdash; everything's watched!"); return; }
   var pick = candidates[Math.floor(Math.random() * candidates.length)];
-  _watchStatusFilter = "all";
-  storeSet("hearth_watchStatusFilter", "all");
   _watchView = "list";
   _watchOpenId = pick.id;
   renderWatchlist();
