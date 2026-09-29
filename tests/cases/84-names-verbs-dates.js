@@ -20,6 +20,8 @@ module.exports = {
       ok('a timestamp works', listDate(new Date(y, 2, 5, 23, 30).getTime()) === '5 Mar');
       ok('a Date works', listDate(new Date(2019, 11, 31)) === '31 Dec 2019');
       ok('months are fixed short names, never "Sept"', listDate(y + '-09-01').indexOf('Sept') === -1);
+      ok('an impossible ISO day is refused, not rolled over', listDate('2026-02-30') === '' && listDate('2025-13-01') === '', listDate('2026-02-30'));
+      ok('Health shows an impossible stored date as-is for correction', healthDMY('2026-02-30') === '2026-02-30');
       ok('unreadable input gives ""', listDate('') === '' && listDate('12/03/2099') === '' && listDate(null) === '' && listDate(0) === '');
       ok('the Watchlist keeps its format through the shared helper', watchDateText(new Date(2024, 3, 7).getTime()) === '7 Apr 2024');
       ok('Health dates use it (was DD/MM/YYYY)', healthDMY('2020-09-19') === '19 Sep 2020', healthDMY('2020-09-19'));

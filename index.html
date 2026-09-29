@@ -4885,6 +4885,9 @@ function listDate(v) {
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v.trim());
     if (!m) return "";
     d = new Date(+m[1], +m[2] - 1, +m[3]);
+    // An impossible day ("2026-02-30") would roll over to a real one (2 Mar);
+    // refuse it so the caller shows the stored value for correction instead.
+    if (d.getFullYear() !== +m[1] || d.getMonth() !== +m[2] - 1 || d.getDate() !== +m[3]) return "";
   } else {
     var n = (v instanceof Date) ? v.getTime() : +v;
     if (!(n > 0)) return "";
@@ -6127,7 +6130,7 @@ function appliancesInArea(list, area) {
 // and YYYY-MM-DD already sorts correctly as text.
 function applianceDateLabel(iso) {
   var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso == null ? "" : iso).trim());
-  return m ? listDate(m[0]) : ""; // v498: one list date format (was DD/MM/YYYY)
+  return m ? (listDate(m[0]) || m[0]) : ""; // v498: one list date format (was DD/MM/YYYY)
 }
 function applianceTodayISO() {
   var d = new Date(), p = function(x){ return x < 10 ? "0" + x : x; };
@@ -21857,7 +21860,7 @@ function renderBodyView() {
     var html="";
     for (var i=0;i<bw.length;i++) {
       var entry=bw[i];
-      var label=listDate(String(entry.date));
+      var label=listDate(String(entry.date)) || esc(entry.date);
       var diffHtml="";
       if (i<bw.length-1) {
         var diff=entry.weight-bw[i+1].weight;
@@ -21885,7 +21888,7 @@ function renderBodyView() {
       var bpHtml="";
       for (var j=0;j<bp.length;j++) {
         var r=bp[j];
-        var rlabel=listDate(String(r.date));
+        var rlabel=listDate(String(r.date)) || esc(r.date);
         var cat = r.sys>=140||r.dia>=90 ? "#C05A3A" : (r.sys>=130||r.dia>=80 ? "#B08A20" : "#2F8A50");
         bpHtml+="<div class='bw-entry'><span class='bw-entry-date bp-date-edit' data-bpts='"+esc(r.ts)+"' style='cursor:pointer;text-decoration:underline dotted'>"+rlabel+"</span>" +
           "<span class='bw-entry-val' style='color:"+cat+"'>"+r.sys+"/"+r.dia+(r.pulse?" <span style='color:#8A7A5A;font-size:12px'>&middot; "+r.pulse+" bpm</span>":"")+"</span>" +
