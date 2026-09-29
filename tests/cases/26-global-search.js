@@ -232,7 +232,7 @@ module.exports = {
     );
     check('rendered results show the Grocery group', milkUi.indexOf('Grocery') !== -1, 'got: ' + JSON.stringify(milkUi));
     check('rendered results show the Notes group', milkUi.indexOf('Notes') !== -1, 'got: ' + JSON.stringify(milkUi));
-    check('rendered results do NOT show an empty General group', milkUi.indexOf('General') === -1, 'got: ' + JSON.stringify(milkUi));
+    check('rendered results do NOT show an empty To-do group', milkUi.indexOf('To-do') === -1, 'got: ' + JSON.stringify(milkUi));
     check('grocery\'s 7 matches are capped with a "+2 more" link', milkUi.indexOf('+2 more') !== -1, 'got: ' + JSON.stringify(milkUi));
     check('no fuzzy-fallback label shown for an exact-match search', milkUi.indexOf('showing similar') === -1, 'got: ' + JSON.stringify(milkUi));
 

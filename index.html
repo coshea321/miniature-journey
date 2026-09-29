@@ -1063,7 +1063,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v497 · 29/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v498 · 29/09/2026</div>
 
   </div>
 </div>
@@ -1071,7 +1071,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
 <div id="lifeSection" style="display:none">
 <div class="type-bar" id="typeBar">
   <button class="type-btn active" data-lt="grocery">&#x1F6D2; Grocery</button>
-  <button class="type-btn" data-lt="todo">&#x2705; General</button>
+  <button class="type-btn" data-lt="todo">&#x2705; To-do</button>
   <button class="type-btn" data-lt="personal">&#x1F464; Personal</button>
   <button class="type-btn" data-lt="travel">&#x2708;&#xFE0F; Travel</button>
   <button class="type-btn" data-lt="notes">&#x1F4DD; Notes</button>
@@ -1201,7 +1201,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
         <div class="cardio-field"><label>Calories (kcal)</label><input id="cardioCalories" type="number" class="cardio-input" min="0" max="5000" placeholder="auto" inputmode="numeric"></div>
       </div>
       <div class="cardio-est" id="cardioEst"></div>
-      <button class="cardio-log-btn" id="cardioLogBtn">Log cardio</button>
+      <button class="cardio-log-btn" id="cardioLogBtn">Log</button>
     </div>
     <!-- Cardio history for selected date rendered here -->
     <div id="cardioHistory"></div>
@@ -1322,7 +1322,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
       <div style="display:flex;gap:6px;margin-bottom:4px">
         <input id="foodCalInput" type="number" min="0" max="5000" placeholder="kcal (auto-estimated)" inputmode="numeric"
           style="flex:1;border:2px solid #E0D0B0;border-radius:9px;padding:10px 12px;font-family:inherit;font-size:15px;outline:none;background:#FDFAF3;color:#2A2010">
-        <button id="foodAddBtn" style="padding:10px 16px;background:#A05A10;border:none;border-radius:9px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation">Add</button>
+        <button id="foodAddBtn" style="padding:10px 16px;background:#A05A10;border:none;border-radius:9px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation">Log</button>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
         <div id="foodCalEst" style="flex:1;font-size:11px;color:#A05A10;font-weight:600;min-height:16px"></div>
@@ -1362,7 +1362,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
           <input id="bpPulse" type="number" min="30" max="220" class="bw-input" placeholder="70" inputmode="numeric">
         </div>
       </div>
-      <button class="bw-log-btn" id="bpLogBtn">Log reading</button>
+      <button class="bw-log-btn" id="bpLogBtn">Log</button>
     </div>
     <div class="bw-card">
       <div class="bw-card-title">&#x1F4C8; BP History</div>
@@ -1443,7 +1443,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
       </div>
       <div style="margin-bottom:8px"><label style="font-size:11px;font-weight:700;color:#8A6A8A;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Date</label>
         <input id="growthDate" type="date" class="growth-input" style="font-size:14px;text-align:left"></div>
-      <button class="baby-log-btn" id="growthLogBtn">Save measurement</button>
+      <button class="baby-log-btn" id="growthLogBtn">Log</button>
     </div>
     <div class="baby-log-card">
       <div class="baby-card-title">&#x1F4C8; History</div>
@@ -1471,7 +1471,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
         <input id="medTime" type="time" class="med-input">
       </div>
       <div class="med-full-row"><input id="medNote" class="med-input" type="text" placeholder="Notes (optional)" autocomplete="off"></div>
-      <button class="baby-log-btn" id="medLogBtn">Log medicine</button>
+      <button class="baby-log-btn" id="medLogBtn">Log</button>
     </div>
     <div class="baby-log-card">
       <div class="baby-card-title">&#x1F4CB; Log</div>
@@ -1491,7 +1491,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
       </div>
       <div class="med-full-row"><input id="msText" class="med-input" type="text" placeholder="Describe the milestone..." autocomplete="off"></div>
       <div style="margin-bottom:8px"><input id="msDate" type="date" class="med-input"></div>
-      <button class="baby-log-btn" id="msLogBtn">Save milestone</button>
+      <button class="baby-log-btn" id="msLogBtn">Log</button>
     </div>
     <div class="baby-log-card">
       <div class="baby-card-title">&#x1F4D6; Timeline</div>
@@ -1599,7 +1599,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
         <label>Colour</label>
         <div class="color-grid" id="colorGrid"></div>
       </div>
-      <button class="form-btn" id="saveCatBtn">Save Category</button>
+      <button class="form-btn" id="saveCatBtn">Save</button>
     </div>
   </div>
 </div>
@@ -1736,7 +1736,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
       <div style="font-size:12px;color:#7A8772;margin-bottom:10px;line-height:1.5">Your own data (health, lists, baby) always syncs across your own devices automatically. These toggles control what household members can see.</div>
       <div id="syncToggles">
         <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F6D2; Grocery</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="grocery" checked><span class="toggle-slider"></span></label></div>
-        <div class="sync-toggle-row"><span class="sync-toggle-label">&#x2705; General</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="todo" checked><span class="toggle-slider"></span></label></div>
+        <div class="sync-toggle-row"><span class="sync-toggle-label">&#x2705; To-do</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="todo" checked><span class="toggle-slider"></span></label></div>
         <div class="sync-toggle-row"><span class="sync-toggle-label">&#x2708;&#xFE0F; Travel</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="travel" checked><span class="toggle-slider"></span></label></div>
         <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F464; Personal</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="personal"><span class="toggle-slider"></span></label></div>
         <div class="sync-toggle-row"><span class="sync-toggle-label">&#x1F4DD; Notes</span><label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="notes"><span class="toggle-slider"></span></label></div>
@@ -1783,7 +1783,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="appliances"><span class="toggle-slider"></span></label>
       </div>
       <div class="sync-toggle-row">
-        <span class="sync-toggle-label">&#x1FA7A; Medical history</span>
+        <span class="sync-toggle-label">&#x1FA7A; Health</span>
         <label class="toggle-switch"><input type="checkbox" class="section-chk" data-sec="health"><span class="toggle-slider"></span></label>
       </div>
       <div class="sync-toggle-row">
@@ -2029,7 +2029,7 @@ if (_isTestBuild) {
 // ============================================================
 var LIST_TYPES = {
   grocery:{ name:"&#x1F6D2; Grocery", placeholder:"Add an item...", color:"#2D6B35", emptyIco:"&#x1F6D2;", emptyTitle:"Your list is empty",  emptySub:"Start typing - categories detect automatically." },
-  todo:   { name:"&#x2705; General",  placeholder:"Add a task...",   color:"#5A3AA0", emptyIco:"&#x2705;", emptyTitle:"No tasks yet",         emptySub:"Add a task - it'll be categorised automatically." },
+  todo:   { name:"&#x2705; To-do",  placeholder:"Add a task...",   color:"#5A3AA0", emptyIco:"&#x2705;", emptyTitle:"No tasks yet",         emptySub:"Add a task - it'll be categorised automatically." },
   personal:{ name:"&#x1F464; Personal", placeholder:"Add a task...",   color:"#A0205A", emptyIco:"&#x1F464;", emptyTitle:"No personal tasks yet", emptySub:"Add a personal task - it'll be categorised automatically." },
   travel: { name:"&#x2708; Travel",   placeholder:"Add to pack...",  color:"#1A5A8A", emptyIco:"&#x2708;", emptyTitle:"Nothing packed yet",  emptySub:"Add items to pack - categories detect automatically." },
   notes:  { name:"&#x1F4DD; Notes",   placeholder:"",                color:"#A05A10", emptyIco:"&#x1F4DD;", emptyTitle:"No notes yet",        emptySub:"" },
@@ -4401,7 +4401,7 @@ function openPlantEditor(id) {
       "<textarea id='plF_" + sec.key + "' rows='4' placeholder='" + esc(sec.hint) + "' style='" + recipeInputCss() + "resize:vertical;line-height:1.6'>" + esc(p[sec.key] || "") + "</textarea>";
   });
 
-  html += "<button id='plSave' style='width:100%;padding:14px;border:none;background:#2E7D4F;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-top:18px;touch-action:manipulation'>Save plant</button>";
+  html += "<button id='plSave' style='width:100%;padding:14px;border:none;background:#2E7D4F;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-top:18px;touch-action:manipulation'>Save</button>";
 
   el.innerHTML = html;
 
@@ -4872,14 +4872,30 @@ var _watchKindDraft = "film";
 // "14 Aug", or "14 Aug 2025" when it wasn't this year. Day-level only — the
 // time of night a film finished is noise. Returns "" for 0/junk.
 var WATCH_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-function watchDateText(ts) {
-  var n = +ts || 0;
-  if (n <= 0) return "";
-  var d = new Date(n), now = new Date();
-  var out = d.getDate() + " " + WATCH_MONTHS[d.getMonth()];
-  if (d.getFullYear() !== now.getFullYear()) out += " " + d.getFullYear();
+// v498: the one date format for list and history rows (28/09 review ④):
+// "28 Sep" this year, "28 Sep 2025" otherwise. Takes a stored "YYYY-MM-DD"
+// (read as that local calendar day — never new Date(iso), which is UTC and
+// can land on the day before), a timestamp or a Date; "" if unreadable.
+// Display only: stored dates and data-* attributes stay ISO. Fixed month
+// names on purpose — en-IE's toLocaleDateString gives "Sept" on some phones.
+// Day headings ("Monday 14 September") and trip ranges are NOT meant to use it.
+function listDate(v) {
+  var d;
+  if (typeof v === "string") {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v.trim());
+    if (!m) return "";
+    d = new Date(+m[1], +m[2] - 1, +m[3]);
+  } else {
+    var n = (v instanceof Date) ? v.getTime() : +v;
+    if (!(n > 0)) return "";
+    d = new Date(n);
+  }
+  if (isNaN(d.getTime())) return "";
+  var out = d.getDate() + " " + ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
+  if (d.getFullYear() !== new Date().getFullYear()) out += " " + d.getFullYear();
   return out;
 }
+function watchDateText(ts) { return listDate(+ts || 0); }
 
 function watchStarsHTML(n, interactive, id) {
   var out = "";
@@ -5563,9 +5579,7 @@ var _healthKindDraft = "visit";
 function healthDMY(v) {
   var s = String(v || "");
   if (!s) return "";
-  var p = s.split("-");
-  if (p.length !== 3) return esc(s);
-  return esc(p[2]) + "/" + esc(p[1]) + "/" + esc(p[0]);
+  return listDate(s) || esc(s); // v498: one list date format (was DD/MM/YYYY)
 }
 function healthDateText(rec, withTime) {
   var f = healthFields(rec.kind);
@@ -6113,7 +6127,7 @@ function appliancesInArea(list, area) {
 // and YYYY-MM-DD already sorts correctly as text.
 function applianceDateLabel(iso) {
   var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso == null ? "" : iso).trim());
-  return m ? (m[3] + "/" + m[2] + "/" + m[1]) : "";
+  return m ? listDate(m[0]) : ""; // v498: one list date format (was DD/MM/YYYY)
 }
 function applianceTodayISO() {
   var d = new Date(), p = function(x){ return x < 10 ? "0" + x : x; };
@@ -7417,7 +7431,7 @@ function openTripEditor(id) {
     "<input id='tpStart' type='date' value='" + (t&&t.start?t.start:"") + "' style='" + recipeInputCss() + "margin-bottom:12px'>" +
     fieldLabel("End date (optional)") +
     "<input id='tpEnd' type='date' value='" + (t&&t.end?t.end:"") + "' style='" + recipeInputCss() + "margin-bottom:16px'>" +
-    "<button id='tpSave' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save trip</button>" +
+    "<button id='tpSave' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save</button>" +
     (t ? "<button id='tpDelete' style='width:100%;padding:13px;border:1.5px solid #C03030;background:#fff;color:#C03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px'>Delete trip</button>" : "") +
     (t ? "<button id='tpExport' style='width:100%;padding:13px;border:1.5px solid #D8D0C0;background:#fff;color:#6A8A8A;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-top:10px'>&#x1F4E4; Export trip (JSON)</button>" : "");
 
@@ -7561,7 +7575,7 @@ function openBookingEditor(tripId, bookingId) {
         "</div>" +
       "</div>"
     : "") +
-    "<button id='bkSave' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save booking</button>" +
+    "<button id='bkSave' style='width:100%;padding:13px;border:none;background:#0F8A8A;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save</button>" +
     (b ? "<button id='bkDelete' style='width:100%;padding:13px;border:1.5px solid #C03030;background:#fff;color:#C03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px'>Delete booking</button>" : "");
 
   window.scrollTo(0, 0);
@@ -11650,7 +11664,7 @@ function openRecipeEditor(id) {
     "</details>" +
     fieldLabel("Recipe URL (optional)") +
     "<input id='reUrl' type='url' value='" + (r&&r.url?esc(r.url).replace(/'/g,"&#39;"):"") + "' placeholder='https://example.com/recipe' style='" + recipeInputCss() + "margin-bottom:16px'>" +
-    "<button id='reSave' style='width:100%;padding:13px;border:none;background:#B5651D;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save recipe</button>";
+    "<button id='reSave' style='width:100%;padding:13px;border:none;background:#B5651D;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>Save</button>";
 
   document.getElementById("recipeCancelEdit").addEventListener("click", function(){
     _recipeEditing = false;
@@ -12589,7 +12603,7 @@ function dueDateLabel(item) {
   else if (diff === 0){ label = "Today";    color = "#fbbf24"; }
   else if (diff === 1){ label = "Tomorrow"; color = "#60a5fa"; }
   else if (diff <= 7) { label = "In " + diff + " days"; color = "#a78bfa"; }
-  else                { label = due.toLocaleDateString("en-IE",{day:"numeric",month:"short"}); color = "#6b7280"; }
+  else                { label = listDate(String(item.dueDate)) || due.toLocaleDateString("en-IE",{day:"numeric",month:"short"}); color = "#6b7280"; }
   return "<span class='due-chip' style='background:" + color + "20;color:" + color + ";border:1px solid " + color + "40'>" + label + "</span>";
 }
 
@@ -13984,7 +13998,7 @@ function openRecipeFoodLogSheet(id) {
       "</div>" +
       "<div style='display:flex;gap:8px'>" +
         "<button id='_rfCancel' style='flex:1;padding:11px;border:1.5px solid #E0D0B0;border-radius:9px;background:none;font-family:inherit;font-size:14px;cursor:pointer;touch-action:manipulation;color:#7A5A30'>Cancel</button>" +
-        "<button id='_rfLog' style='flex:1;padding:11px;border:none;background:#A05A10;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Log it</button>" +
+        "<button id='_rfLog' style='flex:1;padding:11px;border:none;background:#A05A10;color:#fff;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Log</button>" +
       "</div>";
     wire();
   }
@@ -17092,7 +17106,7 @@ function switchSection(section) {
     renderAppliances();
   } else if (section === "health") {
     document.getElementById("themeColor").setAttribute("content", "#2F6E6E");
-    document.getElementById("appTitle").innerHTML = "&#x1FA7A; Medical history";
+    document.getElementById("appTitle").innerHTML = "&#x1FA7A; Health";
     document.getElementById("hdrBadge").style.display = "none";
     renderHealth();
   }
@@ -18670,7 +18684,7 @@ var GLOBAL_SEARCH_MIN = 2;
 var GLOBAL_SEARCH_CAP = 5;
 var GLOBAL_SEARCH_GROUPS = [
   { key:"grocery",  label:"&#x1F6D2; Grocery",  color:"#2D6B35" },
-  { key:"todo",     label:"&#x2705; General",   color:"#5A3AA0" },
+  { key:"todo",     label:"&#x2705; To-do",   color:"#5A3AA0" },
   { key:"personal", label:"&#x1F464; Personal", color:"#A0205A" },
   { key:"travel",   label:"&#x2708; Travel",    color:"#1A5A8A" },
   { key:"notes",    label:"&#x1F4DD; Notes",    color:"#A05A10" },
@@ -21842,8 +21856,8 @@ function renderBodyView() {
   } else {
     var html="";
     for (var i=0;i<bw.length;i++) {
-      var entry=bw[i], d=new Date(entry.date+"T12:00:00");
-      var label=d.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
+      var entry=bw[i];
+      var label=listDate(String(entry.date));
       var diffHtml="";
       if (i<bw.length-1) {
         var diff=entry.weight-bw[i+1].weight;
@@ -21870,8 +21884,8 @@ function renderBodyView() {
     } else {
       var bpHtml="";
       for (var j=0;j<bp.length;j++) {
-        var r=bp[j], rd=new Date(r.date+"T12:00:00");
-        var rlabel=rd.toLocaleDateString("en-IE",{day:"numeric",month:"short",year:"numeric"});
+        var r=bp[j];
+        var rlabel=listDate(String(r.date));
         var cat = r.sys>=140||r.dia>=90 ? "#C05A3A" : (r.sys>=130||r.dia>=80 ? "#B08A20" : "#2F8A50");
         bpHtml+="<div class='bw-entry'><span class='bw-entry-date bp-date-edit' data-bpts='"+esc(r.ts)+"' style='cursor:pointer;text-decoration:underline dotted'>"+rlabel+"</span>" +
           "<span class='bw-entry-val' style='color:"+cat+"'>"+r.sys+"/"+r.dia+(r.pulse?" <span style='color:#8A7A5A;font-size:12px'>&middot; "+r.pulse+" bpm</span>":"")+"</span>" +
@@ -22348,7 +22362,7 @@ function renderGrowth() {
       html += "<div class='growth-row' data-gdate='" + esc(e.date) + "' style='padding:10px 0;border-bottom:1px solid #F0EBF8'>" +
         "<div style='display:flex;align-items:center'>" +
           "<div style='flex:1'>" +
-            "<div class='growth-edit-trigger' data-growthdate='" + esc(e.date) + "' style='font-size:14px;font-weight:600;color:#2A2010;cursor:pointer;text-decoration:underline dotted'>" + esc(e.date) + "</div>" +
+            "<div class='growth-edit-trigger' data-growthdate='" + esc(e.date) + "' style='font-size:14px;font-weight:600;color:#2A2010;cursor:pointer;text-decoration:underline dotted'>" + (listDate(String(e.date)) || esc(e.date)) + "</div>" +
             "<div style='font-size:13px;color:#8A6A8A'>" + (e.weight?e.weight+" kg":"") + (e.weight&&e.height?" &middot; ":"") + (e.height?e.height+" cm":"") + bandHtml + "</div>" +
             (e.note?"<div style='font-size:12px;color:#A88AA8;font-style:italic;margin-top:2px'>"+esc(e.note)+"</div>":"") +
           "</div>" +
@@ -22962,7 +22976,7 @@ function renderMedicine() {
   if (meds.length) {
     meds.forEach(function(m){
       var tStr=m.ts?new Date(m.ts).toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"}):"";
-      var dStr=m.ts?new Date(m.ts).toLocaleDateString("en-IE",{day:"numeric",month:"short"}):"";
+      var dStr=m.ts?listDate(m.ts):"";
       html+="<div class='med-row' style='display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;margin:0 12px 5px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'><div style='flex:1'><div style='font-size:14px;font-weight:600;color:#2A2010'>"+esc(m.name||"")+(m.dose?" — "+esc(m.dose):"")+"</div>"+(m.notes?"<div style='font-size:12px;color:#8A6A8A'>"+esc(m.notes)+"</div>":"")+(tStr?"<div class='med-dt-edit-trigger' data-medid='"+esc(m.id)+"' style='font-size:11px;color:#B8A880;cursor:pointer;text-decoration:underline dotted'>"+dStr+" "+tStr+"</div>":"")+"</div><button data-medid='"+esc(m.id)+"' class='med-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
     });
   } else {
@@ -23170,10 +23184,10 @@ function renderMilestones() {
   var html="<div class='baby-log-card'><div class='baby-card-title'>&#x2B50; Log milestone</div>" +
     "<input id='msText' type='text' class='med-input' placeholder='e.g. First smile…' autocomplete='off' style='margin-bottom:6px'>" +
     "<input id='msDate' type='date' class='med-input' value='"+now4.getFullYear()+"-"+p4(now4.getMonth()+1)+"-"+p4(now4.getDate())+"'>" +
-    "<button class='baby-log-btn' id='msLogBtn'>Log milestone</button></div>";
+    "<button class='baby-log-btn' id='msLogBtn'>Log</button></div>";
   if(ms.length){
     ms.forEach(function(m){
-      html+="<div class='ms-row' style='display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff;margin:0 12px 6px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'><span style='font-size:22px'>&#x2B50;</span><div style='flex:1'><div style='font-size:14px;font-weight:600;color:#2A2010'>"+esc(m.text||"")+"</div>"+(m.date?"<div class='ms-date-edit' data-msid='"+esc(m.id)+"' style='font-size:12px;color:#B8A880;cursor:pointer;text-decoration:underline dotted'>"+esc(m.date)+"</div>":"")+"</div><button data-msid='"+esc(m.id)+"' class='ms-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
+      html+="<div class='ms-row' style='display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff;margin:0 12px 6px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)'><span style='font-size:22px'>&#x2B50;</span><div style='flex:1'><div style='font-size:14px;font-weight:600;color:#2A2010'>"+esc(m.text||"")+"</div>"+(m.date?"<div class='ms-date-edit' data-msid='"+esc(m.id)+"' style='font-size:12px;color:#B8A880;cursor:pointer;text-decoration:underline dotted'>"+(listDate(String(m.date))||esc(m.date))+"</div>":"")+"</div><button data-msid='"+esc(m.id)+"' class='ms-del-btn' style='border:none;background:none;color:#C06060;font-size:14px;cursor:pointer;touch-action:manipulation;opacity:.45'>&#x2715;</button></div>";
     });
   } else {
     html+="<div style='text-align:center;padding:32px;color:#8A6A8A;font-size:14px'>No milestones yet</div>";
@@ -24218,7 +24232,7 @@ if (_isTestBuild) (function() {
       </div>
     </div>
   </div>
-  <button id="setSheetLogBtn" style="width:100%;padding:14px;border:none;background:#3B6FE0;color:#fff;border-radius:11px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation">&#x2713; Log set</button>
+  <button id="setSheetLogBtn" style="width:100%;padding:14px;border:none;background:#3B6FE0;color:#fff;border-radius:11px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation">&#x2713; Log</button>
   <button id="setSheetCancel" aria-label="Cancel set" style="width:100%;padding:10px;border:none;background:none;color:#8A7A5A;font-family:inherit;font-size:13px;cursor:pointer;touch-action:manipulation;margin-top:6px">Cancel</button>
 </div>
 <div id="setSheetBackdrop" style="display:none;position:fixed;inset:0;z-index:699;background:rgba(0,0,0,.4)"></div>
