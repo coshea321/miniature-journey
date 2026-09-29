@@ -6,6 +6,15 @@ Pending work, triaged review findings, and decisions that must not be re-litigat
 
 **Struck-through items are shipped.** They are kept because the reasoning behind them still matters — a struck item is a "do not re-chase", not a to-do.
 
+## UI/UX review (28/09/2026) — quick wins shipped v487, the rest offered, not confirmed
+Full write-up: [`HEARTH-ui-ux-review-2026-09-28.md`](HEARTH-ui-ux-review-2026-09-28.md). On 29/09/2026 Cathal asked to keep the review and build quick wins 1–6; they **shipped as v487**. None of the items below has a design confirm yet, so confirm the shape with Cathal before building any of them. The 12/09 decisions still hold: the Training / Last medicine / Plants cards stay.
+- **① Home repeats itself:** drop the Today-card lines that repeat a card or the Grocery preview (grocery count, medicine, watering), and remove the local clock.
+- **② Contrast and type scale:** four font sizes, nothing under 11px, all tint text at least 4.5:1 (nav `#AAA090` is 2.58:1; the Home card labels are 2.3–2.9:1).
+- **③ Chrome:** fold the section action bar into the header; move rare actions into a tools menu; make "Recording for" smaller.
+- **④ Terminology and dates:** one name per thing (To-do vs General, Health vs Medical history), one create verb, one date helper.
+- **⑤ Home quick-add:** keep the Grocery/Task panel open after each add; route `+ Medicine` to Baby → Medicine. **The medicine half is dosing-adjacent: it needs a top-tier session.**
+- **Removals offered:** Watchlist's second filter row; Print and Import list behind a "⋯" on Lists.
+
 ## UI/UX review (12/09/2026) — Cathal picked, 13/09/2026
 Full write-up: [`HEARTH-ui-ux-review.md`](HEARTH-ui-ux-review.md). **PR #229 is closed out — it was rebased and shipped as v469 (12/09/2026); question 5 in the review file is answered, do not re-open it.** Dark mode, shopping mode, dashboard customisation and nav-consolidation stages 2–4 stay rejected. Cathal's answers to the review's four other questions, each now a build-ready entry:
 
