@@ -211,8 +211,7 @@ body.home-mode .bn-btn{color:#AAA090}
 .home-greeting{margin-bottom:16px}
 .home-greeting-line{font-size:13px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
 .home-date-big{font-family:Georgia,serif;font-size:26px;font-weight:600;color:#2A2010;line-height:1.1}
-.home-clock{font-size:15px;font-weight:600;color:#2A2010;margin-top:4px}
-.home-clock-ie{font-size:12px;font-weight:600;color:#8A7A5A;margin-top:2px}
+.home-clock-ie{font-size:12px;font-weight:600;color:#8A7A5A;margin-top:4px}
 
 /* Weather card */
 .home-weather{display:none;align-items:center;gap:12px;background:linear-gradient(135deg,#EAF1FA 0%,#F2F6FC 100%);border:1px solid #3B6FE033;border-radius:14px;padding:11px 14px;margin-bottom:13px}
@@ -893,7 +892,6 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     <div class="home-greeting">
       <div class="home-greeting-line" id="homeGreeting">Good morning</div>
       <div class="home-date-big" id="homeDateBig">Today</div>
-      <div class="home-clock" id="homeClock">--:--</div>
       <div class="home-clock-ie" id="homeClockIE" style="display:none"></div>
     </div>
 
@@ -1032,7 +1030,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v487 · 29/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v488 · 29/09/2026</div>
 
   </div>
 </div>
@@ -3290,7 +3288,6 @@ function plantDueIn(p, kind) {
   return iv - since;
 }
 function plantOverdue(p) { var d = plantDueIn(p, "water"); return d !== null && d <= 0; }
-function plantsNeedingWater() { return getPlants().filter(plantOverdue); }
 // Soonest of water/feed due-in, for list sorting. null only when neither has
 // a reminder set (or logged) — those plants sort to the end, not the top.
 function plantNextDue(p) {
@@ -18776,21 +18773,19 @@ var _gSearchDebounce = null;
 
 // ── Today summary card (v302) ──────────────────────────────
 // One tappable line per domain, each self-suppressing when it has nothing to
-// say. Shows what needs attention (groceries, starred tasks, upcoming trip)
-// plus positive confirmations (workout done, medicine given today). Reads
-// only existing data; jumps to the relevant section on tap.
-function _tcIsToday(ts){
-  if (!ts) return false;
-  var d = new Date(ts), n = new Date();
-  return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
-}
+// say. Shows what needs attention (starred tasks, upcoming trip, health,
+// sports) plus positive confirmations (workout done). Reads only existing
+// data; jumps to the relevant section on tap.
 function renderTodayCard() {
   var el = document.getElementById("homeTodayCard");
   if (!el) return;
   var rows = [];
-  loadListData("grocery");
-  var gN = ((listData.grocery||{items:[]}).items||[]).filter(function(x){ return x && !x.done; }).length;
-  if (gN) rows.push({ ico:"&#x1F6D2;", text: gN + " grocer" + (gN===1?"y":"ies") + " to buy", act:"grocery" });
+  // v488: no grocery, last-medicine or watering rows. Each repeated something
+  // Home already shows just below — the Grocery preview lists the undone
+  // groceries, the Last medicine card names the latest dose, and the Plants
+  // card says what needs watering (same plantOverdue test). Those cards are
+  // always painted, so the fact is never lost. Do NOT re-add these rows
+  // without removing the thing they duplicate.
   loadListData("todo");
   var tN = ((listData.todo||{items:[]}).items||[]).filter(function(x){ return x && !x.done && x.today; }).length;
   if (tN) rows.push({ ico:"&#x2B50;", text: tN + " task" + (tN===1?"":"s") + " starred for today", act:"todo" });
@@ -18798,27 +18793,12 @@ function renderTodayCard() {
   var sess = ((getWD().workouts)||[]).filter(function(w){ return w && w.date===today; }).length;
   ((getActionLog())||[]).forEach(function(e){ if (e && e.type==="cardio" && e.date===today) sess++; });
   if (sess) rows.push({ ico:"&#x1F4AA;", text: sess + " workout" + (sess===1?"":"s") + " done today", act:"train" });
-  var meds = ((getBD().medicine)||[]).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
-  if (meds.length && _tcIsToday(meds[0].ts)) {
-    var m = meds[0], h = Math.floor((Date.now()-(m.ts||0))/3600000);
-    var agoTxt = h<1 ? "under 1h ago" : h+"h ago";
-    rows.push({ ico:"&#x1F476;", text: esc(m.name||"Medicine") + (m.dose?" ("+esc(m.dose)+")":"") + " &middot; " + agoTxt, act:"baby" });
-  }
   var trips = ((getTrips())||[]).filter(function(t){ return t && tripCountdownLabel(t); })
     .sort(function(a,b){ return (a.start||"").localeCompare(b.start||""); });
   if (trips.length) {
     var t0 = trips[0], lab = tripCountdownLabel(t0);
     var tripText = lab==="Now" ? ("On your " + esc(t0.name||"trip")) : (esc(t0.name||"Trip") + " " + lab.toLowerCase());
     rows.push({ ico:"&#x2708;&#xFE0F;", text: tripText, act:"trips", id: t0.id });
-  }
-  // Plants (v377): only ever appears when something is actually due — a plant
-  // with no interval set, or one never logged, stays silent.
-  var pWater = plantsNeedingWater();
-  if (pWater.length) {
-    var pText = pWater.length === 1
-      ? (esc(pWater[0].name || "A plant") + " needs watering")
-      : (pWater.length + " plants need watering");
-    rows.push({ ico:"&#x1F4A7;", text: pText, act:"plants", id: pWater.length === 1 ? pWater[0].id : null });
   }
   // Health (v449, widened v454): TWO lines, and only two. The first is a
   // future-dated VISIT or TEST — healthCountdownLabel returns "" for anything
@@ -18886,36 +18866,29 @@ function renderTodayCard() {
   el.querySelectorAll(".today-row").forEach(function(row){
     row.addEventListener("click", function(){
       var act = row.dataset.act;
-      if (act==="grocery" || act==="todo") { openRecord(act, null); }
+      if (act==="todo") { openRecord(act, null); }
       else if (act==="train") { switchSection("train"); }
-      else if (act==="baby")  { switchSection("baby"); }
       else if (act==="trips") {
         openRecord("trip", row.dataset.id || null);
       }
       else if (act==="sports") { switchSection("sports"); }
       else if (act==="health") { openRecord("health", row.dataset.id || null); }
-      else if (act==="plants") {
-        // Deep-link straight to the plant when only one is due; otherwise the
-        // list, which already leads with the "N need watering" banner.
-        openRecord("plant", row.dataset.id || null);
-      }
     });
   });
 }
 
-// Live clock (v322): local device time always; Ireland (home) time only
-// shown when it differs from local — i.e. it appears automatically while
-// travelling and disappears once you're back on Irish time.
+// Live clock (v322): Ireland (home) time, shown only when it differs from
+// local — i.e. it appears automatically while travelling and disappears once
+// you're back on Irish time. The always-on local clock above it was removed
+// in v488 (the phone's status bar already shows the time).
 var _homeClockTimer = null;
 function updateHomeClock() {
-  var elLocal = document.getElementById("homeClock");
   var elIE = document.getElementById("homeClockIE");
-  if (!elLocal || !elIE) return;
+  if (!elIE) return;
   var now = new Date();
   var localStr = now.toLocaleTimeString("en-IE", { hour:"2-digit", minute:"2-digit" });
   var ieStr = localStr;
   try { ieStr = now.toLocaleTimeString("en-IE", { hour:"2-digit", minute:"2-digit", timeZone:"Europe/Dublin" }); } catch(e) {}
-  elLocal.textContent = localStr;
   if (ieStr !== localStr) {
     elIE.textContent = "Home (Ireland) " + ieStr;
     elIE.style.display = "block";
