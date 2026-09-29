@@ -22540,7 +22540,7 @@ function centileOrdinal(n) {
 // marks the typical range, with a dashed 50th-centile (median) reference
 // line; the 15/50/85 values double as the y-axis labels.
 function growthCentileChartSvg(points, color) {
-  var W=300, H=140, padL=30, padR=36, padT=12, padB=20;
+  var W=300, H=140, padL=30, padR=42, padT=12, padB=20;
   var plotW=W-padL-padR, plotH=H-padT-padB;
   var minT=points[0].t, maxT=points[points.length-1].t;
   var vals = points.map(function(p){ return p.v; }).concat([15, 85]);
@@ -22570,7 +22570,7 @@ function growthCentileChartSvg(points, color) {
 // growthCentileChartSvg; no band/median since there's no "normal range" for
 // bodyweight, so it gets round-number gridlines and a soft area wash instead.
 function bodyweightChartSvg(points, color) {
-  var W=300, H=140, padL=34, padR=46, padT=12, padB=20;
+  var W=300, H=140, padL=34, padR=54, padT=12, padB=20;
   var plotW=W-padL-padR, plotH=H-padT-padB;
   var minT=points[0].t, maxT=points[points.length-1].t;
   var vals = points.map(function(p){ return p.v; });
@@ -22610,7 +22610,7 @@ function bwChartHtml(bwAsc) {
 // amber 130-139, else green); dashed reference lines mark the diastolic
 // thresholds (90/80) since one y-axis can't band both readings at once.
 function bpChartSvg(points, sysColor, diaColor) {
-  var W=300, H=140, padL=30, padR=30, padT=12, padB=20;
+  var W=300, H=140, padL=30, padR=36, padT=12, padB=20;
   var plotW=W-padL-padR, plotH=H-padT-padB;
   var minT=points[0].t, maxT=points[points.length-1].t;
   var vals = [];
