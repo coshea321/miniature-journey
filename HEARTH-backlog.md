@@ -12,7 +12,7 @@ Full write-up: [`HEARTH-ui-ux-review-2026-09-28.md`](HEARTH-ui-ux-review-2026-09
 - **② Contrast and type scale:** **contrast + 11px floor shipped v489, follow-ups v490** (29/09/2026); still open: collapsing the remaining sizes to four (11/13/15/20). Original ask: four font sizes, nothing under 11px, all tint text at least 4.5:1 (nav `#AAA090` is 2.58:1; the Home card labels are 2.3–2.9:1).
 - **③ Chrome:** fold the section action bar into the header; move rare actions into a tools menu; make "Recording for" smaller.
 - **④ Terminology and dates:** one name per thing (To-do vs General, Health vs Medical history), one create verb, one date helper.
-- **⑤ Home quick-add:** ~~keep the Grocery/Task panel open after each add~~ **shipped v491**; still open: route `+ Medicine` to Baby → Medicine. **The medicine half is dosing-adjacent: it needs a top-tier session.**
+- ~~**⑤ Home quick-add:**~~ keep the Grocery/Task panel open after each add **shipped v491**; `+ Medicine` now opens Baby → Medicine **shipped v494** (design confirmed 29/09/2026, Opus session).
 - **Removals offered:** ~~Watchlist's second filter row~~ **shipped v492**; ~~Print and Import list behind a "⋯" on Lists~~ **shipped v493**.
 
 ## UI/UX review (12/09/2026) — Cathal picked, 13/09/2026
