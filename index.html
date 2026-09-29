@@ -1063,7 +1063,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v496 · 29/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v497 · 29/09/2026</div>
 
   </div>
 </div>
@@ -11175,6 +11175,65 @@ function wireRecipeTicks(root, prefix) {
     items[i].className = "rcp-tick" + (_recipeDone[key] ? " rcp-done" : "");
   }
 }
+// ── Printing (v497) ──────────────────────────────────────────────────────
+// The one print document in the app: Lists (#printLink) and a recipe's Print
+// both go through here. It holds the file's only print-string DOCTYPE and the
+// ESCAPED <\/script> — tests/checks.sh pins both. Do NOT give a new print
+// feature its own copy of this; call openPrintDoc.
+function openPrintDoc(title, css, bodyHtml) {
+  var doc = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + esc(title) + "</title><style>" + css + "</style></head><body>" +
+    bodyHtml +
+    "<script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>" +
+    "</body></html>";
+  var w = window.open("", "_blank");
+  if (!w) { toast("Allow pop-ups to print"); return false; }
+  w.document.open(); w.document.write(doc); w.document.close();
+  return true;
+}
+
+// A recipe as a printed card: name, Serves N at the servings currently set
+// (amounts scaled exactly as on screen), ingredients, prep, method, notes.
+// Cathal's scope, 29/09/2026: calories, category, source and the buttons are
+// left off on purpose.
+var RECIPE_PRINT_CSS =
+  "*{box-sizing:border-box}body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;margin:28px;line-height:1.5}" +
+  "h1{font-family:Georgia,serif;font-size:24px;margin:0 0 2px}.sub{color:#666;font-size:14px;margin-bottom:18px}" +
+  "h2{font-size:15px;margin:20px 0 8px;padding-bottom:4px;border-bottom:1.5px solid #ddd;text-transform:uppercase;letter-spacing:.5px}" +
+  "h3{font-size:13px;margin:12px 0 4px;text-transform:uppercase;letter-spacing:.4px;color:#555}" +
+  "ul{margin:0;padding:0 0 0 20px}ul li{padding:3px 0;font-size:14px}ol li{font-size:14px}p,.notes{font-size:14px}" +
+  "@media print{body{margin:14px}h2{break-after:avoid}li{break-inside:avoid}}";
+function recipePrintHtml(r, servings) {
+  var base = r.servings || 1;
+  var mult = servings / base;
+  var ing = "", open = false;
+  (r.ingredients || []).forEach(function(i){
+    if (isHeaderIng(i)) {
+      if (open) { ing += "</ul>"; open = false; }
+      ing += "<h3>" + esc(headerLabel(i)) + "</h3>";
+      return;
+    }
+    if (!open) { ing += "<ul>"; open = true; }
+    var eff = rescueIngredientMeasure(i);
+    var sc = scaleIngredient(eff, mult);
+    var amt = (sc.amount && sc.amount !== "0") ? "<b>" + (eff.approx ? "~" : "") + sc.amount + (sc.amountMax ? "–" + sc.amountMax : "") + (sc.unit ? " " + sc.unit : "") + "</b> " : "";
+    ing += "<li>" + amt + esc(eff.name) + "</li>";
+  });
+  if (open) ing += "</ul>";
+  var prep = "";
+  if (r.prep && String(r.prep).trim()) prep = formatMethod(r.prep);
+  else {
+    var ds = derivedPrepSteps(r);
+    if (ds.length) prep = "<ol>" + ds.map(function(d){ return "<li>" + esc(d.name) + " &mdash; " + esc(d.prep) + "</li>"; }).join("") + "</ol>";
+  }
+  var method = r.method ? formatMethod(r.method) : "";
+  return "<h1>" + esc(r.name || "Recipe") + "</h1>" +
+    "<div class='sub'>Serves " + servings + "</div>" +
+    (ing ? "<h2>Ingredients</h2>" + ing : "") +
+    (prep ? "<h2>Prep</h2>" + prep : "") +
+    (method ? "<h2>Method</h2>" + method : "") +
+    (r.notes ? "<h2>Notes</h2><div class='notes'>" + escNl(r.notes) + "</div>" : "");
+}
+
 function renderRecipeDetail() {
   var el = document.getElementById("recipesContent");
   var r = getRecipeBook().find(function(x){ return x.id === _recipeOpenId; });
@@ -11249,6 +11308,7 @@ function renderRecipeDetail() {
     "<button id='recipeToFoodBtn' style='width:100%;box-sizing:border-box;padding:12px;margin-top:8px;border:none;background:#A05A10;color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer'>&#x1F373; Log to food journal&hellip;</button>" +
     "<div style='display:flex;gap:8px;margin-top:8px'>" +
       "<button id='recipeEditBtn' style='flex:1;padding:11px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Edit</button>" +
+      "<button id='recipePrintBtn' style='flex:1;padding:11px;border:1.5px solid #B5651D;background:#fff;color:#B5651D;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>&#x1F5A8; Print</button>" +
       "<button id='recipeDeleteBtn' style='padding:11px 16px;border:1.5px solid #E0C0C0;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer'>Delete</button>" +
     "</div>";
 
@@ -11331,6 +11391,9 @@ function renderRecipeDetail() {
   });
   document.getElementById("servMinus").addEventListener("click", function(){ if(_recipeServings>1){_recipeServings--; renderRecipeDetail();} });
   document.getElementById("servPlus").addEventListener("click", function(){ if(_recipeServings<50){_recipeServings++; renderRecipeDetail();} });
+  document.getElementById("recipePrintBtn").addEventListener("click", function(){
+    openPrintDoc(r.name || "Recipe", RECIPE_PRINT_CSS, recipePrintHtml(r, _recipeServings));
+  });
   document.getElementById("recipeDeleteBtn").addEventListener("click", function(){
     confirmDialog("Delete \"" + esc(r.name) + "\"?", function(){
       addTomb("recipes", r.id);
@@ -17747,23 +17810,15 @@ window.addEventListener("DOMContentLoaded", function() {
     });
     if (!body) body = "<p class='empty'>No items to print.</p>";
 
-    var doc = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + esc(listName) + "</title><style>" +
+    openPrintDoc(listName,
       "*{box-sizing:border-box}body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;margin:28px;line-height:1.5}" +
       "h1{font-size:22px;margin:0 0 2px}.sub{color:#666;font-size:13px;margin-bottom:18px}" +
       "h2{font-size:15px;margin:18px 0 6px;padding-bottom:4px;border-bottom:1.5px solid #ddd}" +
       "ul{list-style:none;margin:0;padding:0}li{display:flex;align-items:flex-start;gap:9px;padding:5px 0;border-bottom:1px dotted #e2e2e2}" +
       ".box{flex:0 0 auto;width:15px;height:15px;border:1.5px solid #888;border-radius:3px;margin-top:2px}" +
       ".nm{font-size:14px}.due{color:#777;font-size:12px}.note{color:#777;font-size:12px;margin-top:1px}" +
-      ".empty{color:#888}@media print{body{margin:14px}}" +
-      "</style></head><body>" +
-      "<h1>" + esc(listName) + "</h1><div class='sub'>" + dateStr + "</div>" +
-      body +
-      "<script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>" +
-      "</body></html>";
-
-    var w = window.open("", "_blank");
-    if (!w) { toast("Allow pop-ups to print"); return; }
-    w.document.open(); w.document.write(doc); w.document.close();
+      ".empty{color:#888}@media print{body{margin:14px}}",
+      "<h1>" + esc(listName) + "</h1><div class='sub'>" + dateStr + "</div>" + body);
   });
 
   // ── "⋯" list tools: Print + Import list, rare, so hidden until asked for (v493) ──
