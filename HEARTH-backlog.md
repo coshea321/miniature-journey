@@ -13,7 +13,7 @@ Full write-up: [`HEARTH-ui-ux-review-2026-09-28.md`](HEARTH-ui-ux-review-2026-09
 - **③ Chrome:** fold the section action bar into the header; move rare actions into a tools menu; make "Recording for" smaller.
 - **④ Terminology and dates:** one name per thing (To-do vs General, Health vs Medical history), one create verb, one date helper.
 - **⑤ Home quick-add:** ~~keep the Grocery/Task panel open after each add~~ **shipped v491**; still open: route `+ Medicine` to Baby → Medicine. **The medicine half is dosing-adjacent: it needs a top-tier session.**
-- **Removals offered:** Watchlist's second filter row; Print and Import list behind a "⋯" on Lists.
+- **Removals offered:** ~~Watchlist's second filter row~~ **shipped v492**; still open: Print and Import list behind a "⋯" on Lists.
 
 ## UI/UX review (12/09/2026) — Cathal picked, 13/09/2026
 Full write-up: [`HEARTH-ui-ux-review.md`](HEARTH-ui-ux-review.md). **PR #229 is closed out — it was rebased and shipped as v469 (12/09/2026); question 5 in the review file is answered, do not re-open it.** Dark mode, shopping mode, dashboard customisation and nav-consolidation stages 2–4 stay rejected. Cathal's answers to the review's four other questions, each now a build-ready entry:
