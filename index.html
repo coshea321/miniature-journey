@@ -5,7 +5,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1C0A04" id="themeColor">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,6 +21,12 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 .app-title{font-family:Georgia,serif;font-size:20px;font-weight:600;color:#F4EEE4;flex:1}
 .hdr-badge{background:rgba(255,255,255,.25);color:#fff;border-radius:20px;padding:2px 9px;font-size:12px;font-weight:700;display:none}
 .hdr-btn{width:42px;height:42px;border:none;background:rgba(255,255,255,.18);color:#fff;border-radius:8px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/* v487: sync status as a dot — CSS color never tints the 🔁 emoji, so the old green was invisible */
+#syncBtn{position:relative}
+.sync-dot{position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:#E0A030;box-shadow:0 0 0 2px #fff;pointer-events:none}
+.sync-dot.on{background:#2D9A5A}
+/* v487: honour the OS "reduce motion" setting */
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 .type-bar{display:flex;gap:4px;padding:4px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .type-btn{flex:1;padding:8px 4px;border:none;border-radius:6px;font-family:inherit;font-size:13px;font-weight:700;color:#5A6455;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:all .2s}
 .type-btn.active{color:#fff;background:var(--accent)}
@@ -77,6 +83,8 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 .item-card.done .item-name{text-decoration:line-through;color:#5A6455}
 .item-pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;white-space:nowrap;flex-shrink:0;cursor:pointer;border:1.5px solid transparent;transition:border-color .15s}
 .item-pill:hover{border-color:rgba(0,0,0,.2)}
+.item-pill-ico{min-width:32px;min-height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:15px;border-radius:16px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .del-btn{width:40px;height:40px;flex-shrink:0;border:none;background:none;color:#C03030;font-size:18px;cursor:pointer;border-radius:6px;opacity:.3;display:flex;align-items:center;justify-content:center}
 .clear-btn{display:block;width:100%;margin-top:14px;padding:12px;border:2px dashed #D8D0C0;border-radius:9px;background:none;color:#5A6455;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
 .empty{text-align:center;padding:56px 24px 32px;color:#5A6455}
@@ -283,7 +291,7 @@ body.home-mode .bn-btn{color:#AAA090}
 /* Section headers */
 .home-sec-hdr{display:flex;align-items:center;margin-bottom:8px}
 .home-sec-title{font-family:Georgia,serif;font-size:14px;font-weight:600;color:#2A2010;flex:1}
-.home-sec-link{border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;color:#A0855A;cursor:pointer;padding:2px 0}
+.home-sec-link{border:none;background:none;font-family:inherit;font-size:12px;font-weight:700;color:#A0855A;cursor:pointer;padding:12px 0 12px 12px;margin:-10px 0}
 .home-sec-link:active{color:#2A2010}
 
 /* Spotlight items */
@@ -870,7 +878,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
   <div class="app-title" id="appTitle">🔥 Hearth</div>
   <div class="hdr-badge" id="hdrBadge"></div>
   <span id="hdrUser" style="font-size:11px;color:rgba(255,255,255,.55);font-weight:600;letter-spacing:.3px;white-space:nowrap;overflow:hidden;max-width:80px;text-overflow:ellipsis"></span>
-  <button class="hdr-btn" id="syncBtn" title="Sync" aria-label="Open sync settings">&#128257;</button>
+  <button class="hdr-btn" id="syncBtn" title="Sync" aria-label="Open sync settings">&#128257;<span class="sync-dot" id="syncDot"></span></button>
   <button class="hdr-btn" id="settingsBtn" title="Settings" aria-label="Open app settings">&#9881;&#65039;</button>
 </header>
 
@@ -895,7 +903,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     <div style="position:relative;margin:0 0 14px">
       <div style="display:flex;align-items:center;gap:8px;background:#fff;border-radius:12px;padding:10px 14px;box-shadow:0 1px 4px rgba(20,50,20,.07)">
         <span style="font-size:16px">&#x1F50D;</span>
-        <input id="homeSearchInput" type="text" placeholder="Search grocery, tasks, notes, recipes, inventory..." autocomplete="off" style="flex:1;min-width:0;border:none;outline:none;font-family:inherit;font-size:14px;background:transparent">
+        <input id="homeSearchInput" type="text" aria-label="Search" placeholder="Search grocery, tasks, notes, recipes, inventory..." autocomplete="off" style="flex:1;min-width:0;border:none;outline:none;font-family:inherit;font-size:14px;background:transparent">
         <span id="homeSearchClear" style="display:none;color:#B8AA90;font-size:15px;cursor:pointer;padding:2px 4px;touch-action:manipulation">&#x2715;</span>
       </div>
       <div id="homeSearchResults" style="display:none;margin-top:8px"></div>
@@ -1024,7 +1032,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v486 · 26/09/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v487 · 29/09/2026</div>
 
   </div>
 </div>
@@ -12386,7 +12394,7 @@ function renderList() {
       "<span>"+catEmojiSafe(c.emoji)+"&ensp;<span class='sec-name'>"+esc(c.name)+"</span></span>" +
       "<div class='sec-line'></div><span class='sec-count'>"+gi.length+"</span></div>";
     html+="<div class='cat-items' style='display:"+(catOpen?"block":"none")+"'>";
-    for (var ii=0;ii<gi.length;ii++) html+=cardHTML(gi[ii],c);
+    for (var ii=0;ii<gi.length;ii++) html+=cardHTML(gi[ii],c,true);
     html+="</div>";
   }
   if (done.length) {
@@ -12601,7 +12609,7 @@ function alarmLink(item) {
   return "<button class='alarm-link' data-alarmh='" + esc(h) + "' data-alarmm='" + esc(m) + "' data-alarmname='" + esc(item.name) + "' title='Set alarm' style='display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:#1E2A3E;color:#a78bfa;font-size:12px;font-weight:600;border:none;cursor:pointer;touch-action:manipulation'>&#x23F0; " + label + "</button>";
 }
 
-function cardHTML(item, c) {
+function cardHTML(item, c, grouped) {
   var isTask   = currentList === "todo" || currentList === "personal";
   var isDetail = currentList === "todo" || currentList === "personal" || currentList === "grocery" || currentList === "travel";
   var dueLabel = isTask ? dueDateLabel(item) : "";
@@ -12661,7 +12669,12 @@ function cardHTML(item, c) {
 
       noteSnip + linkChip +
     "</div>" +
-    "<span class='item-pill' style='background:" + catColorSafe(c.bg,"#EDEAE4") + ";color:" + catColorSafe(c.fg,"#4A4A3A") + "' title='Tap to change category'>" + catEmojiSafe(c.emoji) + " " + esc(c.name) + "</span>" +
+    // v487: under a category header the name is already on screen, so the pill
+    // shows the emoji only (still the tap-to-change-category control; the name
+    // stays in the DOM for screen readers). Done items have no header -> full pill.
+    (grouped
+      ? "<span class='item-pill item-pill-ico' role='button' aria-label='Category: " + esc(c.name) + " \u2014 tap to change' style='background:" + catColorSafe(c.bg,"#EDEAE4") + ";color:" + catColorSafe(c.fg,"#4A4A3A") + "' title='" + esc(c.name) + " \u2014 tap to change category'>" + catEmojiSafe(c.emoji) + "<span class='sr-only'>" + esc(c.name) + "</span></span>"
+      : "<span class='item-pill' style='background:" + catColorSafe(c.bg,"#EDEAE4") + ";color:" + catColorSafe(c.fg,"#4A4A3A") + "' title='Tap to change category'>" + catEmojiSafe(c.emoji) + " " + esc(c.name) + "</span>") +
     starBtn +
     "<button class='del-btn'>&#x2715;</button></div>";
 }
@@ -17272,15 +17285,23 @@ window.addEventListener("popstate", function(e) {
 
 function updateSyncStatus() {
   var btn = document.getElementById("syncBtn");
+  var dot = document.getElementById("syncDot");
   var userEl = document.getElementById("hdrUser");
+  // v487: green dot = signed in and online; amber = offline or logged out.
+  var online = !(typeof navigator !== "undefined" && navigator.onLine === false);
+  var state = !online ? "offline" : (isLoggedIn() ? "signed in" : "logged out");
+  if (dot) dot.className = "sync-dot" + (state === "signed in" ? " on" : "");
+  if (btn) btn.setAttribute("aria-label", "Open sync settings (" + state + ")");
   if (isLoggedIn()) {
-    if (btn) { btn.style.color = "#4CAF7D"; btn.title = hearthUser + " — synced"; }
+    if (btn) { btn.title = hearthUser + (online ? " — signed in" : " — offline"); }
     if (userEl) userEl.textContent = hearthUser;
   } else {
-    if (btn) { btn.style.color = ""; btn.title = "Sync"; }
+    if (btn) { btn.title = online ? "Sync" : "Sync — offline"; }
     if (userEl) userEl.textContent = "";
   }
 }
+window.addEventListener("online",  updateSyncStatus);
+window.addEventListener("offline", updateSyncStatus);
 
 // ── SSE: personal sync listener ───────────────────────────
 var hearthHealthES = null;
@@ -22296,7 +22317,7 @@ function renderGrowth() {
   } else {
     html += "<div style='text-align:center;padding:32px;color:#8A6A8A;font-size:14px'>No measurements yet</div>";
   }
-  html += "<div style='padding:8px 16px 14px;font-size:10px;color:#B8A8B8'>Centiles are approximate, based on WHO weight-for-length reference tables. Not medical advice &mdash; discuss growth with your PHN or GP.</div>";
+  html += "<div style='padding:8px 16px 14px;font-size:12px;color:#8A6A8A'>Centiles are approximate, based on WHO weight-for-length reference tables. Not medical advice &mdash; discuss growth with your PHN or GP.</div>";
   el.innerHTML = html;
   var now2 = new Date(), p2 = function(x){ return x<10?"0"+x:""+x; };
   var d2 = document.getElementById("growthDate"); if(d2) d2.value = now2.getFullYear()+"-"+p2(now2.getMonth()+1)+"-"+p2(now2.getDate());
