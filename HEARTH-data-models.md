@@ -59,6 +59,13 @@ Current fields: `kind`, `person`, `title`, `date`, `time`, `who`, `dose`, `expir
 
 **Three separate things in `index.html` are called "health" and none are each other**: this section (`sectionVisible.health`), a pre-existing always-true `syncPrefs.health` key with no UI toggle, and the grocery **category** id `health`. Commented at the `syncPrefs` line; do not tidy them together.
 
+## Projects data model — two levels, like Trips (v499)
+`fl4_projects` is an array of projects, each holding an `items` array. **Project fields:** `id`, `name`, `status` (`idea`/`planning`/`active`/`done`: `PROJ_STATUSES`, never free text, unknown reads as Planning), `target` (`YYYY-MM-DD` or `""`), `notes`, `items`, `addedBy`, `added`, `updated`. **Item fields, stored on every item whatever its type:** `id`, `type` (`task`/`quote`/`cost`/`contact`/`link`), `title`, `date`, `amount` (number or `""`), `who`, `phone`, `url`, `notes`, `done`, `sentAt` (0 or the time it was copied to To-do), `addedBy`, `added`, `updated`. `PROJ_ITEM_FIELDS` decides which fields a type shows and what they are called. A hidden field keeps its value.
+
+**No field list to hand-edit for sync or backup:** `mergeProjectsData` rebuilds projects from both copies (`Object.assign(loser, winner)`) and field-fills items, and the backup carries whole records. A new **item** field needs: the fresh-item defaults and `vals` in `renderProjectItemEditor`, a `PROJ_ITEM_FIELDS` column if it is type-dependent, the row in `projItemRowHTML`, `projectSearchText` if searchable, and the `buildTestSeed` projects. A new **project** field needs `renderProjectEditor` (markup + `vals`), `renderProjectDetail`, and the seed. **A cleared field stores `""`, never a dropped key** (the v296 rule).
+
+**Every read goes through `getProjects()`/`projItemsOf()`**, which coerce a missing or object-shaped `items` to an array. **Do NOT merge whole projects newest-wins** (see `HEARTH-notes.md` § Sections). `url` goes through `applianceLinkUrl` at save, restore and render. `phone` only becomes an href through `healthPhoneHref`.
+
 ## Baby bags data model — two levels, each merged by id (v478)
 `bd.bags` is an array of bags, each holding an `items` array, and **both levels** union by id, newest-wins by `updated`, with their own tombstones (`fl4_tomb_bags`, `fl4_tomb_bagitems`) on both sync channels. **Every read goes through `normaliseBags`** (via `getBagsData`) because Firebase strips an empty `items:[]` and returns sparse arrays as objects — never read `bd.bags` directly. **Every write stamps the item AND its bag** (`touchBagItem`).
 
