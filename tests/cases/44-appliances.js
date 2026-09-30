@@ -72,8 +72,8 @@ module.exports = {
         'got: ' + JSON.stringify(applianceWarranty({ warranty:'2001-01-01' })));
       ok('a warranty ending TODAY still counts as in warranty (it has not expired yet)',
         applianceWarranty({ warranty:todayISO }).state === 'in', 'got: ' + JSON.stringify(applianceWarranty({ warranty:todayISO })));
-      ok('the warranty text carries the date in DD/MM/YYYY',
-        applianceWarranty({ warranty:'2099-03-12' }).text.indexOf('12/03/2099') > -1,
+      ok('the warranty text carries the date in the list format (v498: 12 Mar 2099)',
+        applianceWarranty({ warranty:'2099-03-12' }).text.indexOf('12 Mar 2099') > -1,
         'got: ' + applianceWarranty({ warranty:'2099-03-12' }).text);
       ok('applianceDateLabel refuses anything that is not YYYY-MM-DD',
         applianceDateLabel('') === '' && applianceDateLabel('12/03/2099') === '' && applianceDateLabel(null) === '',
@@ -210,8 +210,8 @@ module.exports = {
       ok('the detail view shows the model, serial and FD number',
         el.textContent.indexOf('SMS4HVI33E') > -1 && el.textContent.indexOf('FD9920014') > -1 && el.textContent.indexOf('0603') > -1,
         'got: ' + el.textContent.slice(0, 400));
-      ok('the bought date renders as DD/MM/YYYY', el.textContent.indexOf('10/01/2024') > -1, 'got: ' + el.textContent.slice(0, 400));
-      ok('the warranty line is shown on the record itself', el.textContent.indexOf('In warranty until 01/01/2099') > -1,
+      ok('the bought date renders in the list format (v498: 10 Jan 2024)', el.textContent.indexOf('10 Jan 2024') > -1, 'got: ' + el.textContent.slice(0, 400));
+      ok('the warranty line is shown on the record itself', el.textContent.indexOf('In warranty until 1 Jan 2099') > -1,
         'got: ' + el.textContent.slice(0, 500));
       ok('the model, serial and FD rows are copyable — the rest are not buttons',
         el.querySelectorAll('.appl-copy').length === 3, 'got: ' + el.querySelectorAll('.appl-copy').length);

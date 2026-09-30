@@ -1,6 +1,6 @@
 # Hearth — minimal-UI review (28/09/2026)
 
-**Status (29/09/2026):** Cathal asked to keep this review and build quick wins 1–6 as one version. **Those shipped as v487; issue 1 (Home repeats itself) shipped as v488.** Later versions (v489–v496) are tracked in the backlog entry. Everything else below is *offered, not confirmed* — the open items are listed in `HEARTH-backlog.md` § UI/UX review (28/09/2026). A build session needs a design confirm on any of them first. Issue 5 touches the Baby medicine flow, so it needs a top-tier session (CLAUDE.md model gate).
+**Status (29/09/2026):** Cathal asked to keep this review and build quick wins 1–6 as one version. **Those shipped as v487; issue 1 (Home repeats itself) shipped as v488.** Later versions (v489–v498) are tracked; every item is now shipped in the backlog entry. Everything else below is *offered, not confirmed* — the open items are listed in `HEARTH-backlog.md` § UI/UX review (28/09/2026). A build session needs a design confirm on any of them first. Issue 5 touches the Baby medicine flow, so it needs a top-tier session (CLAUDE.md model gate).
 
 Reviewed **v486**, test build with demo data, 390px phone viewport, every section. Contrast and tap sizes were measured with a script. Lens: "what remains after everything unnecessary is removed", judged on daily use by one person on a phone.
 

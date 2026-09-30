@@ -6,12 +6,12 @@ Pending work, triaged review findings, and decisions that must not be re-litigat
 
 **Struck-through items are shipped.** They are kept because the reasoning behind them still matters — a struck item is a "do not re-chase", not a to-do.
 
-## UI/UX review (28/09/2026) — quick wins shipped v487, the rest offered, not confirmed
+## UI/UX review (28/09/2026) — all shipped (v487–v498)
 Full write-up: [`HEARTH-ui-ux-review-2026-09-28.md`](HEARTH-ui-ux-review-2026-09-28.md). On 29/09/2026 Cathal asked to keep the review and build quick wins 1–6; they **shipped as v487**. None of the items below has a design confirm yet, so confirm the shape with Cathal before building any of them. The 12/09 decisions still hold: the Training / Last medicine / Plants cards stay.
 - ~~**① Home repeats itself.**~~ **Shipped v488** (29/09/2026), exactly as offered: grocery, medicine and watering Today rows removed, local clock removed, cards unchanged. Not in scope and still open: the ⭐ "N tasks starred for today" row also repeats the ★ Today preview below it — offer it separately if wanted.
 - ~~**② Contrast and type scale:**~~ **contrast + 11px floor shipped v489, follow-ups v490; font-size light tidy shipped v495** (29/09/2026). Cathal chose the light tidy over the full four-size scale (11/13/15/20): only the in-between sizes were snapped. **Rejected on record:** moving every 12px and 14px setting to 13/15. 16px stays because of iOS zoom on inputs. Original ask: four font sizes, nothing under 11px, all tint text at least 4.5:1 (nav `#AAA090` is 2.58:1; the Home card labels are 2.3–2.9:1).
 - ~~**③ Chrome:**~~ **shipped v496** (29/09/2026): the action bar is folded into the header as + and ⋯, the rare actions sit in a ⋯ sheet, and "Recording for" is a header chip. **Train, Baby and Lists were not in scope**: they have no action bar.
-- **④ Terminology and dates:** one name per thing (To-do vs General, Health vs Medical history), one create verb, one date helper.
+- ~~**④ Terminology and dates:**~~ **shipped v498** (29/09/2026): the list is "To-do", the screen is "Health", buttons say Log / Save, and list/history rows use `listDate()`. **The whole 28/09 review is now done.**
 - ~~**⑤ Home quick-add:**~~ keep the Grocery/Task panel open after each add **shipped v491**; `+ Medicine` now opens Baby → Medicine **shipped v494** (design confirmed 29/09/2026, Opus session).
 - **Removals offered:** ~~Watchlist's second filter row~~ **shipped v492**; ~~Print and Import list behind a "⋯" on Lists~~ **shipped v493**.
 
