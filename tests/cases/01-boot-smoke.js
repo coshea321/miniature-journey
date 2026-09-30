@@ -64,7 +64,7 @@ module.exports = {
           'bnHome:"home", bnLife:"lists", bnTrain:"train", bnRecipes:"recipes",' +
           'bnBaby:"baby", bnTrips:"trips", bnTrack:"track", bnPlants:"plants",' +
           'bnWatch:"watch", bnAppliances:"appliances", bnSports:"sports",' +
-          'bnFamlog:"famlog", bnHealth:"health"' +
+          'bnFamlog:"famlog", bnHealth:"health", bnProjects:"projects"' +
         '};' +
         // v452: bnMore is the one bar button that is NOT a section — it opens
         // the overflow sheet. Exempt it by name (never by class or by "any id

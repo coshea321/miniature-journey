@@ -64,7 +64,8 @@ module.exports = {
       function collect(arr){ (arr||[]).forEach(function(x){ if (x && x.id != null) ids.push(x.id); }); }
       ['grocery','todo','travel','personal'].forEach(function(lt){ collect(seed.lists[lt].items); });
       collect(seed.recipebook); collect(seed.plants); collect(seed.watchlist); collect(seed.trips);
-      collect(seed.appliances); collect(seed.health);
+      collect(seed.appliances); collect(seed.health); collect(seed.projects);
+      (seed.projects || []).forEach(function(p){ collect(p.items); });   // v499: item ids share the namespace
       collect(seed.baby.medicine); collect(seed.baby.milestones);
       collect(seed.action_log); collect(seed.track_med); collect(seed.food_log);
       (seed.trips || []).forEach(function(t){ collect(t.bookings); });
@@ -92,7 +93,7 @@ module.exports = {
 
       // ── Through the real import path ─────────────────────────────────────
       var savedKeys = ['fl4_grocery','fl4_todo','fl4_travel','fl4_personal','fl4_recipebook','fl4_mealplan',
-                       'fl4_trips','fl4_plants','fl4_watchlist','fl4_appliances','fl4_health','fl4_baby','fl4_workouts','fl4_action_log',
+                       'fl4_trips','fl4_plants','fl4_watchlist','fl4_appliances','fl4_health','fl4_projects','fl4_baby','fl4_workouts','fl4_action_log',
                        'fl4_track_med','fl4_food_log','fl4_saved_meals','fl4_recipes','fl4_travel_tags',
                        'fl4_notes_global','fl4_notes_global_work','fl4_cal_goal','fl4_profile'];
       var savedState = {};
@@ -217,6 +218,18 @@ module.exports = {
         getAppliances().some(function(a){ return !!a.receipt; }) &&
         getAppliances().some(function(a){ return !!appliancePhotosUrl(a); }),
         'got: ' + JSON.stringify(getAppliances().map(function(a){ return [a.receipt, a.photos]; })));
+      // v499: four projects, one per status, and the In progress one carries
+      // every item type so every group on the detail screen is reviewable.
+      ok('projects land, one per status', getProjects().length === 4 &&
+        PROJ_STATUSES.every(function(st){ return getProjects().some(function(p){ return p.status === st.key; }); }),
+        'got: ' + getProjects().map(function(p){ return p.status; }).join(','));
+      ok('the demo kitchen carries every item type', (function(){
+        var k = getProjects().filter(function(p){ return p.status === 'active'; })[0];
+        return !!k && PROJ_ITEM_TYPES.every(function(t){ return k.items.some(function(it){ return it.type === t.key; }); });
+      })());
+      ok('the demo puts a Projects line on Home, and the Idea project does not count',
+        (function(){ var h = projHomeSummary(); return !!h && h.open === 3 && h.overdue === 1; })(),
+        'got: ' + JSON.stringify(projHomeSummary()));
       ok('workouts, bodyweight and blood pressure land',
         getWD().workouts.length === 2 && getWD().bodyweight.length === 5 && getWD().bp.length === 2,
         'got: ' + [getWD().workouts.length, getWD().bodyweight.length, (getWD().bp||[]).length].join('/'));
@@ -261,7 +274,7 @@ module.exports = {
       savedKeys.forEach(function(k){
         if (savedState[k] == null) localStorage.removeItem(k); else storeSet(k, savedState[k]);
       });
-      ['fl4_notes_grocery','fl4_notes_travel','fl4_tomb_recipes','fl4_tomb_plants','fl4_tomb_watchlist','fl4_tomb_appliances','fl4_tomb_health',
+      ['fl4_notes_grocery','fl4_notes_travel','fl4_tomb_recipes','fl4_tomb_plants','fl4_tomb_watchlist','fl4_tomb_appliances','fl4_tomb_health','fl4_tomb_projects','fl4_tomb_projitems',
        'fl4_tomb_trips','fl4_tomb_bookings','fl4_food_notes'].forEach(function(k){ localStorage.removeItem(k); });
       listData = savedListData;
 
