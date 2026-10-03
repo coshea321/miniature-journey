@@ -237,6 +237,13 @@ module.exports = {
       ok('the demo 18-hole summary skips the part-played round',
         (function(){ var g = golfSummary(18); return !!g && g.count === 2 && g.best === 82 && g.avg === 84.5; })(),
         'got: ' + JSON.stringify(golfSummary(18)));
+      // v501: the partner round scores Stableford for both players (Cathal off
+      // 18, Demo Pat off 12, one over par on every hole) and highlights the six
+      // SI 13-18 holes where only Cathal gets a shot.
+      ok('the demo partner round scores Stableford for both', (function(){
+        var r = golfRounds().filter(function(x){ return x.partner; })[0];
+        return !!r && golfRoundStats(r).points === 44 && golfPlayerStats(r, r.pStrokes, r.partnerHcp).points === 30;
+      })(), JSON.stringify(golfRounds().map(function(x){ return [x.partner, golfRoundStats(x).points]; })));
       ok('workouts, bodyweight and blood pressure land',
         getWD().workouts.length === 2 && getWD().bodyweight.length === 5 && getWD().bp.length === 2,
         'got: ' + [getWD().workouts.length, getWD().bodyweight.length, (getWD().bp||[]).length].join('/'));
