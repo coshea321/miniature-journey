@@ -7597,7 +7597,13 @@ function golfImportPlan(list) {
     if (seen[key]) return { c: c, action: "skip", why: "the file has this name twice" };
     seen[key] = true;
     if (hits.length > 1) return { c: c, action: "skip", why: "you have two saved courses with this name — rename one first" };
-    if (hits.length === 1) return { c: c, action: "update", target: hits[0] };
+    if (hits.length === 1) {
+      // A file with no stroke index keeps the saved one (same hole count
+      // only). Decided here, once, so the preview and Import can't disagree.
+      var t = hits[0];
+      var keepSi = !golfSiComplete(c.si, c.holes) && t.holes === c.holes && golfSiComplete(t.si, t.holes);
+      return { c: c, action: "update", target: t, keepSi: keepSi };
+    }
     return { c: c, action: "new" };
   });
 }
@@ -7605,18 +7611,25 @@ function golfImportPlan(list) {
 // Writes the plan. Returns {added, updated}.
 function golfApplyImport(plan) {
   var all = getGolf(), now = Date.now(), added = 0, updated = 0;
+  // One base for the batch with a 1000 stride (the other bulk importers'
+  // shape), stepped past any id already in the store — two projNewId() calls
+  // in one millisecond can collide, and a shared id merges two courses.
+  var nextId = projNewId();
+  function freshId() {
+    while (golfFind(all, nextId)) nextId++;
+    var id = nextId; nextId += 1000; return id;
+  }
   plan.forEach(function(p){
     if (p.action === "update") {
       var cur = golfFind(all, p.target.id);
       if (!cur) return;
-      var siKeep = golfSiComplete(p.c.si, p.c.holes) ? p.c.si.slice() :
-        (cur.holes === p.c.holes && golfSiComplete(cur.si, cur.holes) ? cur.si.slice() : golfSiArr([], p.c.holes));
+      var siKeep = p.keepSi ? cur.si.slice() : (golfSiComplete(p.c.si, p.c.holes) ? p.c.si.slice() : golfSiArr([], p.c.holes));
       cur.name = p.c.name; cur.holes = p.c.holes; cur.pars = p.c.pars.slice(); cur.si = siKeep;
       if (p.c.notes) cur.notes = p.c.notes;
       cur.updated = now;
       updated++;
     } else if (p.action === "new") {
-      all.unshift({ id: projNewId() + added, kind: "course", name: p.c.name, holes: p.c.holes, pars: p.c.pars.slice(),
+      all.unshift({ id: freshId(), kind: "course", name: p.c.name, holes: p.c.holes, pars: p.c.pars.slice(),
                     si: p.c.si.slice(), notes: p.c.notes, addedBy: hearthUser, added: now, updated: now });
       added++;
     }
@@ -7687,7 +7700,7 @@ function renderGolfImport() {
         "<span style='flex-shrink:0;background:" + badge[1] + ";color:" + badge[2] + ";font-size:12px;font-weight:700;border-radius:20px;padding:4px 9px'>" + badge[0] + "</span>" +
       "</div>" +
       "<div style='font-size:12px;color:#6E5E48;margin-top:4px'>" + p.c.holes + " holes &middot; par " + golfParTotal(p.c.pars) + " &middot; " +
-        (golfSiComplete(p.c.si, p.c.holes) ? "stroke index included" : "no stroke index") + "</div>" +
+        (golfSiComplete(p.c.si, p.c.holes) ? "stroke index included" : p.keepSi ? "keeps your saved stroke index" : "no stroke index") + "</div>" +
       "<div style='font-size:12px;color:#4A5A3A;margin-top:6px;line-height:1.6'>Pars: " + p.c.pars.join(" ") +
         (golfSiComplete(p.c.si, p.c.holes) ? "<br>SI: " + p.c.si.join(" ") : "") + "</div>" +
       (p.c.notes ? "<div style='font-size:12px;color:#6E5E48;margin-top:4px'>" + esc(p.c.notes) + "</div>" : "") +
@@ -7695,7 +7708,7 @@ function renderGolfImport() {
     "</div>";
   });
   if (plan.some(function(p){ return p.action === "update"; })) {
-    html += "<div style='font-size:12px;color:#6E5E48;margin:2px 2px 12px;line-height:1.5'>Updating replaces the course&rsquo;s holes, pars and stroke index. Rounds already played there keep the scores and pars they were played to.</div>";
+    html += "<div style='font-size:12px;color:#6E5E48;margin:2px 2px 12px;line-height:1.5'>Updating replaces the course&rsquo;s holes and pars, and its stroke index when the file has one. Rounds already played there keep the scores and pars they were played to.</div>";
   }
   html += "<button id='golfImportGo' " + (doing ? "" : "disabled ") + "style='width:100%;padding:13px;border:none;background:" + (doing ? GOLF_COLOR : "#B8C4AC") + ";color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation'>Import" + (doing > 1 ? " " + doing + " courses" : "") + "</button>";
   el.innerHTML = html;

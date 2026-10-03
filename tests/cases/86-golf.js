@@ -262,6 +262,28 @@ module.exports = {
         golfCourses().some(function(c){ return c.name === '<b>Links</b>' && c.holes === 18 && golfSiComplete(c.si, 18) && c.notes === 'White tees'; }));
       ok('a round already played keeps the par it was played to', golfFind(getGolf(), 80).pars[0] === 4);
       ok('Import lands on the Courses list', _golfView === 'courses');
+      // Codex review on #272: a file without SI keeps the saved SI, and the
+      // preview must say so rather than "no stroke index".
+      storeSet('fl4_golf', [ course(1, 'Keep', { si:[5,7,1,9,3,6,2,8,4] }) ]);
+      openGolfImport();
+      document.getElementById('golfImportJson').value = file({ name:'Keep', holes:9, pars:[3,3,3,3,3,3,3,3,3], si:[] });
+      document.getElementById('golfImportNext').click();
+      ok('the preview says the saved stroke index is kept', document.getElementById('golfContent').textContent.indexOf('keeps your saved stroke index') !== -1);
+      document.getElementById('golfImportGo').click();
+      ok('and Import keeps it', golfFind(getGolf(), 1).si.join() === '5,7,1,9,3,6,2,8,4' && golfFind(getGolf(), 1).pars[0] === 3);
+      // Several new courses in one import never share an id, even in one millisecond.
+      storeSet('fl4_golf', []);
+      var many = []; for (var mi = 0; mi < 12; mi++) many.push({ name:'C' + mi, holes:9, pars:[3,3,3,3,3,3,3,3,3], si:[], notes:'' });
+      var savedNow = Date.now, savedRnd = Math.random;
+      Date.now = function(){ return 1700000000000; };
+      // Each call's random part drops by one as the row offset rises by one —
+      // exactly the case where the old projNewId() + added gave every row the same id.
+      var rk = 0; Math.random = function(){ return (20 - rk++) / 1000 + 0.0001; };
+      golfApplyImport(many.map(function(c){ return { c:c, action:'new' }; }));
+      Date.now = savedNow; Math.random = savedRnd;
+      ok('a batch import gives every course its own id', (function(){
+        var seen = {}; return golfCourses().length === 12 && golfCourses().every(function(c){ if (seen[c.id]) return false; seen[c.id] = 1; return true; });
+      })());
       ok('two saved courses with the same name are skipped, not guessed',
         golfImportPlan([{ name:'Twin', holes:9, pars:[], si:[], notes:'' }]).length === 1 &&
         (function(){ storeSet('fl4_golf', [ course(1, 'Twin'), course(2, 'twin') ]);
