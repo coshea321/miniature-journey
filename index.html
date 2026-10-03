@@ -1069,7 +1069,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v500 · 03/10/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v501 · 03/10/2026</div>
 
   </div>
 </div>
@@ -6771,11 +6771,18 @@ function renderProjectItemEditor() {
 // ONE store, `fl4_golf`, holding two record kinds — the Health shape
 // (`kind` on the record) rather than two stores, so there is one set of
 // sync/backup/tombstone wiring instead of two:
-//   course: id, kind:"course", name, holes (9|18), pars [n×holes], notes
-//   round:  id, kind:"round", date, courseId, courseName, holes, pars,
-//           strokes [n or ""×holes], notes
+//   course: id, kind:"course", name, holes (9|18), pars [n×holes],
+//           si [stroke index 1..holes or ""×holes] (v501), notes
+//   round:  id, kind:"round", date, courseId, courseName, holes, pars, si,
+//           strokes [n or ""×holes], notes, and since v501 myHcp,
+//           partner, partnerHcp (playing handicaps: int or ""), pStrokes
+// v501 (confirmed 03/10/2026): one optional partner per round, PLAYING
+// handicaps typed in (not index + slope), Stableford on the scorecard and
+// the rounds list. Shots per hole come from the stroke index (golfShots);
+// a hole where one player gets more shots than the other is highlighted
+// before any score is entered — that is the "advantage".
 //   both:   addedBy, added, updated
-// A round SNAPSHOTS the course's name, hole count and pars when it is
+// A round SNAPSHOTS the course's name, hole count, pars and SI when it is
 // started, so editing or deleting a course later never rewrites a score
 // already played. Do NOT turn a round's pars into a live course lookup.
 //
@@ -6802,16 +6809,36 @@ function golfArr(raw) {
 function golfHoles(n) { return +n === 9 ? 9 : 18; }
 function golfParOf(v) { var n = parseInt(v, 10); return (n >= GOLF_PAR_MIN && n <= GOLF_PAR_MAX) ? n : 4; }
 function golfStrokeOf(v) { var n = parseInt(v, 10); return (n >= 1 && n <= GOLF_STROKE_MAX) ? n : ""; }
+function golfStrokesArr(raw, holes) {
+  var st = golfArr(raw), so = [];
+  for (var j = 0; j < holes; j++) so.push(golfStrokeOf(st[j]));
+  return so;
+}
+// A stroke index outside 1..holes reads as "" (unset), never as a guess.
+function golfSiArr(raw, holes) {
+  var a = golfArr(raw), out = [];
+  for (var i = 0; i < holes; i++) { var n = parseInt(a[i], 10); out.push(n >= 1 && n <= holes ? n : ""); }
+  return out;
+}
+// A playing handicap: a whole number from -10 (a plus handicap) to 54, or "".
+function golfHcpOf(v) {
+  if (v === "" || v == null) return "";
+  var n = Number(v);
+  return (Math.floor(n) === n && n >= -10 && n <= 54) ? n : "";
+}
 function golfNormalise(r) {
   if (r.kind !== "course" && r.kind !== "round") return r;   // a future kind passes through untouched
   r.holes = golfHoles(r.holes);
   var pars = golfArr(r.pars), po = [];
   for (var i = 0; i < r.holes; i++) po.push(golfParOf(pars[i]));
   r.pars = po;
+  r.si = golfSiArr(r.si, r.holes);                           // v501; a v500 record reads as all-unset
   if (r.kind === "round") {
-    var st = golfArr(r.strokes), so = [];
-    for (var j = 0; j < r.holes; j++) so.push(golfStrokeOf(st[j]));
-    r.strokes = so;
+    r.strokes = golfStrokesArr(r.strokes, r.holes);
+    r.pStrokes = golfStrokesArr(r.pStrokes, r.holes);
+    r.myHcp = golfHcpOf(r.myHcp);
+    r.partnerHcp = golfHcpOf(r.partnerHcp);
+    r.partner = typeof r.partner === "string" ? r.partner : "";
   }
   return r;
 }
@@ -6875,16 +6902,79 @@ function mergeGolfData(localG, incomingG, tombs) {
 }
 
 // ── Derived facts ────────────────────────────────────────────────────────
-// Only holes with a score count, so a part-played round reads "thru 12".
-function golfRoundStats(r) {
-  var s = { played:0, strokes:0, par:0, toPar:0, complete:false };
-  (r.strokes || []).forEach(function(v, i){
+// Stableford needs every hole's SI, each used once.
+function golfSiComplete(si, holes) {
+  if (!si || si.length !== holes) return false;
+  var seen = {};
+  for (var i = 0; i < holes; i++) {
+    var n = si[i];
+    if (typeof n !== "number" || n < 1 || n > holes || seen[n]) return false;
+    seen[n] = true;
+  }
+  return true;
+}
+// The course editor's rule: all blank, or all filled with 1..holes once each.
+function golfSiCheck(raw, holes) {
+  var filled = 0, seen = {};
+  for (var i = 0; i < holes; i++) {
+    var t = String(raw[i] == null ? "" : raw[i]).trim();
+    if (t === "") continue;
+    var n = Number(t);
+    if (Math.floor(n) !== n || n < 1 || n > holes) return "Stroke index must be a whole number from 1 to " + holes;
+    if (seen[n]) return "Stroke index " + n + " is on two holes";
+    seen[n] = true; filled++;
+  }
+  if (filled && filled < holes) return "Fill in the stroke index for every hole, or leave them all blank";
+  return "";
+}
+// Handicap shots on a hole. A playing handicap is spread over the holes by
+// stroke index: 18 on 18 holes is a shot a hole, 22 adds a second shot on
+// SI 1–4. A 9-hole course uses the handicap as typed (a 9-hole figure) over
+// SI 1–9. A plus handicap gives shots back on the easiest holes first.
+function golfShots(hcp, si, holes) {
+  if (hcp === "" || si === "" || si == null) return 0;
+  var a = Math.abs(hcp), base = Math.floor(a / holes), rem = a % holes;
+  if (hcp >= 0) return base + (si <= rem ? 1 : 0);
+  return -(base + (si > holes - rem ? 1 : 0));
+}
+// Stableford: 2 points for a net par, one more per shot better, none worse
+// than net double bogey. An unplayed hole scores nothing (null).
+function golfPoints(par, shots, strokes) {
+  if (strokes === "" || strokes == null) return null;
+  return Math.max(0, 2 + par + shots - strokes);
+}
+// One player's totals on a round. Only holes with a score count, so a
+// part-played round reads "thru 12". `points` is null unless both the SI
+// and this player's handicap are known.
+function golfPlayerStats(r, strokes, hcp) {
+  var siOk = hcp !== "" && golfSiComplete(r.si, r.holes);
+  var s = { played:0, strokes:0, par:0, toPar:0, complete:false, points: siOk ? 0 : null };
+  (strokes || []).forEach(function(v, i){
     if (v === "" || v == null) return;
     s.played++; s.strokes += v; s.par += (r.pars[i] || 4);
+    if (siOk) s.points += golfPoints(r.pars[i], golfShots(hcp, r.si[i], r.holes), v);
   });
   s.toPar = s.strokes - s.par;
   s.complete = s.played === r.holes;
   return s;
+}
+function golfRoundStats(r) { return golfPlayerStats(r, r.strokes, r.myHcp); }
+// Partners played with before, newest first, each with the last handicap
+// they played off. Names match case-insensitively.
+function golfKnownPartners() {
+  var out = [], seen = {};
+  golfRounds().forEach(function(r){
+    var name = String(r.partner || "").trim(), k = name.toLowerCase();
+    if (!name || seen[k]) return;
+    seen[k] = true;
+    out.push({ name: name, hcp: r.partnerHcp });
+  });
+  return out;
+}
+function golfLastMyHcp() {
+  var rs = golfRounds();
+  for (var i = 0; i < rs.length; i++) if (rs[i].myHcp !== "") return rs[i].myHcp;
+  return "";
 }
 function golfParTotal(pars) { return (pars || []).reduce(function(t, p){ return t + p; }, 0); }
 function golfToParText(n) { return n === 0 ? "E" : (n > 0 ? "+" + n : "&minus;" + (-n)); }
@@ -6946,6 +7036,8 @@ function renderGolf() {
     var s = golfRoundStats(r);
     var sub = [projDateText(r.date) || "No date", r.holes + " holes"];
     if (!s.complete) sub.push("thru " + s.played);
+    if (r.partner) sub.push("with " + esc(r.partner));
+    if (s.points !== null && s.played) sub.push("<b style='color:" + GOLF_COLOR + "'>" + s.points + " pts</b>");
     html += "<div class='golf-round' data-id='" + esc(String(r.id)) + "' style='display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid #E3EADB;border-radius:12px;margin-bottom:8px;padding:12px;cursor:pointer;touch-action:manipulation'>" +
       "<div style='flex:1;min-width:0'>" +
         "<div style='font-size:15px;font-weight:600;color:#2A2010;line-height:1.3'>" + esc(r.courseName || "Course") + "</div>" +
@@ -6984,7 +7076,7 @@ function renderGolfCourses() {
   courses.forEach(function(c){
     html += "<div class='golf-course' data-id='" + esc(String(c.id)) + "' style='background:#fff;border:1.5px solid #E3EADB;border-radius:12px;margin-bottom:8px;padding:12px;cursor:pointer;touch-action:manipulation'>" +
       "<div style='font-size:15px;font-weight:600;color:#2A2010'>" + esc(c.name || "Course") + "</div>" +
-      "<div style='font-size:12px;color:#6E5E48;margin-top:3px'>" + c.holes + " holes &middot; par " + golfParTotal(c.pars) + "</div></div>";
+      "<div style='font-size:12px;color:#6E5E48;margin-top:3px'>" + c.holes + " holes &middot; par " + golfParTotal(c.pars) + (golfSiComplete(c.si, c.holes) ? "" : " &middot; no stroke index yet") + "</div></div>";
   });
   html += "<button id='golfAddCourse' style='display:block;width:100%;margin-top:6px;padding:12px;border:none;background:" + GOLF_COLOR + ";color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>+ Add course</button>";
   el.innerHTML = html;
@@ -7061,16 +7153,26 @@ function renderGolfRoundEditor() {
   if (!r && !courses.length) { _golfView = "list"; renderGolf(); return; }
   _golfEditing = true;
   // The draft. A new round starts on the course just added, else the one
-  // played last, else the first; its pars are snapshotted from the course.
+  // played last, else the first; its pars and stroke indexes are
+  // snapshotted from the course.
   var d;
   if (r) {
-    d = { courseId: r.courseId, courseName: r.courseName, holes: r.holes, pars: r.pars.slice(), strokes: r.strokes.slice() };
+    d = { courseId: r.courseId, courseName: r.courseName, holes: r.holes, pars: r.pars.slice(), si: r.si.slice(),
+          strokes: r.strokes.slice(), pStrokes: r.pStrokes.slice() };
+    // A round played before its course had stroke indexes picks them up
+    // once the course has them. SI only, never pars: a par change must not
+    // rewrite a score already played.
+    if (!golfSiComplete(d.si, d.holes)) {
+      var src = golfFind(courses, d.courseId);
+      if (src && src.holes === d.holes && golfSiComplete(src.si, src.holes)) d.si = src.si.slice();
+    }
   } else {
     var last = golfRounds()[0];
     var start = golfFind(courses, _golfNewCourse) || (last && golfFind(courses, last.courseId)) || courses[0];
     d = golfDraftFor(start);
   }
   _golfNewCourse = null;
+  var known = golfKnownPartners();
   function leave() {
     _golfEditing = false; _golfCancelFn = null;
     _golfView = "list"; _golfEditId = null;
@@ -7084,52 +7186,97 @@ function renderGolfRoundEditor() {
         courses.map(function(c){
           return "<button type='button' class='golf-course-pick' data-id='" + esc(String(c.id)) + "' aria-pressed='false' style='padding:10px 12px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation'>" + esc(c.name || "Course") + "</button>";
         }).join("") + "</div>";
+  var hcpInp = PROJ_INP + ";width:92px;flex:0 0 auto";
   el.innerHTML = head +
     "<div style='" + PROJ_LBL + ";margin-top:14px'>Date</div>" +
     "<input id='golfEdDate' type='date' style='" + PROJ_INP + "' value='" + esc(r ? (r.date || "") : trainTodayStr()) + "'>" +
-    "<div id='golfTotals' style='margin-top:14px;background:#F2F6EC;border:1.5px solid #D9E2CF;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px'></div>" +
+    "<div style='" + PROJ_LBL + ";margin-top:14px'>Your playing handicap " + PROJ_OPT + "</div>" +
+    "<input id='golfEdMyHcp' type='number' inputmode='numeric' min='-10' max='54' placeholder='e.g. 18' style='" + hcpInp + "' value='" + esc(String(r ? r.myHcp : golfLastMyHcp())) + "'>" +
+    "<div style='" + PROJ_LBL + ";margin-top:14px'>Partner " + PROJ_OPT + "</div>" +
+    "<div style='display:flex;gap:8px'>" +
+      "<input id='golfEdPartner' type='text' list='golfPartnerList' autocomplete='off' placeholder='Name' style='" + PROJ_INP + ";flex:1;min-width:0' value='" + esc((r && r.partner) || "") + "'>" +
+      "<input id='golfEdPHcp' type='number' inputmode='numeric' min='-10' max='54' placeholder='Hcp' aria-label='Partner&rsquo;s playing handicap' style='" + hcpInp + "' value='" + esc(String(r ? r.partnerHcp : "")) + "'>" +
+    "</div>" +
+    "<datalist id='golfPartnerList'>" + known.map(function(k){ return "<option value='" + esc(k.name) + "'></option>"; }).join("") + "</datalist>" +
+    "<div id='golfSiNote'></div>" +
+    "<div id='golfTotals' style='margin-top:14px;background:#F2F6EC;border:1.5px solid #D9E2CF;border-radius:10px;padding:8px 12px'></div>" +
     "<div id='golfHoles' style='margin-top:8px'></div>" +
     "<div style='" + PROJ_LBL + ";margin-top:14px'>Notes " + PROJ_OPT + "</div>" +
-    "<textarea id='golfEdNotes' rows='3' placeholder='Weather, who you played with&hellip;' style='" + PROJ_INP + ";resize:vertical'>" + esc((r && r.notes) || "") + "</textarea>" +
+    "<textarea id='golfEdNotes' rows='3' placeholder='Weather, how it went&hellip;' style='" + PROJ_INP + ";resize:vertical'>" + esc((r && r.notes) || "") + "</textarea>" +
     golfEditorButtons(r ? "Delete this round" : "");
 
-  function paintTotals() {
-    var s = golfRoundStats(d);
-    document.getElementById("golfTotals").innerHTML =
-      "<div style='flex:1;font-size:13px;color:#4A5A3A'>" + (s.complete ? "All " + d.holes + " holes" : "Thru " + s.played + " of " + d.holes) + " &middot; par " + s.par + "</div>" +
-      "<div style='font-size:22px;font-weight:700;color:#2A2010'>" + (s.played ? s.strokes : "&ndash;") + "</div>" +
-      "<div style='min-width:34px;text-align:right;font-size:14px;font-weight:700;color:" + golfToParColor(s.toPar) + "'>" + (s.played ? golfToParText(s.toPar) : "") + "</div>";
+  var inMy = document.getElementById("golfEdMyHcp"), inName = document.getElementById("golfEdPartner"), inP = document.getElementById("golfEdPHcp");
+  // Read live from the inputs, so a handicap typed mid-round re-scores every hole at once.
+  function who() {
+    var name = inName.value.trim();
+    return { me: golfHcpOf(inMy.value), name: name, p: name ? golfHcpOf(inP.value) : "" };
   }
-  function holeDiff(i) {
-    var v = d.strokes[i];
-    if (v === "") return "";
-    var n = v - d.pars[i];
-    return "<span style='font-weight:700;color:" + golfToParColor(n) + "'>" + golfToParText(n) + "</span>";
+  function paintSiNote() {
+    document.getElementById("golfSiNote").innerHTML = golfSiComplete(d.si, d.holes) ? "" :
+      "<div style='margin-top:12px;font-size:12px;line-height:1.5;color:#6E5E48;background:#FBF6EA;border:1.5px solid #EADFC4;border-radius:9px;padding:8px 10px'>Stableford points and handicap shots need the <b>stroke index</b> for every hole. Add them to this course under &#x26F3; Courses.</div>";
+  }
+  function totalsLine(label, s) {
+    return "<div style='display:flex;align-items:center;gap:10px;padding:4px 0'>" +
+      "<div style='flex:1;min-width:0;font-size:13px;color:#4A5A3A'><b style='color:#2A2010'>" + label + "</b> &middot; " + (s.complete ? "all " + d.holes : "thru " + s.played) + "</div>" +
+      "<div style='font-size:20px;font-weight:700;color:#2A2010'>" + (s.played ? s.strokes : "&ndash;") + "</div>" +
+      "<div style='min-width:30px;text-align:right;font-size:13px;font-weight:700;color:" + golfToParColor(s.toPar) + "'>" + (s.played ? golfToParText(s.toPar) : "") + "</div>" +
+      "<div style='min-width:52px;text-align:right;font-size:13px;font-weight:700;color:" + GOLF_COLOR + "'>" + (s.points !== null ? s.points + " pts" : "") + "</div>" +
+    "</div>";
+  }
+  function paintTotals() {
+    var w = who();
+    document.getElementById("golfTotals").innerHTML =
+      totalsLine("You", golfPlayerStats(d, d.strokes, w.me)) +
+      (w.name ? totalsLine(esc(w.name), golfPlayerStats(d, d.pStrokes, w.p)) : "");
+  }
+  function playerLine(cls, label, arr, i, hcp) {
+    var v = arr[i];
+    var shots = golfSiComplete(d.si, d.holes) ? golfShots(hcp, d.si[i], d.holes) : 0;
+    var pts = (hcp !== "" && golfSiComplete(d.si, d.holes)) ? golfPoints(d.pars[i], shots, v) : null;
+    var diff = v === "" ? "" : "<span style='font-weight:700;color:" + golfToParColor(v - d.pars[i]) + "'>" + golfToParText(v - d.pars[i]) + "</span>";
+    var sub = [];
+    if (shots) sub.push(shots > 0 ? shots + " shot" + (shots > 1 ? "s" : "") : "gives " + (-shots));
+    if (pts !== null) sub.push("<b style='color:" + GOLF_COLOR + "'>" + pts + " pt" + (pts !== 1 ? "s" : "") + "</b>");
+    return "<div style='display:flex;align-items:center;gap:8px;margin-top:4px'>" +
+      "<div style='flex:1;min-width:0'><div style='font-size:13px;font-weight:700;color:#2A2010;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>" + label + "</div>" +
+      "<div style='font-size:12px;color:#6E5E48'>" + (sub.join(" &middot; ") || "&nbsp;") + "</div></div>" +
+      "<span style='width:30px;text-align:right;font-size:13px'>" + diff + "</span>" +
+      golfStepperHTML(cls, i, v === "" ? "&ndash;" : v) +
+    "</div>";
   }
   function paintHoles() {
-    var h = "";
+    var w = who(), siOk = golfSiComplete(d.si, d.holes), h = "";
     for (var i = 0; i < d.holes; i++) {
-      h += "<div style='display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #E3EADB;border-radius:10px;margin-bottom:6px;padding:4px 8px'>" +
-        "<div style='flex:1;min-width:0'><div style='font-size:15px;font-weight:700;color:#2A2010'>Hole " + (i + 1) + "</div>" +
-        "<div style='font-size:12px;color:#6E5E48'>Par " + d.pars[i] + "</div></div>" +
-        "<span class='golf-diff' data-i='" + i + "' style='width:30px;text-align:right;font-size:13px'>" + holeDiff(i) + "</span>" +
-        golfStepperHTML("golf-st", i, d.strokes[i] === "" ? "&ndash;" : d.strokes[i]) +
+      // The advantage: who receives more handicap shots on this hole. Known
+      // before a ball is struck, so it shows on an empty card.
+      var adv = "";
+      if (siOk && w.name && w.me !== "" && w.p !== "") {
+        var gap = golfShots(w.me, d.si[i], d.holes) - golfShots(w.p, d.si[i], d.holes);
+        if (gap) adv = (gap > 0 ? "You" : esc(w.name)) + " +" + Math.abs(gap) + " shot" + (Math.abs(gap) > 1 ? "s" : "");
+      }
+      h += "<div class='golf-hole' data-i='" + i + "'" + (adv ? " data-adv='" + (adv.indexOf("You") === 0 ? "me" : "p") + "'" : "") + " style='background:" + (adv ? "#FFF6DD" : "#fff") + ";border:1.5px solid " + (adv ? "#E2C46A" : "#E3EADB") + ";border-radius:10px;margin-bottom:6px;padding:6px 8px'>" +
+        "<div style='display:flex;align-items:center;gap:8px'>" +
+          "<div style='flex:1;font-size:15px;font-weight:700;color:#2A2010'>Hole " + (i + 1) +
+            " <span style='font-size:12px;font-weight:600;color:#6E5E48'>&middot; Par " + d.pars[i] + (siOk ? " &middot; SI " + d.si[i] : "") + "</span></div>" +
+          (adv ? "<span style='flex-shrink:0;background:#F3DF9E;color:#5A4300;font-size:12px;font-weight:700;border-radius:20px;padding:3px 9px'>" + adv + "</span>" : "") +
+        "</div>" +
+        playerLine("golf-st", "You", d.strokes, i, w.me) +
+        (w.name ? playerLine("golf-ps", esc(w.name), d.pStrokes, i, w.p) : "") +
       "</div>";
     }
     var box = document.getElementById("golfHoles");
     box.innerHTML = h;
-    box.querySelectorAll(".golf-st-up, .golf-st-dn").forEach(function(b){
+    box.querySelectorAll(".golf-st-up, .golf-st-dn, .golf-ps-up, .golf-ps-dn").forEach(function(b){
       b.addEventListener("click", function(){
-        var i = +b.dataset.i, v = d.strokes[i], up = b.classList.contains("golf-st-up");
+        var i = +b.dataset.i, mine = b.className.indexOf("golf-st") === 0;
+        var arr = mine ? d.strokes : d.pStrokes, v = arr[i], up = /-up$/.test(b.className);
         // The first tap on an empty hole lands on par — most holes are within
         // one of it, so that's the fewest taps. − below 1 clears the hole.
         if (v === "") v = d.pars[i];
         else if (up) v = Math.min(GOLF_STROKE_MAX, v + 1);
         else v = v - 1 < 1 ? "" : v - 1;
-        d.strokes[i] = v;
-        box.querySelector(".golf-st-val[data-i='" + i + "']").innerHTML = v === "" ? "&ndash;" : v;
-        box.querySelector(".golf-diff[data-i='" + i + "']").innerHTML = holeDiff(i);
-        paintTotals();
+        arr[i] = v;
+        paintHoles(); paintTotals();
       });
     });
   }
@@ -7142,18 +7289,31 @@ function renderGolfRoundEditor() {
       b.style.border     = "1.5px solid " + (on ? GOLF_COLOR : "#D9E2CF");
     });
   }
-  paintTotals(); paintHoles(); paintCoursePicks();
+  function repaint() { paintSiNote(); paintTotals(); paintHoles(); }
+  repaint(); paintCoursePicks();
   el.querySelectorAll(".golf-course-pick").forEach(function(b){
     b.addEventListener("click", function(){
       var c = golfFind(golfCourses(), +b.dataset.id);
       if (!c || c.id === d.courseId) return;
-      // Switching course re-snapshots its pars; scores already entered stay
-      // on their hole numbers (a 9-hole course keeps the first nine).
+      // Switching course re-snapshots its pars and stroke indexes; scores
+      // already entered stay on their hole numbers.
       var nd = golfDraftFor(c);
-      for (var i = 0; i < nd.holes; i++) if (d.strokes[i] !== undefined) nd.strokes[i] = d.strokes[i];
+      for (var i = 0; i < nd.holes; i++) {
+        if (d.strokes[i] !== undefined) nd.strokes[i] = d.strokes[i];
+        if (d.pStrokes[i] !== undefined) nd.pStrokes[i] = d.pStrokes[i];
+      }
       d = nd;
-      paintCoursePicks(); paintTotals(); paintHoles();
+      paintCoursePicks(); repaint();
     });
+  });
+  inMy.addEventListener("input", function(){ paintTotals(); paintHoles(); });
+  inP.addEventListener("input", function(){ inP.dataset.auto = "0"; paintTotals(); paintHoles(); });
+  // A name you've played with before fills in their last handicap, unless
+  // you've typed one yourself for this round.
+  inName.addEventListener("input", function(){
+    var k = golfFind(known.map(function(x){ return { id: x.name.toLowerCase(), hcp: x.hcp }; }), inName.value.trim().toLowerCase());
+    if (k && k.hcp !== "" && (inP.value === "" || inP.dataset.auto === "1")) { inP.value = k.hcp; inP.dataset.auto = "1"; }
+    paintTotals(); paintHoles();
   });
   document.getElementById("golfEdCancel").addEventListener("click", leave);
   var del = document.getElementById("golfEdDelete");
@@ -7161,13 +7321,16 @@ function renderGolfRoundEditor() {
     confirmDialog("Delete this round at &ldquo;" + esc(d.courseName || "Course") + "&rdquo;?", function(){ golfDelete(r.id); leave(); });
   });
   document.getElementById("golfEdSave").addEventListener("click", function(){
-    if (!golfRoundStats(d).played) { toast("Score at least one hole first"); return; }
+    var w = who();
+    if (!golfPlayerStats(d, d.strokes, "").played && !(w.name && golfPlayerStats(d, d.pStrokes, "").played)) { toast("Score at least one hole first"); return; }
+    if ((inMy.value.trim() !== "" && w.me === "") || (w.name && inP.value.trim() !== "" && w.p === "")) { toast("A playing handicap is a whole number from -10 to 54"); return; }
     // Every field written, always — "" survives the v296 field-fill.
     var vals = {
       kind: "round",
       date: document.getElementById("golfEdDate").value.trim(),
       courseId: d.courseId, courseName: d.courseName, holes: d.holes,
-      pars: d.pars.slice(), strokes: d.strokes.slice(),
+      pars: d.pars.slice(), si: d.si.slice(), strokes: d.strokes.slice(),
+      myHcp: w.me, partner: w.name, partnerHcp: w.p, pStrokes: d.pStrokes.slice(),
       notes: document.getElementById("golfEdNotes").value
     };
     var all = getGolf(), now = Date.now();
@@ -7187,9 +7350,9 @@ function renderGolfRoundEditor() {
   });
 }
 function golfDraftFor(c) {
-  var st = [];
-  for (var i = 0; i < c.holes; i++) st.push("");
-  return { courseId: c.id, courseName: c.name || "", holes: c.holes, pars: c.pars.slice(), strokes: st };
+  var st = [], ps = [];
+  for (var i = 0; i < c.holes; i++) { st.push(""); ps.push(""); }
+  return { courseId: c.id, courseName: c.name || "", holes: c.holes, pars: c.pars.slice(), si: c.si.slice(), strokes: st, pStrokes: ps };
 }
 
 function renderGolfCourseEditor() {
@@ -7201,11 +7364,15 @@ function renderGolfCourseEditor() {
     if (!c || c.kind !== "course") { _golfView = "courses"; _golfEditId = null; renderGolf(); return; }
   }
   _golfEditing = true;
-  // Pars are drafted for all 18 holes, so flipping 18 → 9 → 18 doesn't lose
-  // the back nine; the save keeps only the first `holes` of them.
+  // Pars and stroke indexes are drafted for all 18 holes, so flipping
+  // 18 → 9 → 18 doesn't lose the back nine; the save keeps only the first
+  // `holes` of them.
   var holes = c ? c.holes : 18;
-  var pars = [];
-  for (var i = 0; i < 18; i++) pars.push(c && c.pars[i] ? c.pars[i] : 4);
+  var pars = [], si = [];
+  for (var i = 0; i < 18; i++) {
+    pars.push(c && c.pars[i] ? c.pars[i] : 4);
+    si.push(c && c.si[i] !== undefined ? c.si[i] : "");
+  }
   var thenRound = _golfThenRound;
   _golfThenRound = false;
   function leave() {
@@ -7224,23 +7391,29 @@ function renderGolfCourseEditor() {
       }).join("") +
     "</div>" +
     "<div id='golfParTotal' style='" + PROJ_LBL + ";margin-top:14px'></div>" +
+    "<div style='font-size:12px;line-height:1.5;color:#6E5E48;margin:-2px 0 8px'>SI is the stroke index from the scorecard (1 = hardest hole). Optional, but Stableford points and handicap shots need it on every hole.</div>" +
     "<div id='golfPars'></div>" +
     "<div style='" + PROJ_LBL + ";margin-top:14px'>Notes " + PROJ_OPT + "</div>" +
     "<textarea id='golfCoNotes' rows='3' placeholder='Tee times, booking number&hellip;' style='" + PROJ_INP + ";resize:vertical'>" + esc((c && c.notes) || "") + "</textarea>" +
     golfEditorButtons(c ? "Delete this course" : "");
 
   function paintParTotal() {
-    document.getElementById("golfParTotal").innerHTML = "Par for each hole &middot; total " + golfParTotal(pars.slice(0, holes));
+    document.getElementById("golfParTotal").innerHTML = "Par and stroke index for each hole &middot; par " + golfParTotal(pars.slice(0, holes));
   }
   function paintPars() {
     var h = "";
     for (var i = 0; i < holes; i++) {
       h += "<div style='display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #E3EADB;border-radius:10px;margin-bottom:6px;padding:4px 8px'>" +
         "<div style='flex:1;font-size:15px;font-weight:700;color:#2A2010'>Hole " + (i + 1) + "</div>" +
+        "<label style='display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#6E5E48'>SI" +
+          "<input class='golf-si' data-i='" + i + "' type='number' inputmode='numeric' min='1' max='" + holes + "' aria-label='Stroke index, hole " + (i + 1) + "' value='" + esc(String(si[i])) + "' style='width:52px;box-sizing:border-box;padding:9px 4px;border:1.5px solid #D9E2CF;border-radius:8px;font-family:inherit;font-size:16px;text-align:center;background:#fff;color:#2A2010'></label>" +
         golfStepperHTML("golf-par", i, pars[i]) + "</div>";
     }
     var box = document.getElementById("golfPars");
     box.innerHTML = h;
+    box.querySelectorAll(".golf-si").forEach(function(inp){
+      inp.addEventListener("input", function(){ si[+inp.dataset.i] = inp.value.trim(); });
+    });
     box.querySelectorAll(".golf-par-up, .golf-par-dn").forEach(function(b){
       b.addEventListener("click", function(){
         var i = +b.dataset.i;
@@ -7271,7 +7444,10 @@ function renderGolfCourseEditor() {
   document.getElementById("golfEdSave").addEventListener("click", function(){
     var name = document.getElementById("golfCoName").value.trim();
     if (!name) { toast("Give the course a name first"); return; }
-    var vals = { kind: "course", name: name, holes: holes, pars: pars.slice(0, holes), notes: document.getElementById("golfCoNotes").value };
+    var siErr = golfSiCheck(si.slice(0, holes), holes);
+    if (siErr) { toast(siErr); return; }
+    var vals = { kind: "course", name: name, holes: holes, pars: pars.slice(0, holes),
+                 si: golfSiArr(si.slice(0, holes), holes), notes: document.getElementById("golfCoNotes").value };
     var all = getGolf(), now = Date.now(), savedId;
     if (c) {
       var cur = golfFind(all, c.id);
@@ -25184,23 +25360,33 @@ function buildTestSeed() {
     // Golf (v500): an 18-hole and a 9-hole course; two complete 18-hole
     // rounds (so best and average differ), one part-played round (the
     // "thru 9" row, which must count in neither) and one 9-hole round.
+    // v501: the 18-hole course has stroke indexes, Cathal plays off 18, and
+    // the -12 round has a partner off 12 — so the scorecard shows Stableford
+    // for both and six highlighted holes (SI 13–18) where Cathal gets a shot
+    // the partner doesn't. The 9-hole course has no SI, to show that state.
     golf:(function(){
       var c18 = _tsId(), c9 = _tsId();
       var p18 = [4,4,3,5,4,4,3,4,5, 4,3,4,5,4,4,3,4,5], p9 = [3,3,3,3,3,3,3,3,3];
-      var blank9 = ["","","","","","","","",""];
-      function rnd(off, cid, name, pars, strokes, notes) {
-        return { id:_tsId(), kind:"round", date:_tsDay(off), courseId:cid, courseName:name, holes:pars.length,
-                 pars:pars, strokes:strokes, notes:notes, addedBy:"Cathal", added:_tsTs(off, 18, 0), updated:_tsTs(off, 18, 0) };
+      var si18 = [7,11,15,1,3,13,17,9,5, 8,16,12,2,4,10,18,14,6];
+      var blank9 = ["","","","","","","","",""], blank18 = blank9.concat(blank9);
+      function rnd(off, cid, name, pars, si, strokes, notes, extra) {
+        var o = { id:_tsId(), kind:"round", date:_tsDay(off), courseId:cid, courseName:name, holes:pars.length,
+                  pars:pars, si:si, strokes:strokes, myHcp:si[0] === "" ? "" : 18, partner:"", partnerHcp:"",
+                  pStrokes:pars.length === 9 ? blank9 : blank18, notes:notes,
+                  addedBy:"Cathal", added:_tsTs(off, 18, 0), updated:_tsTs(off, 18, 0) };
+        Object.keys(extra || {}).forEach(function(k){ o[k] = extra[k]; });
+        return o;
       }
       return [
-        { id:c18, kind:"course", name:"Demo Links", holes:18, pars:p18, notes:"Book tee times online.",
+        { id:c18, kind:"course", name:"Demo Links", holes:18, pars:p18, si:si18, notes:"Book tee times online.",
           addedBy:"Cathal", added:_tsTs(-60, 10, 0), updated:_tsTs(-60, 10, 0) },
-        { id:c9, kind:"course", name:"Demo Pitch & Putt", holes:9, pars:p9, notes:"",
+        { id:c9, kind:"course", name:"Demo Pitch & Putt", holes:9, pars:p9, si:blank9, notes:"",
           addedBy:"Cathal", added:_tsTs(-50, 10, 0), updated:_tsTs(-50, 10, 0) },
-        rnd(-30, c18, "Demo Links", p18, [5,5,4,6,5,4,3,5,6, 5,4,5,6,5,4,4,5,6], "Windy."),
-        rnd(-12, c18, "Demo Links", p18, [5,4,3,6,5,5,3,4,5, 5,3,5,6,4,5,3,5,6], "Birdie on the 9th."),
-        rnd(-3,  c18, "Demo Links", p18, [4,5,4,5,5,4,4,5,6].concat(blank9), "Rain stopped play."),
-        rnd(-5,  c9,  "Demo Pitch & Putt", p9, [3,4,3,2,3,4,3,3,4], "")
+        rnd(-30, c18, "Demo Links", p18, si18, [5,5,4,6,5,4,3,5,6, 5,4,5,6,5,4,4,5,6], "Windy."),
+        rnd(-12, c18, "Demo Links", p18, si18, [5,4,3,6,5,5,3,4,5, 5,3,5,6,4,5,3,5,6], "Birdie on the 9th.",
+            { partner:"Demo Pat", partnerHcp:12, pStrokes:p18.map(function(p){ return p + 1; }) }),
+        rnd(-3,  c18, "Demo Links", p18, si18, [4,5,4,5,5,4,4,5,6].concat(blank9), "Rain stopped play."),
+        rnd(-5,  c9,  "Demo Pitch & Putt", p9, blank9, [3,4,3,2,3,4,3,3,4], "")
       ];
     })(),
 

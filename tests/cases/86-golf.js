@@ -68,6 +68,14 @@ module.exports = {
       document.getElementById('golfEdSave').click();
       ok('the course saves the new par', golfFind(getGolf(), 1).pars[0] === 5 && _golfView === 'courses');
       ok('the round keeps the par it was played to', golfFind(getGolf(), 30).pars[0] === 4 && golfRoundStats(golfFind(getGolf(), 30)).toPar === 0);
+      openGolfCourse(1);
+      var siIn = document.querySelectorAll('#golfPars .golf-si');
+      siIn[0].value = '1'; siIn[0].dispatchEvent(new Event('input'));
+      document.getElementById('golfEdSave').click();
+      ok('a half-filled stroke index is refused', _golfView === 'course' && golfFind(getGolf(), 1).si.join('') === '');
+      [5,7,1,9,3,6,2,8,4].forEach(function(v, i){ siIn[i].value = String(v); siIn[i].dispatchEvent(new Event('input')); });
+      document.getElementById('golfEdSave').click();
+      ok('a full stroke index saves', _golfView === 'courses' && golfFind(getGolf(), 1).si.join() === '5,7,1,9,3,6,2,8,4');
 
       // ── Round editor ─────────────────────────────────────────────────────
       storeSet('fl4_golf', [ course(1, '<img src=x onerror=window.__gfXss=1>') ]);
@@ -81,15 +89,15 @@ module.exports = {
       ok('the only course is pre-selected', content.querySelector('.golf-course-pick[aria-pressed="true"]') !== null);
       document.getElementById('golfEdSave').click();
       ok('a round with no holes scored is refused', golfRounds().length === 0 && _golfView === 'round');
-      var up0 = content.querySelector('.golf-st-up[data-i="0"]');
-      up0.click();
+      // v501: every tap repaints the holes, so re-find the button each time.
+      function tap(cls, i){ content.querySelector('.' + cls + '[data-i="' + i + '"]').click(); }
+      tap('golf-st-up', 0);
       ok('the first tap on an empty hole lands on par', content.querySelector('.golf-st-val[data-i="0"]').textContent === '4');
-      up0.click();
+      tap('golf-st-up', 0);
       ok('the next tap adds one', content.querySelector('.golf-st-val[data-i="0"]').textContent === '5');
-      ok('the running total updates', document.getElementById('golfTotals').textContent.indexOf('Thru 1 of 9') !== -1);
-      var dn1 = content.querySelector('.golf-st-dn[data-i="1"]');
-      dn1.click();                                       // empty → par (4)
-      dn1.click(); dn1.click(); dn1.click(); dn1.click();  // 3, 2, 1, cleared
+      ok('the running total updates', document.getElementById('golfTotals').textContent.indexOf('thru 1') !== -1);
+      tap('golf-st-dn', 1);                                              // empty → par (4)
+      tap('golf-st-dn', 1); tap('golf-st-dn', 1); tap('golf-st-dn', 1); tap('golf-st-dn', 1);  // 3, 2, 1, cleared
       ok('minus below 1 clears the hole', content.querySelector('.golf-st-val[data-i="1"]').textContent === '–');
       ok('the back button asks before discarding the round', closeTopOverlay() === true);
       var cfNo = document.getElementById('_cfNo'); if (cfNo) cfNo.click();
@@ -103,6 +111,74 @@ module.exports = {
         !!saved1 && saved1.strokes[0] === 5 && saved1.strokes[1] === '' && saved1.strokes.length === 9 && saved1.courseId === 1 && _golfView === 'list');
       ok('the list shows the round, part-played', document.querySelectorAll('#golfContent .golf-round').length === 1 &&
         document.getElementById('golfContent').textContent.indexOf('thru 1') !== -1);
+
+      ok('a v500-shaped round reads with no partner, no handicap and blank SI',
+        saved1.partner === '' && saved1.myHcp === '' && saved1.pStrokes.length === 9 && saved1.si.join('') === '');
+      ok('no SI on the course means no points and a note saying why',
+        golfRoundStats(saved1).points === null);
+
+      // ── v501: handicap shots and Stableford ─────────────────────────────
+      ok('18 on 18 holes is a shot a hole', golfShots(18, 18, 18) === 1 && golfShots(18, 1, 18) === 1);
+      ok('22 adds a second shot on SI 1-4 only', golfShots(22, 4, 18) === 2 && golfShots(22, 5, 18) === 1);
+      ok('10 gets shots on SI 1-10 only', golfShots(10, 10, 18) === 1 && golfShots(10, 11, 18) === 0);
+      ok('a 9-hole course spreads the handicap over SI 1-9', golfShots(5, 5, 9) === 1 && golfShots(5, 6, 9) === 0 && golfShots(11, 2, 9) === 2);
+      ok('a plus 2 gives shots back on SI 17 and 18', golfShots(-2, 18, 18) === -1 && golfShots(-2, 17, 18) === -1 && golfShots(-2, 16, 18) === 0);
+      ok('no handicap, no shots', golfShots('', 1, 18) === 0);
+      ok('Stableford: net par 2, net birdie 3, net double bogey 0, never negative',
+        golfPoints(4, 1, 5) === 2 && golfPoints(4, 1, 4) === 3 && golfPoints(4, 0, 6) === 0 && golfPoints(4, 0, 9) === 0);
+      ok('an unplayed hole scores no points', golfPoints(4, 1, '') === null);
+      ok('SI check: blank is fine, partial or duplicate is refused',
+        golfSiCheck(['','',''], 3) === '' && golfSiCheck([1,'',''], 3) !== '' && golfSiCheck([1,1,2], 3).indexOf('two holes') !== -1 &&
+        golfSiCheck([1,2,4], 3) !== '' && golfSiCheck([3,1,2], 3) === '');
+      ok('a junk handicap reads as unset', golfHcpOf('abc') === '' && golfHcpOf(60) === '' && golfHcpOf(1.5) === '' && golfHcpOf('12') === 12);
+
+      // Course with SI; a round with a partner, scored through the editor.
+      var SI9 = [5,7,1,9,3,6,2,8,4];
+      storeSet('fl4_golf', [ course(1, 'Nine', { si: SI9 }),
+        round(70, [4,4,3,5,4,4,3,4,5], { date:'2026-08-01', myHcp:9, partner:'Pat <b>', partnerHcp:4, pStrokes:[4,4,3,5,4,4,3,4,5] }) ]);
+      ok('known partners come from past rounds with their last handicap',
+        golfKnownPartners().length === 1 && golfKnownPartners()[0].hcp === 4);
+      openGolfRound(null);
+      content = document.getElementById('golfContent');
+      ok('a new round defaults your handicap to the last one', document.getElementById('golfEdMyHcp').value === '9');
+      ok('the partner datalist offers past partners', content.querySelectorAll('#golfPartnerList option').length === 1);
+      var pn = document.getElementById('golfEdPartner');
+      pn.value = 'pat <b>'; pn.dispatchEvent(new Event('input'));
+      ok('picking a known partner fills their last handicap', document.getElementById('golfEdPHcp').value === '4');
+      ok('the partner name is escaped on the card', !content.querySelector('#golfHoles b, #golfTotals b:not(:first-child)') &&
+        content.querySelector('#golfHoles').innerHTML.indexOf('pat &lt;b&gt;') !== -1);
+      // 9 vs 4 on nine holes: you get a shot on every hole, Pat on SI 1-4,
+      // so you have the advantage on the five holes with SI 5-9.
+      var advMe = content.querySelectorAll('.golf-hole[data-adv="me"]').length;
+      ok('the advantage holes show before any score is entered', advMe === 5 && content.querySelectorAll('.golf-hole[data-adv="p"]').length === 0, 'got ' + advMe);
+      ok('the advantage is on the right holes (SI 5-9)', (function(){
+        return Array.prototype.every.call(content.querySelectorAll('.golf-hole[data-adv="me"]'), function(h){ return SI9[+h.dataset.i] >= 5; });
+      })());
+      var ph = document.getElementById('golfEdPHcp');
+      ph.value = '9'; ph.dispatchEvent(new Event('input'));
+      ok('equal handicaps, no advantage anywhere', content.querySelectorAll('.golf-hole[data-adv]').length === 0);
+      ph.value = '4'; ph.dispatchEvent(new Event('input'));
+      tap('golf-st-up', 0); tap('golf-st-up', 0);   // you: 5 on a par 4 with a shot = net par, 2 pts
+      tap('golf-ps-up', 0);                         // Pat: 4 on SI 5 (no shot) = par, 2 pts
+      ok('both players score points on the card', document.getElementById('golfTotals').textContent.replace(/\\s+/g, ' ').match(/2 pts/g).length === 2,
+        document.getElementById('golfTotals').textContent);
+      document.getElementById('golfEdSave').click();
+      var r2 = golfRounds()[0];
+      ok('the round saves partner, both handicaps, both scores and the SI snapshot',
+        r2.partner === 'pat <b>' && r2.myHcp === 9 && r2.partnerHcp === 4 && r2.strokes[0] === 5 && r2.pStrokes[0] === 4 && r2.si.join() === SI9.join());
+      ok('the rounds list shows the partner and your points',
+        document.getElementById('golfContent').textContent.indexOf('with pat <b>') !== -1 && document.getElementById('golfContent').textContent.indexOf('2 pts') !== -1);
+      var full = golfPlayerStats(golfNormalise(round(71, [4,4,3,5,4,4,3,4,5], { si:SI9 })), [4,4,3,5,4,4,3,4,5], 9);
+      ok('nine pars off 9 on nine holes is 27 points', full.points === 27, JSON.stringify(full));
+
+      // An old round on a course that has since gained SI picks the SI up
+      // (never the pars) when it is opened again.
+      storeSet('fl4_golf', [ course(1, 'Nine', { si: SI9, pars:[5,4,3,5,4,4,3,4,5] }), round(72, [4,4,3,5,4,4,3,4,5], { myHcp:9 }) ]);
+      openGolfRound(72);
+      document.getElementById('golfEdSave').click();
+      var r72 = golfFind(getGolf(), 72);
+      ok('a round re-opened after its course gained SI takes the SI, not the new par',
+        r72.si.join() === SI9.join() && r72.pars[0] === 4 && golfRoundStats(r72).points === 27);
 
       // ── No course yet: + goes to the course editor, then into the round ──
       storeSet('fl4_golf', []);
