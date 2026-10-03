@@ -222,6 +222,73 @@ module.exports = {
       document.getElementById('golfEdDone').click();
       ok('Done leaves the editor', _golfView === 'list' && _golfEditing === false && golfRounds().length === 0);
 
+      // ── v502: course import ──────────────────────────────────────────────
+      var P18 = [4,4,3,5,4,4,3,4,5, 4,3,4,5,4,4,3,4,5], SI18 = [7,11,15,1,3,13,17,9,5, 8,16,12,2,4,10,18,14,6];
+      function file(o){ o.hearth = 'golf-course-v1'; return JSON.stringify(o); }
+      ok('the AI prompt names the file tag and the fields', (function(){ var t = golfImportPrompt();
+        return t.indexOf('"hearth": "golf-course-v1"') !== -1 && t.indexOf('"pars"') !== -1 && t.indexOf('"si"') !== -1; })());
+      ok('a non-Hearth paste is refused', !!parseGolfCourseFile('{"name":"X"}').error && !!parseGolfCourseFile('not json').error);
+      ok('a wrong par count is refused, naming the course',
+        (parseGolfCourseFile(file({ name:'Short', holes:18, pars:[4,4,4] })).error || '').indexOf('Short') === 0);
+      ok('a par of 7 is refused, naming the hole',
+        (parseGolfCourseFile(file({ name:'Odd', holes:9, pars:[4,4,4,4,7,4,4,4,4] })).error || '').indexOf('hole 5') !== -1);
+      ok('a duplicate stroke index is refused',
+        !!parseGolfCourseFile(file({ name:'Dup', holes:9, pars:[4,4,4,4,4,4,4,4,4], si:[1,1,2,3,4,5,6,7,8] })).error);
+      ok('holes is inferred from the pars when missing, and [] SI means none',
+        (function(){ var r = parseGolfCourseFile(file({ name:'Nine', pars:[3,3,3,3,3,3,3,3,3], si:[] }));
+          return !r.error && r.courses[0].holes === 9 && r.courses[0].si.join('') === ''; })());
+      ok('a fenced paste with a leading blank line still parses',
+        !parseGolfCourseFile(stripPasteFence('\\n\\x60\\x60\\x60json\\n' + file({ name:'F', holes:18, pars:P18, si:SI18 }) + '\\n\\x60\\x60\\x60')).error);
+
+      storeSet('fl4_golf', [ course(1, 'Nine', { notes:'keep me' }), round(80, [4,4,3,5,4,4,3,4,5]) ]);
+      document.getElementById('bnGolf').click();
+      document.querySelector('.hdr-act[data-sec="golf"] .hdr-more').click();
+      document.getElementById('golfImportBtn').click();
+      ok('Import a course opens from the header ⋯ sheet', _golfView === 'import' && !!document.getElementById('golfImportJson'));
+      document.getElementById('golfImportJson').value = file({ courses:[
+        { name:' nine ', holes:9, pars:[5,4,3,5,4,4,3,4,5], si:[5,7,1,9,3,6,2,8,4], notes:'' },
+        { name:'<b>Links</b>', holes:18, pars:P18, si:SI18, notes:'White tees' } ] });
+      document.getElementById('golfImportNext').click();
+      var rows = document.querySelectorAll('.golf-imp-row');
+      ok('the preview shows one update (same name, ignoring case) and one new',
+        rows.length === 2 && rows[0].dataset.action === 'update' && rows[1].dataset.action === 'new');
+      ok('nothing is written before Import', golfCourses().length === 1 && golfFind(getGolf(), 1).pars[0] === 4);
+      ok('the course name is escaped in the preview', !document.querySelector('#golfContent .golf-imp-row b'));
+      document.getElementById('golfImportGo').click();
+      var nine = golfFind(getGolf(), 1);
+      ok('the matching course is updated: pars and SI replaced, name from the file, notes kept when the file has none',
+        nine.pars[0] === 5 && nine.si.join() === '5,7,1,9,3,6,2,8,4' && nine.name === 'nine' && nine.notes === 'keep me');
+      ok('the new course is added with its SI and notes', golfCourses().length === 2 &&
+        golfCourses().some(function(c){ return c.name === '<b>Links</b>' && c.holes === 18 && golfSiComplete(c.si, 18) && c.notes === 'White tees'; }));
+      ok('a round already played keeps the par it was played to', golfFind(getGolf(), 80).pars[0] === 4);
+      ok('Import lands on the Courses list', _golfView === 'courses');
+      // Codex review on #272: a file without SI keeps the saved SI, and the
+      // preview must say so rather than "no stroke index".
+      storeSet('fl4_golf', [ course(1, 'Keep', { si:[5,7,1,9,3,6,2,8,4] }) ]);
+      openGolfImport();
+      document.getElementById('golfImportJson').value = file({ name:'Keep', holes:9, pars:[3,3,3,3,3,3,3,3,3], si:[] });
+      document.getElementById('golfImportNext').click();
+      ok('the preview says the saved stroke index is kept', document.getElementById('golfContent').textContent.indexOf('keeps your saved stroke index') !== -1);
+      document.getElementById('golfImportGo').click();
+      ok('and Import keeps it', golfFind(getGolf(), 1).si.join() === '5,7,1,9,3,6,2,8,4' && golfFind(getGolf(), 1).pars[0] === 3);
+      // Several new courses in one import never share an id, even in one millisecond.
+      storeSet('fl4_golf', []);
+      var many = []; for (var mi = 0; mi < 12; mi++) many.push({ name:'C' + mi, holes:9, pars:[3,3,3,3,3,3,3,3,3], si:[], notes:'' });
+      var savedNow = Date.now, savedRnd = Math.random;
+      Date.now = function(){ return 1700000000000; };
+      // Each call's random part drops by one as the row offset rises by one —
+      // exactly the case where the old projNewId() + added gave every row the same id.
+      var rk = 0; Math.random = function(){ return (20 - rk++) / 1000 + 0.0001; };
+      golfApplyImport(many.map(function(c){ return { c:c, action:'new' }; }));
+      Date.now = savedNow; Math.random = savedRnd;
+      ok('a batch import gives every course its own id', (function(){
+        var seen = {}; return golfCourses().length === 12 && golfCourses().every(function(c){ if (seen[c.id]) return false; seen[c.id] = 1; return true; });
+      })());
+      ok('two saved courses with the same name are skipped, not guessed',
+        golfImportPlan([{ name:'Twin', holes:9, pars:[], si:[], notes:'' }]).length === 1 &&
+        (function(){ storeSet('fl4_golf', [ course(1, 'Twin'), course(2, 'twin') ]);
+          return golfImportPlan([{ name:'Twin', holes:9, pars:P9, si:[], notes:'' }])[0].action === 'skip'; })());
+
       // ── Backup round trip ────────────────────────────────────────────────
       storeSet('fl4_golf', []);
       storeSet('fl4_tomb_golf', { 40:Date.now() });
