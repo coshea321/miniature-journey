@@ -7326,6 +7326,10 @@ function renderGolfRoundEditor() {
   inName.addEventListener("input", function(){
     var k = golfFind(known.map(function(x){ return { id: x.name.toLowerCase(), hcp: x.hcp }; }), inName.value.trim().toLowerCase());
     if (k && k.hcp !== "" && (inP.value === "" || inP.dataset.auto === "1")) { inP.value = k.hcp; inP.dataset.auto = "1"; }
+    // A handicap WE filled in belongs to that partner only — once the name
+    // stops matching, clear it rather than let the next name inherit it.
+    // One typed by hand (auto "0") is left alone.
+    else if (!k && inP.dataset.auto === "1") { inP.value = ""; inP.dataset.auto = "0"; }
     paintTotals(); paintHoles();
   });
   // Text fields save when they're left, and again if the page is hidden

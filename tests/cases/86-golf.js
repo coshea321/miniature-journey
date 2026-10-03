@@ -165,6 +165,14 @@ module.exports = {
       var pn = document.getElementById('golfEdPartner');
       pn.value = 'pat <b>'; pn.dispatchEvent(new Event('input'));
       ok('picking a known partner fills their last handicap', document.getElementById('golfEdPHcp').value === '4');
+      pn.value = 'Sam'; pn.dispatchEvent(new Event('input'));
+      ok('changing to an unknown name clears the filled-in handicap', document.getElementById('golfEdPHcp').value === '');
+      var phh = document.getElementById('golfEdPHcp');
+      phh.value = '7'; phh.dispatchEvent(new Event('input'));
+      pn.value = 'Samuel'; pn.dispatchEvent(new Event('input'));
+      ok('a handicap typed by hand is kept when the name changes', phh.value === '7');
+      phh.value = ''; phh.dispatchEvent(new Event('input'));
+      pn.value = 'pat <b>'; pn.dispatchEvent(new Event('input'));
       ok('the partner name is escaped on the card', !content.querySelector('#golfHoles b, #golfTotals b:not(:first-child)') &&
         content.querySelector('#golfHoles').innerHTML.indexOf('pat &lt;b&gt;') !== -1);
       // 9 vs 4 on nine holes: you get a shot on every hole, Pat on SI 1-4,
