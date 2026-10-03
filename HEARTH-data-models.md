@@ -66,6 +66,11 @@ Current fields: `kind`, `person`, `title`, `date`, `time`, `who`, `dose`, `expir
 
 **Every read goes through `getProjects()`/`projItemsOf()`**, which coerce a missing or object-shaped `items` to an array. **Do NOT merge whole projects newest-wins** (see `HEARTH-notes.md` § Sections). `url` goes through `applianceLinkUrl` at save, restore and render. `phone` only becomes an href through `healthPhoneHref`.
 
+## Golf data model — one store, two kinds (v500)
+`fl4_golf` is an array of records with `kind` `"course"` or `"round"`. **Course:** `id`, `kind`, `name`, `holes` (9 or 18), `pars` (one number 3–6 per hole), `notes`, `addedBy`, `added`, `updated`. **Round:** `id`, `kind`, `date`, `courseId`, `courseName`, `holes`, `pars`, `strokes` (one number 1–15 or `""` per hole), `notes`, `addedBy`, `added`, `updated`. A round's `courseName`/`holes`/`pars` are a **snapshot** taken when it is started — never look them up from the course.
+
+Whole-record merge (`mergeGolfData`) and whole-record backup, so there is no field list for sync. A new field needs: the editor's `vals` (`renderGolfRoundEditor` or `renderGolfCourseEditor`), `golfNormalise` if it is an array, the `golf:` block in `buildTestSeed`, and `tests/cases/86-golf.js`. **Every read goes through `getGolf()`** (Firebase returns a gappy array as an object). An unplayed hole is `""`, never a dropped entry.
+
 ## Baby bags data model — two levels, each merged by id (v478)
 `bd.bags` is an array of bags, each holding an `items` array, and **both levels** union by id, newest-wins by `updated`, with their own tombstones (`fl4_tomb_bags`, `fl4_tomb_bagitems`) on both sync channels. **Every read goes through `normaliseBags`** (via `getBagsData`) because Firebase strips an empty `items:[]` and returns sparse arrays as objects — never read `bd.bags` directly. **Every write stamps the item AND its bag** (`touchBagItem`).
 

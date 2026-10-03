@@ -58,6 +58,7 @@ Each store below has fields hand-listed in several places, and missing one silen
 - **Home inventory** (`inventory-v1`) — five hand-listed places plus `buildTestSeed`.
 - **Health** (`fl4_health`) — one store with a `kind` field, never split per kind; `HEALTH_KIND_FIELDS` is the table; `files`/`phone` are the only hrefs and each has exactly one gate (`applianceLinkUrl`, `healthPhoneHref`).
 - **Projects** (`fl4_projects`, v499) — two-level Trips-shape merge in `mergeProjectsData`; items read only through `getProjects()`/`projItemsOf()`; the To-do copy is one-way.
+- **Golf** (`fl4_golf`, v500) — courses and rounds in one store by `kind`; a round snapshots its course's pars; read through `getGolf()`.
 - **Baby bags** (inside `fl4_baby`) — two-level id merge; fields hand-listed in `normaliseBags`, `bagItemShape` and `mergeBags`; always read through `getBagsData`.
 - **Test-build demo data** — **a new section or store needs demo content in `buildTestSeed()` in the same change**; `resetTestData()` must wipe and reload, never seed the live page.
 
