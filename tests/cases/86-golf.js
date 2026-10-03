@@ -87,30 +87,50 @@ module.exports = {
       var content = document.getElementById('golfContent');
       ok('the course name is escaped', !content.querySelector('img[src="x"]') && window.__gfXss === 0);
       ok('the only course is pre-selected', content.querySelector('.golf-course-pick[aria-pressed="true"]') !== null);
-      document.getElementById('golfEdSave').click();
-      ok('a round with no holes scored is refused', golfRounds().length === 0 && _golfView === 'round');
+      // v501 autosave: no Save or Cancel on the round editor, just Done.
+      ok('the round editor has Done and no Save/Cancel', !!document.getElementById('golfEdDone') &&
+        !document.getElementById('golfEdSave') && !document.getElementById('golfEdCancel'));
+      ok('nothing is written before the first score', golfRounds().length === 0 &&
+        document.getElementById('golfEdDelete').style.display === 'none');
       // v501: every tap repaints the holes, so re-find the button each time.
       function tap(cls, i){ content.querySelector('.' + cls + '[data-i="' + i + '"]').click(); }
       tap('golf-st-up', 0);
       ok('the first tap on an empty hole lands on par', content.querySelector('.golf-st-val[data-i="0"]').textContent === '4');
+      ok('the first score saves the round straight away', golfRounds().length === 1 && golfRounds()[0].strokes[0] === 4 &&
+        document.getElementById('golfEdDelete').style.display === 'block');
       tap('golf-st-up', 0);
       ok('the next tap adds one', content.querySelector('.golf-st-val[data-i="0"]').textContent === '5');
+      ok('and is saved too, on the same round', golfRounds().length === 1 && golfRounds()[0].strokes[0] === 5);
       ok('the running total updates', document.getElementById('golfTotals').textContent.indexOf('thru 1') !== -1);
       tap('golf-st-dn', 1);                                              // empty → par (4)
       tap('golf-st-dn', 1); tap('golf-st-dn', 1); tap('golf-st-dn', 1); tap('golf-st-dn', 1);  // 3, 2, 1, cleared
       ok('minus below 1 clears the hole', content.querySelector('.golf-st-val[data-i="1"]').textContent === '–');
-      ok('the back button asks before discarding the round', closeTopOverlay() === true);
-      var cfNo = document.getElementById('_cfNo'); if (cfNo) cfNo.click();
+      ok('clearing a hole is saved as ""', golfRounds()[0].strokes[1] === '');
+      // Notes typed but not yet left: saved when the page is hidden.
+      document.getElementById('golfEdNotes').value = 'typed before the screen slept';
+      _golfAutoSave();
+      ok('the hidden-page hook saves a half-typed note', golfRounds()[0].notes === 'typed before the screen slept');
+      ok('the back button saves and leaves without asking', closeTopOverlay() === true && !document.getElementById('_cfNo') &&
+        _golfView === 'list' && _golfEditing === false);
+      openGolfRound(golfRounds()[0].id);
+      content = document.getElementById('golfContent');
+      tap('golf-st-up', 2);
       document.getElementById('golfNewBtn').click();
-      ok('the header + asks before replacing a half-scored round', !!document.getElementById('_cfNo'));
-      var cfNo2 = document.getElementById('_cfNo'); if (cfNo2) cfNo2.click();
-      ok('saying no keeps the scores', content.querySelector('.golf-st-val[data-i="0"]').textContent === '5' && _golfEditing === true);
-      document.getElementById('golfEdSave').click();
+      ok('the header + keeps the round and opens a fresh one', !document.getElementById('_cfNo') && _golfView === 'round' &&
+        golfRounds()[0].strokes[2] === 3 && content.querySelector('.golf-st-val[data-i="0"]').textContent === '–');
+      document.getElementById('golfEdDone').click();
+      ok('Done on an unscored round writes nothing', golfRounds().length === 1 && _golfView === 'list');
       var saved1 = golfRounds()[0];
       ok('the round saves with the score, blanks stored as ""',
         !!saved1 && saved1.strokes[0] === 5 && saved1.strokes[1] === '' && saved1.strokes.length === 9 && saved1.courseId === 1 && _golfView === 'list');
       ok('the list shows the round, part-played', document.querySelectorAll('#golfContent .golf-round').length === 1 &&
-        document.getElementById('golfContent').textContent.indexOf('thru 1') !== -1);
+        document.getElementById('golfContent').textContent.indexOf('thru 2') !== -1);
+      openGolfRound(saved1.id);
+      document.getElementById('golfEdMyHcp').value = '60';
+      document.getElementById('golfEdDone').click();
+      ok('Done with an out-of-range handicap warns and stays', _golfView === 'round');
+      document.getElementById('golfEdMyHcp').value = '';
+      document.getElementById('golfEdDone').click();
 
       ok('a v500-shaped round reads with no partner, no handicap and blank SI',
         saved1.partner === '' && saved1.myHcp === '' && saved1.pStrokes.length === 9 && saved1.si.join('') === '');
@@ -162,7 +182,7 @@ module.exports = {
       tap('golf-ps-up', 0);                         // Pat: 4 on SI 5 (no shot) = par, 2 pts
       ok('both players score points on the card', document.getElementById('golfTotals').textContent.replace(/\\s+/g, ' ').match(/2 pts/g).length === 2,
         document.getElementById('golfTotals').textContent);
-      document.getElementById('golfEdSave').click();
+      document.getElementById('golfEdDone').click();
       var r2 = golfRounds()[0];
       ok('the round saves partner, both handicaps, both scores and the SI snapshot',
         r2.partner === 'pat <b>' && r2.myHcp === 9 && r2.partnerHcp === 4 && r2.strokes[0] === 5 && r2.pStrokes[0] === 4 && r2.si.join() === SI9.join());
@@ -175,7 +195,7 @@ module.exports = {
       // (never the pars) when it is opened again.
       storeSet('fl4_golf', [ course(1, 'Nine', { si: SI9, pars:[5,4,3,5,4,4,3,4,5] }), round(72, [4,4,3,5,4,4,3,4,5], { myHcp:9 }) ]);
       openGolfRound(72);
-      document.getElementById('golfEdSave').click();
+      document.getElementById('golfEdDone').click();
       var r72 = golfFind(getGolf(), 72);
       ok('a round re-opened after its course gained SI takes the SI, not the new par',
         r72.si.join() === SI9.join() && r72.pars[0] === 4 && golfRoundStats(r72).points === 27);
@@ -191,8 +211,8 @@ module.exports = {
       ok('saving that course carries straight on into a new round on it',
         _golfView === 'round' && golfCourses().length === 1 && golfCourses()[0].holes === 9 &&
         document.querySelectorAll('#golfHoles .golf-st-up').length === 9);
-      document.getElementById('golfEdCancel').click();
-      ok('Cancel leaves the editor', _golfView === 'list' && _golfEditing === false);
+      document.getElementById('golfEdDone').click();
+      ok('Done leaves the editor', _golfView === 'list' && _golfEditing === false && golfRounds().length === 0);
 
       // ── Backup round trip ────────────────────────────────────────────────
       storeSet('fl4_golf', []);

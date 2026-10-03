@@ -7001,11 +7001,13 @@ var _golfEditId    = null;     // round or course being edited, null = new
 var _golfNewCourse = null;     // course to pre-select when starting a new round
 var _golfThenRound = false;    // course editor was opened from "+" with no courses yet
 var _golfEditing   = false;    // sync-render guard, same role as _projEditing
-var _golfCancelFn  = null;     // back-button discard closure (v345 pattern)
+var _golfCancelFn  = null;     // back-button discard closure (v345 pattern) — the course editor
+var _golfDoneFn    = null;     // v501: the round editor's save-and-leave (no discard: it autosaves)
+var _golfAutoSave  = null;     // v501: the round editor's save-now, for the page being hidden
 
 function renderGolf() {
   _golfEditing = false;
-  _golfCancelFn = null;
+  _golfCancelFn = null; _golfDoneFn = null; _golfAutoSave = null;
   if (_golfView === "round")   { renderGolfRoundEditor(); return; }
   if (_golfView === "course")  { renderGolfCourseEditor(); return; }
   if (_golfView === "courses") { renderGolfCourses(); return; }
@@ -7090,8 +7092,10 @@ function renderGolfCourses() {
 // The header "+": a new round, or — with no course to score against yet —
 // the course editor first, which then carries straight on into the round.
 function golfNewRound() {
-  // The + stays in the header while an editor is open, so ask before a new
-  // round replaces a half-scored one (or a half-made course).
+  // v501: a round being scored is already saved, so + keeps it and moves on.
+  if (_golfEditing && _golfDoneFn) _golfDoneFn(true);
+  // The + stays in the header while the course editor is open, so ask
+  // before a new round replaces a half-made course.
   if (_golfEditing && _golfCancelFn) {
     confirmDialog("Discard changes?", function(){ _golfEditing = false; _golfCancelFn = null; golfNewRound(); }, function(){});
     return;
@@ -7174,11 +7178,16 @@ function renderGolfRoundEditor() {
   _golfNewCourse = null;
   var known = golfKnownPartners();
   function leave() {
-    _golfEditing = false; _golfCancelFn = null;
+    _golfEditing = false; _golfCancelFn = null; _golfDoneFn = null; _golfAutoSave = null;
     _golfView = "list"; _golfEditId = null;
     renderGolf(); window.scrollTo(0, 0);
   }
-  _golfCancelFn = leave;
+  // v501 autosave (confirmed 03/10/2026): there is no Cancel. The round is
+  // written on the first score and on every change after it, so a phone
+  // that sleeps or a PWA the OS kills between holes loses nothing. Leaving
+  // by Done, the back button or the header + all keep what's there.
+  _golfDoneFn = done;
+  _golfAutoSave = persist;
 
   var head = r
     ? "<div style='" + PROJ_LBL + "'>Course</div><div style='font-size:17px;font-weight:700;color:#2A2010'>" + esc(d.courseName || "Course") + "</div>"
@@ -7203,7 +7212,9 @@ function renderGolfRoundEditor() {
     "<div id='golfHoles' style='margin-top:8px'></div>" +
     "<div style='" + PROJ_LBL + ";margin-top:14px'>Notes " + PROJ_OPT + "</div>" +
     "<textarea id='golfEdNotes' rows='3' placeholder='Weather, how it went&hellip;' style='" + PROJ_INP + ";resize:vertical'>" + esc((r && r.notes) || "") + "</textarea>" +
-    golfEditorButtons(r ? "Delete this round" : "");
+    "<div id='golfSaved' style='margin-top:12px;font-size:12px;color:#6E5E48;text-align:center'></div>" +
+    "<button id='golfEdDone' style='display:block;width:100%;margin-top:8px;padding:13px;border:none;background:" + GOLF_COLOR + ";color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>Done</button>" +
+    "<button id='golfEdDelete' style='display:" + (r ? "block" : "none") + ";width:100%;margin-top:10px;padding:12px;border:1.5px solid #F0D0D0;background:#fff;color:#B03030;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation'>Delete this round</button>";
 
   var inMy = document.getElementById("golfEdMyHcp"), inName = document.getElementById("golfEdPartner"), inP = document.getElementById("golfEdPHcp");
   // Read live from the inputs, so a handicap typed mid-round re-scores every hole at once.
@@ -7277,6 +7288,7 @@ function renderGolfRoundEditor() {
         else v = v - 1 < 1 ? "" : v - 1;
         arr[i] = v;
         paintHoles(); paintTotals();
+        persist();
       });
     });
   }
@@ -7304,6 +7316,7 @@ function renderGolfRoundEditor() {
       }
       d = nd;
       paintCoursePicks(); repaint();
+      persist();
     });
   });
   inMy.addEventListener("input", function(){ paintTotals(); paintHoles(); });
@@ -7315,16 +7328,22 @@ function renderGolfRoundEditor() {
     if (k && k.hcp !== "" && (inP.value === "" || inP.dataset.auto === "1")) { inP.value = k.hcp; inP.dataset.auto = "1"; }
     paintTotals(); paintHoles();
   });
-  document.getElementById("golfEdCancel").addEventListener("click", leave);
-  var del = document.getElementById("golfEdDelete");
-  if (del) del.addEventListener("click", function(){
-    confirmDialog("Delete this round at &ldquo;" + esc(d.courseName || "Course") + "&rdquo;?", function(){ golfDelete(r.id); leave(); });
+  // Text fields save when they're left, and again if the page is hidden
+  // mid-typing (the visibilitychange hook beside the Golf wiring).
+  ["golfEdMyHcp", "golfEdPartner", "golfEdPHcp", "golfEdDate", "golfEdNotes"].forEach(function(id){
+    document.getElementById(id).addEventListener("change", function(){ persist(); });
   });
-  document.getElementById("golfEdSave").addEventListener("click", function(){
+  function paintSaved() {
+    document.getElementById("golfSaved").innerHTML = r ? "&#x2713; Saved as you go" : "Scores save as you enter them";
+  }
+  paintSaved();
+  // Writes the round as it stands. Nothing is written for a new round until
+  // a hole has a score; after that every call rewrites the whole record
+  // (every field, "" for blanks — the v296 rule) with a fresh `updated`.
+  function persist() {
     var w = who();
-    if (!golfPlayerStats(d, d.strokes, "").played && !(w.name && golfPlayerStats(d, d.pStrokes, "").played)) { toast("Score at least one hole first"); return; }
-    if ((inMy.value.trim() !== "" && w.me === "") || (w.name && inP.value.trim() !== "" && w.p === "")) { toast("A playing handicap is a whole number from -10 to 54"); return; }
-    // Every field written, always — "" survives the v296 field-fill.
+    var scored = golfPlayerStats(d, d.strokes, "").played || golfPlayerStats(d, d.pStrokes, "").played;
+    if (!r && !scored) return false;
     var vals = {
       kind: "round",
       date: document.getElementById("golfEdDate").value.trim(),
@@ -7334,19 +7353,34 @@ function renderGolfRoundEditor() {
       notes: document.getElementById("golfEdNotes").value
     };
     var all = getGolf(), now = Date.now();
-    if (r) {
-      var cur = golfFind(all, r.id);
-      if (!cur) { toast("That round is no longer here"); leave(); return; }
-      Object.keys(vals).forEach(function(k){ cur[k] = vals[k]; });
-      cur.updated = now;
-    } else {
-      var fresh = { id: projNewId(), addedBy: hearthUser, added: now, updated: now };
-      Object.keys(vals).forEach(function(k){ fresh[k] = vals[k]; });
-      all.unshift(fresh);
+    var cur = r ? golfFind(all, r.id) : null;
+    if (!cur) {
+      // A brand-new round, or one deleted on the other phone mid-round: keep
+      // the scores. A fresh `updated` outranks that delete's tombstone.
+      cur = { id: r ? r.id : projNewId(), addedBy: (r && r.addedBy) || hearthUser, added: (r && r.added) || now };
+      all.unshift(cur);
     }
+    Object.keys(vals).forEach(function(k){ cur[k] = vals[k]; });
+    cur.updated = now;
     saveGolf(all);
+    r = cur;
+    document.getElementById("golfEdDelete").style.display = "block";
+    paintSaved();
+    return true;
+  }
+  // quiet: leaving by back/+ — save and go, no handicap warning to block it.
+  function done(quiet) {
+    var w = who();
+    if (!quiet && ((inMy.value.trim() !== "" && w.me === "") || (w.name && inP.value.trim() !== "" && w.p === ""))) {
+      toast("A playing handicap is a whole number from -10 to 54"); return;
+    }
+    persist();
     leave();
-    toast("Saved");
+  }
+  document.getElementById("golfEdDone").addEventListener("click", function(){ done(false); });
+  document.getElementById("golfEdDelete").addEventListener("click", function(){
+    if (!r) return;
+    confirmDialog("Delete this round at &ldquo;" + esc(d.courseName || "Course") + "&rdquo;?", function(){ golfDelete(r.id); leave(); });
   });
 }
 function golfDraftFor(c) {
@@ -18879,7 +18913,9 @@ function closeTopOverlay() {
     return true;
   }
 
-  // v500: both Golf editors (round and course), same shape.
+  // v501: the round editor autosaves, so back saves and leaves — no question.
+  if (_golfEditing && _golfDoneFn && currentSection === "golf") { _golfDoneFn(true); return true; }
+  // v500: the course editor, same shape as the others.
   if (_golfEditing && _golfCancelFn) {
     var gfcf = _golfCancelFn;
     confirmDialog("Discard changes?", function(){ gfcf(); }, function(){});
@@ -19920,6 +19956,12 @@ document.getElementById("bnProjects").addEventListener("click", function(){ _pro
 document.getElementById("projNewBtn").addEventListener("click", function(){ openProjectEditor(null); });
 document.getElementById("bnGolf").addEventListener("click", function(){ _golfView = "list"; _golfEditId = null; switchSection("golf"); });
 document.getElementById("golfNewBtn").addEventListener("click", golfNewRound);
+// v501: a round being scored is saved on every tap; this catches a notes or
+// handicap field still being typed when the screen sleeps or the app is
+// switched away (a PWA the OS later kills never gets a chance otherwise).
+document.addEventListener("visibilitychange", function(){
+  if (document.hidden && _golfAutoSave) { try { _golfAutoSave(); } catch (e) { console.warn("golf autosave failed:", e); } }
+});
 document.getElementById("plantNewBtn").addEventListener("click", function(){ openPlantEditor(null); window.scrollTo(0, 0); });
 // v496: header ⋯ opens the section's rarely used actions. The buttons inside
 // keep their original ids and click handlers; this only opens and closes the sheet.
