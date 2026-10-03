@@ -64,7 +64,7 @@ module.exports = {
       function collect(arr){ (arr||[]).forEach(function(x){ if (x && x.id != null) ids.push(x.id); }); }
       ['grocery','todo','travel','personal'].forEach(function(lt){ collect(seed.lists[lt].items); });
       collect(seed.recipebook); collect(seed.plants); collect(seed.watchlist); collect(seed.trips);
-      collect(seed.appliances); collect(seed.health); collect(seed.projects);
+      collect(seed.appliances); collect(seed.health); collect(seed.projects); collect(seed.golf);
       (seed.projects || []).forEach(function(p){ collect(p.items); });   // v499: item ids share the namespace
       collect(seed.baby.medicine); collect(seed.baby.milestones);
       collect(seed.action_log); collect(seed.track_med); collect(seed.food_log);
@@ -93,7 +93,7 @@ module.exports = {
 
       // ── Through the real import path ─────────────────────────────────────
       var savedKeys = ['fl4_grocery','fl4_todo','fl4_travel','fl4_personal','fl4_recipebook','fl4_mealplan',
-                       'fl4_trips','fl4_plants','fl4_watchlist','fl4_appliances','fl4_health','fl4_projects','fl4_baby','fl4_workouts','fl4_action_log',
+                       'fl4_trips','fl4_plants','fl4_watchlist','fl4_appliances','fl4_health','fl4_projects','fl4_golf','fl4_baby','fl4_workouts','fl4_action_log',
                        'fl4_track_med','fl4_food_log','fl4_saved_meals','fl4_recipes','fl4_travel_tags',
                        'fl4_notes_global','fl4_notes_global_work','fl4_cal_goal','fl4_profile'];
       var savedState = {};
@@ -230,6 +230,13 @@ module.exports = {
       ok('the demo puts a Projects line on Home, and the Idea project does not count',
         (function(){ var h = projHomeSummary(); return !!h && h.open === 3 && h.overdue === 1; })(),
         'got: ' + JSON.stringify(projHomeSummary()));
+      // v500: two courses and four rounds; only the two complete 18-hole
+      // rounds feed the 18-hole best/average, the part-played one does not.
+      ok('golf courses and rounds land', golfCourses().length === 2 && golfRounds().length === 4,
+        'got: ' + golfCourses().length + '/' + golfRounds().length);
+      ok('the demo 18-hole summary skips the part-played round',
+        (function(){ var g = golfSummary(18); return !!g && g.count === 2 && g.best === 82 && g.avg === 84.5; })(),
+        'got: ' + JSON.stringify(golfSummary(18)));
       ok('workouts, bodyweight and blood pressure land',
         getWD().workouts.length === 2 && getWD().bodyweight.length === 5 && getWD().bp.length === 2,
         'got: ' + [getWD().workouts.length, getWD().bodyweight.length, (getWD().bp||[]).length].join('/'));
@@ -274,7 +281,7 @@ module.exports = {
       savedKeys.forEach(function(k){
         if (savedState[k] == null) localStorage.removeItem(k); else storeSet(k, savedState[k]);
       });
-      ['fl4_notes_grocery','fl4_notes_travel','fl4_tomb_recipes','fl4_tomb_plants','fl4_tomb_watchlist','fl4_tomb_appliances','fl4_tomb_health','fl4_tomb_projects','fl4_tomb_projitems',
+      ['fl4_notes_grocery','fl4_notes_travel','fl4_tomb_recipes','fl4_tomb_plants','fl4_tomb_watchlist','fl4_tomb_appliances','fl4_tomb_health','fl4_tomb_projects','fl4_tomb_projitems','fl4_tomb_golf',
        'fl4_tomb_trips','fl4_tomb_bookings','fl4_food_notes'].forEach(function(k){ localStorage.removeItem(k); });
       listData = savedListData;
 
