@@ -903,7 +903,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
   <div class="hdr-act" data-sec="appliances"><button class="hdr-btn hdr-add" id="applNewBtn" aria-label="New inventory item" title="New inventory item">+</button></div>
   <div class="hdr-act" data-sec="health"><button class="hdr-btn hdr-add" id="hlNewBtn" aria-label="New medical record" title="New medical record">+</button></div>
   <div class="hdr-act" data-sec="projects"><button class="hdr-btn hdr-add" id="projNewBtn" aria-label="New project" title="New project">+</button></div>
-  <div class="hdr-act" data-sec="golf"><button class="hdr-btn hdr-add" id="golfNewBtn" aria-label="New golf round" title="New golf round">+</button></div>
+  <div class="hdr-act" data-sec="golf"><button class="hdr-btn hdr-add" id="golfNewBtn" aria-label="New golf round" title="New golf round">+</button><button class="hdr-btn hdr-more" data-tools="golf" aria-label="More golf actions" title="More">&#x22EF;</button></div>
   <div class="hdr-act" data-sec="track"><label class="hdr-person">&#x1F464;<select id="trackPerson" aria-label="Recording for"><option value="me">Me</option><option value="wife">My wife</option><option value="daughter">My daughter</option></select></label></div>
   <button class="hdr-btn" id="syncBtn" title="Sync" aria-label="Open sync settings">&#128257;<span class="sync-dot" id="syncDot"></span></button>
   <button class="hdr-btn" id="settingsBtn" title="Settings" aria-label="Open app settings">&#9881;&#65039;</button>
@@ -916,6 +916,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     <div class="sec-tools" data-sec="recipes"><button id="recipeImportBtn" class="more-row"><span class="more-ico">&#x2B07;</span><span class="more-name">Import a recipe</span></button></div>
     <div class="sec-tools" data-sec="trips"><button id="tripPackingBtn" class="more-row"><span class="more-ico">&#x2708;&#xFE0F;</span><span class="more-name">Packing list</span></button><button id="tripImportBtn" class="more-row"><span class="more-ico">&#x1F4E5;</span><span class="more-name">Import a trip</span></button></div>
     <div class="sec-tools" data-sec="plants"><button id="plantImportBtn" class="more-row"><span class="more-ico">&#x1F4E5;</span><span class="more-name">Import a plant</span></button></div>
+    <div class="sec-tools" data-sec="golf"><button id="golfImportBtn" class="more-row"><span class="more-ico">&#x1F4E5;</span><span class="more-name">Import a course</span></button></div>
     <div class="sec-tools" data-sec="watch"><button id="watchRandomBtn" class="more-row"><span class="more-ico">&#x1F3B2;</span><span class="more-name">Pick something at random</span></button></div>
   </div>
 </div>
@@ -1069,7 +1070,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v501 · 03/10/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v502 · 03/10/2026</div>
 
   </div>
 </div>
@@ -6996,7 +6997,7 @@ function golfSummary(holes) {
 }
 
 // ── UI state ─────────────────────────────────────────────────────────────
-var _golfView      = "list";   // "list" | "round" | "courses" | "course"
+var _golfView      = "list";   // "list" | "round" | "courses" | "course" | "import" (v502)
 var _golfEditId    = null;     // round or course being edited, null = new
 var _golfNewCourse = null;     // course to pre-select when starting a new round
 var _golfThenRound = false;    // course editor was opened from "+" with no courses yet
@@ -7011,6 +7012,7 @@ function renderGolf() {
   if (_golfView === "round")   { renderGolfRoundEditor(); return; }
   if (_golfView === "course")  { renderGolfCourseEditor(); return; }
   if (_golfView === "courses") { renderGolfCourses(); return; }
+  if (_golfView === "import")  { renderGolfImport(); return; }
   _golfView = "list";
   var el = document.getElementById("golfContent");
   if (!el) return;
@@ -7511,6 +7513,201 @@ function renderGolfCourseEditor() {
   });
   var n = document.getElementById("golfCoName");
   if (n && !c) n.focus();
+}
+
+// ── Course import (v502, confirmed 03/10/2026) ───────────────────────────
+// A `golf-course-v1` JSON file, usually written by an AI chat from the copy
+// prompt below. A course whose name matches a saved one (exact, ignoring
+// case and outer spaces — never fuzzy, the plants rule) UPDATES it: holes,
+// pars and SI are replaced, notes only if the file has some. Everything else
+// is added as new. Rounds already played keep their own snapshot of the old
+// pars and SI, so an update never rewrites a score. Two saved courses with
+// the same name are skipped rather than guessed between. Nothing is written
+// until Import is tapped on the preview.
+var GOLF_FILE_TAG = "golf-course-v1";
+var _golfImportParsed = null;   // the preview's parsed courses, null = paste step
+
+function golfImportPrompt() {
+  return "Course: [type the course name and the tees you play, e.g. \"Fota Island Deerpark, white tees\"]\n\n" +
+    "I want to add this golf course to my Hearth app. Using the course's official scorecard " +
+    "(I may attach a photo of it), give me the par and the stroke index for every hole.\n\n" +
+    "Reply with ONLY this JSON — no code fences, no commentary before or after:\n\n" +
+    "{\n" +
+    '  "hearth": "' + GOLF_FILE_TAG + '",\n' +
+    '  "name": "",\n' +
+    '  "holes": 18,\n' +
+    '  "pars": [],\n' +
+    '  "si": [],\n' +
+    '  "notes": ""\n' +
+    "}\n\n" +
+    "Field notes:\n" +
+    "- name: the course name as I'd say it, including the layout if the club has more than one.\n" +
+    "- holes: 18 or 9.\n" +
+    "- pars: one whole number (3 to 6) per hole, in order from hole 1.\n" +
+    "- si: the stroke index (handicap) of each hole, in the same order — 1 is the hardest hole, and every " +
+    "number from 1 to the number of holes is used exactly once. Use the men's stroke index unless I say otherwise. " +
+    "If the card has different figures for different tees, use the tees I named.\n" +
+    "- If you can't find a stroke index you're sure of, leave si as [] rather than guessing — I can add it in the app later.\n" +
+    "- notes: which tees and which source you used, plus anything you're unsure of. Plain text, one or two short lines.\n" +
+    "- Several courses at once: wrap them as {\"hearth\": \"" + GOLF_FILE_TAG + "\", \"courses\": [ ... ]}.";
+}
+
+// Returns {courses:[{name, holes, pars, si, notes}]} or {error}. Strict on
+// purpose: a wrong par on the card is worse than a refused paste, so a bad
+// value is reported (naming the course and hole) rather than coerced.
+function parseGolfCourseFile(raw) {
+  var obj;
+  try { obj = JSON.parse(raw); } catch (e) { return { error: "Couldn't read that as JSON — check it and try again." }; }
+  if (!obj || typeof obj !== "object" || obj.hearth !== GOLF_FILE_TAG) {
+    return { error: "Not a Hearth golf course file. Make sure the JSON includes \"hearth\": \"" + GOLF_FILE_TAG + "\"." };
+  }
+  var list = (Array.isArray(obj.courses) ? obj.courses : [obj]).filter(function(c){
+    return c && typeof c === "object" && !Array.isArray(c);
+  });
+  if (!list.length) return { error: "No courses found in that file." };
+  var out = [];
+  for (var n = 0; n < list.length; n++) {
+    var c = list[n];
+    var name = typeof c.name === "string" ? c.name.trim().slice(0, 80) : "";
+    if (!name) return { error: "Every course needs a \"name\"." };
+    var pars = Array.isArray(c.pars) ? c.pars : [];
+    var holes = (c.holes === undefined || c.holes === null || c.holes === "") ? pars.length : Number(c.holes);
+    if (holes !== 9 && holes !== 18) return { error: name + ": \"holes\" must be 9 or 18." };
+    if (pars.length !== holes) return { error: name + ": \"pars\" needs " + holes + " numbers, one per hole (it has " + pars.length + ")." };
+    for (var i = 0; i < holes; i++) {
+      var p = Number(pars[i]);
+      if (Math.floor(p) !== p || p < GOLF_PAR_MIN || p > GOLF_PAR_MAX) return { error: name + ": hole " + (i + 1) + "'s par must be a whole number from " + GOLF_PAR_MIN + " to " + GOLF_PAR_MAX + "." };
+    }
+    var si = Array.isArray(c.si) ? c.si : [];
+    if (si.length && si.length !== holes) return { error: name + ": \"si\" needs " + holes + " numbers, one per hole, or [] for none." };
+    var siErr = si.length ? golfSiCheck(si, holes) : "";
+    if (siErr) return { error: name + ": " + siErr + "." };
+    out.push({ name: name, holes: holes, pars: pars.map(Number),
+               si: golfSiArr(si, holes), notes: typeof c.notes === "string" ? c.notes.trim().slice(0, 500) : "" });
+  }
+  return { courses: out };
+}
+
+// What Import will do with each parsed course: {c, action:"new"|"update"|"skip", target, why}.
+function golfImportPlan(list) {
+  var saved = golfCourses(), seen = {};
+  return list.map(function(c){
+    var key = c.name.toLowerCase();
+    var hits = saved.filter(function(s){ return String(s.name || "").trim().toLowerCase() === key; });
+    if (seen[key]) return { c: c, action: "skip", why: "the file has this name twice" };
+    seen[key] = true;
+    if (hits.length > 1) return { c: c, action: "skip", why: "you have two saved courses with this name — rename one first" };
+    if (hits.length === 1) return { c: c, action: "update", target: hits[0] };
+    return { c: c, action: "new" };
+  });
+}
+
+// Writes the plan. Returns {added, updated}.
+function golfApplyImport(plan) {
+  var all = getGolf(), now = Date.now(), added = 0, updated = 0;
+  plan.forEach(function(p){
+    if (p.action === "update") {
+      var cur = golfFind(all, p.target.id);
+      if (!cur) return;
+      var siKeep = golfSiComplete(p.c.si, p.c.holes) ? p.c.si.slice() :
+        (cur.holes === p.c.holes && golfSiComplete(cur.si, cur.holes) ? cur.si.slice() : golfSiArr([], p.c.holes));
+      cur.name = p.c.name; cur.holes = p.c.holes; cur.pars = p.c.pars.slice(); cur.si = siKeep;
+      if (p.c.notes) cur.notes = p.c.notes;
+      cur.updated = now;
+      updated++;
+    } else if (p.action === "new") {
+      all.unshift({ id: projNewId() + added, kind: "course", name: p.c.name, holes: p.c.holes, pars: p.c.pars.slice(),
+                    si: p.c.si.slice(), notes: p.c.notes, addedBy: hearthUser, added: now, updated: now });
+      added++;
+    }
+  });
+  if (added || updated) saveGolf(all);
+  return { added: added, updated: updated };
+}
+
+function openGolfImport() {
+  _golfImportParsed = null;
+  _golfEditId = null;
+  _golfView = "import";
+  renderGolf();
+  window.scrollTo(0, 0);
+}
+
+function renderGolfImport() {
+  var el = document.getElementById("golfContent");
+  if (!el) return;
+  _golfEditing = true;                        // a sync mid-paste must not redraw the textarea away
+  function leave() {
+    _golfEditing = false; _golfCancelFn = null; _golfImportParsed = null;
+    _golfView = "courses";
+    renderGolf(); window.scrollTo(0, 0);
+  }
+  _golfCancelFn = leave;
+  var back = "<button id='golfImpBack' style='border:none;background:none;color:" + GOLF_COLOR + ";font-size:14px;font-weight:700;cursor:pointer;padding:0 0 12px;touch-action:manipulation'>&larr; " + (_golfImportParsed ? "Back" : "Cancel") + "</button>" +
+    "<div style='font-size:20px;font-weight:700;margin-bottom:10px;color:#2A2010'>Import a course</div>";
+
+  if (!_golfImportParsed) {
+    el.innerHTML = back +
+      "<div style='font-size:13px;color:#4A5A3A;background:#F2F6EC;border:1px solid #D9E2CF;border-radius:10px;padding:12px 14px;margin-bottom:12px;line-height:1.65'>" +
+        "<b>How to use this with an AI chat:</b>" +
+        "<div style='margin-top:6px'>1. Copy the prompt below.</div>" +
+        "<div>2. Paste it into a chat, fill in the course name and your tees on the first line, and attach a photo of the scorecard if you have one.</div>" +
+        "<div>3. Paste the JSON it replies with into the box below.</div>" +
+      "</div>" +
+      "<button id='golfCopyPrompt' style='width:100%;padding:12px;border:1.5px solid " + GOLF_COLOR + ";background:#fff;color:" + GOLF_COLOR + ";border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px;touch-action:manipulation'>&#x1F4CB; Copy the prompt</button>" +
+      "<details style='margin-bottom:14px'><summary style='font-size:12px;color:#6E5E48;cursor:pointer;padding:4px 2px'>See the prompt</summary>" +
+        "<textarea id='golfPromptText' readonly rows='10' style='" + PROJ_INP + ";margin-top:8px;resize:vertical;line-height:1.5;font-size:11px;font-family:monospace'>" + esc(golfImportPrompt()) + "</textarea>" +
+      "</details>" +
+      "<textarea id='golfImportJson' rows='8' placeholder='Paste the JSON here&hellip;' style='" + PROJ_INP + ";margin-bottom:14px;resize:vertical;line-height:1.5;font-size:12px;font-family:monospace'></textarea>" +
+      "<button id='golfImportNext' style='width:100%;padding:13px;border:none;background:" + GOLF_COLOR + ";color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation'>Next &rsaquo;</button>";
+    document.getElementById("golfImpBack").addEventListener("click", leave);
+    document.getElementById("golfCopyPrompt").addEventListener("click", function(){ copyToClipboard(golfImportPrompt(), "&#x1F4CB; Prompt copied"); });
+    document.getElementById("golfImportNext").addEventListener("click", function(){
+      var raw = stripPasteFence(document.getElementById("golfImportJson").value);
+      if (!raw) { toast("Paste the JSON first"); return; }
+      var parsed = parseGolfCourseFile(raw);
+      if (parsed.error) { toast(esc(parsed.error)); return; }
+      _golfImportParsed = parsed.courses;
+      renderGolfImport();
+      window.scrollTo(0, 0);
+    });
+    return;
+  }
+
+  // Step 2 — the preview. Nothing is written until Import.
+  var plan = golfImportPlan(_golfImportParsed);
+  var doing = plan.filter(function(p){ return p.action !== "skip"; }).length;
+  var html = back;
+  plan.forEach(function(p){
+    var badge = p.action === "update" ? ["Will update", "#FBEBD9", "#8A4A10"] :
+                p.action === "new"    ? ["New", "#E4F2E6", "#2D6B35"] : ["Skipped", "#F3EEE3", "#6B5A3A"];
+    html += "<div class='golf-imp-row' data-action='" + p.action + "' style='background:#fff;border:1.5px solid #E3EADB;border-radius:12px;margin-bottom:8px;padding:12px'>" +
+      "<div style='display:flex;align-items:center;gap:8px'>" +
+        "<div style='flex:1;min-width:0;font-size:15px;font-weight:600;color:#2A2010'>" + esc(p.c.name) + "</div>" +
+        "<span style='flex-shrink:0;background:" + badge[1] + ";color:" + badge[2] + ";font-size:12px;font-weight:700;border-radius:20px;padding:4px 9px'>" + badge[0] + "</span>" +
+      "</div>" +
+      "<div style='font-size:12px;color:#6E5E48;margin-top:4px'>" + p.c.holes + " holes &middot; par " + golfParTotal(p.c.pars) + " &middot; " +
+        (golfSiComplete(p.c.si, p.c.holes) ? "stroke index included" : "no stroke index") + "</div>" +
+      "<div style='font-size:12px;color:#4A5A3A;margin-top:6px;line-height:1.6'>Pars: " + p.c.pars.join(" ") +
+        (golfSiComplete(p.c.si, p.c.holes) ? "<br>SI: " + p.c.si.join(" ") : "") + "</div>" +
+      (p.c.notes ? "<div style='font-size:12px;color:#6E5E48;margin-top:4px'>" + esc(p.c.notes) + "</div>" : "") +
+      (p.action === "skip" ? "<div style='font-size:12px;color:#B03030;margin-top:4px'>Not imported: " + esc(p.why) + ".</div>" : "") +
+    "</div>";
+  });
+  if (plan.some(function(p){ return p.action === "update"; })) {
+    html += "<div style='font-size:12px;color:#6E5E48;margin:2px 2px 12px;line-height:1.5'>Updating replaces the course&rsquo;s holes, pars and stroke index. Rounds already played there keep the scores and pars they were played to.</div>";
+  }
+  html += "<button id='golfImportGo' " + (doing ? "" : "disabled ") + "style='width:100%;padding:13px;border:none;background:" + (doing ? GOLF_COLOR : "#B8C4AC") + ";color:#fff;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation'>Import" + (doing > 1 ? " " + doing + " courses" : "") + "</button>";
+  el.innerHTML = html;
+  document.getElementById("golfImpBack").addEventListener("click", function(){ _golfImportParsed = null; renderGolfImport(); window.scrollTo(0, 0); });
+  document.getElementById("golfImportGo").addEventListener("click", function(){
+    var res = golfApplyImport(plan);
+    var parts = [];
+    if (res.added) parts.push(res.added + " added");
+    if (res.updated) parts.push(res.updated + " updated");
+    toast(parts.length ? "&#x26F3; " + parts.join(", ") : "Nothing imported");
+    leave();
+  });
 }
 
 // ============================================================
@@ -19960,6 +20157,16 @@ document.getElementById("bnProjects").addEventListener("click", function(){ _pro
 document.getElementById("projNewBtn").addEventListener("click", function(){ openProjectEditor(null); });
 document.getElementById("bnGolf").addEventListener("click", function(){ _golfView = "list"; _golfEditId = null; switchSection("golf"); });
 document.getElementById("golfNewBtn").addEventListener("click", golfNewRound);
+// v502: Import a course, from the header ⋯ sheet. A round being scored is
+// already saved (v501 autosave), so it is closed quietly first.
+document.getElementById("golfImportBtn").addEventListener("click", function(){
+  if (_golfEditing && _golfDoneFn) _golfDoneFn(true);
+  if (_golfEditing && _golfCancelFn && _golfView === "course") {
+    confirmDialog("Discard changes?", function(){ openGolfImport(); }, function(){});
+    return;
+  }
+  openGolfImport();
+});
 // v501: a round being scored is saved on every tap; this catches a notes or
 // handicap field still being typed when the screen sleeps or the app is
 // switched away (a PWA the OS later kills never gets a chance otherwise).

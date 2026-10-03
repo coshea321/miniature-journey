@@ -24,7 +24,7 @@ module.exports = {
         appliances: { add:'applNewBtn',   more:false, tools:[],                                bg:'rgb(62, 92, 107)' },
         health:     { add:'hlNewBtn',     more:false, tools:[],                                bg:'rgb(47, 110, 110)' },
         projects:   { add:'projNewBtn',   more:false, tools:[],                                bg:'rgb(138, 90, 43)' },
-        golf:       { add:'golfNewBtn',   more:false, tools:[],                                bg:'rgb(63, 107, 33)' }
+        golf:       { add:'golfNewBtn',   more:true,  tools:['golfImportBtn'],                 bg:'rgb(63, 107, 33)' }
       };
       var ov = document.getElementById('secToolsOverlay');
       Object.keys(map).forEach(function(sec){
