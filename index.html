@@ -6998,6 +6998,12 @@ function renderGolfCourses() {
 // The header "+": a new round, or — with no course to score against yet —
 // the course editor first, which then carries straight on into the round.
 function golfNewRound() {
+  // The + stays in the header while an editor is open, so ask before a new
+  // round replaces a half-scored one (or a half-made course).
+  if (_golfEditing && _golfCancelFn) {
+    confirmDialog("Discard changes?", function(){ _golfEditing = false; _golfCancelFn = null; golfNewRound(); }, function(){});
+    return;
+  }
   if (!golfCourses().length) {
     toast("Add your course first");
     _golfThenRound = true;

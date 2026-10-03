@@ -93,6 +93,10 @@ module.exports = {
       ok('minus below 1 clears the hole', content.querySelector('.golf-st-val[data-i="1"]').textContent === '–');
       ok('the back button asks before discarding the round', closeTopOverlay() === true);
       var cfNo = document.getElementById('_cfNo'); if (cfNo) cfNo.click();
+      document.getElementById('golfNewBtn').click();
+      ok('the header + asks before replacing a half-scored round', !!document.getElementById('_cfNo'));
+      var cfNo2 = document.getElementById('_cfNo'); if (cfNo2) cfNo2.click();
+      ok('saying no keeps the scores', content.querySelector('.golf-st-val[data-i="0"]').textContent === '5' && _golfEditing === true);
       document.getElementById('golfEdSave').click();
       var saved1 = golfRounds()[0];
       ok('the round saves with the score, blanks stored as ""',
