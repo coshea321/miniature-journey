@@ -217,8 +217,16 @@ module.exports = {
       content = document.getElementById('golfContent');
       ok('the scorecard opens on Full card by default', content.querySelectorAll('.golf-hole').length === 9 &&
         content.querySelector('.golf-view-pick[data-v="full"]').getAttribute('aria-pressed') === 'true');
+      ok('Full card keeps the compact 44px buttons', Math.round(content.querySelector('.golf-st-up').getBoundingClientRect().height) === 44);
       content.querySelector('.golf-view-pick[data-v="one"]').click();
       ok('One hole shows a single hole', content.querySelectorAll('.golf-hole').length === 1);
+      // v504: on-course sizes in One hole — big − / + and score, big Prev / Next.
+      ok('One hole has big score buttons (at least 64px tall)', (function(){
+        var b = content.querySelector('.golf-hole .golf-st-up'); return b.getBoundingClientRect().height >= 64 && b.getBoundingClientRect().width >= 64; })(),
+        'got ' + JSON.stringify(content.querySelector('.golf-hole .golf-st-up').getBoundingClientRect()));
+      ok('One hole shows the score in big digits (at least 40px)', parseFloat(getComputedStyle(content.querySelector('.golf-hole .golf-st-val')).fontSize) >= 40);
+      ok('One hole has big Prev / Next (at least 60px tall)', document.getElementById('golfNextHole').getBoundingClientRect().height >= 60 &&
+        document.getElementById('golfPrevHole').getBoundingClientRect().height >= 60);
       ok('it starts on the first hole missing a score (Pat has none on hole 3)',
         content.querySelector('.golf-hole').dataset.i === '2' && document.getElementById('golfHoleOf').textContent === 'Hole 3 of 9');
       ok('the running totals stay on screen, with points for both', document.getElementById('golfTotals').textContent.indexOf('pts') !== -1 &&
@@ -243,6 +251,30 @@ module.exports = {
       document.getElementById('golfEdDone').click();
       ok('a finished card starts on hole 1', golfFirstOpenHole({ holes:2, strokes:[4,4], pStrokes:['',''] }, '') === 0);
       if (savedViewPref == null) localStorage.removeItem('fl4_golf_view'); else localStorage.setItem('fl4_golf_view', savedViewPref);
+
+      // ── v504: collapsible round details ──────────────────────────────────
+      storeSet('fl4_golf', [ course(1, 'Nine', { si: SI9 }),
+        round(95, [4,'','','','','','','',''], { date:'2026-09-20', myHcp:9, partner:'Pat', partnerHcp:4 }) ]);
+      openGolfRound(null);
+      content = document.getElementById('golfContent');
+      var setup = document.getElementById('golfSetup'), sum = document.getElementById('golfSetupSum');
+      ok('a fresh round opens with its details showing', setup.style.display !== 'none' && sum.getAttribute('aria-expanded') === 'true');
+      sum.click();
+      ok('tapping the bar hides the details', setup.style.display === 'none' && sum.getAttribute('aria-expanded') === 'false');
+      sum.click();
+      ok('and tapping again shows them', setup.style.display !== 'none');
+      tap('golf-st-up', 0);
+      ok('the first score collapses the details by itself', setup.style.display === 'none');
+      ok('the collapsed bar summarises course and handicap', sum.textContent.indexOf('Nine') !== -1 && sum.textContent.indexOf('You 9') !== -1, sum.textContent);
+      sum.click();
+      tap('golf-st-up', 1);
+      ok('a later score does not collapse them again once reopened', setup.style.display !== 'none');
+      document.getElementById('golfEdDone').click();
+      openGolfRound(95);
+      ok('a round that already has scores reopens collapsed, with the partner in the summary',
+        document.getElementById('golfSetup').style.display === 'none' && document.getElementById('golfSetupSum').textContent.indexOf('with Pat 4') !== -1,
+        document.getElementById('golfSetupSum').textContent);
+      document.getElementById('golfEdDone').click();
 
       // ── No course yet: + goes to the course editor, then into the round ──
       storeSet('fl4_golf', []);
