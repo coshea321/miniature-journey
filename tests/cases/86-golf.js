@@ -252,6 +252,30 @@ module.exports = {
       ok('a finished card starts on hole 1', golfFirstOpenHole({ holes:2, strokes:[4,4], pStrokes:['',''] }, '') === 0);
       if (savedViewPref == null) localStorage.removeItem('fl4_golf_view'); else localStorage.setItem('fl4_golf_view', savedViewPref);
 
+      // ── v504: collapsible round details ──────────────────────────────────
+      storeSet('fl4_golf', [ course(1, 'Nine', { si: SI9 }),
+        round(95, [4,'','','','','','','',''], { date:'2026-09-20', myHcp:9, partner:'Pat', partnerHcp:4 }) ]);
+      openGolfRound(null);
+      content = document.getElementById('golfContent');
+      var setup = document.getElementById('golfSetup'), sum = document.getElementById('golfSetupSum');
+      ok('a fresh round opens with its details showing', setup.style.display !== 'none' && sum.getAttribute('aria-expanded') === 'true');
+      sum.click();
+      ok('tapping the bar hides the details', setup.style.display === 'none' && sum.getAttribute('aria-expanded') === 'false');
+      sum.click();
+      ok('and tapping again shows them', setup.style.display !== 'none');
+      tap('golf-st-up', 0);
+      ok('the first score collapses the details by itself', setup.style.display === 'none');
+      ok('the collapsed bar summarises course and handicap', sum.textContent.indexOf('Nine') !== -1 && sum.textContent.indexOf('You 9') !== -1, sum.textContent);
+      sum.click();
+      tap('golf-st-up', 1);
+      ok('a later score does not collapse them again once reopened', setup.style.display !== 'none');
+      document.getElementById('golfEdDone').click();
+      openGolfRound(95);
+      ok('a round that already has scores reopens collapsed, with the partner in the summary',
+        document.getElementById('golfSetup').style.display === 'none' && document.getElementById('golfSetupSum').textContent.indexOf('with Pat 4') !== -1,
+        document.getElementById('golfSetupSum').textContent);
+      document.getElementById('golfEdDone').click();
+
       // ── No course yet: + goes to the course editor, then into the round ──
       storeSet('fl4_golf', []);
       renderGolf();

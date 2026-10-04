@@ -7206,7 +7206,9 @@ function renderGolfRoundEditor() {
           return "<button type='button' class='golf-course-pick' data-id='" + esc(String(c.id)) + "' aria-pressed='false' style='padding:10px 12px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation'>" + esc(c.name || "Course") + "</button>";
         }).join("") + "</div>";
   var hcpInp = PROJ_INP + ";width:92px;flex:0 0 auto";
-  el.innerHTML = head +
+  el.innerHTML =
+    "<button type='button' id='golfSetupSum' aria-expanded='true' style='display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:10px 12px;border:1.5px solid #D9E2CF;background:#fff;border-radius:10px;font-family:inherit;cursor:pointer;touch-action:manipulation'></button>" +
+    "<div id='golfSetup' style='margin-top:12px'>" + head +
     "<div style='" + PROJ_LBL + ";margin-top:14px'>Date</div>" +
     "<input id='golfEdDate' type='date' style='" + PROJ_INP + "' value='" + esc(r ? (r.date || "") : trainTodayStr()) + "'>" +
     "<div style='" + PROJ_LBL + ";margin-top:14px'>Your playing handicap " + PROJ_OPT + "</div>" +
@@ -7217,6 +7219,7 @@ function renderGolfRoundEditor() {
       "<input id='golfEdPHcp' type='number' inputmode='numeric' min='-10' max='54' placeholder='Hcp' aria-label='Partner&rsquo;s playing handicap' style='" + hcpInp + "' value='" + esc(String(r ? r.partnerHcp : "")) + "'>" +
     "</div>" +
     "<datalist id='golfPartnerList'>" + known.map(function(k){ return "<option value='" + esc(k.name) + "'></option>"; }).join("") + "</datalist>" +
+    "</div>" +
     "<div id='golfSiNote'></div>" +
     "<div style='display:flex;gap:6px;margin-top:14px'>" +
       [["full", "Full card"], ["one", "One hole"]].map(function(v){
@@ -7325,12 +7328,14 @@ function renderGolfRoundEditor() {
       b.addEventListener("click", function(){
         var i = +b.dataset.i, mine = b.className.indexOf("golf-st") === 0;
         var arr = mine ? d.strokes : d.pStrokes, v = arr[i], up = /-up$/.test(b.className);
+        var firstScore = !anyScore();
         // The first tap on an empty hole lands on par — most holes are within
         // one of it, so that's the fewest taps. − below 1 clears the hole.
         if (v === "") v = d.pars[i];
         else if (up) v = Math.min(GOLF_STROKE_MAX, v + 1);
         else v = v - 1 < 1 ? "" : v - 1;
         arr[i] = v;
+        if (firstScore && setupOpen && anyScore()) { setupOpen = false; paintSetup(); }
         paintHoles(); paintTotals();
         persist();
       });
@@ -7369,6 +7374,28 @@ function renderGolfRoundEditor() {
     });
   });
   paintViewPick();
+  // v504: the round's details (course, date, handicaps, partner) collapse to
+  // one summary line. Confirmed 04/10/2026: it collapses by itself the moment
+  // the first score goes in, and a round that already has scores reopens
+  // collapsed; a fresh round opens expanded for setting up. A tap on the
+  // summary toggles it either way.
+  function anyScore() { return golfPlayerStats(d, d.strokes, "").played > 0 || golfPlayerStats(d, d.pStrokes, "").played > 0; }
+  var setupOpen = !anyScore();
+  function paintSetup() {
+    var w = who(), parts = [esc(d.courseName || "Course")];
+    var dt = projDateText(document.getElementById("golfEdDate").value);
+    if (dt) parts.push(dt);
+    if (w.me !== "") parts.push("You " + w.me);
+    if (w.name) parts.push("with " + esc(w.name) + (w.p !== "" ? " " + w.p : ""));
+    var sum = document.getElementById("golfSetupSum");
+    sum.setAttribute("aria-expanded", setupOpen ? "true" : "false");
+    sum.innerHTML = setupOpen
+      ? "<span style='flex:1;font-size:12px;font-weight:700;color:#7A6A55;text-transform:uppercase;letter-spacing:.5px'>Round details</span><span style='font-size:13px;font-weight:700;color:" + GOLF_COLOR + "'>Hide &#x25B4;</span>"
+      : "<span style='flex:1;min-width:0;font-size:14px;font-weight:600;color:#2A2010;line-height:1.4'>" + parts.join(" &middot; ") + "</span><span style='flex-shrink:0;font-size:13px;font-weight:700;color:" + GOLF_COLOR + "'>Edit &#x25BE;</span>";
+    document.getElementById("golfSetup").style.display = setupOpen ? "block" : "none";
+  }
+  document.getElementById("golfSetupSum").addEventListener("click", function(){ setupOpen = !setupOpen; paintSetup(); });
+  paintSetup();
   repaint(); paintCoursePicks();
   el.querySelectorAll(".golf-course-pick").forEach(function(b){
     b.addEventListener("click", function(){
