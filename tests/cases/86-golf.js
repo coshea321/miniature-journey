@@ -208,6 +208,42 @@ module.exports = {
       ok('a round re-opened after its course gained SI takes the SI, not the new par',
         r72.si.join() === SI9.join() && r72.pars[0] === 4 && golfRoundStats(r72).points === 27);
 
+      // ── v503: one-hole view ──────────────────────────────────────────────
+      var savedViewPref = localStorage.getItem('fl4_golf_view');
+      localStorage.removeItem('fl4_golf_view');
+      storeSet('fl4_golf', [ course(1, 'Nine', { si: SI9 }),
+        round(90, [4,5,3,'','','','','',''], { myHcp:9, partner:'Pat', partnerHcp:4, pStrokes:[4,4,'','','','','','',''] }) ]);
+      openGolfRound(90);
+      content = document.getElementById('golfContent');
+      ok('the scorecard opens on Full card by default', content.querySelectorAll('.golf-hole').length === 9 &&
+        content.querySelector('.golf-view-pick[data-v="full"]').getAttribute('aria-pressed') === 'true');
+      content.querySelector('.golf-view-pick[data-v="one"]').click();
+      ok('One hole shows a single hole', content.querySelectorAll('.golf-hole').length === 1);
+      ok('it starts on the first hole missing a score (Pat has none on hole 3)',
+        content.querySelector('.golf-hole').dataset.i === '2' && document.getElementById('golfHoleOf').textContent === 'Hole 3 of 9');
+      ok('the running totals stay on screen, with points for both', document.getElementById('golfTotals').textContent.indexOf('pts') !== -1 &&
+        document.getElementById('golfTotals').textContent.indexOf('Pat') !== -1);
+      tap('golf-ps-up', 2);
+      ok('scoring in one-hole view autosaves', golfFind(getGolf(), 90).pStrokes[2] === 3);
+      ok('and stays on the same hole until Next', content.querySelector('.golf-hole').dataset.i === '2');
+      document.getElementById('golfNextHole').click();
+      ok('Next moves to the next hole', content.querySelector('.golf-hole').dataset.i === '3');
+      document.getElementById('golfPrevHole').click(); document.getElementById('golfPrevHole').click(); document.getElementById('golfPrevHole').click();
+      ok('Prev stops at hole 1', content.querySelector('.golf-hole').dataset.i === '0' && document.getElementById('golfPrevHole').disabled === true);
+      ok('the choice is remembered on this phone', storeGet('fl4_golf_view') === 'one');
+      document.getElementById('golfEdDone').click();
+      openGolfRound(90);
+      content = document.getElementById('golfContent');
+      ok('the next round opens in One hole, on the first open hole',
+        content.querySelectorAll('.golf-hole').length === 1 && content.querySelector('.golf-hole').dataset.i === '3');
+      for (var hn = 0; hn < 8; hn++) { var nx = document.getElementById('golfNextHole'); if (nx && !nx.disabled) nx.click(); }
+      ok('Next stops at the last hole', content.querySelector('.golf-hole').dataset.i === '8' && document.getElementById('golfNextHole').disabled === true);
+      content.querySelector('.golf-view-pick[data-v="full"]').click();
+      ok('switching back shows the full card and is remembered', content.querySelectorAll('.golf-hole').length === 9 && storeGet('fl4_golf_view') === 'full');
+      document.getElementById('golfEdDone').click();
+      ok('a finished card starts on hole 1', golfFirstOpenHole({ holes:2, strokes:[4,4], pStrokes:['',''] }, '') === 0);
+      if (savedViewPref == null) localStorage.removeItem('fl4_golf_view'); else localStorage.setItem('fl4_golf_view', savedViewPref);
+
       // ── No course yet: + goes to the course editor, then into the round ──
       storeSet('fl4_golf', []);
       renderGolf();
