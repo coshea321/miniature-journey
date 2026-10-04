@@ -1070,7 +1070,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v503 · 04/10/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v504 · 04/10/2026</div>
 
   </div>
 </div>
@@ -7124,10 +7124,18 @@ function openGolfCourse(id) {
 }
 
 // A − / value / + stepper, 44px targets. `cls` names the row's buttons.
-function golfStepperHTML(cls, idx, valueHTML) {
-  var b = "width:44px;height:44px;border:1.5px solid #D9E2CF;background:#fff;color:" + GOLF_COLOR + ";border-radius:10px;font-family:inherit;font-size:20px;font-weight:700;cursor:pointer;touch-action:manipulation;flex-shrink:0";
+// v504 `big`: the one-hole view's on-course size — buttons share a full
+// row at 72px tall and the score is 44px, readable at arm's length with a
+// club in the other hand. The full card keeps the compact 44px stepper.
+function golfStepperHTML(cls, idx, valueHTML, big) {
+  var b = big
+    ? "flex:1;min-width:0;height:72px;border:2px solid #C9D6BC;background:#fff;color:" + GOLF_COLOR + ";border-radius:14px;font-family:inherit;font-size:36px;font-weight:700;line-height:1;cursor:pointer;touch-action:manipulation"
+    : "width:44px;height:44px;border:1.5px solid #D9E2CF;background:#fff;color:" + GOLF_COLOR + ";border-radius:10px;font-family:inherit;font-size:20px;font-weight:700;cursor:pointer;touch-action:manipulation;flex-shrink:0";
+  var v = big
+    ? "flex:0 0 76px;text-align:center;font-size:44px;font-weight:800;line-height:1;color:#2A2010"
+    : "width:34px;text-align:center;font-size:19px;font-weight:700;color:#2A2010";
   return "<button type='button' class='" + cls + "-dn' data-i='" + idx + "' aria-label='Less' style='" + b + "'>&minus;</button>" +
-    "<span class='" + cls + "-val' data-i='" + idx + "' style='width:34px;text-align:center;font-size:19px;font-weight:700;color:#2A2010'>" + valueHTML + "</span>" +
+    "<span class='" + cls + "-val' data-i='" + idx + "' style='" + v + "'>" + valueHTML + "</span>" +
     "<button type='button' class='" + cls + "-up' data-i='" + idx + "' aria-label='More' style='" + b + "'>+</button>";
 }
 function golfEditorButtons(delLabel) {
@@ -7255,6 +7263,18 @@ function renderGolfRoundEditor() {
     var sub = [];
     if (shots) sub.push(shots > 0 ? shots + " shot" + (shots > 1 ? "s" : "") : "gives " + (-shots));
     if (pts !== null) sub.push("<b style='color:" + GOLF_COLOR + "'>" + pts + " pt" + (pts !== 1 ? "s" : "") + "</b>");
+    // v504: in the one-hole view each player gets two rows — who and how
+    // it's going, then a full-width big stepper.
+    if (mode === "one") {
+      return "<div style='margin-top:10px'>" +
+        "<div style='display:flex;align-items:baseline;gap:8px'>" +
+          "<div style='flex:1;min-width:0;font-size:16px;font-weight:700;color:#2A2010;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>" + label +
+            (sub.length ? " <span style='font-size:13px;font-weight:600;color:#6E5E48'>&middot; " + sub.join(" &middot; ") + "</span>" : "") + "</div>" +
+          "<span style='font-size:16px'>" + diff + "</span>" +
+        "</div>" +
+        "<div style='display:flex;align-items:center;gap:10px;margin-top:6px'>" + golfStepperHTML(cls, i, v === "" ? "&ndash;" : v, true) + "</div>" +
+      "</div>";
+    }
     return "<div style='display:flex;align-items:center;gap:8px;margin-top:4px'>" +
       "<div style='flex:1;min-width:0'><div style='font-size:13px;font-weight:700;color:#2A2010;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>" + label + "</div>" +
       "<div style='font-size:12px;color:#6E5E48'>" + (sub.join(" &middot; ") || "&nbsp;") + "</div></div>" +
@@ -7287,11 +7307,12 @@ function renderGolfRoundEditor() {
     // v503 one-hole view: Prev / Next under the single hole. Scores still
     // autosave on every tap; Next only moves, it never saves anything extra.
     if (one) {
-      var nb = "flex:0 0 auto;padding:12px 16px;border:1.5px solid #D9E2CF;background:#fff;color:" + GOLF_COLOR + ";border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation";
-      h += "<div style='display:flex;align-items:center;gap:8px;margin-top:4px'>" +
-        "<button type='button' id='golfPrevHole'" + (cur === 0 ? " disabled" : "") + " style='" + nb + (cur === 0 ? ";opacity:.4" : "") + "'>&lsaquo; Prev</button>" +
-        "<div id='golfHoleOf' style='flex:1;text-align:center;font-size:13px;font-weight:700;color:#4A5A3A'>Hole " + (cur + 1) + " of " + d.holes + "</div>" +
-        "<button type='button' id='golfNextHole'" + (cur === d.holes - 1 ? " disabled" : "") + " style='" + nb + (cur === d.holes - 1 ? ";opacity:.4" : ";background:" + GOLF_COLOR + ";color:#fff;border-color:" + GOLF_COLOR) + "'>Next &rsaquo;</button>" +
+      // v504: big Prev / Next (64px, Next twice as wide) — the other tap made every hole.
+      var nb = "min-height:64px;padding:0 12px;border:2px solid #C9D6BC;background:#fff;color:" + GOLF_COLOR + ";border-radius:14px;font-family:inherit;font-size:20px;font-weight:700;cursor:pointer;touch-action:manipulation";
+      h += "<div id='golfHoleOf' style='text-align:center;font-size:14px;font-weight:700;color:#4A5A3A;margin:6px 0'>Hole " + (cur + 1) + " of " + d.holes + "</div>" +
+        "<div style='display:flex;gap:10px'>" +
+        "<button type='button' id='golfPrevHole'" + (cur === 0 ? " disabled" : "") + " style='flex:1;" + nb + (cur === 0 ? ";opacity:.4" : "") + "'>&lsaquo; Prev</button>" +
+        "<button type='button' id='golfNextHole'" + (cur === d.holes - 1 ? " disabled" : "") + " style='flex:2;" + nb + (cur === d.holes - 1 ? ";opacity:.4" : ";background:" + GOLF_COLOR + ";color:#fff;border-color:" + GOLF_COLOR) + "'>Next &rsaquo;</button>" +
       "</div>";
     }
     var box = document.getElementById("golfHoles");

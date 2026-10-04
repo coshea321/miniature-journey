@@ -217,8 +217,16 @@ module.exports = {
       content = document.getElementById('golfContent');
       ok('the scorecard opens on Full card by default', content.querySelectorAll('.golf-hole').length === 9 &&
         content.querySelector('.golf-view-pick[data-v="full"]').getAttribute('aria-pressed') === 'true');
+      ok('Full card keeps the compact 44px buttons', Math.round(content.querySelector('.golf-st-up').getBoundingClientRect().height) === 44);
       content.querySelector('.golf-view-pick[data-v="one"]').click();
       ok('One hole shows a single hole', content.querySelectorAll('.golf-hole').length === 1);
+      // v504: on-course sizes in One hole — big − / + and score, big Prev / Next.
+      ok('One hole has big score buttons (at least 64px tall)', (function(){
+        var b = content.querySelector('.golf-hole .golf-st-up'); return b.getBoundingClientRect().height >= 64 && b.getBoundingClientRect().width >= 64; })(),
+        'got ' + JSON.stringify(content.querySelector('.golf-hole .golf-st-up').getBoundingClientRect()));
+      ok('One hole shows the score in big digits (at least 40px)', parseFloat(getComputedStyle(content.querySelector('.golf-hole .golf-st-val')).fontSize) >= 40);
+      ok('One hole has big Prev / Next (at least 60px tall)', document.getElementById('golfNextHole').getBoundingClientRect().height >= 60 &&
+        document.getElementById('golfPrevHole').getBoundingClientRect().height >= 60);
       ok('it starts on the first hole missing a score (Pat has none on hole 3)',
         content.querySelector('.golf-hole').dataset.i === '2' && document.getElementById('golfHoleOf').textContent === 'Hole 3 of 9');
       ok('the running totals stay on screen, with points for both', document.getElementById('golfTotals').textContent.indexOf('pts') !== -1 &&
