@@ -362,6 +362,11 @@ module.exports = {
       ok('a v504 course reads with no distances, in metres', (function(){ var c = golfNormalise({ kind:'course', holes:9, pars:P9 });
         return c.dist.length === 9 && !golfHasDist(c.dist) && c.unit === 'm'; })());
       ok('distance text uses the course unit', golfDistText(340, 'm') === '340 m' && golfDistText(372, 'yd') === '372 yd');
+      // Codex review on #275: a part-filled card never shows its part-sum as the course length.
+      ok('a full card shows its total', golfDistSummary([300,200,100], 'm') === '600 m');
+      ok('a part-filled card says how many holes the sum covers', golfDistSummary([340,'','','','','','','',''], 'm') === '340 m (1 of 9 holes)',
+        golfDistSummary([340,'','','','','','','',''], 'm'));
+      ok('no distances shows nothing', golfDistSummary(['',''], 'm') === '');
       storeSet('fl4_golf', [ course(1, 'Nine') ]);
       openGolfCourse(1);
       var dIn = document.querySelectorAll('#golfPars .golf-dist');

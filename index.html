@@ -6846,6 +6846,15 @@ function golfDistTotal(dist) {
   return any ? t : null;
 }
 function golfHasDist(dist) { return golfDistTotal(dist) !== null; }
+// The distance as shown beside a course: the total when every hole has one,
+// otherwise the part-sum clearly marked "(N of M holes)" — never a part-sum
+// passed off as the course length (Codex review on #275). "" when none.
+function golfDistSummary(dist, unit) {
+  var t = golfDistTotal(dist);
+  if (t === null) return "";
+  var n = (dist || []).filter(function(x){ return x !== ""; }).length;
+  return golfDistText(t, unit) + (n < dist.length ? " (" + n + " of " + dist.length + " holes)" : "");
+}
 function golfNormalise(r) {
   if (r.kind !== "course" && r.kind !== "round") return r;   // a future kind passes through untouched
   r.holes = golfHoles(r.holes);
@@ -7101,7 +7110,7 @@ function renderGolfCourses() {
   courses.forEach(function(c){
     html += "<div class='golf-course' data-id='" + esc(String(c.id)) + "' style='background:#fff;border:1.5px solid #E3EADB;border-radius:12px;margin-bottom:8px;padding:12px;cursor:pointer;touch-action:manipulation'>" +
       "<div style='font-size:15px;font-weight:600;color:#2A2010'>" + esc(c.name || "Course") + "</div>" +
-      "<div style='font-size:12px;color:#6E5E48;margin-top:3px'>" + c.holes + " holes &middot; par " + golfParTotal(c.pars) + (golfHasDist(c.dist) ? " &middot; " + golfDistText(golfDistTotal(c.dist), c.unit) : "") + (golfSiComplete(c.si, c.holes) ? "" : " &middot; no stroke index yet") + "</div></div>";
+      "<div style='font-size:12px;color:#6E5E48;margin-top:3px'>" + c.holes + " holes &middot; par " + golfParTotal(c.pars) + (golfHasDist(c.dist) ? " &middot; " + golfDistSummary(c.dist, c.unit) : "") + (golfSiComplete(c.si, c.holes) ? "" : " &middot; no stroke index yet") + "</div></div>";
   });
   html += "<button id='golfAddCourse' style='display:block;width:100%;margin-top:6px;padding:12px;border:none;background:" + GOLF_COLOR + ";color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>+ Add course</button>";
   el.innerHTML = html;
@@ -7581,9 +7590,9 @@ function renderGolfCourseEditor() {
     golfEditorButtons(c ? "Delete this course" : "");
 
   function paintParTotal() {
-    var dt = golfDistTotal(golfDistArr(dist.slice(0, holes), holes));
+    var dt = golfDistSummary(golfDistArr(dist.slice(0, holes), holes), unit);
     document.getElementById("golfParTotal").innerHTML = "Par, stroke index and distance for each hole &middot; par " + golfParTotal(pars.slice(0, holes)) +
-      (dt !== null ? " &middot; " + golfDistText(dt, unit) : "");
+      (dt ? " &middot; " + dt : "");
   }
   function paintPars() {
     var h = "";
@@ -7895,7 +7904,7 @@ function renderGolfImport() {
         (golfSiComplete(p.c.si, p.c.holes) ? "stroke index included" : p.keepSi ? "keeps your saved stroke index" : "no stroke index") + "</div>" +
       "<div style='font-size:12px;color:#4A5A3A;margin-top:6px;line-height:1.6'>Pars: " + p.c.pars.join(" ") +
         (golfSiComplete(p.c.si, p.c.holes) ? "<br>SI: " + p.c.si.join(" ") : "") +
-        (golfHasDist(p.c.dist) ? "<br>Distances (" + (p.c.unit === "yd" ? "yd" : "m") + "): " + p.c.dist.map(function(n){ return n === "" ? "&ndash;" : n; }).join(" ") + " &middot; total " + golfDistText(golfDistTotal(p.c.dist), p.c.unit)
+        (golfHasDist(p.c.dist) ? "<br>Distances (" + (p.c.unit === "yd" ? "yd" : "m") + "): " + p.c.dist.map(function(n){ return n === "" ? "&ndash;" : n; }).join(" ") + " &middot; total " + golfDistSummary(p.c.dist, p.c.unit)
           : p.keepDist ? "<br>Keeps your saved distances" : "") + "</div>" +
       (p.c.notes ? "<div style='font-size:12px;color:#6E5E48;margin-top:4px'>" + esc(p.c.notes) + "</div>" : "") +
       (p.action === "skip" ? "<div style='font-size:12px;color:#B03030;margin-top:4px'>Not imported: " + esc(p.why) + ".</div>" : "") +
