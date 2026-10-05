@@ -1070,7 +1070,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v504 · 04/10/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v505 · 05/10/2026</div>
 
   </div>
 </div>
@@ -6827,6 +6827,25 @@ function golfHcpOf(v) {
   var n = Number(v);
   return (Math.floor(n) === n && n >= -10 && n <= 54) ? n : "";
 }
+// v505 hole distances (confirmed 05/10/2026): ONE distance per hole — a
+// course is one set of tees, the same as its pars and SI — in the course's
+// own unit, metres ("m", the default) or yards ("yd"). Informational only:
+// nothing is calculated from them. A blank hole is "" (the v296 rule).
+var GOLF_DIST_MAX = 999;
+function golfDistOf(v) { var n = Number(v); return (v !== "" && v != null && Math.floor(n) === n && n >= 1 && n <= GOLF_DIST_MAX) ? n : ""; }
+function golfDistArr(raw, holes) {
+  var a = golfArr(raw), out = [];
+  for (var i = 0; i < holes; i++) out.push(golfDistOf(a[i]));
+  return out;
+}
+function golfUnitOf(u) { return (u === "yd" || u === "yards" || u === "y") ? "yd" : "m"; }
+function golfDistText(n, unit) { return n === "" || n == null ? "" : n + (unit === "yd" ? " yd" : " m"); }
+function golfDistTotal(dist) {
+  var t = 0, any = false;
+  (dist || []).forEach(function(n){ if (n !== "") { t += n; any = true; } });
+  return any ? t : null;
+}
+function golfHasDist(dist) { return golfDistTotal(dist) !== null; }
 function golfNormalise(r) {
   if (r.kind !== "course" && r.kind !== "round") return r;   // a future kind passes through untouched
   r.holes = golfHoles(r.holes);
@@ -6834,6 +6853,8 @@ function golfNormalise(r) {
   for (var i = 0; i < r.holes; i++) po.push(golfParOf(pars[i]));
   r.pars = po;
   r.si = golfSiArr(r.si, r.holes);                           // v501; a v500 record reads as all-unset
+  r.dist = golfDistArr(r.dist, r.holes);                     // v505; older records read as no distances
+  r.unit = golfUnitOf(r.unit);
   if (r.kind === "round") {
     r.strokes = golfStrokesArr(r.strokes, r.holes);
     r.pStrokes = golfStrokesArr(r.pStrokes, r.holes);
@@ -7080,7 +7101,7 @@ function renderGolfCourses() {
   courses.forEach(function(c){
     html += "<div class='golf-course' data-id='" + esc(String(c.id)) + "' style='background:#fff;border:1.5px solid #E3EADB;border-radius:12px;margin-bottom:8px;padding:12px;cursor:pointer;touch-action:manipulation'>" +
       "<div style='font-size:15px;font-weight:600;color:#2A2010'>" + esc(c.name || "Course") + "</div>" +
-      "<div style='font-size:12px;color:#6E5E48;margin-top:3px'>" + c.holes + " holes &middot; par " + golfParTotal(c.pars) + (golfSiComplete(c.si, c.holes) ? "" : " &middot; no stroke index yet") + "</div></div>";
+      "<div style='font-size:12px;color:#6E5E48;margin-top:3px'>" + c.holes + " holes &middot; par " + golfParTotal(c.pars) + (golfHasDist(c.dist) ? " &middot; " + golfDistText(golfDistTotal(c.dist), c.unit) : "") + (golfSiComplete(c.si, c.holes) ? "" : " &middot; no stroke index yet") + "</div></div>";
   });
   html += "<button id='golfAddCourse' style='display:block;width:100%;margin-top:6px;padding:12px;border:none;background:" + GOLF_COLOR + ";color:#fff;border-radius:10px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>+ Add course</button>";
   el.innerHTML = html;
@@ -7172,13 +7193,18 @@ function renderGolfRoundEditor() {
   var d;
   if (r) {
     d = { courseId: r.courseId, courseName: r.courseName, holes: r.holes, pars: r.pars.slice(), si: r.si.slice(),
-          strokes: r.strokes.slice(), pStrokes: r.pStrokes.slice() };
+          dist: r.dist.slice(), unit: r.unit, strokes: r.strokes.slice(), pStrokes: r.pStrokes.slice() };
     // A round played before its course had stroke indexes picks them up
     // once the course has them. SI only, never pars: a par change must not
     // rewrite a score already played.
     if (!golfSiComplete(d.si, d.holes)) {
       var src = golfFind(courses, d.courseId);
       if (src && src.holes === d.holes && golfSiComplete(src.si, src.holes)) d.si = src.si.slice();
+    }
+    // v505: the same for distances — a round with none takes the course's.
+    if (!golfHasDist(d.dist)) {
+      var srcD = golfFind(courses, d.courseId);
+      if (srcD && srcD.holes === d.holes && golfHasDist(srcD.dist)) { d.dist = srcD.dist.slice(); d.unit = srcD.unit; }
     }
   } else {
     var last = golfRounds()[0];
@@ -7300,7 +7326,7 @@ function renderGolfRoundEditor() {
       h += "<div class='golf-hole' data-i='" + i + "'" + (adv ? " data-adv='" + (adv.indexOf("You") === 0 ? "me" : "p") + "'" : "") + " style='background:" + (adv ? "#FFF6DD" : "#fff") + ";border:1.5px solid " + (adv ? "#E2C46A" : "#E3EADB") + ";border-radius:10px;margin-bottom:6px;padding:6px 8px'>" +
         "<div style='display:flex;align-items:center;gap:8px'>" +
           "<div style='flex:1;font-size:15px;font-weight:700;color:#2A2010'>Hole " + (i + 1) +
-            " <span style='font-size:12px;font-weight:600;color:#6E5E48'>&middot; Par " + d.pars[i] + (siOk ? " &middot; SI " + d.si[i] : "") + "</span></div>" +
+            " <span style='font-size:12px;font-weight:600;color:#6E5E48'>&middot; Par " + d.pars[i] + (siOk ? " &middot; SI " + d.si[i] : "") + (d.dist[i] !== "" ? " &middot; " + golfDistText(d.dist[i], d.unit) : "") + "</span></div>" +
           (adv ? "<span style='flex-shrink:0;background:#F3DF9E;color:#5A4300;font-size:12px;font-weight:700;border-radius:20px;padding:3px 9px'>" + adv + "</span>" : "") +
         "</div>" +
         playerLine("golf-st", "You", d.strokes, i, w.me) +
@@ -7446,7 +7472,7 @@ function renderGolfRoundEditor() {
       kind: "round",
       date: document.getElementById("golfEdDate").value.trim(),
       courseId: d.courseId, courseName: d.courseName, holes: d.holes,
-      pars: d.pars.slice(), si: d.si.slice(), strokes: d.strokes.slice(),
+      pars: d.pars.slice(), si: d.si.slice(), dist: d.dist.slice(), unit: d.unit, strokes: d.strokes.slice(),
       myHcp: w.me, partner: w.name, partnerHcp: w.p, pStrokes: d.pStrokes.slice(),
       notes: document.getElementById("golfEdNotes").value
     };
@@ -7500,7 +7526,8 @@ function golfFirstOpenHole(d, partnerName) {
 function golfDraftFor(c) {
   var st = [], ps = [];
   for (var i = 0; i < c.holes; i++) { st.push(""); ps.push(""); }
-  return { courseId: c.id, courseName: c.name || "", holes: c.holes, pars: c.pars.slice(), si: c.si.slice(), strokes: st, pStrokes: ps };
+  return { courseId: c.id, courseName: c.name || "", holes: c.holes, pars: c.pars.slice(), si: c.si.slice(),
+           dist: c.dist.slice(), unit: c.unit, strokes: st, pStrokes: ps };
 }
 
 function renderGolfCourseEditor() {
@@ -7516,11 +7543,13 @@ function renderGolfCourseEditor() {
   // 18 → 9 → 18 doesn't lose the back nine; the save keeps only the first
   // `holes` of them.
   var holes = c ? c.holes : 18;
-  var pars = [], si = [];
+  var pars = [], si = [], dist = [];
   for (var i = 0; i < 18; i++) {
     pars.push(c && c.pars[i] ? c.pars[i] : 4);
     si.push(c && c.si[i] !== undefined ? c.si[i] : "");
+    dist.push(c && c.dist[i] !== undefined ? c.dist[i] : "");
   }
+  var unit = c ? c.unit : "m";
   var thenRound = _golfThenRound;
   _golfThenRound = false;
   function leave() {
@@ -7538,29 +7567,51 @@ function renderGolfCourseEditor() {
         return "<button type='button' class='golf-holes-pick' data-n='" + n + "' aria-pressed='false' style='flex:1;padding:10px;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>" + n + " holes</button>";
       }).join("") +
     "</div>" +
+    "<div style='" + PROJ_LBL + ";margin-top:14px'>Distances in</div>" +
+    "<div style='display:flex;gap:6px'>" +
+      [["m", "Metres"], ["yd", "Yards"]].map(function(u){
+        return "<button type='button' class='golf-unit-pick' data-u='" + u[0] + "' aria-pressed='false' style='flex:1;padding:10px;border-radius:9px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation'>" + u[1] + "</button>";
+      }).join("") +
+    "</div>" +
     "<div id='golfParTotal' style='" + PROJ_LBL + ";margin-top:14px'></div>" +
-    "<div style='font-size:12px;line-height:1.5;color:#6E5E48;margin:-2px 0 8px'>SI is the stroke index from the scorecard (1 = hardest hole). Optional, but Stableford points and handicap shots need it on every hole.</div>" +
+    "<div style='font-size:12px;line-height:1.5;color:#6E5E48;margin:-2px 0 8px'>SI is the stroke index from the scorecard (1 = hardest hole). Optional, but Stableford points and handicap shots need it on every hole. Distances are optional, for the tees this course is set up for.</div>" +
     "<div id='golfPars'></div>" +
     "<div style='" + PROJ_LBL + ";margin-top:14px'>Notes " + PROJ_OPT + "</div>" +
     "<textarea id='golfCoNotes' rows='3' placeholder='Tee times, booking number&hellip;' style='" + PROJ_INP + ";resize:vertical'>" + esc((c && c.notes) || "") + "</textarea>" +
     golfEditorButtons(c ? "Delete this course" : "");
 
   function paintParTotal() {
-    document.getElementById("golfParTotal").innerHTML = "Par and stroke index for each hole &middot; par " + golfParTotal(pars.slice(0, holes));
+    var dt = golfDistTotal(golfDistArr(dist.slice(0, holes), holes));
+    document.getElementById("golfParTotal").innerHTML = "Par, stroke index and distance for each hole &middot; par " + golfParTotal(pars.slice(0, holes)) +
+      (dt !== null ? " &middot; " + golfDistText(dt, unit) : "");
   }
   function paintPars() {
     var h = "";
     for (var i = 0; i < holes; i++) {
-      h += "<div style='display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #E3EADB;border-radius:10px;margin-bottom:6px;padding:4px 8px'>" +
-        "<div style='flex:1;font-size:15px;font-weight:700;color:#2A2010'>Hole " + (i + 1) + "</div>" +
-        "<label style='display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#6E5E48'>SI" +
-          "<input class='golf-si' data-i='" + i + "' type='number' inputmode='numeric' min='1' max='" + holes + "' aria-label='Stroke index, hole " + (i + 1) + "' value='" + esc(String(si[i])) + "' style='width:52px;box-sizing:border-box;padding:9px 4px;border:1.5px solid #D9E2CF;border-radius:8px;font-family:inherit;font-size:16px;text-align:center;background:#fff;color:#2A2010'></label>" +
-        golfStepperHTML("golf-par", i, pars[i]) + "</div>";
+      // v505: two lines per hole — Hole N + par stepper, then SI + distance
+      // (three inputs and a stepper don't fit one phone-width row).
+      var inp = "box-sizing:border-box;padding:9px 4px;border:1.5px solid #D9E2CF;border-radius:8px;font-family:inherit;font-size:16px;text-align:center;background:#fff;color:#2A2010";
+      h += "<div style='background:#fff;border:1.5px solid #E3EADB;border-radius:10px;margin-bottom:6px;padding:4px 8px 8px'>" +
+        "<div style='display:flex;align-items:center;gap:8px'>" +
+          "<div style='flex:1;font-size:15px;font-weight:700;color:#2A2010'>Hole " + (i + 1) + " <span style='font-size:12px;font-weight:600;color:#6E5E48'>&middot; Par</span></div>" +
+          golfStepperHTML("golf-par", i, pars[i]) +
+        "</div>" +
+        "<div style='display:flex;align-items:center;gap:14px;margin-top:4px'>" +
+          "<label style='display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#6E5E48'>SI" +
+            "<input class='golf-si' data-i='" + i + "' type='number' inputmode='numeric' min='1' max='" + holes + "' aria-label='Stroke index, hole " + (i + 1) + "' value='" + esc(String(si[i])) + "' style='width:52px;" + inp + "'></label>" +
+          "<label style='display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#6E5E48'>Distance" +
+            "<input class='golf-dist' data-i='" + i + "' type='number' inputmode='numeric' min='1' max='" + GOLF_DIST_MAX + "' aria-label='Distance, hole " + (i + 1) + "' value='" + esc(String(dist[i])) + "' style='width:70px;" + inp + "'>" +
+            "<span class='golf-dist-unit'>" + (unit === "yd" ? "yd" : "m") + "</span></label>" +
+        "</div>" +
+      "</div>";
     }
     var box = document.getElementById("golfPars");
     box.innerHTML = h;
     box.querySelectorAll(".golf-si").forEach(function(inp){
       inp.addEventListener("input", function(){ si[+inp.dataset.i] = inp.value.trim(); });
+    });
+    box.querySelectorAll(".golf-dist").forEach(function(inp){
+      inp.addEventListener("input", function(){ dist[+inp.dataset.i] = inp.value.trim(); paintParTotal(); });
     });
     box.querySelectorAll(".golf-par-up, .golf-par-dn").forEach(function(b){
       b.addEventListener("click", function(){
@@ -7580,9 +7631,22 @@ function renderGolfCourseEditor() {
       b.style.border     = "1.5px solid " + (on ? GOLF_COLOR : "#D9E2CF");
     });
   }
-  paintHolesPick(); paintParTotal(); paintPars();
+  function paintUnitPick() {
+    el.querySelectorAll(".golf-unit-pick").forEach(function(b){
+      var on = b.dataset.u === unit;
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.style.background = on ? GOLF_COLOR : "#fff";
+      b.style.color      = on ? "#fff" : "#4A5A3A";
+      b.style.border     = "1.5px solid " + (on ? GOLF_COLOR : "#D9E2CF");
+    });
+    el.querySelectorAll(".golf-dist-unit").forEach(function(s){ s.textContent = unit === "yd" ? "yd" : "m"; });
+  }
+  el.querySelectorAll(".golf-unit-pick").forEach(function(b){
+    b.addEventListener("click", function(){ unit = golfUnitOf(b.dataset.u); paintUnitPick(); paintParTotal(); });
+  });
+  paintHolesPick(); paintParTotal(); paintPars(); paintUnitPick();
   el.querySelectorAll(".golf-holes-pick").forEach(function(b){
-    b.addEventListener("click", function(){ holes = golfHoles(b.dataset.n); paintHolesPick(); paintParTotal(); paintPars(); });
+    b.addEventListener("click", function(){ holes = golfHoles(b.dataset.n); paintHolesPick(); paintParTotal(); paintPars(); paintUnitPick(); });
   });
   document.getElementById("golfEdCancel").addEventListener("click", leave);
   var del = document.getElementById("golfEdDelete");
@@ -7594,8 +7658,12 @@ function renderGolfCourseEditor() {
     if (!name) { toast("Give the course a name first"); return; }
     var siErr = golfSiCheck(si.slice(0, holes), holes);
     if (siErr) { toast(siErr); return; }
+    for (var di = 0; di < holes; di++) {
+      if (String(dist[di]).trim() !== "" && golfDistOf(dist[di]) === "") { toast("Hole " + (di + 1) + "&rsquo;s distance must be a whole number from 1 to " + GOLF_DIST_MAX); return; }
+    }
     var vals = { kind: "course", name: name, holes: holes, pars: pars.slice(0, holes),
-                 si: golfSiArr(si.slice(0, holes), holes), notes: document.getElementById("golfCoNotes").value };
+                 si: golfSiArr(si.slice(0, holes), holes), dist: golfDistArr(dist.slice(0, holes), holes), unit: unit,
+                 notes: document.getElementById("golfCoNotes").value };
     var all = getGolf(), now = Date.now(), savedId;
     if (c) {
       var cur = golfFind(all, c.id);
@@ -7638,7 +7706,7 @@ var _golfImportParsed = null;   // the preview's parsed courses, null = paste st
 function golfImportPrompt() {
   return "Course: [type the course name and the tees you play, e.g. \"Fota Island Deerpark, white tees\"]\n\n" +
     "I want to add this golf course to my Hearth app. Using the course's official scorecard " +
-    "(I may attach a photo of it), give me the par and the stroke index for every hole.\n\n" +
+    "(I may attach a photo of it), give me the par, the stroke index and the distance for every hole.\n\n" +
     "Reply with ONLY this JSON — no code fences, no commentary before or after:\n\n" +
     "{\n" +
     '  "hearth": "' + GOLF_FILE_TAG + '",\n' +
@@ -7646,6 +7714,8 @@ function golfImportPrompt() {
     '  "holes": 18,\n' +
     '  "pars": [],\n' +
     '  "si": [],\n' +
+    '  "unit": "m",\n' +
+    '  "dist": [],\n' +
     '  "notes": ""\n' +
     "}\n\n" +
     "Field notes:\n" +
@@ -7656,6 +7726,8 @@ function golfImportPrompt() {
     "number from 1 to the number of holes is used exactly once. Use the men's stroke index unless I say otherwise. " +
     "If the card has different figures for different tees, use the tees I named.\n" +
     "- If you can't find a stroke index you're sure of, leave si as [] rather than guessing — I can add it in the app later.\n" +
+    "- dist: the length of each hole from the tees I named, as whole numbers in the same order. unit: \"m\" if the card is in metres, \"yd\" if it is in yards. " +
+    "If you can't find distances you're sure of, leave dist as [].\n" +
     "- notes: which tees and which source you used, plus anything you're unsure of. Plain text, one or two short lines.\n" +
     "- Several courses at once: wrap them as {\"hearth\": \"" + GOLF_FILE_TAG + "\", \"courses\": [ ... ]}.";
 }
@@ -7690,8 +7762,18 @@ function parseGolfCourseFile(raw) {
     if (si.length && si.length !== holes) return { error: name + ": \"si\" needs " + holes + " numbers, one per hole, or [] for none." };
     var siErr = si.length ? golfSiCheck(si, holes) : "";
     if (siErr) return { error: name + ": " + siErr + "." };
+    var dist = Array.isArray(c.dist) ? c.dist : [];
+    if (dist.length && dist.length !== holes) return { error: name + ": \"dist\" needs " + holes + " numbers, one per hole, or [] for none." };
+    for (var di = 0; di < dist.length; di++) {
+      if (golfDistOf(dist[di]) === "") return { error: name + ": hole " + (di + 1) + "'s distance must be a whole number from 1 to " + GOLF_DIST_MAX + "." };
+    }
+    if (c.unit !== undefined && c.unit !== null && c.unit !== "" && ["m", "yd", "yards", "metres", "meters", "y"].indexOf(String(c.unit).toLowerCase()) === -1) {
+      return { error: name + ": \"unit\" must be \"m\" or \"yd\"." };
+    }
+    var unitRaw = String(c.unit || "").toLowerCase();
     out.push({ name: name, holes: holes, pars: pars.map(Number),
-               si: golfSiArr(si, holes), notes: typeof c.notes === "string" ? c.notes.trim().slice(0, 500) : "" });
+               si: golfSiArr(si, holes), dist: golfDistArr(dist, holes), unit: golfUnitOf(unitRaw === "yards" ? "yd" : unitRaw),
+               notes: typeof c.notes === "string" ? c.notes.trim().slice(0, 500) : "" });
   }
   return { courses: out };
 }
@@ -7710,7 +7792,8 @@ function golfImportPlan(list) {
       // only). Decided here, once, so the preview and Import can't disagree.
       var t = hits[0];
       var keepSi = !golfSiComplete(c.si, c.holes) && t.holes === c.holes && golfSiComplete(t.si, t.holes);
-      return { c: c, action: "update", target: t, keepSi: keepSi };
+      var keepDist = !golfHasDist(c.dist) && t.holes === c.holes && golfHasDist(t.dist);   // v505, the same rule
+      return { c: c, action: "update", target: t, keepSi: keepSi, keepDist: keepDist };
     }
     return { c: c, action: "new" };
   });
@@ -7733,12 +7816,13 @@ function golfApplyImport(plan) {
       if (!cur) return;
       var siKeep = p.keepSi ? cur.si.slice() : (golfSiComplete(p.c.si, p.c.holes) ? p.c.si.slice() : golfSiArr([], p.c.holes));
       cur.name = p.c.name; cur.holes = p.c.holes; cur.pars = p.c.pars.slice(); cur.si = siKeep;
+      if (!p.keepDist) { cur.dist = golfDistArr(p.c.dist, p.c.holes); cur.unit = golfUnitOf(p.c.unit); }
       if (p.c.notes) cur.notes = p.c.notes;
       cur.updated = now;
       updated++;
     } else if (p.action === "new") {
       all.unshift({ id: freshId(), kind: "course", name: p.c.name, holes: p.c.holes, pars: p.c.pars.slice(),
-                    si: p.c.si.slice(), notes: p.c.notes, addedBy: hearthUser, added: now, updated: now });
+                    si: p.c.si.slice(), dist: golfDistArr(p.c.dist, p.c.holes), unit: golfUnitOf(p.c.unit), notes: p.c.notes, addedBy: hearthUser, added: now, updated: now });
       added++;
     }
   });
@@ -7810,7 +7894,9 @@ function renderGolfImport() {
       "<div style='font-size:12px;color:#6E5E48;margin-top:4px'>" + p.c.holes + " holes &middot; par " + golfParTotal(p.c.pars) + " &middot; " +
         (golfSiComplete(p.c.si, p.c.holes) ? "stroke index included" : p.keepSi ? "keeps your saved stroke index" : "no stroke index") + "</div>" +
       "<div style='font-size:12px;color:#4A5A3A;margin-top:6px;line-height:1.6'>Pars: " + p.c.pars.join(" ") +
-        (golfSiComplete(p.c.si, p.c.holes) ? "<br>SI: " + p.c.si.join(" ") : "") + "</div>" +
+        (golfSiComplete(p.c.si, p.c.holes) ? "<br>SI: " + p.c.si.join(" ") : "") +
+        (golfHasDist(p.c.dist) ? "<br>Distances (" + (p.c.unit === "yd" ? "yd" : "m") + "): " + p.c.dist.map(function(n){ return n === "" ? "&ndash;" : n; }).join(" ") + " &middot; total " + golfDistText(golfDistTotal(p.c.dist), p.c.unit)
+          : p.keepDist ? "<br>Keeps your saved distances" : "") + "</div>" +
       (p.c.notes ? "<div style='font-size:12px;color:#6E5E48;margin-top:4px'>" + esc(p.c.notes) + "</div>" : "") +
       (p.action === "skip" ? "<div style='font-size:12px;color:#B03030;margin-top:4px'>Not imported: " + esc(p.why) + ".</div>" : "") +
     "</div>";
@@ -25742,19 +25828,22 @@ function buildTestSeed() {
       var c18 = _tsId(), c9 = _tsId();
       var p18 = [4,4,3,5,4,4,3,4,5, 4,3,4,5,4,4,3,4,5], p9 = [3,3,3,3,3,3,3,3,3];
       var si18 = [7,11,15,1,3,13,17,9,5, 8,16,12,2,4,10,18,14,6];
+      // v505: metres from the white tees, so the scorecard shows a distance per hole.
+      var d18 = [319,383,335,489,323,354,153,391,512, 360,146,342,498,365,371,153,330,520];
       var blank9 = ["","","","","","","","",""], blank18 = blank9.concat(blank9);
       function rnd(off, cid, name, pars, si, strokes, notes, extra) {
         var o = { id:_tsId(), kind:"round", date:_tsDay(off), courseId:cid, courseName:name, holes:pars.length,
                   pars:pars, si:si, strokes:strokes, myHcp:si[0] === "" ? "" : 18, partner:"", partnerHcp:"",
                   pStrokes:pars.length === 9 ? blank9 : blank18, notes:notes,
+                  dist:cid === c18 ? d18 : blank9, unit:"m",
                   addedBy:"Cathal", added:_tsTs(off, 18, 0), updated:_tsTs(off, 18, 0) };
         Object.keys(extra || {}).forEach(function(k){ o[k] = extra[k]; });
         return o;
       }
       return [
-        { id:c18, kind:"course", name:"Demo Links", holes:18, pars:p18, si:si18, notes:"Book tee times online.",
+        { id:c18, kind:"course", name:"Demo Links", holes:18, pars:p18, si:si18, dist:d18, unit:"m", notes:"Book tee times online.",
           addedBy:"Cathal", added:_tsTs(-60, 10, 0), updated:_tsTs(-60, 10, 0) },
-        { id:c9, kind:"course", name:"Demo Pitch & Putt", holes:9, pars:p9, si:blank9, notes:"",
+        { id:c9, kind:"course", name:"Demo Pitch & Putt", holes:9, pars:p9, si:blank9, dist:blank9, unit:"m", notes:"",
           addedBy:"Cathal", added:_tsTs(-50, 10, 0), updated:_tsTs(-50, 10, 0) },
         rnd(-30, c18, "Demo Links", p18, si18, [5,5,4,6,5,4,3,5,6, 5,4,5,6,5,4,4,5,6], "Windy."),
         rnd(-12, c18, "Demo Links", p18, si18, [5,4,3,6,5,5,3,4,5, 5,3,5,6,4,5,3,5,6], "Birdie on the 9th.",

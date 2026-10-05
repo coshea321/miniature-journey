@@ -357,6 +357,56 @@ module.exports = {
         (function(){ storeSet('fl4_golf', [ course(1, 'Twin'), course(2, 'twin') ]);
           return golfImportPlan([{ name:'Twin', holes:9, pars:P9, si:[], notes:'' }])[0].action === 'skip'; })());
 
+      // ── v505: hole distances ─────────────────────────────────────────────
+      ok('distances read as one per hole, junk as blank', golfDistArr([340, 'x', 0, 1200, '152'], 5).join() === '340,,,,152');
+      ok('a v504 course reads with no distances, in metres', (function(){ var c = golfNormalise({ kind:'course', holes:9, pars:P9 });
+        return c.dist.length === 9 && !golfHasDist(c.dist) && c.unit === 'm'; })());
+      ok('distance text uses the course unit', golfDistText(340, 'm') === '340 m' && golfDistText(372, 'yd') === '372 yd');
+      storeSet('fl4_golf', [ course(1, 'Nine') ]);
+      openGolfCourse(1);
+      var dIn = document.querySelectorAll('#golfPars .golf-dist');
+      ok('the course editor has a distance box per hole', dIn.length === 9);
+      [340,382,337,132,337,124,409,152,161].forEach(function(v, i){ dIn[i].value = String(v); dIn[i].dispatchEvent(new Event('input')); });
+      ok('the running total shows the distance', document.getElementById('golfParTotal').textContent.indexOf('2374 m') !== -1,
+        document.getElementById('golfParTotal').textContent);
+      document.querySelector('.golf-unit-pick[data-u="yd"]').click();
+      ok('switching to yards relabels the boxes', document.querySelector('#golfPars .golf-dist-unit').textContent === 'yd');
+      document.querySelector('.golf-unit-pick[data-u="m"]').click();
+      document.getElementById('golfEdSave').click();
+      var cD = golfFind(getGolf(), 1);
+      ok('the course saves distances and unit', cD.dist.join() === '340,382,337,132,337,124,409,152,161' && cD.unit === 'm');
+      ok('the course list shows the total distance', document.getElementById('golfContent').textContent.indexOf('2374 m') !== -1);
+      openGolfRound(null);
+      ok('a new round shows each hole\\'s distance', document.querySelector('.golf-hole[data-i="0"]').textContent.indexOf('340 m') !== -1);
+      tap('golf-st-up', 0);
+      ok('and snapshots the distances with the round', golfRounds()[0].dist[0] === 340 && golfRounds()[0].unit === 'm');
+      document.getElementById('golfEdDone').click();
+      // An old round with no distances picks them up from its course when reopened.
+      storeSet('fl4_golf', [ cD, round(96, [4,4,3,5,4,4,3,4,5]) ]);
+      openGolfRound(96);
+      ok('an older round picks up its course\\'s distances', document.querySelector('.golf-hole[data-i="6"]').textContent.indexOf('409 m') !== -1);
+      document.getElementById('golfEdDone').click();
+      // Import: distances and unit come through, and a bad distance is refused.
+      ok('the AI prompt asks for distances and the unit', golfImportPrompt().indexOf('"dist"') !== -1 && golfImportPrompt().indexOf('"unit"') !== -1);
+      ok('a distance count that does not match the holes is refused',
+        !!parseGolfCourseFile(file({ name:'D', holes:9, pars:P9, dist:[300,300] })).error);
+      ok('a zero distance is refused, naming the hole',
+        (parseGolfCourseFile(file({ name:'D', holes:9, pars:P9, dist:[300,300,0,300,300,300,300,300,300] })).error || '').indexOf('hole 3') !== -1);
+      ok('a bad unit is refused', !!parseGolfCourseFile(file({ name:'D', holes:9, pars:P9, unit:'feet' })).error);
+      var py = parseGolfCourseFile(file({ name:'Yards GC', holes:9, pars:P9, unit:'yards', dist:[372,418,368,144,368,136,447,166,176] }));
+      ok('yards are read as yd', !py.error && py.courses[0].unit === 'yd' && py.courses[0].dist[0] === 372);
+      storeSet('fl4_golf', [ cD ]);
+      openGolfImport();
+      document.getElementById('golfImportJson').value = file({ name:'Nine', holes:9, pars:P9, dist:[] });
+      document.getElementById('golfImportNext').click();
+      ok('the preview says saved distances are kept when the file has none',
+        document.getElementById('golfContent').textContent.indexOf('Keeps your saved distances') !== -1);
+      document.getElementById('golfImportGo').click();
+      ok('and Import keeps them', golfFind(getGolf(), 1).dist[0] === 340);
+      golfApplyImport(golfImportPlan(py.courses));
+      ok('an imported course carries its distances and unit',
+        golfCourses().some(function(c){ return c.name === 'Yards GC' && c.unit === 'yd' && c.dist[6] === 447; }));
+
       // ── Backup round trip ────────────────────────────────────────────────
       storeSet('fl4_golf', []);
       storeSet('fl4_tomb_golf', { 40:Date.now() });
