@@ -1070,7 +1070,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v505 · 05/10/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v506 · 06/10/2026</div>
 
   </div>
 </div>
@@ -10635,6 +10635,26 @@ function recipeSearchText(r) {
   return ((r.name || "") + " " + (r.notes || "") + " " + (r.category || "") + " " +
           (r.prep || "") + " " + (r.method || "") + " " + ings).toLowerCase();
 }
+// v506: Favourites order — most-opened first, then A–Z. The counts live in
+// fl4_recipe_opens ({recipeId: n}), DEVICE-LOCAL: not synced, not exported.
+// Deliberately NOT a field on the recipe — bumping r.updated on every open
+// would let a mere glance on one phone beat the partner's real edit in the
+// newest-wins recipe merge. Each device orders by its own use.
+function getRecipeOpens() { var o = storeGet("fl4_recipe_opens"); return (o && typeof o === "object" && !Array.isArray(o)) ? o : {}; }
+function noteRecipeOpened(id) {
+  if (id == null) return;
+  var o = getRecipeOpens();
+  o[id] = (+o[id] || 0) + 1;
+  storeSet("fl4_recipe_opens", o);
+}
+function sortRecipesByUse(list) {
+  var o = getRecipeOpens();
+  return list.slice().sort(function(a, b){
+    var d = (+o[b.id] || 0) - (+o[a.id] || 0);
+    if (d) return d;
+    return (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" });
+  });
+}
 function renderRecipes() {
   _recipeEditing = false; // reaching the list/detail dispatcher means the editor isn't open
   seedRecipes();
@@ -10675,6 +10695,7 @@ function renderRecipes() {
     if (_recipeFilter === "fav") return !!r.fav;
     return (r.category||"").trim() === _recipeFilter;
   });
+  if (_recipeFilter === "fav") shown = sortRecipesByUse(shown);
   // Recipe search (v383). Two changes that only work as a pair.
   // WIDER haystack: name+notes alone could not answer "which recipe used the
   // chorizo?" — ingredients, method and category are searched too now.
@@ -10813,6 +10834,7 @@ function renderRecipes() {
         return;
       }
       _recipeOpenId = id;
+      noteRecipeOpened(id);
       _recipeScrollPos = window.scrollY;
       var r = getRecipeBook().find(function(x){ return x.id === _recipeOpenId; });
       _recipeServings = (r && r.servings) || 1;
@@ -11054,6 +11076,7 @@ function openMealPlanDaySheet(day) {
     document.getElementById("mpOpenRecipeBtn").addEventListener("click", function(){
       close();
       _recipeOpenId = recipe.id;
+      noteRecipeOpened(recipe.id);
       _recipeServings = entry.servings || recipe.servings || 1;
       resetRecipeTicks(recipe.id);
       _recipeView = "detail";
@@ -16788,6 +16811,7 @@ function buildExportPayload() {
   //  fl4_last_cloudbackup, fl4_tomb_* (sync deletion tombstones),
   //  fl4_mealplan_prompted (device-local weekly roll-over banner marker, v362),
   //  fl4_pullup_open (v482: which Pull-up Plan session is expanded, device UI),
+  //  fl4_recipe_opens (v506: per-device recipe open counts for the Favourites order),
   //  fl4_tidy_undo (v366: device-local single-slot receipt for putting a recipe
   //   tidy back; a short-lived safety net, deliberately not version history).
   //  Used by BOTH the manual file export and the daily cloud backup — one
