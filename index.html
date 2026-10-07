@@ -682,7 +682,7 @@ body.train-mode #toast{background:#3A3328}
 .pu-rules-body{padding-bottom:12px;font-size:13px;color:#8A7A5A;line-height:1.55}
 .pu-rules-body .ycue-list{max-width:none;margin:0}
 .pu-rules-body .ycue-list li{font-size:13px}
-.pu-warn{background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;font-size:12px;color:#e0c060;line-height:1.5}
+.pu-warn{background:#FCEFD6;border:1px solid #E2B867;border-radius:10px;padding:12px 14px;font-size:14px;color:#3E2A06;line-height:1.55}
 .pu-info{background:#F4F1E8;border:1px solid #E0DCD4;border-radius:10px;padding:10px 13px;margin-top:12px;font-size:12px;line-height:1.5}
 .pu-h{font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px}
 .pu-week{margin-bottom:16px}
@@ -22156,7 +22156,7 @@ function renderYogaSession() {
       "<div class='ses-intro-ico'>&#x1F9D8;</div>" +
       "<div class='ses-intro-name'>"+esc(YOGA_TRAIN_NAMES[SS.yFlowIdx])+"</div>" +
       "<div class='ses-intro-sub'>"+flow.length+" poses &middot; ~"+Math.round(yogaFlowTotal(SS.yFlow)/60)+" min</div>" +
-      (YOGA_TRAIN_NOTES[SS.yFlowIdx] ? "<div style='width:100%;max-width:320px;background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#e0c060;line-height:1.5;text-align:left'>&#x26A0;&#xFE0F; "+esc(YOGA_TRAIN_NOTES[SS.yFlowIdx])+"</div>" : "") +
+      (YOGA_TRAIN_NOTES[SS.yFlowIdx] ? "<div style='width:100%;max-width:320px;background:#FCEFD6;border:1px solid #E2B867;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:14px;color:#3E2A06;line-height:1.55;text-align:left'>&#x26A0;&#xFE0F; "+esc(YOGA_TRAIN_NOTES[SS.yFlowIdx])+"</div>" : "") +
       yogaVariantPickerHtml() +
       "<div style='width:100%;max-width:320px;background:#fff;border:1px solid #E0DCD4;border-radius:12px;padding:12px 14px;margin-bottom:28px;text-align:left'>"+exList+"</div>" +
       "<button class='ses-begin-btn' style='background:#8b5cf6' onclick='beginYoga()'>Begin practice</button>" +
@@ -22450,7 +22450,7 @@ function renderPhysioSession() {
       "<div class='ses-intro-ico'>"+prog.icon+"</div>" +
       "<div class='ses-intro-name'>"+prog.name.replace(/&amp;/g,"&")+"</div>" +
       "<div class='ses-intro-sub'>"+prog.exercises.length+" exercises &middot; "+prog.note+"</div>" +
-      (prog.warning ? "<div style='width:100%;max-width:320px;background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#e0c060;line-height:1.5;text-align:left'>&#x26A0;&#xFE0F; "+prog.warning+"</div>" : "") +
+      (prog.warning ? "<div style='width:100%;max-width:320px;background:#FCEFD6;border:1px solid #E2B867;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:14px;color:#3E2A06;line-height:1.55;text-align:left'>&#x26A0;&#xFE0F; "+prog.warning+"</div>" : "") +
       physioLevelPickerHtml(prog, col) +
       "<div style='width:100%;max-width:320px;background:#fff;border:1px solid #E0DCD4;border-radius:12px;padding:12px 14px;margin-bottom:"+(prog.info?"14px":"28px")+";text-align:left'>"+exList+"</div>" +
       (prog.info ? "<div style='width:100%;max-width:320px;background:#F4F1E8;border:1px solid #E0DCD4;border-radius:10px;padding:10px 13px;margin-bottom:28px;font-size:12px;color:#8A7A5A;line-height:1.5;text-align:left'>"+esc(prog.info)+"</div>" : "") +

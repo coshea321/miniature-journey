@@ -73,6 +73,20 @@ module.exports = {
       ok('Pull Day does not prefill from her session', !Object.keys(wktLastEntries('pull')).some(function(k){ return /b_/.test(k); }));
       var d = getWD(); d.workouts = d.workouts.filter(function(x){ return x !== d.workouts[0] || x.sessionName !== 'Beginner Pull Day'; }); saveWD(d);
 
+      // v507: every Train caution box is the light amber one now — yoga,
+      // physio and the Pull-up Plan as well as Pull/Push Day.
+      SS = { type:'yoga', yFlowIdx:0, yPoseIdx:0, yTime:0, yStarted:false, yPaused:false, yPhase:'intro' };
+      var sb = document.getElementById('sesBody');
+      try { openYogaSession(0); } catch(e) {}
+      ok('yoga intro uses the light caution box', sb.innerHTML.indexOf('#3a2a10') === -1 && sb.innerHTML.indexOf('#FCEFD6') !== -1, sb.innerHTML.slice(0,200));
+      try { closeSessionOverlay(); } catch(e) {}
+      try { openPhysioSession(1); } catch(e) {}
+      ok('physio intro uses the light caution box', sb.innerHTML.indexOf('#3a2a10') === -1 && sb.innerHTML.indexOf('#FCEFD6') !== -1, sb.innerHTML.slice(0,200));
+      try { closeSessionOverlay(); } catch(e) {}
+      var probe = document.createElement('div'); probe.className = 'pu-warn'; document.body.appendChild(probe);
+      var bg = getComputedStyle(probe).backgroundColor; probe.remove();
+      ok('Pull-up Plan warning (.pu-warn) is light', bg === 'rgb(252, 239, 214)', bg);
+
       // Cards
       if (document.getElementById('progGrid')) {
         currentTrainView = 'programs'; renderTrainPrograms();
