@@ -682,7 +682,7 @@ body.train-mode #toast{background:#3A3328}
 .pu-rules-body{padding-bottom:12px;font-size:13px;color:#8A7A5A;line-height:1.55}
 .pu-rules-body .ycue-list{max-width:none;margin:0}
 .pu-rules-body .ycue-list li{font-size:13px}
-.pu-warn{background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;font-size:12px;color:#e0c060;line-height:1.5}
+.pu-warn{background:#FCEFD6;border:1px solid #E2B867;border-radius:10px;padding:12px 14px;font-size:14px;color:#3E2A06;line-height:1.55}
 .pu-info{background:#F4F1E8;border:1px solid #E0DCD4;border-radius:10px;padding:10px 13px;margin-top:12px;font-size:12px;line-height:1.5}
 .pu-h{font-size:11px;font-weight:700;color:#8A7A5A;text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px}
 .pu-week{margin-bottom:16px}
@@ -1070,7 +1070,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v506 · 06/10/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v507 · 07/10/2026</div>
 
   </div>
 </div>
@@ -21465,6 +21465,13 @@ function playChime(){
 // Shown on the intro screen (note) and on each superset card (cue).
 var WK_TRAIN_NOTE = "Reviewed 30/08/2026 against a 4 cm hiatus hernia, mild bilateral L5/S1 foraminal stenosis and an L4/L5 disc bulge. Two rules run through the whole session. Breathe out on the effort and never hold your breath under load — a held breath is exactly the pressure spike a hernia this size does not want. And keep the lower back in the middle of its range, neither arched nor rounded: arching closes the L5/S1 foramen, rounding under load is what an L4/L5 bulge feels. Train at least 2–3 hours after eating, and not in the first hour after waking. Stop for regurgitation, chest or upper-abdominal pressure, or symptoms travelling further down a leg. New saddle numbness, bladder or bowel changes, foot drop or progressive weakness need urgent medical assessment.";
 
+// Beginner days (v507) — plain beginner guidance for someone with no medical
+// history; NOT the clinical note above. Its own conditioning, for the same reason.
+var WK_BEGINNER_NOTE = "Beginner plan — two rounds of each pair for the first 3–4 weeks. Finish every set with 2–3 good reps still in the tank; never train to failure. Breathe out on the effort. When every set feels easy for two sessions in a row, make ONE thing harder: a harder version from the tips, or a little more weight. Stop for sharp or joint pain, dizziness or chest pain — mild muscle soreness the next day is normal.";
+var COND_BEGINNER = {rounds:2,exercises:[
+  {id:'b_step_ups',name:'Step-ups',type:'reps',cue:"Lowest rung of the step ladder, holding the frame for balance. Step up with the whole foot, stand tall at the top, step down with control. Aim for 8–10 per leg. Go slower rather than higher if the knees complain."},
+  {id:'b_marching',name:'Marching in Place',type:'duration',cue:"Brisk but easy pace, knees up to a comfortable height, arms swinging. You should still be able to talk. Aim for 30–45 seconds."}
+]};
 var WK_TRAIN = {
   pull:{name:'Pull Day',color:'#3b82f6',emoji:'&#x1F535;',note:WK_TRAIN_NOTE,supersets:[
     {id:'A',rounds:3,restSec:90,exercises:[
@@ -21484,6 +21491,35 @@ var WK_TRAIN = {
     {id:'B',rounds:3,restSec:90,exercises:[
       {id:'pushups',name:'Push-ups',type:'reps',cue:"Hands under the shoulders, ribs down, hips level — as much a plank as a press, so no sag in the lower back. Put your hands on a rung of the step ladder to take weight off, and go up a rung any time a full push-up makes you hold your breath. Breathe out on the way up, every rep."},
       {id:'side_plank',name:'Side Plank',type:'duration',cue:"From the knees is fine and is the version to start on. Shoulder stacked over the elbow, hips lifted into one straight line, and keep breathing normally right through the hold. Side plank is one of the lowest-compression ways to train the trunk, which is why it stays — but only if it does not turn into a breath-hold."}
+    ]}
+  ]},
+  // ── Beginner Pull / Push Day (v507) ─────────────────────────────────────
+  // For Cathal's wife: a beginner with NO hernia or back history, so these
+  // deliberately do NOT carry WK_TRAIN_NOTE or the clinical cues above — they
+  // are plain beginner coaching. Separate programmes, not a "level" on the two
+  // days above, because the safety text is his and would mislead her.
+  // Same kit (bar, rings, step ladder, a dumbbell/kettlebell). 2 rounds, not 3.
+  // Model-written general fitness, not physio-checked. Exercise NAMES key the
+  // prefill (wktLastEntries, matched within this sessionName), so treat them as
+  // frozen once she has history, the same rule as the days above.
+  pullb:{name:'Beginner Pull Day',color:'#0ea5e9',emoji:'&#x1F535;',note:WK_BEGINNER_NOTE,noteLight:true,cond:COND_BEGINNER,supersets:[
+    {id:'A',rounds:2,restSec:90,exercises:[
+      {id:'b_rows',name:'Ring Rows',type:'reps',cue:"Rings at about waist height. Hold them, walk your feet in a little and lean back on straight arms — the more upright you stand, the easier it is. Body in one straight line, pull the rings to your lower ribs, squeeze the shoulder blades together, then lower slowly. Breathe out as you pull. Aim for 8–12 reps. Harder later: walk the feet further forward."},
+      {id:'b_goblet',name:'Goblet Squat',type:'weighted',cue:"Hold one dumbbell or kettlebell against your chest with both hands, feet a little wider than hips, toes slightly out. Sit down between your heels as if onto a low chair, chest up, knees tracking over the toes, then stand. Only go as deep as feels comfortable on the knees — a shallower squat is a real squat. Start with bodyweight or a light weight. Aim for 8–12 reps."}
+    ]},
+    {id:'B',rounds:2,restSec:90,exercises:[
+      {id:'b_hang',name:'Assisted Dead Hang',type:'duration',cue:"Hang from the bar or rings with an overhand grip, hands shoulder-width apart, keeping one or both feet on a rung of the step ladder so your legs take some of your weight. Arms straight, shoulders gently pulled down away from the ears, breathe normally throughout. Log the seconds held. Aim for 15–20 seconds. Harder later: take less weight through the feet, then lift them off for a full hang — the first step towards a pull-up."},
+      {id:'b_bridge',name:'Glute Bridge',type:'reps',cue:"Lie on your back, knees bent, feet flat and hip-width apart. Push through your heels and lift the hips until there is a straight line from knees to shoulders, squeeze the glutes for a second at the top, lower slowly. Aim for 10–15 reps. Harder later: march one knee up at a time at the top without the hips dropping."}
+    ]}
+  ]},
+  pushb:{name:'Beginner Push Day',color:'#f97316',emoji:'&#x1F534;',note:WK_BEGINNER_NOTE,noteLight:true,cond:COND_BEGINNER,supersets:[
+    {id:'A',rounds:2,restSec:90,exercises:[
+      {id:'b_pushups',name:'Incline Push-ups',type:'reps',cue:"Hands on a high rung of the step ladder (or a kitchen counter), a bit wider than the shoulders, body in one straight line from head to heels. Lower your chest towards your hands with elbows angled back, not flared out, then push away. Breathe out as you push. Aim for 8–12 reps. Harder later: move the hands to a lower rung."},
+      {id:'b_rdl',name:'Romanian Deadlift',type:'weighted',cue:"Stand tall holding a dumbbell or kettlebell in front of your thighs, knees soft. Push your hips back and slide the weight down the front of your legs, back flat, until you feel a stretch in the backs of the thighs — around the knees is plenty. Squeeze the glutes to stand back up. Start light. Aim for 8–12 reps. Later: single-leg, holding a ring for balance."}
+    ]},
+    {id:'B',rounds:2,restSec:90,exercises:[
+      {id:'b_dips',name:'Bench Dips',type:'reps',cue:"Hands on a low rung of the step ladder behind you, fingers forward, knees BENT and feet close in — that is the easy version. Bend the elbows straight back and lower only a little, stopping well before the upper arms reach parallel, then press up. Aim for 6–10 reps. If the fronts of the shoulders complain, skip them and log 0."},
+      {id:'b_sideplank',name:'Side Plank (knees)',type:'duration',cue:"On your side, elbow under the shoulder, knees bent behind you. Lift the hips so there is a straight line from knees to head and hold, breathing normally. Do both sides each round — log the seconds held per side. Aim for 15–20 seconds. Harder later: straighten the legs and balance on the feet."}
     ]}
   ]}
 };
@@ -21987,6 +22023,9 @@ function renderTrainPrograms() {
   var programs = [
     { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#E8EFFA,#F0F5FC)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Ring Rows · Split Squats · Assisted Pull-ups · Bridge", descColor:"#2A5AB0" },
     { type:"workout", key:"push",  bg:"linear-gradient(135deg,#FBEAEA,#FCF2F2)", border:"#ef444430", icon:"&#x1F534;", name:"Push Day", desc:"Bench Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B03030" },
+    // v507: beginner versions for Cathal's wife — no clinical note, 2 rounds.
+    { type:"workout", key:"pullb", bg:"linear-gradient(135deg,#E3F3FB,#EEF8FD)", border:"#0ea5e940", icon:"&#x1F535;", name:"Beginner Pull Day", tag:"Fitness", desc:"Ring Rows · Goblet Squat · Dead Hang · Bridge", descColor:"#0A6A9A" },
+    { type:"workout", key:"pushb", bg:"linear-gradient(135deg,#FDEFE3,#FEF6EE)", border:"#f9731640", icon:"&#x1F534;", name:"Beginner Push Day", tag:"Fitness", desc:"Incline Push-ups · Romanian DL · Bench Dips · Side Plank", descColor:"#B0500A" },
     // v482: the only card whose desc reads saved progress — it is the one programme that keeps any.
     { type:"pullup",  key:0,       bg:"linear-gradient(135deg,#E8EFFA,#F0F5FC)", border:"#3b82f640", icon:"&#x1F4AA;", name:"Pull-up Plan", tag:"Fitness", desc:pullupSessionsDone(pullupState())+" of "+pullupTotalSessions()+" sessions · 4 weeks", descColor:"#2A5AB0" },
     { type:"yoga",    key:0,       bg:"linear-gradient(135deg,#EAE4F8,#F2EDFB)", border:"#8b5cf650", icon:"&#x1F9D8;", name:"Full Body Flow", tag:"Physio", desc:_fbFlow.length+" poses · ~"+Math.round(yogaFlowTotal(_fbFlow)/60)+" min · your version", descColor:"#6A3CB0" },
@@ -22117,7 +22156,7 @@ function renderYogaSession() {
       "<div class='ses-intro-ico'>&#x1F9D8;</div>" +
       "<div class='ses-intro-name'>"+esc(YOGA_TRAIN_NAMES[SS.yFlowIdx])+"</div>" +
       "<div class='ses-intro-sub'>"+flow.length+" poses &middot; ~"+Math.round(yogaFlowTotal(SS.yFlow)/60)+" min</div>" +
-      (YOGA_TRAIN_NOTES[SS.yFlowIdx] ? "<div style='width:100%;max-width:320px;background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#e0c060;line-height:1.5;text-align:left'>&#x26A0;&#xFE0F; "+esc(YOGA_TRAIN_NOTES[SS.yFlowIdx])+"</div>" : "") +
+      (YOGA_TRAIN_NOTES[SS.yFlowIdx] ? "<div style='width:100%;max-width:320px;background:#FCEFD6;border:1px solid #E2B867;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:14px;color:#3E2A06;line-height:1.55;text-align:left'>&#x26A0;&#xFE0F; "+esc(YOGA_TRAIN_NOTES[SS.yFlowIdx])+"</div>" : "") +
       yogaVariantPickerHtml() +
       "<div style='width:100%;max-width:320px;background:#fff;border:1px solid #E0DCD4;border-radius:12px;padding:12px 14px;margin-bottom:28px;text-align:left'>"+exList+"</div>" +
       "<button class='ses-begin-btn' style='background:#8b5cf6' onclick='beginYoga()'>Begin practice</button>" +
@@ -22411,7 +22450,7 @@ function renderPhysioSession() {
       "<div class='ses-intro-ico'>"+prog.icon+"</div>" +
       "<div class='ses-intro-name'>"+prog.name.replace(/&amp;/g,"&")+"</div>" +
       "<div class='ses-intro-sub'>"+prog.exercises.length+" exercises &middot; "+prog.note+"</div>" +
-      (prog.warning ? "<div style='width:100%;max-width:320px;background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#e0c060;line-height:1.5;text-align:left'>&#x26A0;&#xFE0F; "+prog.warning+"</div>" : "") +
+      (prog.warning ? "<div style='width:100%;max-width:320px;background:#FCEFD6;border:1px solid #E2B867;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:14px;color:#3E2A06;line-height:1.55;text-align:left'>&#x26A0;&#xFE0F; "+prog.warning+"</div>" : "") +
       physioLevelPickerHtml(prog, col) +
       "<div style='width:100%;max-width:320px;background:#fff;border:1px solid #E0DCD4;border-radius:12px;padding:12px 14px;margin-bottom:"+(prog.info?"14px":"28px")+";text-align:left'>"+exList+"</div>" +
       (prog.info ? "<div style='width:100%;max-width:320px;background:#F4F1E8;border:1px solid #E0DCD4;border-radius:10px;padding:10px 13px;margin-bottom:28px;font-size:12px;color:#8A7A5A;line-height:1.5;text-align:left'>"+esc(prog.info)+"</div>" : "") +
@@ -22590,7 +22629,7 @@ function renderWorkoutSession() {
   if (SS.wPhase === "intro") {
     var allExs = [];
     wk.supersets.forEach(function(ss2){ ss2.exercises.forEach(function(ex){ allExs.push(ex); }); });
-    allExs = allExs.concat(COND_TRAIN.exercises);
+    allExs = allExs.concat(wktCond().exercises);
     var exList = allExs.map(function(ex,i){
       return "<div class='ses-intro-ex'>" +
         "<div class='ses-intro-ex-num' style='background:"+wk.color+"30;color:"+wk.color+"'>"+(i+1)+"</div>" +
@@ -22599,10 +22638,15 @@ function renderWorkoutSession() {
       "</div>";
     }).join("");
     body.innerHTML = "<div class='ses-intro'>" +
-      "<div class='ses-intro-ico'>"+(SS.wType==="pull"?"&#x1F4AA;":"&#x1F525;")+"</div>" +
+      "<div class='ses-intro-ico'>"+(/^pull/.test(SS.wType)?"&#x1F4AA;":"&#x1F525;")+"</div>" +
       "<div class='ses-intro-name'>"+wk.name+"</div>" +
-      "<div class='ses-intro-sub'>"+wk.supersets.length+" supersets &middot; 3 rounds each &middot; 90s rest</div>" +
-      (wk.note ? "<div style='width:100%;max-width:320px;background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#e0c060;line-height:1.5;text-align:left'>&#x26A0;&#xFE0F; "+esc(wk.note)+"</div>" : "") +
+      "<div class='ses-intro-sub'>"+wk.supersets.length+" supersets &middot; "+wk.supersets[0].rounds+" rounds each &middot; "+wk.supersets[0].restSec+"s rest</div>" +
+      // v507: both boxes are light with larger dark text, for readability.
+      // Beginner days (noteLight) are guidance: cream + 💡. Pull/Push Day carry
+      // Cathal's clinical caution, so they keep the ⚠️ on a warmer amber.
+      (wk.note ? (wk.noteLight
+        ? "<div style='width:100%;max-width:320px;background:#FBF4E2;border:1px solid #E6D3A0;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:14px;color:#3A2E12;line-height:1.55;text-align:left'>&#x1F4A1; "+esc(wk.note)+"</div>"
+        : "<div style='width:100%;max-width:320px;background:#FCEFD6;border:1px solid #E2B867;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:14px;color:#3E2A06;line-height:1.55;text-align:left'>&#x26A0;&#xFE0F; "+esc(wk.note)+"</div>") : "") +
       "<div class='ses-intro-list'>"+exList+"</div>" +
       "<button class='ses-begin-btn' style='background:"+wk.color+"' onclick='beginWorkout()'>Start workout</button>" +
       "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
@@ -22636,7 +22680,7 @@ function renderWorkoutSession() {
       "<div style='font-size:14px;color:#8A7A5A;margin-bottom:22px'>Add conditioning?</div>" +
       "<div class='cond-opt' onclick='startConditioning()'>" +
         "<div class='cond-opt-title'>Yes, add conditioning</div>" +
-        "<div class='cond-opt-sub'>"+COND_TRAIN.exercises[0].name+" + "+COND_TRAIN.exercises[1].name+" &middot; "+COND_TRAIN.rounds+" rounds</div>" +
+        "<div class='cond-opt-sub'>"+wktCond().exercises[0].name+" + "+wktCond().exercises[1].name+" &middot; "+wktCond().rounds+" rounds</div>" +
       "</div>" +
       "<div class='cond-opt' onclick='finishWorkoutSession(false)'>" +
         "<div class='cond-opt-title'>No thanks, I\'m done</div>" +
@@ -22647,7 +22691,7 @@ function renderWorkoutSession() {
   }
 
   if (SS.wPhase === "cond") {
-    var exHtml = COND_TRAIN.exercises.map(function(ex,i){
+    var exHtml = wktCond().exercises.map(function(ex,i){
       var key = "cond_"+SS.wCondRound+"_"+ex.id;
       var val = wktFillEntry("cond", SS.wCondRound, ex);
       return "<div class='ss-ex'>" +
@@ -22656,7 +22700,7 @@ function renderWorkoutSession() {
       "</div>";
     }).join("");
     body.innerHTML = "<div class='ss-card'>" +
-      "<div class='ss-card-hdr'><span class='ss-card-label'>Conditioning</span><span class='ss-card-round'>Round "+SS.wCondRound+" of "+COND_TRAIN.rounds+"</span></div>" +
+      "<div class='ss-card-hdr'><span class='ss-card-label'>Conditioning</span><span class='ss-card-round'>Round "+SS.wCondRound+" of "+wktCond().rounds+"</span></div>" +
       exHtml + "</div>" +
       "<button class='ss-done-btn' onclick='completeCondRound()'>Done</button>";
     wireInputs();
@@ -22830,9 +22874,13 @@ function skipWorkoutRest() {
   if (SS._onRestDone) { SS._onRestDone(); SS._onRestDone=null; }
 }
 
+// Each day's conditioning block: the Beginner days carry their own (v507),
+// Pull/Push Day fall back to COND_TRAIN.
+function wktCond() { var wk = WK_TRAIN[SS.wType]; return (wk && wk.cond) || COND_TRAIN; }
+
 function startConditioning() { SS.wPhase="cond"; SS.wCondRound=1; renderWorkoutSession(); }
 function completeCondRound() {
-  if (SS.wCondRound < COND_TRAIN.rounds) { SS.wCondRound++; renderWorkoutSession(); }
+  if (SS.wCondRound < wktCond().rounds) { SS.wCondRound++; renderWorkoutSession(); }
   else { finishWorkoutSession(true); }
 }
 
