@@ -42,6 +42,11 @@ module.exports = {
       var h = document.getElementById('sesBody').innerHTML;
       ok('beginner intro says 2 rounds', h.indexOf('2 rounds each') !== -1, h.slice(0,200));
       ok('beginner intro shows no clinical note', h.indexOf('hernia') === -1);
+      ok('beginner note uses the light box, not the dark safety box',
+        h.indexOf('#FBF4E2') !== -1 && h.indexOf('#3a2a10') === -1, h.slice(0,300));
+      ok('Beginner Pull Day uses an assisted dead hang (timed), not pull-ups',
+        exs('pullb').some(function(e){ return e.name === 'Assisted Dead Hang' && e.type === 'duration'; }) &&
+        !exs('pullb').some(function(e){ return /pull-up/i.test(e.name); }));
       ok('beginner intro lists its own conditioning', h.indexOf('Marching in Place') !== -1);
       SS.wPhase = 'cond'; renderWorkoutSession();
       h = document.getElementById('sesBody').innerHTML;
@@ -51,8 +56,8 @@ module.exports = {
       ok('Pull Day conditioning is unchanged', h.indexOf('lower than feels necessary') !== -1);
       SS.wPhase = 'intro'; renderWorkoutSession();
       h = document.getElementById('sesBody').innerHTML;
-      ok('Pull Day intro still says 3 rounds and shows the note',
-        h.indexOf('3 rounds each') !== -1 && h.indexOf('never hold your breath') !== -1);
+      ok('Pull Day intro still says 3 rounds and shows the note in the dark box',
+        h.indexOf('3 rounds each') !== -1 && h.indexOf('never hold your breath') !== -1 && h.indexOf('#3a2a10') !== -1);
 
       // Saving keeps the beginner session name; prefill matches it only
       var before = (getWD().workouts||[]).length;

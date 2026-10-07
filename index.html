@@ -21502,17 +21502,17 @@ var WK_TRAIN = {
   // Model-written general fitness, not physio-checked. Exercise NAMES key the
   // prefill (wktLastEntries, matched within this sessionName), so treat them as
   // frozen once she has history, the same rule as the days above.
-  pullb:{name:'Beginner Pull Day',color:'#0ea5e9',emoji:'&#x1F535;',note:WK_BEGINNER_NOTE,cond:COND_BEGINNER,supersets:[
+  pullb:{name:'Beginner Pull Day',color:'#0ea5e9',emoji:'&#x1F535;',note:WK_BEGINNER_NOTE,noteLight:true,cond:COND_BEGINNER,supersets:[
     {id:'A',rounds:2,restSec:90,exercises:[
       {id:'b_rows',name:'Ring Rows',type:'reps',cue:"Rings at about waist height. Hold them, walk your feet in a little and lean back on straight arms — the more upright you stand, the easier it is. Body in one straight line, pull the rings to your lower ribs, squeeze the shoulder blades together, then lower slowly. Breathe out as you pull. Aim for 8–12 reps. Harder later: walk the feet further forward."},
       {id:'b_goblet',name:'Goblet Squat',type:'weighted',cue:"Hold one dumbbell or kettlebell against your chest with both hands, feet a little wider than hips, toes slightly out. Sit down between your heels as if onto a low chair, chest up, knees tracking over the toes, then stand. Only go as deep as feels comfortable on the knees — a shallower squat is a real squat. Start with bodyweight or a light weight. Aim for 8–12 reps."}
     ]},
     {id:'B',rounds:2,restSec:90,exercises:[
-      {id:'b_pullups',name:'Assisted Pull-ups',type:'reps',cue:"Take plenty of help: a foot on a rung of the step ladder, or rings set low enough to stand under and push through your legs. Pull until the chin reaches the bar or rings, lower slowly. Use as much leg help as you need to get 5–8 smooth reps. If that is still too much, do slow lowerings instead — step up to the top position and lower yourself over 3–5 seconds."},
+      {id:'b_hang',name:'Assisted Dead Hang',type:'duration',cue:"Hang from the bar or rings with an overhand grip, hands shoulder-width apart, keeping one or both feet on a rung of the step ladder so your legs take some of your weight. Arms straight, shoulders gently pulled down away from the ears, breathe normally throughout. Log the seconds held. Aim for 15–20 seconds. Harder later: take less weight through the feet, then lift them off for a full hang — the first step towards a pull-up."},
       {id:'b_bridge',name:'Glute Bridge',type:'reps',cue:"Lie on your back, knees bent, feet flat and hip-width apart. Push through your heels and lift the hips until there is a straight line from knees to shoulders, squeeze the glutes for a second at the top, lower slowly. Aim for 10–15 reps. Harder later: march one knee up at a time at the top without the hips dropping."}
     ]}
   ]},
-  pushb:{name:'Beginner Push Day',color:'#f97316',emoji:'&#x1F534;',note:WK_BEGINNER_NOTE,cond:COND_BEGINNER,supersets:[
+  pushb:{name:'Beginner Push Day',color:'#f97316',emoji:'&#x1F534;',note:WK_BEGINNER_NOTE,noteLight:true,cond:COND_BEGINNER,supersets:[
     {id:'A',rounds:2,restSec:90,exercises:[
       {id:'b_pushups',name:'Incline Push-ups',type:'reps',cue:"Hands on a high rung of the step ladder (or a kitchen counter), a bit wider than the shoulders, body in one straight line from head to heels. Lower your chest towards your hands with elbows angled back, not flared out, then push away. Breathe out as you push. Aim for 8–12 reps. Harder later: move the hands to a lower rung."},
       {id:'b_rdl',name:'Romanian Deadlift',type:'weighted',cue:"Stand tall holding a dumbbell or kettlebell in front of your thighs, knees soft. Push your hips back and slide the weight down the front of your legs, back flat, until you feel a stretch in the backs of the thighs — around the knees is plenty. Squeeze the glutes to stand back up. Start light. Aim for 8–12 reps. Later: single-leg, holding a ring for balance."}
@@ -22024,7 +22024,7 @@ function renderTrainPrograms() {
     { type:"workout", key:"pull",  bg:"linear-gradient(135deg,#E8EFFA,#F0F5FC)", border:"#3b82f640", icon:"&#x1F535;", name:"Pull Day", desc:"Ring Rows · Split Squats · Assisted Pull-ups · Bridge", descColor:"#2A5AB0" },
     { type:"workout", key:"push",  bg:"linear-gradient(135deg,#FBEAEA,#FCF2F2)", border:"#ef444430", icon:"&#x1F534;", name:"Push Day", desc:"Bench Dips · Single-leg DL · Push-ups · Side Plank", descColor:"#B03030" },
     // v507: beginner versions for Cathal's wife — no clinical note, 2 rounds.
-    { type:"workout", key:"pullb", bg:"linear-gradient(135deg,#E3F3FB,#EEF8FD)", border:"#0ea5e940", icon:"&#x1F535;", name:"Beginner Pull Day", tag:"Fitness", desc:"Ring Rows · Goblet Squat · Assisted Pull-ups · Bridge", descColor:"#0A6A9A" },
+    { type:"workout", key:"pullb", bg:"linear-gradient(135deg,#E3F3FB,#EEF8FD)", border:"#0ea5e940", icon:"&#x1F535;", name:"Beginner Pull Day", tag:"Fitness", desc:"Ring Rows · Goblet Squat · Dead Hang · Bridge", descColor:"#0A6A9A" },
     { type:"workout", key:"pushb", bg:"linear-gradient(135deg,#FDEFE3,#FEF6EE)", border:"#f9731640", icon:"&#x1F534;", name:"Beginner Push Day", tag:"Fitness", desc:"Incline Push-ups · Romanian DL · Bench Dips · Side Plank", descColor:"#B0500A" },
     // v482: the only card whose desc reads saved progress — it is the one programme that keeps any.
     { type:"pullup",  key:0,       bg:"linear-gradient(135deg,#E8EFFA,#F0F5FC)", border:"#3b82f640", icon:"&#x1F4AA;", name:"Pull-up Plan", tag:"Fitness", desc:pullupSessionsDone(pullupState())+" of "+pullupTotalSessions()+" sessions · 4 weeks", descColor:"#2A5AB0" },
@@ -22641,7 +22641,11 @@ function renderWorkoutSession() {
       "<div class='ses-intro-ico'>"+(/^pull/.test(SS.wType)?"&#x1F4AA;":"&#x1F525;")+"</div>" +
       "<div class='ses-intro-name'>"+wk.name+"</div>" +
       "<div class='ses-intro-sub'>"+wk.supersets.length+" supersets &middot; "+wk.supersets[0].rounds+" rounds each &middot; "+wk.supersets[0].restSec+"s rest</div>" +
-      (wk.note ? "<div style='width:100%;max-width:320px;background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#e0c060;line-height:1.5;text-align:left'>&#x26A0;&#xFE0F; "+esc(wk.note)+"</div>" : "") +
+      // The beginner days (v507) are guidance, not a clinical caution: a light,
+      // larger-type box. Pull/Push Day keep the dark amber safety box.
+      (wk.note ? (wk.noteLight
+        ? "<div style='width:100%;max-width:320px;background:#FBF4E2;border:1px solid #E6D3A0;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:14px;color:#3A2E12;line-height:1.55;text-align:left'>&#x1F4A1; "+esc(wk.note)+"</div>"
+        : "<div style='width:100%;max-width:320px;background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#e0c060;line-height:1.5;text-align:left'>&#x26A0;&#xFE0F; "+esc(wk.note)+"</div>") : "") +
       "<div class='ses-intro-list'>"+exList+"</div>" +
       "<button class='ses-begin-btn' style='background:"+wk.color+"' onclick='beginWorkout()'>Start workout</button>" +
       "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
