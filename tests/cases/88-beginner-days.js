@@ -27,7 +27,8 @@ module.exports = {
         ok(t + ' does not carry the clinical note', wk.note !== WK_TRAIN_NOTE && !/hernia/i.test(wk.note||''), (wk.note||'').slice(0,60));
         ok(t + ' has its own conditioning', wk.cond && wk.cond !== COND_TRAIN);
         var all = exs(t).concat(wk.cond.exercises);
-        ok(t + ' every exercise has a cue', all.every(function(e){ return e.cue && e.cue.length > 40; }));
+        ok(t + ' note offers no extra round - the rounds are fixed at 2 (Codex, PR #277)', !/extra round/i.test(wk.note||''));
+      ok(t + ' every exercise has a cue', all.every(function(e){ return e.cue && e.cue.length > 40; }));
         ok(t + ' no clinical wording leaks into the cues',
           all.every(function(e){ return !/hernia|foramen|L4|L5|stenosis/i.test(e.cue); }));
       });
@@ -43,7 +44,7 @@ module.exports = {
       ok('beginner intro says 2 rounds', h.indexOf('2 rounds each') !== -1, h.slice(0,200));
       ok('beginner intro shows no clinical note', h.indexOf('hernia') === -1);
       ok('beginner note uses the light box, not the dark safety box',
-        h.indexOf('#FBF4E2') !== -1 && h.indexOf('#3a2a10') === -1, h.slice(0,300));
+        h.indexOf('#FBF4E2') !== -1 && h.indexOf('#3a2a10') === -1 && h.indexOf('#FCEFD6') === -1, h.slice(0,300));
       ok('Beginner Pull Day uses an assisted dead hang (timed), not pull-ups',
         exs('pullb').some(function(e){ return e.name === 'Assisted Dead Hang' && e.type === 'duration'; }) &&
         !exs('pullb').some(function(e){ return /pull-up/i.test(e.name); }));
@@ -56,8 +57,8 @@ module.exports = {
       ok('Pull Day conditioning is unchanged', h.indexOf('lower than feels necessary') !== -1);
       SS.wPhase = 'intro'; renderWorkoutSession();
       h = document.getElementById('sesBody').innerHTML;
-      ok('Pull Day intro still says 3 rounds and shows the note in the dark box',
-        h.indexOf('3 rounds each') !== -1 && h.indexOf('never hold your breath') !== -1 && h.indexOf('#3a2a10') !== -1);
+      ok('Pull Day intro still says 3 rounds and shows the note in its light amber warning box',
+        h.indexOf('3 rounds each') !== -1 && h.indexOf('never hold your breath') !== -1 && h.indexOf('#FCEFD6') !== -1 && h.indexOf('#3a2a10') === -1);
 
       // Saving keeps the beginner session name; prefill matches it only
       var before = (getWD().workouts||[]).length;

@@ -21467,7 +21467,7 @@ var WK_TRAIN_NOTE = "Reviewed 30/08/2026 against a 4 cm hiatus hernia, mild bila
 
 // Beginner days (v507) — plain beginner guidance for someone with no medical
 // history; NOT the clinical note above. Its own conditioning, for the same reason.
-var WK_BEGINNER_NOTE = "Beginner plan — two rounds of each pair for the first 3–4 weeks. Finish every set with 2–3 good reps still in the tank; never train to failure. Breathe out on the effort. When every set feels easy for two sessions in a row, make ONE thing harder: an extra round, a harder version from the tips, or a little more weight. Stop for sharp or joint pain, dizziness or chest pain — mild muscle soreness the next day is normal.";
+var WK_BEGINNER_NOTE = "Beginner plan — two rounds of each pair for the first 3–4 weeks. Finish every set with 2–3 good reps still in the tank; never train to failure. Breathe out on the effort. When every set feels easy for two sessions in a row, make ONE thing harder: a harder version from the tips, or a little more weight. Stop for sharp or joint pain, dizziness or chest pain — mild muscle soreness the next day is normal.";
 var COND_BEGINNER = {rounds:2,exercises:[
   {id:'b_step_ups',name:'Step-ups',type:'reps',cue:"Lowest rung of the step ladder, holding the frame for balance. Step up with the whole foot, stand tall at the top, step down with control. Aim for 8–10 per leg. Go slower rather than higher if the knees complain."},
   {id:'b_marching',name:'Marching in Place',type:'duration',cue:"Brisk but easy pace, knees up to a comfortable height, arms swinging. You should still be able to talk. Aim for 30–45 seconds."}
@@ -21518,7 +21518,7 @@ var WK_TRAIN = {
       {id:'b_rdl',name:'Romanian Deadlift',type:'weighted',cue:"Stand tall holding a dumbbell or kettlebell in front of your thighs, knees soft. Push your hips back and slide the weight down the front of your legs, back flat, until you feel a stretch in the backs of the thighs — around the knees is plenty. Squeeze the glutes to stand back up. Start light. Aim for 8–12 reps. Later: single-leg, holding a ring for balance."}
     ]},
     {id:'B',rounds:2,restSec:90,exercises:[
-      {id:'b_dips',name:'Bench Dips',type:'reps',cue:"Hands on a low rung of the step ladder behind you, fingers forward, knees BENT and feet close in — that is the easy version. Bend the elbows straight back and lower only a little, stopping well before the upper arms reach parallel, then press up. Aim for 6–10 reps. Skip these and do another set of incline push-ups if the fronts of the shoulders complain."},
+      {id:'b_dips',name:'Bench Dips',type:'reps',cue:"Hands on a low rung of the step ladder behind you, fingers forward, knees BENT and feet close in — that is the easy version. Bend the elbows straight back and lower only a little, stopping well before the upper arms reach parallel, then press up. Aim for 6–10 reps. If the fronts of the shoulders complain, skip them and log 0."},
       {id:'b_sideplank',name:'Side Plank (knees)',type:'duration',cue:"On your side, elbow under the shoulder, knees bent behind you. Lift the hips so there is a straight line from knees to head and hold, breathing normally. Do both sides each round — log the seconds held per side. Aim for 15–20 seconds. Harder later: straighten the legs and balance on the feet."}
     ]}
   ]}
@@ -22641,11 +22641,12 @@ function renderWorkoutSession() {
       "<div class='ses-intro-ico'>"+(/^pull/.test(SS.wType)?"&#x1F4AA;":"&#x1F525;")+"</div>" +
       "<div class='ses-intro-name'>"+wk.name+"</div>" +
       "<div class='ses-intro-sub'>"+wk.supersets.length+" supersets &middot; "+wk.supersets[0].rounds+" rounds each &middot; "+wk.supersets[0].restSec+"s rest</div>" +
-      // The beginner days (v507) are guidance, not a clinical caution: a light,
-      // larger-type box. Pull/Push Day keep the dark amber safety box.
+      // v507: both boxes are light with larger dark text, for readability.
+      // Beginner days (noteLight) are guidance: cream + 💡. Pull/Push Day carry
+      // Cathal's clinical caution, so they keep the ⚠️ on a warmer amber.
       (wk.note ? (wk.noteLight
         ? "<div style='width:100%;max-width:320px;background:#FBF4E2;border:1px solid #E6D3A0;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:14px;color:#3A2E12;line-height:1.55;text-align:left'>&#x1F4A1; "+esc(wk.note)+"</div>"
-        : "<div style='width:100%;max-width:320px;background:#3a2a10;border:1px solid #6a5520;border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:#e0c060;line-height:1.5;text-align:left'>&#x26A0;&#xFE0F; "+esc(wk.note)+"</div>") : "") +
+        : "<div style='width:100%;max-width:320px;background:#FCEFD6;border:1px solid #E2B867;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:14px;color:#3E2A06;line-height:1.55;text-align:left'>&#x26A0;&#xFE0F; "+esc(wk.note)+"</div>") : "") +
       "<div class='ses-intro-list'>"+exList+"</div>" +
       "<button class='ses-begin-btn' style='background:"+wk.color+"' onclick='beginWorkout()'>Start workout</button>" +
       "<button class='ses-back-link' onclick='closeSessionOverlay()'>Cancel</button>" +
