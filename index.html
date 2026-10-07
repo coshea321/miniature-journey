@@ -1070,7 +1070,7 @@ li.rcp-done.rcp-ing{text-decoration:line-through}
     </div>
     <div class="home-week-strip" id="homeWeekStrip"></div>
 
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v507 · 07/10/2026</div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:#C8BEA8;font-weight:600;letter-spacing:.4px" id="appVersionLabel">v508 · 07/10/2026</div>
 
   </div>
 </div>
@@ -22085,7 +22085,9 @@ function closeSessionOverlay() {
 }
 
 document.getElementById("sesBackBtn").addEventListener("click", function(){
-  if (SS.type === "workout" && SS.wPhase !== "complete") {
+  // v508: not on the intro screen either — nothing is logged before Start, and
+  // the intro's own Cancel already closes without asking. Mid-workout it stays.
+  if (SS.type === "workout" && SS.wPhase !== "complete" && SS.wPhase !== "intro") {
     confirmDialog("Exit workout? Progress will be lost.", closeSessionOverlay);
     return;
   }
